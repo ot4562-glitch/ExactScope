@@ -214,7 +214,13 @@ where
         let value = match WorkRational::from_decimal(argument.decimal) {
             Ok(value) => value,
             Err(status) => {
-                return EvaluationResult::failure_runtime(status, pack_slot, operation, argument_index, 0);
+                return EvaluationResult::failure_runtime(
+                    status,
+                    pack_slot,
+                    operation,
+                    argument_index,
+                    0,
+                );
             }
         };
         work[index] = value;
@@ -281,7 +287,13 @@ where
     ) {
         Ok(value) => value,
         Err(status) => {
-            return EvaluationResult::failure_runtime(status, pack_slot, operation, ARGUMENT_INDEX_NONE, 0);
+            return EvaluationResult::failure_runtime(
+                status,
+                pack_slot,
+                operation,
+                ARGUMENT_INDEX_NONE,
+                0,
+            );
         }
     };
 
@@ -310,7 +322,13 @@ where
     let rounded = match exact.round_to_decimal(operation.output_scale, operation.rounding_mode) {
         Ok(value) => value,
         Err(status) => {
-            return EvaluationResult::failure_runtime(status, pack_slot, operation, ARGUMENT_INDEX_NONE, 0);
+            return EvaluationResult::failure_runtime(
+                status,
+                pack_slot,
+                operation,
+                ARGUMENT_INDEX_NONE,
+                0,
+            );
         }
     };
 
