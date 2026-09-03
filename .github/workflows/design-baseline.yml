@@ -127,3 +127,6 @@ jobs:
 
       - name: Inspect no-import WebAssembly artifact
         run: python tools/inspect_wasm.py target/wasm32v1-none/release/exactscope_wasm.wasm
+
+      - name: Execute fused WebAssembly wire conformance
+        run: node tools/test_wasm.mjs target/wasm32v1-none/release/exactscope_wasm.wasm
