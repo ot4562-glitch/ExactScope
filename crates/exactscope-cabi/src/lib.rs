@@ -1348,6 +1348,7 @@ mod tests {
 
     #[cfg(feature = "dynamic-packs")]
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn dynamic_pack_mount_lookup_eval_freeze_reset_and_unmount() {
         let custom_pack = custom_dynamic_pack();
         let official_pack = exactscope_packc::compile_source(include_str!(
