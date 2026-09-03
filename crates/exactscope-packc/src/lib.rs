@@ -822,13 +822,14 @@ fn assemble_sections(sections: &[SectionData]) -> Result<Vec<u8>, CompileError> 
         previous_kind = section.kind;
     }
 
+    let total_len = to_u32_usize(output.len())?;
     output[0..4].copy_from_slice(b"XSPK");
     put_u16(&mut output, 4, FORMAT_MAJOR)?;
     put_u16(&mut output, 6, FORMAT_MINOR)?;
     put_u16(&mut output, 8, to_u16_usize(HEADER_SIZE)?)?;
     put_u16(&mut output, 10, to_u16_usize(SECTION_ENTRY_SIZE)?)?;
     put_u32(&mut output, 12, 0x0000_0004)?;
-    put_u32(&mut output, 16, to_u32_usize(output.len())?)?;
+    put_u32(&mut output, 16, total_len)?;
     put_u32(&mut output, 20, to_u32_usize(directory_offset)?)?;
     put_u16(&mut output, 24, to_u16_usize(entries.len())?)?;
     put_u16(&mut output, 26, 0)?;
