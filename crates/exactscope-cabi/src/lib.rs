@@ -25,6 +25,20 @@ fn panic(_info: &PanicInfo<'_>) -> ! {
     unsafe { xs_platform_panic_abort() }
 }
 
+/// Abort-only exception personality for the standalone `no_std` static library.
+///
+/// ExactScope exports non-unwinding C ABI functions and does not support a
+/// foreign exception crossing a Rust frame. Some hosted targets still retain a
+/// `rust_eh_personality` reference even with `panic=abort`; satisfying that
+/// reference with an aborting symbol keeps the library self-contained without
+/// linking `std` or an unwinding runtime. Reaching this function is therefore a
+/// fatal integration/runtime defect, not a recoverable calculation error.
+#[cfg(all(feature = "standalone-staticlib", not(test)))]
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_eh_personality() -> ! {
+    unsafe { xs_platform_panic_abort() }
+}
+
 use exactscope_kernel::{
     evaluate_operation, Decimal64, EvaluationResult, ScalarValue, Status, ARGUMENT_INDEX_NONE,
     MAX_RESULT_VALUES, PED_MID_OPERATION,
