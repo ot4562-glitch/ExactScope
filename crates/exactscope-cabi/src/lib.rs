@@ -301,7 +301,7 @@ pub extern "C" fn xs_abi_version() -> u32 {
     ABI_VERSION
 }
 
-/// Parses strict ExactScope ASCII decimal text into canonical C representation.
+/// Parses strict `ExactScope` ASCII decimal text into canonical C representation.
 ///
 /// The output is zeroed before validation so callers never observe a plausible
 /// value after a failed parse. Parsing is exact base-10 and never uses host
@@ -346,7 +346,7 @@ pub unsafe extern "C" fn xs_decimal_parse_ascii(
             semantic_kind,
             unit_id,
             flags: 0,
-        })
+        });
     };
     Status::OK.code()
 }
