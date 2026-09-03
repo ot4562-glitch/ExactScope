@@ -1,0 +1,17 @@
+{
+  "format": "exactscope.registry",
+  "format_version": 1,
+  "name": "protocol-ids",
+  "unique_ids": false,
+  "entries": [
+    {"id": 1, "key": "abi_major", "c_name": "XS_ABI_MAJOR_V1", "description": "C ABI major version."},
+    {"id": 0, "key": "abi_minor", "c_name": "XS_ABI_MINOR_V1", "description": "C ABI minor version."},
+    {"id": 65536, "key": "abi_packed", "c_name": "XS_ABI_VERSION_V1", "description": "Packed ABI version 0x00010000."},
+    {"id": 1, "key": "pack_format_major", "description": "Compiled XSP pack format major."},
+    {"id": 0, "key": "pack_format_minor", "description": "Compiled XSP pack format minor."},
+    {"id": 1, "key": "tinywire_major", "description": "TinyWire protocol major."},
+    {"id": 1, "key": "stream_frame_version", "description": "TinyWire stream frame version."},
+    {"id": 1, "key": "wire_tiny_json", "c_name": "XS_WIRE_FORMAT_TINY_JSON_V1", "header": "include/exactscope_wasm.h", "description": "Fused Wasm helper Tiny JSON format."},
+    {"id": 2, "key": "wire_tiny_cbor", "c_name": "XS_WIRE_FORMAT_TINY_CBOR_V1", "header": "include/exactscope_wasm.h", "description": "Fused Wasm helper deterministic-CBOR format."}
+  ]
+}

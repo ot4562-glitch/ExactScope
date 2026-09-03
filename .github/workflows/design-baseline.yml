@@ -1,0 +1,122 @@
+name: design-baseline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exactscope-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_TOOLCHAIN: "1.98.0"
+  RUST_MSRV: "1.84.0"
+
+jobs:
+  design-contracts:
+    name: Design contracts and C ABI headers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install design validator dependencies
+        run: python -m pip install --requirement requirements-dev.txt
+
+      - name: Validate schemas, registries, examples, catalog, ABI constants, and links
+        run: python tools/validate_design.py
+
+      - name: Compile public headers as C99
+        run: cc -std=c99 -Wall -Wextra -Werror -pedantic -Iinclude -fsyntax-only tests/abi/header_c.c
+
+      - name: Compile public headers as C++11
+        run: c++ -std=c++11 -Wall -Wextra -Werror -pedantic -Iinclude -fsyntax-only tests/abi/header_cpp.cpp
+
+  rust-scaffold:
+    name: Rust scaffold / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt --component clippy
+
+      - name: Report toolchain
+        shell: bash
+        run: rustc "+$RUST_TOOLCHAIN" --version --verbose
+
+      - name: Validate Cargo metadata
+        shell: bash
+        run: cargo "+$RUST_TOOLCHAIN" metadata --no-deps --format-version 1
+
+      - name: Check formatting
+        shell: bash
+        run: cargo "+$RUST_TOOLCHAIN" fmt --all --check
+
+      - name: Check workspace
+        shell: bash
+        run: cargo "+$RUST_TOOLCHAIN" check --workspace --all-targets
+
+      - name: Lint workspace
+        shell: bash
+        run: cargo "+$RUST_TOOLCHAIN" clippy --workspace --all-targets -- -D warnings
+
+      - name: Test workspace scaffold
+        shell: bash
+        run: cargo "+$RUST_TOOLCHAIN" test --workspace
+
+  msrv:
+    name: Rust 1.84 MSRV
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MSRV and portable Wasm target
+        run: rustup toolchain install "$RUST_MSRV" --profile minimal --target wasm32v1-none
+
+      - name: Check native workspace at MSRV
+        run: cargo "+$RUST_MSRV" check --workspace --all-targets
+
+      - name: Check no_std kernel at MSRV
+        run: cargo "+$RUST_MSRV" check --package exactscope-kernel --target wasm32v1-none --no-default-features
+
+      - name: Check no_std pack layer at MSRV
+        run: cargo "+$RUST_MSRV" check --package exactscope-pack --target wasm32v1-none --no-default-features
+
+  wasm-baseline:
+    name: WebAssembly 1.0 no_std scaffold
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pinned Rust and wasm32v1-none
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target wasm32v1-none
+
+      - name: Check kernel
+        run: cargo "+$RUST_TOOLCHAIN" check --package exactscope-kernel --target wasm32v1-none --no-default-features
+
+      - name: Check pack loader
+        run: cargo "+$RUST_TOOLCHAIN" check --package exactscope-pack --target wasm32v1-none --no-default-features
+
+      - name: Check Tiny JSON adapter
+        run: cargo "+$RUST_TOOLCHAIN" check --package exactscope-tinyjson --target wasm32v1-none --no-default-features
+
+      - name: Check WebAssembly wrapper
+        run: cargo "+$RUST_TOOLCHAIN" check --package exactscope-wasm --target wasm32v1-none --no-default-features

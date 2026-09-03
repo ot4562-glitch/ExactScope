@@ -1,0 +1,864 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:exactscope:schema:scopepack-source:0.1",
+  "title": "ExactScope scope-pack source v0.1",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "format": {
+      "const": "exactscope.scopepack.source"
+    },
+    "format_version": {
+      "const": "0.1"
+    },
+    "pack": {
+      "$ref": "#/$defs/pack"
+    },
+    "limits": {
+      "$ref": "#/$defs/limits"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4096,
+      "items": {
+        "$ref": "#/$defs/operation"
+      }
+    }
+  },
+  "required": [
+    "format",
+    "format_version",
+    "pack",
+    "limits",
+    "sources",
+    "operations"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "decimalString": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$",
+      "maxLength": 96
+    },
+    "shortKey": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "maxLength": 64
+    },
+    "operationKey": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "maxLength": 96
+    },
+    "semantic": {
+      "type": "string",
+      "enum": [
+        "number",
+        "count",
+        "currency_amount",
+        "price",
+        "quantity",
+        "rate_percent",
+        "rate_ratio",
+        "index",
+        "time_periods",
+        "probability",
+        "elasticity"
+      ]
+    },
+    "statusKey": {
+      "type": "string",
+      "enum": [
+        "OK",
+        "INVALID_REQUEST",
+        "ABI_MISMATCH",
+        "UNKNOWN_OPERATION",
+        "UNKNOWN_PACK",
+        "ARGUMENT_COUNT",
+        "ARGUMENT_TYPE",
+        "AMBIGUOUS_METHOD",
+        "MISSING_INFORMATION",
+        "INVALID_DECIMAL",
+        "DOMAIN_ERROR",
+        "CONSTRAINT_VIOLATION",
+        "UNIT_MISMATCH",
+        "DIVIDE_BY_ZERO",
+        "OVERFLOW",
+        "PRECISION_UNRESOLVED",
+        "INSUFFICIENT_DATA",
+        "BUFFER_TOO_SMALL",
+        "PACK_INVALID",
+        "PACK_VERSION_UNSUPPORTED",
+        "RESOURCE_LIMIT",
+        "UNSUPPORTED_OPERATION",
+        "INTEGRITY_ERROR",
+        "INTERNAL_ERROR"
+      ]
+    },
+    "rounding": {
+      "type": "string",
+      "enum": [
+        "half_even",
+        "half_away",
+        "toward_zero",
+        "floor",
+        "ceil"
+      ]
+    },
+    "pack": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$",
+          "maxLength": 48
+        },
+        "license": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "numeric_profile": {
+          "const": "decimal64-v1"
+        },
+        "abi_min": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$"
+        },
+        "abi_max": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$"
+        },
+        "default_locale": {
+          "type": "string",
+          "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$",
+          "maxLength": 35
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "version",
+        "license",
+        "description",
+        "numeric_profile",
+        "abi_min",
+        "abi_max",
+        "default_locale"
+      ],
+      "additionalProperties": false
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "max_scalar_args": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 12
+        },
+        "max_vector_args": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "max_vector_len": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256
+        },
+        "max_vm_steps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "max_stack": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "max_outputs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        }
+      },
+      "required": [
+        "max_scalar_args",
+        "max_vector_args",
+        "max_vector_len",
+        "max_vm_steps",
+        "max_stack",
+        "max_outputs"
+      ],
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 512
+        },
+        "license": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 512
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "url",
+        "license"
+      ],
+      "additionalProperties": false
+    },
+    "constraint": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "gt",
+            "ge",
+            "lt",
+            "le",
+            "eq",
+            "ne",
+            "integer",
+            "nonzero",
+            "one_of"
+          ]
+        },
+        "value": {
+          "$ref": "#/$defs/decimalString"
+        },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/decimalString"
+          }
+        },
+        "detail_id": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        }
+      },
+      "required": [
+        "kind",
+        "detail_id"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "gt",
+                  "ge",
+                  "lt",
+                  "le",
+                  "eq",
+                  "ne"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "value"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "one_of"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "values"
+            ]
+          }
+        }
+      ]
+    },
+    "input": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/shortKey"
+        },
+        "shape": {
+          "type": "string",
+          "enum": [
+            "scalar",
+            "vector"
+          ]
+        },
+        "semantic": {
+          "$ref": "#/$defs/semantic"
+        },
+        "unit_namespace": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.-]*$",
+          "maxLength": 64
+        },
+        "same_unit_group": {
+          "$ref": "#/$defs/shortKey"
+        },
+        "unit_required": {
+          "type": "boolean"
+        },
+        "max_len": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256
+        },
+        "constraints": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/constraint"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "shape",
+        "semantic",
+        "constraints"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "shape": {
+                "const": "vector"
+              }
+            },
+            "required": [
+              "shape"
+            ]
+          },
+          "then": {
+            "required": [
+              "max_len"
+            ]
+          }
+        }
+      ]
+    },
+    "relation": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "arg_gt",
+            "arg_ge",
+            "arg_lt",
+            "arg_le",
+            "arg_eq",
+            "arg_ne",
+            "same_length"
+          ]
+        },
+        "left": {
+          "$ref": "#/$defs/shortKey"
+        },
+        "right": {
+          "$ref": "#/$defs/shortKey"
+        },
+        "detail_id": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        }
+      },
+      "required": [
+        "kind",
+        "left",
+        "right",
+        "detail_id"
+      ],
+      "additionalProperties": false
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/shortKey"
+        },
+        "semantic": {
+          "$ref": "#/$defs/semantic"
+        },
+        "unit_rule": {
+          "type": "string",
+          "pattern": "^(dimensionless|unspecified|copy:[a-z][a-z0-9_]*|derived:[a-z][a-z0-9_.-]*)$",
+          "maxLength": 96
+        }
+      },
+      "required": [
+        "name",
+        "semantic",
+        "unit_rule"
+      ],
+      "additionalProperties": false
+    },
+    "outputPolicy": {
+      "type": "object",
+      "properties": {
+        "scale": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18
+        },
+        "rounding": {
+          "$ref": "#/$defs/rounding"
+        },
+        "allow_scale_override": {
+          "type": "boolean"
+        },
+        "allow_rounding_override": {
+          "type": "boolean"
+        },
+        "classification_required": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "scale",
+        "rounding",
+        "allow_scale_override",
+        "allow_rounding_override",
+        "classification_required"
+      ],
+      "additionalProperties": false
+    },
+    "instruction": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "prefixItems": [
+        {
+          "type": "string",
+          "enum": [
+            "arg",
+            "const",
+            "result",
+            "add",
+            "sub",
+            "mul",
+            "div",
+            "neg",
+            "abs",
+            "min",
+            "max",
+            "powi",
+            "sqrt",
+            "cmp_lt",
+            "cmp_le",
+            "cmp_eq",
+            "cmp_ge",
+            "cmp_gt",
+            "and",
+            "or",
+            "not",
+            "select",
+            "round",
+            "end"
+          ]
+        }
+      ],
+      "items": {
+        "type": "integer",
+        "minimum": -8388608,
+        "maximum": 8388607
+      }
+    },
+    "program": {
+      "type": "object",
+      "properties": {
+        "output": {
+          "$ref": "#/$defs/shortKey"
+        },
+        "instructions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/instruction"
+          }
+        }
+      },
+      "required": [
+        "output",
+        "instructions"
+      ],
+      "additionalProperties": false
+    },
+    "classification": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "key": {
+          "$ref": "#/$defs/shortKey"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "output_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "program": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/instruction"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "key",
+        "priority",
+        "output_index",
+        "program"
+      ],
+      "additionalProperties": false
+    },
+    "testArgument": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/decimalString"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/decimalString"
+          }
+        }
+      ]
+    },
+    "testExpectation": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/statusKey"
+        },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/decimalString"
+          }
+        },
+        "classification": {
+          "$ref": "#/$defs/shortKey"
+        },
+        "rounded": {
+          "type": "boolean"
+        },
+        "inexact": {
+          "type": "boolean"
+        },
+        "argument_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "detail_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    "test": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "maxLength": 96
+        },
+        "args": {
+          "type": "array",
+          "maxItems": 12,
+          "items": {
+            "$ref": "#/$defs/testArgument"
+          }
+        },
+        "expect": {
+          "$ref": "#/$defs/testExpectation"
+        }
+      },
+      "required": [
+        "name",
+        "args",
+        "expect"
+      ],
+      "additionalProperties": false
+    },
+    "operation": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "key": {
+          "$ref": "#/$defs/operationKey"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "method": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]*$",
+          "maxLength": 64
+        },
+        "aliases": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "formula",
+            "kernel"
+          ]
+        },
+        "inputs": {
+          "type": "array",
+          "maxItems": 12,
+          "items": {
+            "$ref": "#/$defs/input"
+          }
+        },
+        "relations": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/relation"
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/output"
+          }
+        },
+        "output_policy": {
+          "$ref": "#/$defs/outputPolicy"
+        },
+        "constants": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/decimalString"
+          }
+        },
+        "programs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/program"
+          }
+        },
+        "kernel": {
+          "type": "string",
+          "enum": [
+            "sum",
+            "mean",
+            "weighted_mean",
+            "variance_population",
+            "variance_sample",
+            "covariance_population",
+            "covariance_sample",
+            "correlation",
+            "linear_regression"
+          ]
+        },
+        "classifications": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/classification"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "tests": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/test"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "key",
+        "revision",
+        "name",
+        "method",
+        "aliases",
+        "kind",
+        "inputs",
+        "relations",
+        "outputs",
+        "output_policy",
+        "classifications",
+        "sources",
+        "tests"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "formula"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "constants",
+              "programs"
+            ],
+            "not": {
+              "required": [
+                "kernel"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "kernel"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "kernel"
+            ],
+            "not": {
+              "required": [
+                "programs"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

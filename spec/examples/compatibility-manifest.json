@@ -1,0 +1,47 @@
+{
+  "format": "exactscope.compatibility-manifest",
+  "format_version": "0.1",
+  "project_version": "0.1.0-alpha.0",
+  "source_commit": "0000000000000000000000000000000000000000",
+  "core_abi": "1.0",
+  "pack_format": "1.0",
+  "artifacts": [
+    {
+      "target": "wasm32v1-none",
+      "artifact": "exactscope-econ.wasm",
+      "artifact_kind": "wasm",
+      "support": "planned",
+      "features": [
+        "fused",
+        "no-imports",
+        "no-allocator",
+        "econ-undergrad"
+      ],
+      "notes": "Design placeholder only. No artifact, size, digest, or conformance claim exists yet."
+    },
+    {
+      "target": "android-arm64-v8a",
+      "artifact": "exactscope-android.aar",
+      "artifact_kind": "aar",
+      "support": "planned",
+      "features": [
+        "c-abi",
+        "dynamic-packs",
+        "no-network"
+      ],
+      "notes": "Tier status will be assigned only after clean-build, ABI, and runtime conformance evidence exists."
+    },
+    {
+      "target": "aarch64-unknown-linux-musl",
+      "artifact": "exactscope-linux-aarch64.tar.gz",
+      "artifact_kind": "archive",
+      "support": "planned",
+      "features": [
+        "c-abi",
+        "static-library",
+        "dynamic-packs"
+      ],
+      "notes": "Planned edge companion package; no implementation claim."
+    }
+  ]
+}

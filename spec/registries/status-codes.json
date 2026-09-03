@@ -1,0 +1,32 @@
+{
+  "format": "exactscope.registry",
+  "format_version": 1,
+  "name": "status-codes",
+  "unique_ids": true,
+  "entries": [
+    {"id": 0, "key": "OK", "c_name": "XS_STATUS_OK", "description": "Operation completed successfully."},
+    {"id": 1, "key": "INVALID_REQUEST", "c_name": "XS_STATUS_INVALID_REQUEST", "description": "Request envelope or required field is malformed."},
+    {"id": 2, "key": "ABI_MISMATCH", "c_name": "XS_STATUS_ABI_MISMATCH", "description": "Host and core ABI versions are incompatible."},
+    {"id": 3, "key": "UNKNOWN_OPERATION", "c_name": "XS_STATUS_UNKNOWN_OPERATION", "description": "No installed operation or discovery match exists."},
+    {"id": 4, "key": "UNKNOWN_PACK", "c_name": "XS_STATUS_UNKNOWN_PACK", "description": "Referenced pack slot or identity is not mounted."},
+    {"id": 5, "key": "ARGUMENT_COUNT", "c_name": "XS_STATUS_ARGUMENT_COUNT", "description": "Argument count differs from the operation signature."},
+    {"id": 6, "key": "ARGUMENT_TYPE", "c_name": "XS_STATUS_ARGUMENT_TYPE", "description": "Argument shape or type is wrong."},
+    {"id": 7, "key": "AMBIGUOUS_METHOD", "c_name": "XS_STATUS_AMBIGUOUS_METHOD", "description": "More than one materially different method remains possible."},
+    {"id": 8, "key": "MISSING_INFORMATION", "c_name": "XS_STATUS_MISSING_INFORMATION", "description": "A required argument, assumption, or unit is absent."},
+    {"id": 9, "key": "INVALID_DECIMAL", "c_name": "XS_STATUS_INVALID_DECIMAL", "description": "Decimal lexical form or canonical representation is invalid."},
+    {"id": 10, "key": "DOMAIN_ERROR", "c_name": "XS_STATUS_DOMAIN_ERROR", "description": "The input is mathematically outside the operation domain."},
+    {"id": 11, "key": "CONSTRAINT_VIOLATION", "c_name": "XS_STATUS_CONSTRAINT_VIOLATION", "description": "A declared input or relation constraint failed."},
+    {"id": 12, "key": "UNIT_MISMATCH", "c_name": "XS_STATUS_UNIT_MISMATCH", "description": "A required unit identity or dimension relationship failed."},
+    {"id": 13, "key": "DIVIDE_BY_ZERO", "c_name": "XS_STATUS_DIVIDE_BY_ZERO", "description": "An exact denominator is zero."},
+    {"id": 14, "key": "OVERFLOW", "c_name": "XS_STATUS_OVERFLOW", "description": "Bounded numeric or offset arithmetic overflowed."},
+    {"id": 15, "key": "PRECISION_UNRESOLVED", "c_name": "XS_STATUS_PRECISION_UNRESOLVED", "description": "Required rounding or classification cannot be proven."},
+    {"id": 16, "key": "INSUFFICIENT_DATA", "c_name": "XS_STATUS_INSUFFICIENT_DATA", "description": "A vector or sample has too few observations."},
+    {"id": 17, "key": "BUFFER_TOO_SMALL", "c_name": "XS_STATUS_BUFFER_TOO_SMALL", "description": "Caller output, scratch, or arena capacity is insufficient."},
+    {"id": 18, "key": "PACK_INVALID", "c_name": "XS_STATUS_PACK_INVALID", "description": "Pack structure or semantics are invalid."},
+    {"id": 19, "key": "PACK_VERSION_UNSUPPORTED", "c_name": "XS_STATUS_PACK_VERSION_UNSUPPORTED", "description": "Pack format or required ABI version is unsupported."},
+    {"id": 20, "key": "RESOURCE_LIMIT", "c_name": "XS_STATUS_RESOURCE_LIMIT", "description": "A declared or actual bounded limit was exceeded."},
+    {"id": 21, "key": "UNSUPPORTED_OPERATION", "c_name": "XS_STATUS_UNSUPPORTED_OPERATION", "description": "A recognized feature is unavailable in this build."},
+    {"id": 22, "key": "INTEGRITY_ERROR", "c_name": "XS_STATUS_INTEGRITY_ERROR", "description": "CRC, digest, or frame integrity validation failed."},
+    {"id": 23, "key": "INTERNAL_ERROR", "c_name": "XS_STATUS_INTERNAL_ERROR", "description": "A detected internal invariant failed; no result is returned."}
+  ]
+}

@@ -2,321 +2,205 @@
 
 > **Make tiny AI reason less.**
 >
-> Deterministic math, statistics, and economics scope packs for tiny, local, and edge AI systems.
+> A tiny, offline, deterministic quantitative coprocessor for local, wearable, embedded, and edge AI.
 
-**Status: design-only / pre-alpha. No implementation has been published yet.**
+**Status: implementation-ready v0.1 scaffold. The evaluator is not implemented and no runtime artifact has been released.**
 
-ExactScope is a proposed headless tool runtime for AI systems that are too small, too resource-constrained, or too latency-sensitive to reliably perform common quantitative reasoning on their own.
+ExactScope is an AI-only tool runtime. It gives constrained language models reliable access to common mathematics, statistics, and undergraduate economics operations without asking the model to remember formulas, perform arithmetic, infer unit conventions, or silently choose between ambiguous methods.
 
-It is **not a calculator app for humans**, not a chatbot, and not a general reasoning engine.
-
-The intended user is another AI runtime.
-
-A wearable, embedded assistant, local 0.5B–3B model, or other edge agent should only need to recognize a task, extract a few values, and call ExactScope. Formula selection, validation, deterministic calculation, and classification are then handled outside the language model.
+ExactScope is not a calculator application, chatbot, tutoring interface, cloud API, or general computer-algebra system. Human developers integrate it; another AI runtime is the consumer.
 
 ```text
 camera / microphone / sensors
             |
             v
       tiny local model
-   intent + value extraction
+  recognize intent + extract values
             |
             v
         ExactScope
-   deterministic execution
+ validate + select + calculate + classify
             |
             v
-   compact structured result
-            |
-            v
-      tiny local model
+    compact structured result
 ```
 
-## Why
+## The intended interaction
 
-Small language models can often understand a simple quantitative request while still making avoidable mistakes in one of the following steps:
-
-- recalling the correct formula;
-- selecting between similar methods;
-- arithmetic;
-- units and percentage conventions;
-- boundary conditions;
-- classifying the result;
-- silently guessing when the problem is ambiguous.
-
-ExactScope aims to remove as much of that reasoning surface as possible.
-
-Instead of asking a small model to *know and execute* an undergraduate economics formula, the model should be able to do something closer to this:
+The model sees only two simple tools: `xs_find` and `xs_eval`.
 
 ```json
-{"q":"price elasticity"}
+{"q":"midpoint price elasticity","n":3}
 ```
-
-ExactScope may return a compact operation descriptor:
 
 ```json
-{"id":301,"sig":"ped_mid(p1,p2,q1,q2)"}
+{"s":0,"m":[{"op":"econ.ped.mid","sig":"econ.ped.mid(p1,p2,q1,q2)","method":"midpoint"}]}
 ```
-
-The model then supplies only the extracted values:
 
 ```json
-{"id":301,"a":[10000,12000,100,80]}
+{"op":"econ.ped.mid","a":["10000","12000","100","80"]}
 ```
-
-And receives a deterministic result:
 
 ```json
-{"s":0,"v":-1.222222,"c":2}
+{"s":0,"v":"-1.222222","c":"elastic","p":"econ-undergrad@0.1.0","r":1}
 ```
 
-The language model did not need to remember the midpoint formula, perform the arithmetic, or decide whether the result is elastic or inelastic.
+Decimal arguments are strings in the AI-facing adapter so JSON parsers cannot silently round large or precise values. The core uses a compact typed representation and never relies on LLM inference for calculation.
 
-## Primary targets
+## Design commitments
 
-ExactScope is designed first for constrained local systems, including:
+- **AI-only:** no human-facing GUI or conversational layer in the core project.
+- **Offline first:** no network, account, cloud service, API key, telemetry, or remote database.
+- **Library first:** no daemon is required. Embed a static/shared library or a no-import WebAssembly module.
+- **Small-model friendly:** two flat tool schemas instead of hundreds of verbose per-formula schemas.
+- **Deterministic:** baseline operations use checked base-10 decimal arithmetic, explicit rounding, bounded algorithms, and stable result codes.
+- **Fail closed:** missing assumptions, ambiguous methods, invalid units, overflow, and unsupported operations return typed errors.
+- **Data-only packs:** scope packs contain validated metadata, bounded bytecode, aliases, and test vectors—not arbitrary native code.
+- **Compatibility first:** C ABI and WebAssembly are first-class; language-specific SDKs are adapters.
+- **Static mode first:** the smallest deployment can compile one or more packs directly into the binary and evaluate without a heap.
 
-- smart-glasses companion runtimes;
-- wearable and embedded AI devices;
-- offline assistants;
-- ARM64 Android/Linux edge systems;
-- Raspberry Pi-class devices;
-- local 0.5B–3B language models;
-- `llama.cpp`-style runtimes;
-- WebAssembly hosts;
-- native C/C++/Rust applications.
+## Architecture
 
-Large desktop agents and MCP clients may be supported through adapters, but they are not the primary design target.
+```text
+                    AI runtime
+                        |
+       +----------------+----------------+
+       |                                 |
+  Tiny JSON adapter                  direct C ABI
+       |                                 |
+       +---------------+-----------------+
+                       |
+                ExactScope Core
+       +---------------+----------------+
+       |               |                |
+  pack registry   validation/VM    numeric kernels
+       |               |                |
+       +---------------+----------------+
+                       |
+       math-basic / statistics-core / econ-undergrad
+```
 
-## Design principles
+The checked-in implementation scaffold is a Rust workspace with `#![no_std]` runtime crates, caller-provided memory for dynamic mode, concrete C99/C++11 ABI headers, and a `wasm32v1-none` contract that requires zero host imports and the WebAssembly 1.0 baseline. Actual numeric and pack execution code is deliberately still absent.
 
-### AI-only interface
+See:
 
-No human-facing GUI, dashboard, account system, or conversational layer is required.
-
-### Offline first
-
-The core should require no network access, cloud service, API key, or remote database.
-
-### Deterministic execution
-
-Supported operations should produce reproducible results from validated inputs. LLM inference is not part of the calculation path.
-
-### Tiny discovery surface
-
-A constrained model should not need hundreds of verbose tool schemas in context at once. ExactScope should expose compact discovery and execution primitives and reveal only the operations relevant to the current request.
-
-### Fail closed
-
-If a method is ambiguous, an input is invalid, or required information is missing, ExactScope should return a typed failure instead of guessing.
-
-### No arbitrary code in packs
-
-Scope packs should prefer a constrained formula/operation representation plus metadata and golden test vectors rather than arbitrary executable plugins.
-
-### Embedded-friendly core
-
-The implementation target is a small native core suitable for `no_std`-oriented design where practical, with C ABI and WebAssembly builds considered first-class deployment paths.
+- [Architecture](docs/ARCHITECTURE.md)
+- [Compatibility contract](docs/COMPATIBILITY.md)
+- [Installation and embedding profiles](docs/INSTALLATION.md)
+- [AI integration contract](docs/AI_INTEGRATION.md)
+- [Architecture decisions](docs/DECISIONS.md)
+- [First implementation slice](docs/FIRST_IMPLEMENTATION_SLICE.md)
+- [Full implementation plan](docs/IMPLEMENTATION_PLAN.md)
+- [Specification index](spec/README.md)
+- [C ABI header](include/exactscope.h)
+- [No-import WebAssembly ABI](spec/WASM_ABI_V0_1.md)
+- [Initial operation catalog](packs/CATALOG_V0_1.md)
+- [External compatibility references](docs/REFERENCES.md)
+- [Roadmap](ROADMAP.md)
 
 ## Scope packs
 
-ExactScope is intended to separate the runtime from domain knowledge.
-
 ```text
 ExactScope Core
 |
-+-- math-basic.scopepack
-+-- statistics-core.scopepack
-+-- econ-undergrad.scopepack
-+-- finance-basic.scopepack
-`-- future domain packs
++-- math-basic.xsp
++-- statistics-core.xsp
++-- econ-undergrad.xsp
+`-- future data-only packs
 ```
 
-A scope pack should contain machine-readable operation definitions such as:
+A pack defines stable operation keys, compact signatures, argument semantics, unit constraints, deterministic programs or built-in kernel IDs, output precision, classification rules, aliases, sources, and golden tests.
 
-- operation ID;
-- compact signature;
-- formula or deterministic procedure;
-- input types;
-- units;
-- constraints;
-- assumptions;
-- supported methods;
-- result classification rules;
-- error conditions;
-- golden test vectors;
-- source/version metadata.
+The first showcase pack is `econ-undergrad`, covering formula-driven undergraduate tasks such as elasticity, surplus, cost and revenue measures, GDP relationships, inflation, labor-market rates, money and interest relationships, exchange-rate calculations, and growth-rate helpers. Compound time-value-of-money functions remain deferred until their deterministic integer-power kernels are specified and measured.
 
-## First showcase pack: undergraduate economics
+Open-ended forecasting is outside the scope. ExactScope must not pretend that policy questions with model-dependent answers have one universal formula.
 
-`econ-undergrad.scopepack` is planned as the first domain pack because it contains many common tasks that small models can often recognize but needlessly miscalculate.
+## Runtime profiles
 
-Initial coverage may include:
+ExactScope is designed for four embedding profiles:
 
-### Microeconomics
+1. **Fused WebAssembly:** one no-import `.wasm` containing the core and selected packs. This is the simplest cross-runtime wearable profile.
+2. **Fused native static:** C header plus one `.a`/`.lib`; no pack parser, filesystem, or heap is required at runtime.
+3. **Static data packs:** packs are embedded as immutable byte arrays and validated at startup through caller-owned storage.
+4. **Dynamic data packs:** the host passes `.xsp` bytes into a caller-provided arena. No native plugin loading or ExactScope-owned update service exists.
 
-- price elasticity of demand;
-- midpoint/arc elasticity;
-- income elasticity;
-- cross-price elasticity;
-- total and marginal revenue helpers;
-- consumer and producer surplus;
-- break-even calculations;
-- basic cost measures;
-- tax incidence helpers;
-- deadweight-loss calculations where assumptions are explicit.
+Android uses a thin AAR/JNI wrapper around the same C ABI, and Apple platforms use the same ABI through a static library or XCFramework. The initial release target is one or two drop-in artifacts per platform, never a mandatory service installation.
 
-### Macroeconomics
+## v0.1 engineering budgets
 
-- nominal and real GDP relationships;
-- GDP deflator;
-- CPI/inflation calculations;
-- unemployment rate;
-- labor-force participation;
-- real versus nominal wage;
-- money multiplier;
-- Fisher relationship;
-- basic quantity-equation calculations.
+These are implementation gates, not current performance claims:
 
-### International economics
+| Area | v0.1 budget |
+|---|---:|
+| Stripped no-pack WebAssembly core | <= 128 KiB |
+| Fused core + initial economics pack | <= 256 KiB |
+| Required heap in fused/static mode | 0 bytes |
+| Default evaluation scratch | <= 2 KiB |
+| Scalar VM instructions per operation | <= 64 |
+| Scalar VM stack depth | <= 16 |
+| Default vector length | <= 256 values |
+| Typical Tiny JSON request | <= 256 bytes |
+| Network dependencies | 0 |
 
-- real exchange rate;
-- terms of trade;
-- opportunity cost;
-- comparative-advantage helpers;
-- purchasing-power-parity calculations where inputs and assumptions are explicit.
+Budgets may only be changed with measurements and a documented compatibility decision.
 
-### Growth and basic finance
+## Planned interfaces
 
-- growth rates;
-- CAGR;
-- Rule of 70;
-- present/future value;
-- compound interest;
-- basic annuity calculations;
-- real return.
+- stable C ABI using fixed-width types and opaque handles;
+- no-import WebAssembly exports;
+- Tiny JSON for model-generated calls;
+- deterministic CBOR-based TinyWire for compact host transport;
+- generated adapters for `llama.cpp`-style JSON/GBNF tool calling;
+- OpenAI-compatible tool definitions;
+- optional MCP adapter for desktop agents.
 
-Open-ended policy forecasting is intentionally out of scope. ExactScope should not pretend that questions such as "How much will unemployment rise if the minimum wage increases?" have a universal deterministic formula.
+MCP and HTTP are compatibility adapters, not foundations of the runtime.
 
-## Math and statistics scopes
+## Accuracy and provenance
 
-Economics is only the first showcase. The broader target is a compact quantitative coprocessor for edge AI.
+Every successful result can identify:
 
-Planned common operations include:
+- the stable operation key;
+- pack ID and semantic version;
+- operation revision;
+- numeric profile;
+- output precision and rounding mode;
+- classification code;
+- whether rounding occurred.
 
-**Math:** percentages, percentage change, ratios, weighted averages, powers, roots, logarithms, scientific notation, rounding, common equation forms, and other high-frequency deterministic operations.
+A result is reproducible when core version, pack digest, operation revision, canonical inputs, and requested output policy are identical.
 
-**Statistics:** mean, median, variance, standard deviation, z-scores, percentiles, covariance, correlation, simple regression, standard error, confidence intervals, and common probability distributions.
+Each official operation must ship with valid, invalid, boundary, overflow, precision, and classification test vectors. Benchmark claims for 0.5B–3B models will be published only after measurement.
 
-## Proposed interfaces
+## Compatibility priorities
 
-The core should be library-first rather than server-first.
+The first implementation must prove conformance on:
 
-Planned integration layers:
+- `wasm32v1-none`;
+- Android `arm64-v8a`, `armeabi-v7a`, and `x86_64`;
+- Linux AArch64 and x86-64;
+- Windows x86-64;
+- Apple Silicon macOS, with iOS packaging following the same C ABI;
+- at least one constrained embedded target before claiming embedded support.
 
-```text
-ExactScope Core
-|
-+-- Native C ABI
-+-- WebAssembly
-+-- compact local protocol / TinyWire
-+-- llama.cpp adapter
-+-- OpenAI-style tool-schema adapter
-`-- MCP adapter (optional compatibility layer)
-```
+A platform is not called supported merely because it compiles. Support requires the conformance vectors and ABI tests defined in [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
 
-MCP is useful for desktop agent interoperability, but ExactScope should not require a full MCP stack on a wearable or embedded target.
+## Related work
 
-## TinyWire concept
+Existing projects demonstrate demand for LLM calculators, precise MCP tools, offline local models, and tiny tool-routing runtimes. ExactScope is deliberately narrower and more device-oriented: its primary artifact is a small embeddable deterministic runtime with installable domain packs, not a human calculator or desktop MCP server.
 
-A compact machine protocol is planned for resource-constrained hosts.
+Relevant comparisons include [arithma](https://github.com/farchanjo/arithma), [math-mcp](https://github.com/codeprimate/math-mcp), [needle-rs](https://github.com/geekgineer/needle-rs), and [llama.cpp](https://github.com/ggml-org/llama.cpp).
 
-Development/debug representation may use small JSON messages:
+## Repository state
 
-```json
-{"id":301,"a":[10000,12000,100,80]}
-```
+The repository now freezes the v0.1 architecture, numeric/error semantics, C ABI, no-import WebAssembly memory contract, scope-pack and TinyWire formats, stable ID registries, model-facing schemas, installation profiles, and first economics fixture. It also contains a compile-oriented Rust workspace scaffold and contract CI.
 
-More constrained environments may use a compact binary representation such as CBOR or a purpose-built framing format.
+No evaluator, pack loader, compiler, wire parser, released library, or released `.wasm` exists yet. The next commit can begin directly with the `Decimal64 -> econ.ped.mid -> C ABI -> fused Wasm -> Tiny JSON` vertical slice in [FIRST_IMPLEMENTATION_SLICE.md](docs/FIRST_IMPLEMENTATION_SLICE.md).
 
-The goal is to keep routine requests small enough that tool invocation itself does not become the dominant context, memory, or bandwidth cost.
+## License
 
-## Ambiguity is an error, not an invitation to hallucinate
-
-If a user asks for "price elasticity" but the available information does not establish whether point elasticity or midpoint elasticity is intended, ExactScope should be able to return something like:
-
-```json
-{"s":4,"e":"AMBIG_METHOD","methods":[301,302]}
-```
-
-The calling model can then resolve the ambiguity from context or ask for missing information.
-
-## Accuracy strategy
-
-ExactScope's value is not the number of formulas it contains. The value is the amount of reasoning it can safely remove from a constrained model.
-
-Each supported operation should eventually have extensive golden tests covering normal inputs, invalid inputs, boundaries, unit conventions, precision behavior, and classification thresholds.
-
-Future benchmarks should compare tiny models **with and without ExactScope** on metrics such as:
-
-- numeric-answer accuracy;
-- formula/method selection accuracy;
-- invalid-input detection;
-- classification accuracy;
-- tool-call token cost;
-- latency;
-- binary/runtime footprint.
-
-Benchmark claims will only be published after they are measured.
-
-## Related work and positioning
-
-ExactScope is intentionally narrower than a general computer algebra system and more edge-oriented than typical LLM calculator servers.
-
-Projects worth comparing include:
-
-- [arithma](https://github.com/farchanjo/arithma) — a precise Rust MCP calculator engine with a broad catalog of math, statistics, finance, and engineering tools;
-- [math-mcp](https://github.com/codeprimate/math-mcp) — symbolic/numerical mathematics exposed through a compact MCP tool interface;
-- [needle-rs](https://github.com/geekgineer/needle-rs) — an extremely small local tool-calling model/runtime demonstrating that constrained function routing can run on tiny devices;
-- [llm-tool](https://github.com/domenukk/llm-tool) — Rust tooling for strongly typed LLM tools with a `no_std`-compatible core.
-
-ExactScope's intended niche is the intersection of these ideas:
-
-> **a tiny, offline, deterministic quantitative tool runtime whose primary consumer is a constrained AI, with installable domain scope packs and an undergraduate-economics pack as the first showcase.**
-
-## Non-goals
-
-ExactScope is not intended to be:
-
-- a human calculator application;
-- a tutoring UI;
-- a general-purpose chatbot;
-- a replacement for SymPy, SciPy, Mathematica, R, or full numerical-computing stacks;
-- an economics forecasting model;
-- a source of live market or macroeconomic data;
-- an excuse for an AI to hide ambiguity behind a confident answer.
-
-## Initial roadmap
-
-- [ ] Define the minimal operation and error model.
-- [ ] Define the scope-pack manifest format.
-- [ ] Prototype deterministic core evaluation.
-- [ ] Establish C ABI and WebAssembly targets.
-- [ ] Define compact discovery and execution protocol.
-- [ ] Build `math-basic.scopepack`.
-- [ ] Build `statistics-core.scopepack`.
-- [ ] Build `econ-undergrad.scopepack`.
-- [ ] Add llama.cpp/OpenAI-tool adapters.
-- [ ] Add optional MCP adapter.
-- [ ] Build golden-test corpus.
-- [ ] Benchmark 0.5B–3B local models with and without ExactScope.
-
-## Current state
-
-This repository currently contains the project definition only. Architecture, protocol, implementation language details, pack format, and compatibility guarantees are not yet frozen.
-
-The first implementation should optimize for **small AI systems first**, not retrofit embedded support after building a desktop-oriented server.
+ExactScope is dual-licensed under [Apache-2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT), at your option. Scope-pack source data must declare its own compatible license and source metadata. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md) before submitting code or parser/ABI findings.
 
 ---
 
-**ExactScope:** don't teach tiny AI to calculate what deterministic code can calculate exactly.
+**ExactScope:** do not teach a tiny model to calculate what deterministic code can calculate exactly.

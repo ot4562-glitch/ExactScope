@@ -1,0 +1,25 @@
+[package]
+name = "exactscope-wasm"
+description = "No-import WebAssembly wrapper scaffold for ExactScope"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+publish = false
+
+[features]
+default = []
+fused = []
+dynamic-packs = []
+tinyjson = ["dep:exactscope-tinyjson"]
+
+[dependencies]
+exactscope-kernel = { path = "../exactscope-kernel", default-features = false }
+exactscope-pack = { path = "../exactscope-pack", default-features = false }
+exactscope-tinyjson = { path = "../exactscope-tinyjson", default-features = false, optional = true }
+
+[lints]
+workspace = true

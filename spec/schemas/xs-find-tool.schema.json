@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:exactscope:schema:xs-find-tool:1",
+  "title": "ExactScope xs_find arguments",
+  "description": "Conservative model-facing schema. The adapter additionally enforces UTF-8 byte limits.",
+  "type": "object",
+  "properties": {
+    "q": {
+      "type": "string",
+      "description": "Short query naming the quantitative operation or method.",
+      "minLength": 1,
+      "maxLength": 96
+    },
+    "n": {
+      "type": "integer",
+      "description": "Maximum number of deterministic matches to return.",
+      "minimum": 1,
+      "maximum": 5
+    }
+  },
+  "required": [
+    "q",
+    "n"
+  ],
+  "additionalProperties": false
+}

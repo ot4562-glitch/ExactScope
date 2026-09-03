@@ -1,0 +1,164 @@
+# Rust workspace boundaries
+
+The repository now contains compile-oriented crate scaffolds, but no evaluator, pack decoder, wire parser, or exported runtime implementation. Fill the existing crates in place and do not move responsibilities across compatibility boundaries. The first coding sequence is frozen in [`../docs/FIRST_IMPLEMENTATION_SLICE.md`](../docs/FIRST_IMPLEMENTATION_SLICE.md).
+
+## Crates
+
+### `exactscope-kernel`
+
+Required, `#![no_std]`, no default allocator, preferably no external dependencies.
+
+Owns:
+
+- `Decimal64` and exact bounded work arithmetic;
+- rounding and canonical formatting;
+- scalar VM and deterministic kernels;
+- semantic kinds, constraints, relations, classifications;
+- core status/result types.
+
+Must not own:
+
+- files, sockets, clocks, random state, environment variables;
+- JSON/CBOR DOMs;
+- language-model APIs;
+- pack source parsing;
+- platform-specific code.
+
+### `exactscope-pack`
+
+Required for static/dynamic `.xsp` loading; optional in a fully generated fused artifact.
+
+Owns:
+
+- safe binary pack decoding;
+- structural and semantic pack validation;
+- immutable registry and alias lookup;
+- caller-arena sizing;
+- fused/dynamic representation equivalence.
+
+Default feature remains `no_std` and allocation-free.
+
+### `exactscope-cabi`
+
+Thin native ABI wrapper.
+
+Owns:
+
+- generated `exactscope.h` compatibility;
+- pointer/length validation;
+- in-place context construction;
+- panic containment;
+- exported-symbol control.
+
+Contains no calculation semantics.
+
+### `exactscope-wasm`
+
+Thin `wasm32v1-none` wrapper.
+
+Owns:
+
+- no-import exports;
+- linear-memory pointer/length validation;
+- optional one-call TinyWire/Tiny JSON helper;
+- fused profile artifact generation.
+
+Contains no duplicate evaluator.
+
+### `exactscope-tinyjson`
+
+Optional model-facing adapter.
+
+Owns:
+
+- bounded parsing of the two request schemas;
+- decimal string conversion;
+- compact canonical response serialization;
+- generated GBNF fixtures.
+
+It is excluded from minimum typed C ABI deployments.
+
+### `exactscope-packc`
+
+Desktop build-time compiler using `std`.
+
+Owns:
+
+- JSON Schema and semantic validation;
+- RPN compilation and stack analysis;
+- canonical `.xsp` emission;
+- source/golden-vector execution;
+- manifests and fused-table generation.
+
+This is the only official component that parses reviewed source-pack JSON.
+
+### `exactscope-conformance`
+
+Development/test harness.
+
+Owns:
+
+- shared vectors;
+- native/Wasm byte-result comparison;
+- ABI layout and symbol tests;
+- malformed-pack/request corpus;
+- release compatibility manifest generation.
+
+## Feature policy
+
+Proposed feature flags:
+
+```text
+exactscope-kernel: no default features
+exactscope-pack:   default = []
+                  alloc = optional dynamic convenience structures
+exactscope-cabi:   fused, dynamic-packs, discovery
+exactscope-wasm:   fused, dynamic-packs, tinyjson, tinywire
+```
+
+Rules:
+
+- `std` is never a transitive dependency of the kernel;
+- `alloc` is never required for fused/static evaluation;
+- discovery may be disabled for a direct-operation appliance build;
+- disabled capabilities return stable unsupported status rather than changing unrelated semantics;
+- feature combinations used in releases receive distinct conformance records.
+
+## Unsafe-code policy
+
+The kernel and pack semantic layers should use `#![forbid(unsafe_code)]` where possible. Unsafe code is isolated in ABI/memory modules and requires:
+
+- a documented safety invariant beside each block;
+- negative tests;
+- fuzz coverage when parsing or pointer arithmetic is involved;
+- review as a compatibility/security change.
+
+## Dependency admission
+
+A runtime dependency requires a written review of:
+
+- `no_std` and allocator behavior;
+- supported architectures;
+- panic/unsafe behavior;
+- binary-size impact for no-pack and fused Wasm;
+- license;
+- maintenance risk;
+- whether a small internal implementation would have a narrower surface.
+
+Build-time and test dependencies are less restricted but must not leak into release artifacts.
+
+## First code slice
+
+Implementation starts with one vertical path only:
+
+```text
+Decimal64
+  -> VM subset needed by econ.ped.mid
+  -> minimal fused registry
+  -> C ABI eval
+  -> wasm32v1-none eval
+  -> Tiny JSON eval
+  -> shared golden vectors
+```
+
+Do not begin with a full CLI, server, MCP adapter, or entire operation catalog. The first slice is accepted only when native, dynamic/fused, and no-import WebAssembly outputs are byte-identical.

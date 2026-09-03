@@ -1,0 +1,52 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/exactscope-kernel",
+    "crates/exactscope-pack",
+    "crates/exactscope-cabi",
+    "crates/exactscope-wasm",
+    "crates/exactscope-tinyjson",
+    "crates/exactscope-packc",
+    "crates/exactscope-conformance",
+]
+default-members = [
+    "crates/exactscope-kernel",
+    "crates/exactscope-pack",
+    "crates/exactscope-cabi",
+    "crates/exactscope-wasm",
+    "crates/exactscope-tinyjson",
+]
+
+[workspace.package]
+version = "0.1.0-alpha.0"
+edition = "2021"
+rust-version = "1.84"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ot4562-glitch/ExactScope"
+homepage = "https://github.com/ot4562-glitch/ExactScope"
+authors = ["ExactScope contributors"]
+
+[workspace.lints.rust]
+missing_docs = "warn"
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"
+alloc_instead_of_core = "deny"
+std_instead_of_core = "deny"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+overflow-checks = true
+
+[profile.dev]
+overflow-checks = true
+
+# This is a compileable repository scaffold, not an implementation release.
+# Runtime crate types, exported symbols, and release feature sets are activated
+# only when the corresponding ABI/Wasm milestones have conformance tests.

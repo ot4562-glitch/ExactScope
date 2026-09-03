@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:exactscope:schema:compatibility-manifest:0.1",
+  "title": "ExactScope compatibility manifest v0.1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "exactscope.compatibility-manifest"
+    },
+    "format_version": {
+      "const": "0.1"
+    },
+    "project_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "source_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "core_abi": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "pack_format": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "conformance_corpus_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/artifact"
+      }
+    }
+  },
+  "required": [
+    "format",
+    "format_version",
+    "project_version",
+    "source_commit",
+    "core_abi",
+    "pack_format",
+    "artifacts"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "conformance": {
+      "type": "object",
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "passed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "corpus_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "total",
+        "passed",
+        "failed",
+        "corpus_digest"
+      ],
+      "additionalProperties": false
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "string",
+          "maxLength": 96
+        },
+        "hardware": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "os": {
+          "type": "string",
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "artifact": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "artifact_kind": {
+          "type": "string",
+          "enum": [
+            "wasm",
+            "static-library",
+            "shared-library",
+            "aar",
+            "xcframework",
+            "scope-pack",
+            "archive"
+          ]
+        },
+        "support": {
+          "type": "string",
+          "enum": [
+            "planned",
+            "experimental",
+            "tier2",
+            "tier1"
+          ]
+        },
+        "toolchain": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "features": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "maxLength": 64
+          }
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "required_heap_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "evaluation_scratch_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "conformance": {
+          "$ref": "#/$defs/conformance"
+        },
+        "runtime": {
+          "$ref": "#/$defs/runtime"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 512
+        }
+      },
+      "required": [
+        "target",
+        "artifact",
+        "artifact_kind",
+        "support",
+        "features"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "support": {
+                "enum": [
+                  "tier1",
+                  "tier2"
+                ]
+              }
+            },
+            "required": [
+              "support"
+            ]
+          },
+          "then": {
+            "required": [
+              "toolchain",
+              "sha256",
+              "size_bytes",
+              "required_heap_bytes",
+              "evaluation_scratch_bytes",
+              "conformance",
+              "runtime"
+            ],
+            "properties": {
+              "conformance": {
+                "properties": {
+                  "failed": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

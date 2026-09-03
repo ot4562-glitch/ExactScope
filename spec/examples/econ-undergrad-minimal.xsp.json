@@ -1,0 +1,282 @@
+{
+  "$schema": "../schemas/scopepack-source.schema.json",
+  "format": "exactscope.scopepack.source",
+  "format_version": "0.1",
+  "pack": {
+    "id": "org.exactscope.econ-undergrad",
+    "name": "econ-undergrad",
+    "version": "0.1.0",
+    "license": "Apache-2.0 OR MIT",
+    "description": "Minimal design fixture for deterministic undergraduate economics operations.",
+    "numeric_profile": "decimal64-v1",
+    "abi_min": "1.0",
+    "abi_max": "1.0",
+    "default_locale": "en"
+  },
+  "limits": {
+    "max_scalar_args": 12,
+    "max_vector_args": 4,
+    "max_vector_len": 256,
+    "max_vm_steps": 64,
+    "max_stack": 16,
+    "max_outputs": 4
+  },
+  "sources": [
+    {
+      "id": "openstax.econ3.elasticity",
+      "title": "Principles of Economics 3e — Introduction to Elasticity",
+      "url": "https://openstax.org/books/principles-economics-3e/pages/5-introduction-to-elasticity",
+      "license": "CC-BY-4.0",
+      "note": "Definition reference. ExactScope programs and test vectors are independently authored."
+    }
+  ],
+  "operations": [
+    {
+      "id": 301,
+      "key": "econ.ped.mid",
+      "revision": 1,
+      "name": "Price elasticity of demand — midpoint method",
+      "description": "Signed midpoint elasticity: percentage change in quantity demanded divided by percentage change in price.",
+      "method": "midpoint",
+      "aliases": [
+        "price elasticity of demand midpoint",
+        "midpoint price elasticity",
+        "arc elasticity of demand",
+        "ped midpoint"
+      ],
+      "kind": "formula",
+      "inputs": [
+        {
+          "name": "p1",
+          "shape": "scalar",
+          "semantic": "price",
+          "unit_namespace": "currency_per_quantity",
+          "same_unit_group": "price",
+          "unit_required": false,
+          "constraints": [
+            {
+              "kind": "gt",
+              "value": "0",
+              "detail_id": 1
+            }
+          ]
+        },
+        {
+          "name": "p2",
+          "shape": "scalar",
+          "semantic": "price",
+          "unit_namespace": "currency_per_quantity",
+          "same_unit_group": "price",
+          "unit_required": false,
+          "constraints": [
+            {
+              "kind": "gt",
+              "value": "0",
+              "detail_id": 2
+            }
+          ]
+        },
+        {
+          "name": "q1",
+          "shape": "scalar",
+          "semantic": "quantity",
+          "same_unit_group": "quantity",
+          "unit_required": false,
+          "constraints": [
+            {
+              "kind": "ge",
+              "value": "0",
+              "detail_id": 3
+            }
+          ]
+        },
+        {
+          "name": "q2",
+          "shape": "scalar",
+          "semantic": "quantity",
+          "same_unit_group": "quantity",
+          "unit_required": false,
+          "constraints": [
+            {
+              "kind": "ge",
+              "value": "0",
+              "detail_id": 4
+            }
+          ]
+        }
+      ],
+      "relations": [],
+      "outputs": [
+        {
+          "name": "elasticity",
+          "semantic": "elasticity",
+          "unit_rule": "dimensionless"
+        }
+      ],
+      "output_policy": {
+        "scale": 6,
+        "rounding": "half_even",
+        "allow_scale_override": false,
+        "allow_rounding_override": false,
+        "classification_required": true
+      },
+      "constants": [
+        "2",
+        "1"
+      ],
+      "programs": [
+        {
+          "output": "elasticity",
+          "instructions": [
+            ["arg", 3],
+            ["arg", 2],
+            ["sub"],
+            ["arg", 2],
+            ["arg", 3],
+            ["add"],
+            ["const", 0],
+            ["div"],
+            ["div"],
+            ["arg", 1],
+            ["arg", 0],
+            ["sub"],
+            ["arg", 0],
+            ["arg", 1],
+            ["add"],
+            ["const", 0],
+            ["div"],
+            ["div"],
+            ["div"],
+            ["end"]
+          ]
+        }
+      ],
+      "classifications": [
+        {
+          "id": 1,
+          "key": "inelastic",
+          "priority": 1,
+          "output_index": 0,
+          "program": [
+            ["result", 0],
+            ["abs"],
+            ["const", 1],
+            ["cmp_lt"],
+            ["end"]
+          ]
+        },
+        {
+          "id": 2,
+          "key": "unit_elastic",
+          "priority": 2,
+          "output_index": 0,
+          "program": [
+            ["result", 0],
+            ["abs"],
+            ["const", 1],
+            ["cmp_eq"],
+            ["end"]
+          ]
+        },
+        {
+          "id": 3,
+          "key": "elastic",
+          "priority": 3,
+          "output_index": 0,
+          "program": [
+            ["result", 0],
+            ["abs"],
+            ["const", 1],
+            ["cmp_gt"],
+            ["end"]
+          ]
+        }
+      ],
+      "sources": [
+        "openstax.econ3.elasticity"
+      ],
+      "tests": [
+        {
+          "name": "elastic",
+          "args": [
+            "10000",
+            "12000",
+            "100",
+            "80"
+          ],
+          "expect": {
+            "status": "OK",
+            "values": [
+              "-1.222222"
+            ],
+            "classification": "elastic",
+            "rounded": true,
+            "inexact": false
+          }
+        },
+        {
+          "name": "unit-elastic",
+          "args": [
+            "10",
+            "20",
+            "20",
+            "10"
+          ],
+          "expect": {
+            "status": "OK",
+            "values": [
+              "-1"
+            ],
+            "classification": "unit_elastic",
+            "rounded": false,
+            "inexact": false
+          }
+        },
+        {
+          "name": "inelastic",
+          "args": [
+            "10",
+            "12",
+            "100",
+            "95"
+          ],
+          "expect": {
+            "status": "OK",
+            "values": [
+              "-0.282051"
+            ],
+            "classification": "inelastic",
+            "rounded": true,
+            "inexact": false
+          }
+        },
+        {
+          "name": "unchanged-price",
+          "args": [
+            "10",
+            "10",
+            "100",
+            "80"
+          ],
+          "expect": {
+            "status": "DIVIDE_BY_ZERO"
+          }
+        },
+        {
+          "name": "negative-initial-price",
+          "args": [
+            "-1",
+            "10",
+            "100",
+            "80"
+          ],
+          "expect": {
+            "status": "CONSTRAINT_VIOLATION",
+            "argument_index": 0,
+            "detail_id": 1
+          }
+        }
+      ]
+    }
+  ]
+}

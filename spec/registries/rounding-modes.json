@@ -1,0 +1,13 @@
+{
+  "format": "exactscope.registry",
+  "format_version": 1,
+  "name": "rounding-modes",
+  "unique_ids": true,
+  "entries": [
+    {"id": 0, "key": "half_even", "c_name": "XS_ROUND_HALF_EVEN_V1", "description": "Nearest; ties to an even retained digit."},
+    {"id": 1, "key": "half_away", "c_name": "XS_ROUND_HALF_AWAY_V1", "description": "Nearest; ties away from zero."},
+    {"id": 2, "key": "toward_zero", "c_name": "XS_ROUND_TOWARD_ZERO_V1", "description": "Truncate toward zero."},
+    {"id": 3, "key": "floor", "c_name": "XS_ROUND_FLOOR_V1", "description": "Round toward negative infinity."},
+    {"id": 4, "key": "ceil", "c_name": "XS_ROUND_CEIL_V1", "description": "Round toward positive infinity."}
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "format": "exactscope.registry",
+  "format_version": 1,
+  "name": "semantic-kinds",
+  "unique_ids": true,
+  "entries": [
+    {"id": 0, "key": "number", "c_name": "XS_SEMANTIC_NUMBER_V1", "description": "Dimensionless general number."},
+    {"id": 1, "key": "count", "c_name": "XS_SEMANTIC_COUNT_V1", "description": "Count, normally integral and nonnegative."},
+    {"id": 2, "key": "currency_amount", "c_name": "XS_SEMANTIC_CURRENCY_AMOUNT_V1", "description": "Monetary magnitude without conversion."},
+    {"id": 3, "key": "price", "c_name": "XS_SEMANTIC_PRICE_V1", "description": "Currency amount per quantity."},
+    {"id": 4, "key": "quantity", "c_name": "XS_SEMANTIC_QUANTITY_V1", "description": "Quantity of a good, input, or output."},
+    {"id": 5, "key": "rate_percent", "c_name": "XS_SEMANTIC_RATE_PERCENT_V1", "description": "Percentage-point form; 5 means five percent."},
+    {"id": 6, "key": "rate_ratio", "c_name": "XS_SEMANTIC_RATE_RATIO_V1", "description": "Ratio form; 0.05 means five percent."},
+    {"id": 7, "key": "index", "c_name": "XS_SEMANTIC_INDEX_V1", "description": "Index level such as CPI."},
+    {"id": 8, "key": "time_periods", "c_name": "XS_SEMANTIC_TIME_PERIODS_V1", "description": "Number of periods."},
+    {"id": 9, "key": "probability", "c_name": "XS_SEMANTIC_PROBABILITY_V1", "description": "Probability, normally in the closed interval zero to one."},
+    {"id": 10, "key": "elasticity", "c_name": "XS_SEMANTIC_ELASTICITY_V1", "description": "Dimensionless signed elasticity."}
+  ]
+}

@@ -1,0 +1,6 @@
+{"case":"find-midpoint-elasticity","tool":"xs_find","request":{"q":"midpoint price elasticity","n":3},"response":{"s":0,"m":[{"op":"econ.ped.mid","sig":"econ.ped.mid(p1,p2,q1,q2)","method":"midpoint"}]}}
+{"case":"evaluate-midpoint-elasticity","tool":"xs_eval","request":{"op":"econ.ped.mid","a":["10000","12000","100","80"]},"response":{"s":0,"v":"-1.222222","c":"elastic","p":"econ-undergrad@0.1.0","r":1}}
+{"case":"preserve-large-decimal-string","tool":"xs_eval","request":{"op":"math.percent.of","a":["9007199254740993","5"]},"response":{"s":0,"v":"450359962737049.65","p":"math-basic@0.1.0","r":1}}
+{"case":"invalid-decimal-do-not-coerce","tool":"xs_eval","request":{"op":"finance.fv.compound","a":["1000","5%","10"]},"response":{"s":9,"e":"INVALID_DECIMAL","i":1}}
+{"case":"ambiguous-method","tool":"xs_find","request":{"q":"price elasticity","n":5},"response":{"s":7,"e":"AMBIGUOUS_METHOD","need":["method"],"opts":["econ.ped.mid","econ.ped.point"]}}
+{"case":"unknown-operation","tool":"xs_eval","request":{"op":"econ.universal.policy.forecast","a":["1"]},"response":{"s":3,"e":"UNKNOWN_OPERATION"}}

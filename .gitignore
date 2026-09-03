@@ -1,0 +1,52 @@
+# Rust/build outputs
+/target/
+**/*.rs.bk
+
+# Generated runtime packs and release artifacts
+*.xsp
+*.wasm
+*.a
+*.so
+*.dylib
+*.dll
+*.lib
+*.pdb
+*.aar
+*.xcframework/
+*.tar.gz
+*.zip
+/SHA256SUMS
+/dist/
+/generated/
+
+# Generated conformance/fuzz data
+/fuzz/artifacts/
+/fuzz/corpus/generated/
+/conformance/output/
+/benchmarks/output/
+*.profraw
+*.profdata
+
+# Local tool state
+.env
+.env.*
+!.env.example
+*.log
+*.tmp
+*.bak
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Python helpers used during development
+__pycache__/
+*.py[cod]
+.venv/
+
+# Local AI/tool scratch
+.ai-bridge/

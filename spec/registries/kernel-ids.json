@@ -1,0 +1,17 @@
+{
+  "format": "exactscope.registry",
+  "format_version": 1,
+  "name": "kernel-ids",
+  "unique_ids": true,
+  "entries": [
+    {"id": 1, "key": "sum", "description": "Deterministic exact-rational sum."},
+    {"id": 2, "key": "mean", "description": "Deterministic arithmetic mean."},
+    {"id": 3, "key": "weighted_mean", "description": "Deterministic weighted arithmetic mean."},
+    {"id": 4, "key": "variance_population", "description": "Two-pass population variance."},
+    {"id": 5, "key": "variance_sample", "description": "Two-pass sample variance."},
+    {"id": 6, "key": "covariance_population", "description": "Population covariance."},
+    {"id": 7, "key": "covariance_sample", "description": "Sample covariance."},
+    {"id": 8, "key": "correlation", "description": "Pearson correlation with deterministic square-root semantics."},
+    {"id": 9, "key": "linear_regression", "description": "Simple least-squares linear regression."}
+  ]
+}

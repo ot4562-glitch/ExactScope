@@ -1,0 +1,32 @@
+{
+  "format": "exactscope.registry",
+  "format_version": 1,
+  "name": "vm-opcodes",
+  "unique_ids": true,
+  "entries": [
+    {"id": 0, "key": "end", "pop": 1, "push": 0, "operand": "none", "description": "Finish with exactly one result."},
+    {"id": 1, "key": "arg", "pop": 0, "push": 1, "operand": "u24", "description": "Push one input argument."},
+    {"id": 2, "key": "const", "pop": 0, "push": 1, "operand": "u24", "description": "Push one operation constant."},
+    {"id": 3, "key": "result", "pop": 0, "push": 1, "operand": "u24", "description": "Push one unrounded result for classification."},
+    {"id": 4, "key": "add", "pop": 2, "push": 1, "operand": "none", "description": "Checked exact addition."},
+    {"id": 5, "key": "sub", "pop": 2, "push": 1, "operand": "none", "description": "Checked exact subtraction."},
+    {"id": 6, "key": "mul", "pop": 2, "push": 1, "operand": "none", "description": "Checked exact multiplication."},
+    {"id": 7, "key": "div", "pop": 2, "push": 1, "operand": "none", "description": "Checked exact division."},
+    {"id": 8, "key": "neg", "pop": 1, "push": 1, "operand": "none", "description": "Negate."},
+    {"id": 9, "key": "abs", "pop": 1, "push": 1, "operand": "none", "description": "Absolute value."},
+    {"id": 10, "key": "min", "pop": 2, "push": 1, "operand": "none", "description": "Minimum."},
+    {"id": 11, "key": "max", "pop": 2, "push": 1, "operand": "none", "description": "Maximum."},
+    {"id": 12, "key": "powi", "pop": 1, "push": 1, "operand": "i24", "description": "Checked integer power."},
+    {"id": 13, "key": "sqrt", "pop": 1, "push": 1, "operand": "none", "description": "Deterministic correctly rounded square root."},
+    {"id": 14, "key": "cmp_lt", "pop": 2, "push": 1, "operand": "none", "description": "Less-than comparison."},
+    {"id": 15, "key": "cmp_le", "pop": 2, "push": 1, "operand": "none", "description": "Less-than-or-equal comparison."},
+    {"id": 16, "key": "cmp_eq", "pop": 2, "push": 1, "operand": "none", "description": "Exact equality comparison."},
+    {"id": 17, "key": "cmp_ge", "pop": 2, "push": 1, "operand": "none", "description": "Greater-than-or-equal comparison."},
+    {"id": 18, "key": "cmp_gt", "pop": 2, "push": 1, "operand": "none", "description": "Greater-than comparison."},
+    {"id": 19, "key": "and", "pop": 2, "push": 1, "operand": "none", "description": "Boolean conjunction for classification."},
+    {"id": 20, "key": "or", "pop": 2, "push": 1, "operand": "none", "description": "Boolean disjunction for classification."},
+    {"id": 21, "key": "not", "pop": 1, "push": 1, "operand": "none", "description": "Boolean negation for classification."},
+    {"id": 22, "key": "select", "pop": 3, "push": 1, "operand": "none", "description": "Select between two values from a boolean condition."},
+    {"id": 23, "key": "round", "pop": 1, "push": 1, "operand": "round24", "description": "Explicit scale and rounding operation."}
+  ]
+}
