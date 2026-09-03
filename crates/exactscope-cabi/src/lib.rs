@@ -435,7 +435,7 @@ pub unsafe extern "C" fn xs_pack_mount(
         if declared_vector_len > context.max_vector_len {
             return Status::RESOURCE_LIMIT.code();
         }
-        if let Err(status) = unsafe { validate_dynamic_pack_registration(context, pack) } {
+        if let Err(status) = unsafe { validate_dynamic_pack_registration(context, &pack) } {
             return status.code();
         }
 
@@ -828,14 +828,14 @@ unsafe fn eval_dynamic(
     };
 
     if let Err(status) = unsafe { validate_options(options) } {
-        let evaluated = dynamic_failure(pack, pack_slot, operation, status, ARGUMENT_INDEX_NONE, 0);
+        let evaluated = dynamic_failure(&pack, pack_slot, operation, status, ARGUMENT_INDEX_NONE, 0);
         let result_status = evaluated.status;
         unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
         return result_status.code();
     }
     if scratch.is_null() && scratch_len != 0 {
         let evaluated = dynamic_failure(
-            pack,
+            &pack,
             pack_slot,
             operation,
             Status::INVALID_REQUEST,
@@ -856,7 +856,7 @@ unsafe fn eval_dynamic(
     };
     if usize::from(arg_count) != input_count {
         let evaluated = dynamic_failure(
-            pack,
+            &pack,
             pack_slot,
             operation,
             Status::ARGUMENT_COUNT,
@@ -872,7 +872,7 @@ unsafe fn eval_dynamic(
         Ok(args) => args,
         Err(status) => {
             let evaluated =
-                dynamic_failure(pack, pack_slot, operation, status, ARGUMENT_INDEX_NONE, 0);
+                dynamic_failure(&pack, pack_slot, operation, status, ARGUMENT_INDEX_NONE, 0);
             let result_status = evaluated.status;
             unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
             return result_status.code();
@@ -886,7 +886,7 @@ unsafe fn eval_dynamic(
             Ok(value) => value,
             Err(status) => {
                 let evaluated =
-                    dynamic_failure(pack, pack_slot, operation, status, argument_index, 0);
+                    dynamic_failure(&pack, pack_slot, operation, status, argument_index, 0);
                 let result_status = evaluated.status;
                 unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
                 return result_status.code();
@@ -910,7 +910,7 @@ unsafe fn eval_dynamic(
 
 #[cfg(feature = "dynamic-packs")]
 fn dynamic_failure(
-    pack: PackView<'_>,
+    pack: &PackView<'_>,
     pack_slot: u16,
     operation: exactscope_pack::DynamicOperation<'_>,
     status: Status,
@@ -995,7 +995,7 @@ unsafe fn dynamic_pack_view<'a>(
 #[cfg(feature = "dynamic-packs")]
 unsafe fn validate_dynamic_pack_registration(
     context: &XsContext,
-    candidate: PackView<'_>,
+    candidate: &PackView<'_>,
 ) -> Result<(), Status> {
     let candidate_pack_id = candidate.pack_id()?;
     if candidate_pack_id == ECON_UNDERGRAD_PACK_ID {
