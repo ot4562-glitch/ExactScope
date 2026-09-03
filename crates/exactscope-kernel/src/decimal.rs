@@ -52,7 +52,7 @@ impl Decimal64 {
     ///
     /// # Errors
     ///
-    /// Returns a stable ExactScope status for malformed, oversized, or
+    /// Returns a stable `ExactScope` status for malformed, oversized, or
     /// unrepresentable input.
     #[allow(clippy::too_many_lines)]
     pub fn parse_ascii(bytes: &[u8]) -> Result<Self, Status> {
@@ -168,10 +168,10 @@ impl Decimal64 {
             .checked_sub(trailing_zeros)
             .ok_or(Status::INTERNAL_ERROR)?;
         let mut magnitude = 0u128;
-        let mut consumed = 0usize;
-        for &digit in bytes[integer_start..integer_end]
+        for (consumed, &digit) in bytes[integer_start..integer_end]
             .iter()
             .chain(bytes[fraction_start..fraction_end].iter())
+            .enumerate()
         {
             if consumed == kept_digits {
                 break;
@@ -180,10 +180,9 @@ impl Decimal64 {
                 .checked_mul(10)
                 .and_then(|value| value.checked_add(u128::from(digit - b'0')))
                 .ok_or(Status::OVERFLOW)?;
-            consumed += 1;
         }
 
-        let positive_limit = i64::MAX as u128;
+        let positive_limit = u128::from(i64::MAX.unsigned_abs());
         let negative_limit = positive_limit + 1;
         let coefficient = if negative {
             if magnitude > negative_limit {
@@ -192,13 +191,13 @@ impl Decimal64 {
             if magnitude == negative_limit {
                 i64::MIN
             } else {
-                -(magnitude as i64)
+                i64::try_from(magnitude)
+                    .map_err(|_| Status::OVERFLOW)?
+                    .checked_neg()
+                    .ok_or(Status::OVERFLOW)?
             }
         } else {
-            if magnitude > positive_limit {
-                return Err(Status::OVERFLOW);
-            }
-            magnitude as i64
+            i64::try_from(magnitude).map_err(|_| Status::OVERFLOW)?
         };
 
         let fractional_digits = i64::try_from(fractional_digits).map_err(|_| Status::OVERFLOW)?;
@@ -352,7 +351,7 @@ mod tests {
     fn rendered(value: Decimal64) -> std::string::String {
         let mut output = [0u8; 64];
         let written = value.write_canonical(&mut output).expect("format");
-        std::string::String::from(std::str::from_utf8(&output[..written]).expect("ascii"))
+        std::string::String::from(core::str::from_utf8(&output[..written]).expect("ascii"))
     }
 
     #[test]

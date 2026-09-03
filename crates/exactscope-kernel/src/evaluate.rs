@@ -375,7 +375,7 @@ mod tests {
             .decimal
             .write_canonical(&mut buffer)
             .unwrap();
-        std::string::String::from(std::str::from_utf8(&buffer[..written]).unwrap())
+        std::string::String::from(core::str::from_utf8(&buffer[..written]).unwrap())
     }
 
     #[test]

@@ -34,7 +34,9 @@ impl WorkRational {
 
     /// Constructs an exact integer constant for static operation tables.
     #[must_use]
+    #[allow(clippy::cast_lossless)]
     pub const fn from_integer(value: i64) -> Self {
+        // `From<i64> for i128` is not const on the declared MSRV; this widening cast is exact.
         Self {
             numerator: value as i128,
             denominator: 1,
@@ -63,7 +65,7 @@ impl WorkRational {
             (numerator, denominator)
         };
 
-        let gcd = gcd_u128(numerator.unsigned_abs(), denominator as u128);
+        let gcd = gcd_u128(numerator.unsigned_abs(), positive_i128_to_u128(denominator)?);
         let divisor = i128::try_from(gcd).map_err(|_| Status::OVERFLOW)?;
         Ok(Self {
             numerator: numerator / divisor,
@@ -83,7 +85,8 @@ impl WorkRational {
         let coefficient = i128::from(value.coefficient());
         let exponent = value.exponent();
         if exponent >= 0 {
-            let factor = pow10_i128(exponent as u8)?;
+            let exponent = u8::try_from(exponent).map_err(|_| Status::INTERNAL_ERROR)?;
+            let factor = pow10_i128(exponent)?;
             Self::new(coefficient.checked_mul(factor).ok_or(Status::OVERFLOW)?, 1)
         } else {
             let denominator = pow10_i128(exponent.unsigned_abs())?;
@@ -115,7 +118,10 @@ impl WorkRational {
     ///
     /// Returns [`Status::OVERFLOW`] if a bounded intermediate cannot be represented.
     pub fn checked_add(self, rhs: Self) -> Result<Self, Status> {
-        let gcd = gcd_u128(self.denominator as u128, rhs.denominator as u128);
+        let gcd = gcd_u128(
+            positive_i128_to_u128(self.denominator)?,
+            positive_i128_to_u128(rhs.denominator)?,
+        );
         let gcd = i128::try_from(gcd).map_err(|_| Status::OVERFLOW)?;
         let left_scale = rhs.denominator / gcd;
         let right_scale = self.denominator / gcd;
@@ -154,8 +160,14 @@ impl WorkRational {
             return Ok(Self::ZERO);
         }
 
-        let gcd_left = gcd_u128(self.numerator.unsigned_abs(), rhs.denominator as u128);
-        let gcd_right = gcd_u128(rhs.numerator.unsigned_abs(), self.denominator as u128);
+        let gcd_left = gcd_u128(
+            self.numerator.unsigned_abs(),
+            positive_i128_to_u128(rhs.denominator)?,
+        );
+        let gcd_right = gcd_u128(
+            rhs.numerator.unsigned_abs(),
+            positive_i128_to_u128(self.denominator)?,
+        );
         let gcd_left = i128::try_from(gcd_left).map_err(|_| Status::OVERFLOW)?;
         let gcd_right = i128::try_from(gcd_right).map_err(|_| Status::OVERFLOW)?;
 
@@ -187,7 +199,10 @@ impl WorkRational {
         let divisor_negative = rhs.numerator < 0;
         let divisor_magnitude = rhs.numerator.unsigned_abs();
         let gcd_num = gcd_u128(self.numerator.unsigned_abs(), divisor_magnitude);
-        let gcd_den = gcd_u128(rhs.denominator as u128, self.denominator as u128);
+        let gcd_den = gcd_u128(
+            positive_i128_to_u128(rhs.denominator)?,
+            positive_i128_to_u128(self.denominator)?,
+        );
         let gcd_num_i = i128::try_from(gcd_num).map_err(|_| Status::OVERFLOW)?;
         let gcd_den_i = i128::try_from(gcd_den).map_err(|_| Status::OVERFLOW)?;
 
@@ -261,7 +276,7 @@ impl WorkRational {
         let factor = pow10_u128(scale)?;
         let magnitude = self.numerator.unsigned_abs();
         let scaled = magnitude.checked_mul(factor).ok_or(Status::OVERFLOW)?;
-        let denominator = self.denominator as u128;
+        let denominator = positive_i128_to_u128(self.denominator)?;
         let quotient = scaled / denominator;
         let remainder = scaled % denominator;
         let negative = self.numerator < 0;
@@ -289,7 +304,7 @@ impl WorkRational {
         } else {
             quotient
         };
-        let positive_limit = i64::MAX as u128;
+        let positive_limit = u128::from(i64::MAX.unsigned_abs());
         let negative_limit = positive_limit + 1;
         let coefficient = if negative {
             if magnitude > negative_limit {
@@ -298,13 +313,13 @@ impl WorkRational {
             if magnitude == negative_limit {
                 i64::MIN
             } else {
-                -(magnitude as i64)
+                i64::try_from(magnitude)
+                    .map_err(|_| Status::OVERFLOW)?
+                    .checked_neg()
+                    .ok_or(Status::OVERFLOW)?
             }
         } else {
-            if magnitude > positive_limit {
-                return Err(Status::OVERFLOW);
-            }
-            magnitude as i64
+            i64::try_from(magnitude).map_err(|_| Status::OVERFLOW)?
         };
 
         let exponent = i8::try_from(scale)
@@ -316,6 +331,10 @@ impl WorkRational {
             rounded: remainder != 0,
         })
     }
+}
+
+fn positive_i128_to_u128(value: i128) -> Result<u128, Status> {
+    u128::try_from(value).map_err(|_| Status::INTERNAL_ERROR)
 }
 
 fn gcd_u128(mut left: u128, mut right: u128) -> u128 {

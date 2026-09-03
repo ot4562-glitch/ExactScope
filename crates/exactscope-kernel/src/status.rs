@@ -1,6 +1,6 @@
-//! Stable ExactScope status codes.
+//! Stable `ExactScope` status codes.
 
-/// Stable ExactScope status value.
+/// Stable `ExactScope` status value.
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Status(u16);

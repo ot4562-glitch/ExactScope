@@ -129,7 +129,7 @@ pub fn validate_program(
                 pop_type(&stack, &mut depth, ValueType::Number)?;
                 push_type(&mut stack, &mut depth, ValueType::Boolean)?;
             }
-            0..=23 => return Err(Status::UNSUPPORTED_OPERATION),
+            6 | 8 | 10..=13 | 15 | 17 | 19..=23 => return Err(Status::UNSUPPORTED_OPERATION),
             _ => return Err(Status::PACK_INVALID),
         }
         maximum_depth = maximum_depth.max(depth);
@@ -277,7 +277,7 @@ fn execute(
                 };
                 push_value(&mut stack, &mut depth, VmValue::Boolean(value))?;
             }
-            0..=23 => return Err(Status::UNSUPPORTED_OPERATION),
+            6 | 8 | 10..=13 | 15 | 17 | 19..=23 => return Err(Status::UNSUPPORTED_OPERATION),
             _ => return Err(Status::PACK_INVALID),
         }
     }

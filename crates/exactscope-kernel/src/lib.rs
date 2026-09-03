@@ -1,6 +1,6 @@
 #![no_std]
 #![forbid(unsafe_code)]
-#![doc = "Deterministic, allocator-free ExactScope numeric kernel."]
+#![doc = "Deterministic, allocator-free `ExactScope` numeric kernel."]
 
 #[cfg(test)]
 extern crate std;
