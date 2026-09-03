@@ -35,6 +35,12 @@ jobs:
       - name: Validate wearable product profile
         run: python tools/validate_wearable_profile.py
 
+      - name: Compile wearable reference host as C99
+        run: cc -std=c99 -Wall -Wextra -Werror -pedantic -Iinclude -Iadapters/wearable -fsyntax-only adapters/wearable/exactscope_wearable_ref.c tests/wearable/reference_host_c.c
+
+      - name: Compile wearable reference header as C++11
+        run: c++ -std=c++11 -Wall -Wextra -Werror -pedantic -Iinclude -Iadapters/wearable -fsyntax-only tests/wearable/reference_host_cpp.cpp
+
       - name: Install pinned Rust toolchain
         run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component clippy
 

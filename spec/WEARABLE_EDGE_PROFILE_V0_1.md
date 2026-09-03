@@ -74,6 +74,7 @@ These values are integration ceilings, not aspirational measurements.
 |---|---:|
 | `xs_context_size()` | 4 KiB |
 | Evaluation scratch | 4 KiB |
+| Pack-mount arena | **0 B** (prebuilt-index zero-copy packs only) |
 | Adapter fixed buffers | 8 KiB |
 | Total mutable runtime working set | 16 KiB |
 | Tiny request | 512 B |
@@ -89,9 +90,11 @@ These values are integration ceilings, not aspirational measurements.
 
 The general core may support a wider limit. A wearable product using this profile MUST configure or enforce the smaller wearable ceiling at the host boundary.
 
-`max_context_bytes + max_eval_scratch_bytes + max_adapter_buffer_bytes` MUST NOT exceed the declared 16 KiB mutable-runtime budget.
+`max_context_bytes + max_eval_scratch_bytes + max_pack_mount_arena_bytes + max_adapter_buffer_bytes` MUST NOT exceed the declared 16 KiB mutable-runtime budget.
 
-A product MUST reject a pack before registration if its declared vector, VM-step, stack, or pack-size requirement exceeds this profile.
+Wearable v0.1 requires `max_pack_mount_arena_bytes = 0`: only packs whose prebuilt runtime tables can be mounted without copied registration state are admissible. A future profile revision must explicitly rebudget mutable memory before allowing a nonzero mount arena.
+
+A product MUST reject a pack before registration if its declared vector, VM-step, stack, pack-size, or mount-arena requirement exceeds this profile.
 
 ## 4. Latency and energy product targets
 

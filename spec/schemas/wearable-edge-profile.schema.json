@@ -91,6 +91,7 @@
       "properties": {
         "max_context_bytes": {"type": "integer", "minimum": 1, "maximum": 4096},
         "max_eval_scratch_bytes": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "max_pack_mount_arena_bytes": {"const": 0},
         "max_adapter_buffer_bytes": {"type": "integer", "minimum": 256, "maximum": 8192},
         "max_mutable_runtime_bytes": {"type": "integer", "minimum": 1024, "maximum": 16384},
         "max_tiny_request_bytes": {"type": "integer", "minimum": 64, "maximum": 1024},
@@ -107,6 +108,7 @@
       "required": [
         "max_context_bytes",
         "max_eval_scratch_bytes",
+        "max_pack_mount_arena_bytes",
         "max_adapter_buffer_bytes",
         "max_mutable_runtime_bytes",
         "max_tiny_request_bytes",

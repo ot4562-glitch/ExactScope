@@ -2,6 +2,14 @@
 
 Adapters connect AI runtimes and host platforms to the same ExactScope core. They are convenience and compatibility layers, never calculation authorities.
 
+## Implemented integration references
+
+### `wearable`
+
+[`wearable/`](wearable/) is the product-integration reference for AI glasses and similarly constrained edge devices. It provides a C99/C++11-consumable, allocation-free host state machine around the stable C ABI and enforces the machine-readable wearable profile: frozen-before-serve registry state, 16 KiB mutable budget, zero-byte pack-mount arena, bounded pack storage, exact lookup/eval modes, and privacy-minimized telemetry.
+
+It is a vendor-neutral reference, not a claim of compatibility with unpublished platform internals or a substitute for target-device latency/energy qualification.
+
 ## Planned adapters
 
 ### `llama-cpp`
