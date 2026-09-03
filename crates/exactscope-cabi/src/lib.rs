@@ -665,7 +665,7 @@ pub unsafe extern "C" fn xs_find(
 /// lifetime requirements documented by `include/exactscope.h`. Input and output
 /// regions must not overlap in a way that violates Rust aliasing rules.
 #[unsafe(no_mangle)]
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 pub unsafe extern "C" fn xs_eval(
     context: *mut XsContext,
     pack_slot: u16,
@@ -713,12 +713,12 @@ pub unsafe extern "C" fn xs_eval(
         return Status::UNKNOWN_PACK.code();
     }
 
-    let operation = if operation_id != PED_MID_OPERATION.id {
+    let operation = if operation_id == PED_MID_OPERATION.id {
+        &PED_MID_OPERATION
+    } else {
         let result = unidentified_result(result_struct_size, Status::UNKNOWN_OPERATION);
         unsafe { out_result.write(result) };
         return Status::UNKNOWN_OPERATION.code();
-    } else {
-        &PED_MID_OPERATION
     };
 
     if let Err(status) = unsafe { validate_options(options) } {
