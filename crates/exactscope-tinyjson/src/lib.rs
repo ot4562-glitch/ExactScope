@@ -475,7 +475,7 @@ fn write_response(response: &Response, output: &mut [u8]) -> AdapterResult {
     let mut writer = Writer::new(&mut staging);
     let semantic_status = match response {
         Response::Error(error) => {
-            if write_error(&mut writer, error).is_err() {
+            if write_error(&mut writer, *error).is_err() {
                 return internal_adapter_failure(output);
             }
             error.status
@@ -526,7 +526,7 @@ fn internal_adapter_failure(output: &mut [u8]) -> AdapterResult {
     }
 }
 
-fn write_error(writer: &mut Writer<'_>, error: &ErrorResponse) -> Result<(), Status> {
+fn write_error(writer: &mut Writer<'_>, error: ErrorResponse) -> Result<(), Status> {
     writer.bytes(b"{\"s\":")?;
     writer.u16(error.status.code())?;
     writer.bytes(b",\"e\":\"")?;
