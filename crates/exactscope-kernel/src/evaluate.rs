@@ -4,7 +4,8 @@ use core::cmp::Ordering;
 
 use crate::{
     execute_formula, execute_predicate, validate_same_unit, ConstraintKind, Decimal64,
-    OperationDecl, ScalarValue, Status, WorkRational, VALUE_FLAGS_V1, VALUE_FLAG_ROUNDED,
+    OperationDecl, RuntimeOperation, ScalarValue, Status, WorkRational, VALUE_FLAGS_V1,
+    VALUE_FLAG_ROUNDED,
 };
 
 /// Sentinel when an error does not identify a positional argument.
@@ -75,6 +76,24 @@ impl EvaluationResult {
         argument_index: u16,
         detail_code: u16,
     ) -> Self {
+        Self::failure_runtime(
+            status,
+            pack_slot,
+            &operation.runtime(),
+            argument_index,
+            detail_code,
+        )
+    }
+
+    /// Creates a fully zeroed failure tied to a borrowed runtime operation.
+    #[must_use]
+    pub fn failure_runtime(
+        status: Status,
+        pack_slot: u16,
+        operation: &RuntimeOperation<'_>,
+        argument_index: u16,
+        detail_code: u16,
+    ) -> Self {
         Self {
             status,
             flags: 0,
@@ -121,13 +140,17 @@ impl EvaluationResult {
 /// [`EvaluationResult`] so ABI/wire adapters can preserve identical metadata.
 #[must_use]
 #[allow(clippy::too_many_lines)]
-pub fn evaluate_operation(
+pub fn evaluate_runtime_operation<F>(
     pack_slot: u16,
-    operation: &OperationDecl,
+    operation: &RuntimeOperation<'_>,
     arguments: &[ScalarValue],
-) -> EvaluationResult {
+    mut classifier: F,
+) -> EvaluationResult
+where
+    F: FnMut(WorkRational) -> Result<u16, Status>,
+{
     if arguments.len() != operation.inputs.len() {
-        return EvaluationResult::failure(
+        return EvaluationResult::failure_runtime(
             Status::ARGUMENT_COUNT,
             pack_slot,
             operation,
@@ -138,7 +161,7 @@ pub fn evaluate_operation(
 
     let mut work = [WorkRational::ZERO; 12];
     if arguments.len() > work.len() {
-        return EvaluationResult::failure(
+        return EvaluationResult::failure_runtime(
             Status::RESOURCE_LIMIT,
             pack_slot,
             operation,
@@ -152,7 +175,7 @@ pub fn evaluate_operation(
     {
         let argument_index = u16::try_from(index).unwrap_or(ARGUMENT_INDEX_NONE);
         if !argument.decimal.is_canonical() {
-            return EvaluationResult::failure(
+            return EvaluationResult::failure_runtime(
                 Status::INVALID_DECIMAL,
                 pack_slot,
                 operation,
@@ -161,7 +184,7 @@ pub fn evaluate_operation(
             );
         }
         if argument.flags & !VALUE_FLAGS_V1 != 0 {
-            return EvaluationResult::failure(
+            return EvaluationResult::failure_runtime(
                 Status::INVALID_REQUEST,
                 pack_slot,
                 operation,
@@ -170,7 +193,7 @@ pub fn evaluate_operation(
             );
         }
         if argument.semantic_kind != declaration.semantic_kind {
-            return EvaluationResult::failure(
+            return EvaluationResult::failure_runtime(
                 Status::ARGUMENT_TYPE,
                 pack_slot,
                 operation,
@@ -179,7 +202,7 @@ pub fn evaluate_operation(
             );
         }
         if declaration.unit_required && argument.unit_id == 0 {
-            return EvaluationResult::failure(
+            return EvaluationResult::failure_runtime(
                 Status::MISSING_INFORMATION,
                 pack_slot,
                 operation,
@@ -191,7 +214,7 @@ pub fn evaluate_operation(
         let value = match WorkRational::from_decimal(argument.decimal) {
             Ok(value) => value,
             Err(status) => {
-                return EvaluationResult::failure(status, pack_slot, operation, argument_index, 0);
+                return EvaluationResult::failure_runtime(status, pack_slot, operation, argument_index, 0);
             }
         };
         work[index] = value;
@@ -202,7 +225,7 @@ pub fn evaluate_operation(
         let ordering = match value.checked_cmp(declaration.constraint_value) {
             Ok(ordering) => ordering,
             Err(status) => {
-                return EvaluationResult::failure(
+                return EvaluationResult::failure_runtime(
                     status,
                     pack_slot,
                     operation,
@@ -218,7 +241,7 @@ pub fn evaluate_operation(
             }
         };
         if !accepted {
-            return EvaluationResult::failure(
+            return EvaluationResult::failure_runtime(
                 Status::CONSTRAINT_VIOLATION,
                 pack_slot,
                 operation,
@@ -240,7 +263,7 @@ pub fn evaluate_operation(
             if let Err(status) =
                 validate_same_unit(arguments[left].unit_id, arguments[right].unit_id)
             {
-                return EvaluationResult::failure(
+                return EvaluationResult::failure_runtime(
                     status,
                     pack_slot,
                     operation,
@@ -258,37 +281,24 @@ pub fn evaluate_operation(
     ) {
         Ok(value) => value,
         Err(status) => {
-            return EvaluationResult::failure(status, pack_slot, operation, ARGUMENT_INDEX_NONE, 0);
+            return EvaluationResult::failure_runtime(status, pack_slot, operation, ARGUMENT_INDEX_NONE, 0);
         }
     };
 
-    let mut classification_id = 0u16;
-    for classification in operation.classifications {
-        match execute_predicate(classification.program, &[exact], operation.constants) {
-            Ok(true) if classification_id == 0 => classification_id = classification.id,
-            Ok(true) => {
-                return EvaluationResult::failure(
-                    Status::PACK_INVALID,
-                    pack_slot,
-                    operation,
-                    ARGUMENT_INDEX_NONE,
-                    0,
-                );
-            }
-            Ok(false) => {}
-            Err(status) => {
-                return EvaluationResult::failure(
-                    status,
-                    pack_slot,
-                    operation,
-                    ARGUMENT_INDEX_NONE,
-                    0,
-                );
-            }
+    let classification_id = match classifier(exact) {
+        Ok(classification_id) => classification_id,
+        Err(status) => {
+            return EvaluationResult::failure_runtime(
+                status,
+                pack_slot,
+                operation,
+                ARGUMENT_INDEX_NONE,
+                0,
+            );
         }
-    }
-    if !operation.classifications.is_empty() && classification_id == 0 {
-        return EvaluationResult::failure(
+    };
+    if operation.classification_required && classification_id == 0 {
+        return EvaluationResult::failure_runtime(
             Status::PRECISION_UNRESOLVED,
             pack_slot,
             operation,
@@ -300,7 +310,7 @@ pub fn evaluate_operation(
     let rounded = match exact.round_to_decimal(operation.output_scale, operation.rounding_mode) {
         Ok(value) => value,
         Err(status) => {
-            return EvaluationResult::failure(status, pack_slot, operation, ARGUMENT_INDEX_NONE, 0);
+            return EvaluationResult::failure_runtime(status, pack_slot, operation, ARGUMENT_INDEX_NONE, 0);
         }
     };
 
@@ -334,6 +344,28 @@ pub fn evaluate_operation(
             ResultValue::ZERO,
         ],
     }
+}
+
+/// Evaluates one immutable fused operation through the shared runtime path.
+#[must_use]
+pub fn evaluate_operation(
+    pack_slot: u16,
+    operation: &OperationDecl,
+    arguments: &[ScalarValue],
+) -> EvaluationResult {
+    let runtime = operation.runtime();
+    evaluate_runtime_operation(pack_slot, &runtime, arguments, |exact| {
+        let mut classification_id = 0u16;
+        for classification in operation.classifications {
+            match execute_predicate(classification.program, &[exact], operation.constants) {
+                Ok(true) if classification_id == 0 => classification_id = classification.id,
+                Ok(true) => return Err(Status::PACK_INVALID),
+                Ok(false) => {}
+                Err(status) => return Err(status),
+            }
+        }
+        Ok(classification_id)
+    })
 }
 
 #[cfg(test)]

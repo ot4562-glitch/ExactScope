@@ -72,6 +72,63 @@ pub struct OperationDecl {
     pub rounding_mode: RoundingMode,
 }
 
+/// Borrowed numeric operation view shared by fused and dynamic packs.
+///
+/// String identity and classification labels deliberately stay outside this
+/// view so runtime-loaded pack bytes never need fake `'static` lifetimes.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RuntimeOperation<'a> {
+    /// Pack-local operation ID.
+    pub id: u32,
+    /// Immutable semantic revision.
+    pub revision: u16,
+    /// Ordered scalar input declarations.
+    pub inputs: &'a [InputDecl],
+    /// Exact constants referenced by the formula and predicates.
+    pub constants: &'a [WorkRational],
+    /// Formula VM program.
+    pub program: &'a [Instruction],
+    /// Whether successful evaluation requires a deterministic class.
+    pub classification_required: bool,
+    /// Output stable semantic kind.
+    pub output_semantic_kind: u8,
+    /// Final decimal scale.
+    pub output_scale: u8,
+    /// Final rounding mode.
+    pub rounding_mode: RoundingMode,
+}
+
+impl OperationDecl {
+    /// Returns the numeric-only view used by the shared evaluator.
+    #[must_use]
+    pub const fn runtime(&self) -> RuntimeOperation<'static> {
+        RuntimeOperation {
+            id: self.id,
+            revision: self.revision,
+            inputs: self.inputs,
+            constants: self.constants,
+            program: self.program,
+            classification_required: !self.classifications.is_empty(),
+            output_semantic_kind: self.output_semantic_kind,
+            output_scale: self.output_scale,
+            rounding_mode: self.rounding_mode,
+        }
+    }
+}
+
+impl InputDecl {
+    /// Empty stack-storage placeholder used while decoding dynamic packs.
+    pub const EMPTY: Self = Self {
+        name: "",
+        semantic_kind: 0,
+        same_unit_group: 0,
+        unit_required: false,
+        constraint: ConstraintKind::GreaterOrEqual,
+        constraint_value: WorkRational::ZERO,
+        detail_id: 0,
+    };
+}
+
 const PED_INPUTS: [InputDecl; 4] = [
     InputDecl {
         name: "p1",

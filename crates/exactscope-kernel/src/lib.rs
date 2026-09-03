@@ -16,11 +16,12 @@ mod vm;
 
 pub use decimal::{Decimal64, MAX_DECIMAL_EXPONENT, MAX_DECIMAL_TEXT_BYTES, MIN_DECIMAL_EXPONENT};
 pub use evaluate::{
-    evaluate_operation, EvaluationResult, ResultValue, ARGUMENT_INDEX_NONE, MAX_RESULT_VALUES,
+    evaluate_operation, evaluate_runtime_operation, EvaluationResult, ResultValue,
+    ARGUMENT_INDEX_NONE, MAX_RESULT_VALUES,
 };
 pub use operation::{
     classification_key, ClassificationDecl, ConstraintKind, InputDecl, OperationDecl,
-    PED_MID_OPERATION,
+    RuntimeOperation, PED_MID_OPERATION,
 };
 pub use rational::{RoundedDecimal, WorkRational};
 pub use rounding::RoundingMode;
