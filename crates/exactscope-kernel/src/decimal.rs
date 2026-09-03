@@ -352,9 +352,9 @@ mod tests {
     fn rendered(value: Decimal64) -> std::string::String {
         let mut output = [0u8; 64];
         let written = value.write_canonical(&mut output).expect("format");
-        std::str::from_utf8(&output[..written])
-            .expect("ascii")
-            .to_owned()
+        std::string::String::from(
+            std::str::from_utf8(&output[..written]).expect("ascii"),
+        )
     }
 
     #[test]
@@ -379,8 +379,14 @@ mod tests {
 
     #[test]
     fn rejects_invalid_lexical_forms() {
-        for text in ["", "+1", "01", "1.", ".1", "1e", "1 2", "1,000", "5%", "NaN", "Infinity"] {
-            assert_eq!(Decimal64::parse_ascii(text.as_bytes()), Err(Status::INVALID_DECIMAL), "{text}");
+        for text in [
+            "", "+1", "01", "1.", ".1", "1e", "1 2", "1,000", "5%", "NaN", "Infinity",
+        ] {
+            assert_eq!(
+                Decimal64::parse_ascii(text.as_bytes()),
+                Err(Status::INVALID_DECIMAL),
+                "{text}"
+            );
         }
     }
 
@@ -394,10 +400,7 @@ mod tests {
             Decimal64::parse_ascii(b"9223372036854775808"),
             Err(Status::OVERFLOW)
         );
-        assert_eq!(
-            Decimal64::parse_ascii(b"1e19"),
-            Err(Status::OVERFLOW)
-        );
+        assert_eq!(Decimal64::parse_ascii(b"1e19"), Err(Status::OVERFLOW));
     }
 
     #[test]
@@ -415,7 +418,10 @@ mod tests {
     fn format_reports_required_capacity() {
         let value = Decimal64::parse_ascii(b"0.000001").unwrap();
         let mut short = [0u8; 7];
-        assert_eq!(value.write_canonical(&mut short), Err(Status::BUFFER_TOO_SMALL));
+        assert_eq!(
+            value.write_canonical(&mut short),
+            Err(Status::BUFFER_TOO_SMALL)
+        );
         assert_eq!(value.format_len(), Ok(8));
     }
 }

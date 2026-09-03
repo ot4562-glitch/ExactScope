@@ -4,7 +4,7 @@ use core::cmp::Ordering;
 
 use crate::{
     execute_formula, execute_predicate, validate_same_unit, ConstraintKind, Decimal64,
-    OperationDecl, ScalarValue, Status, WorkRational, VALUE_FLAG_ROUNDED, VALUE_FLAGS_V1,
+    OperationDecl, ScalarValue, Status, WorkRational, VALUE_FLAGS_V1, VALUE_FLAG_ROUNDED,
 };
 
 /// Sentinel when an error does not identify a positional argument.
@@ -147,10 +147,8 @@ pub fn evaluate_operation(
         );
     }
 
-    for (index, (argument, declaration)) in arguments
-        .iter()
-        .zip(operation.inputs.iter())
-        .enumerate()
+    for (index, (argument, declaration)) in
+        arguments.iter().zip(operation.inputs.iter()).enumerate()
     {
         let argument_index = u16::try_from(index).unwrap_or(ARGUMENT_INDEX_NONE);
         if !argument.decimal.is_canonical() {
@@ -193,13 +191,7 @@ pub fn evaluate_operation(
         let value = match WorkRational::from_decimal(argument.decimal) {
             Ok(value) => value,
             Err(status) => {
-                return EvaluationResult::failure(
-                    status,
-                    pack_slot,
-                    operation,
-                    argument_index,
-                    0,
-                );
+                return EvaluationResult::failure(status, pack_slot, operation, argument_index, 0);
             }
         };
         work[index] = value;
@@ -266,13 +258,7 @@ pub fn evaluate_operation(
     ) {
         Ok(value) => value,
         Err(status) => {
-            return EvaluationResult::failure(
-                status,
-                pack_slot,
-                operation,
-                ARGUMENT_INDEX_NONE,
-                0,
-            );
+            return EvaluationResult::failure(status, pack_slot, operation, ARGUMENT_INDEX_NONE, 0);
         }
     };
 
@@ -291,13 +277,7 @@ pub fn evaluate_operation(
             }
             Ok(false) => {}
             Err(status) => {
-                return EvaluationResult::failure(
-                    status,
-                    pack_slot,
-                    operation,
-                    ARGUMENT_INDEX_NONE,
-                    0,
-                );
+                return EvaluationResult::failure(status, pack_slot, operation, ARGUMENT_INDEX_NONE, 0);
             }
         }
     }
@@ -314,13 +294,7 @@ pub fn evaluate_operation(
     let rounded = match exact.round_to_decimal(operation.output_scale, operation.rounding_mode) {
         Ok(value) => value,
         Err(status) => {
-            return EvaluationResult::failure(
-                status,
-                pack_slot,
-                operation,
-                ARGUMENT_INDEX_NONE,
-                0,
-            );
+            return EvaluationResult::failure(status, pack_slot, operation, ARGUMENT_INDEX_NONE, 0);
         }
     };
 
@@ -366,8 +340,16 @@ mod tests {
 
     fn args(values: [&[u8]; 4]) -> [ScalarValue; 4] {
         [
-            ScalarValue::new(Decimal64::parse_ascii(values[0]).unwrap(), SEMANTIC_PRICE, 0),
-            ScalarValue::new(Decimal64::parse_ascii(values[1]).unwrap(), SEMANTIC_PRICE, 0),
+            ScalarValue::new(
+                Decimal64::parse_ascii(values[0]).unwrap(),
+                SEMANTIC_PRICE,
+                0,
+            ),
+            ScalarValue::new(
+                Decimal64::parse_ascii(values[1]).unwrap(),
+                SEMANTIC_PRICE,
+                0,
+            ),
             ScalarValue::new(
                 Decimal64::parse_ascii(values[2]).unwrap(),
                 SEMANTIC_QUANTITY,
@@ -387,7 +369,7 @@ mod tests {
             .decimal
             .write_canonical(&mut buffer)
             .unwrap();
-        std::str::from_utf8(&buffer[..written]).unwrap().to_owned()
+        std::string::String::from(std::str::from_utf8(&buffer[..written]).unwrap())
     }
 
     #[test]
@@ -421,28 +403,19 @@ mod tests {
             assert_eq!(result.status, status);
             assert_eq!(render(&result), value);
             assert_eq!(result.classification_id, class);
-            assert_eq!(
-                result.values[0].flags & VALUE_FLAG_ROUNDED != 0,
-                rounded
-            );
+            assert_eq!(result.values[0].flags & VALUE_FLAG_ROUNDED != 0, rounded);
         }
     }
 
     #[test]
     fn failure_precedence_is_deterministic() {
-        let unchanged = evaluate_operation(
-            1,
-            &PED_MID_OPERATION,
-            &args([b"10", b"10", b"100", b"80"]),
-        );
+        let unchanged =
+            evaluate_operation(1, &PED_MID_OPERATION, &args([b"10", b"10", b"100", b"80"]));
         assert_eq!(unchanged.status, Status::DIVIDE_BY_ZERO);
         assert_eq!(unchanged.value_count, 0);
 
-        let negative = evaluate_operation(
-            1,
-            &PED_MID_OPERATION,
-            &args([b"-1", b"10", b"100", b"80"]),
-        );
+        let negative =
+            evaluate_operation(1, &PED_MID_OPERATION, &args([b"-1", b"10", b"100", b"80"]));
         assert_eq!(negative.status, Status::CONSTRAINT_VIOLATION);
         assert_eq!(negative.argument_index, 0);
         assert_eq!(negative.detail_code, 1);

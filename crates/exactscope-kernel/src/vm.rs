@@ -344,10 +344,7 @@ fn push_value(
     Ok(())
 }
 
-fn pop_value(
-    stack: &[VmValue; MAX_VM_STACK],
-    depth: &mut usize,
-) -> Result<VmValue, Status> {
+fn pop_value(stack: &[VmValue; MAX_VM_STACK], depth: &mut usize) -> Result<VmValue, Status> {
     if *depth == 0 {
         return Err(Status::PACK_INVALID);
     }
@@ -355,10 +352,7 @@ fn pop_value(
     Ok(stack[*depth])
 }
 
-fn pop_number(
-    stack: &[VmValue; MAX_VM_STACK],
-    depth: &mut usize,
-) -> Result<WorkRational, Status> {
+fn pop_number(stack: &[VmValue; MAX_VM_STACK], depth: &mut usize) -> Result<WorkRational, Status> {
     match pop_value(stack, depth)? {
         VmValue::Number(value) => Ok(value),
         VmValue::Boolean(_) => Err(Status::PACK_INVALID),
@@ -367,9 +361,7 @@ fn pop_number(
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        execute_formula, execute_predicate, validate_program, Instruction, ProgramKind,
-    };
+    use super::{execute_formula, execute_predicate, validate_program, Instruction, ProgramKind};
     use crate::{Status, WorkRational};
 
     #[test]

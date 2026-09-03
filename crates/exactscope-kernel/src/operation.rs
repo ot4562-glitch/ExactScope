@@ -1,8 +1,7 @@
 //! Immutable operation declarations for the first fused slice.
 
 use crate::{
-    Instruction, RoundingMode, WorkRational, SEMANTIC_ELASTICITY, SEMANTIC_PRICE,
-    SEMANTIC_QUANTITY,
+    Instruction, RoundingMode, WorkRational, SEMANTIC_ELASTICITY, SEMANTIC_PRICE, SEMANTIC_QUANTITY,
 };
 
 /// Scalar constraint kind used by the first slice.
@@ -112,10 +111,8 @@ const PED_INPUTS: [InputDecl; 4] = [
     },
 ];
 
-const PED_CONSTANTS: [WorkRational; 2] = [
-    WorkRational::from_integer(2),
-    WorkRational::from_integer(1),
-];
+const PED_CONSTANTS: [WorkRational; 2] =
+    [WorkRational::from_integer(2), WorkRational::from_integer(1)];
 
 const PED_PROGRAM: [Instruction; 20] = [
     Instruction::new(1, 3),

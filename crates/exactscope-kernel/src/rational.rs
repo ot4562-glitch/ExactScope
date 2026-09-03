@@ -84,10 +84,7 @@ impl WorkRational {
         let exponent = value.exponent();
         if exponent >= 0 {
             let factor = pow10_i128(exponent as u8)?;
-            Self::new(
-                coefficient.checked_mul(factor).ok_or(Status::OVERFLOW)?,
-                1,
-            )
+            Self::new(coefficient.checked_mul(factor).ok_or(Status::OVERFLOW)?, 1)
         } else {
             let denominator = pow10_i128(exponent.unsigned_abs())?;
             Self::new(coefficient, denominator)
@@ -239,20 +236,13 @@ impl WorkRational {
     ///
     /// Returns [`Status::OVERFLOW`] when cross multiplication exceeds `i128`.
     pub fn checked_cmp(self, rhs: Self) -> Result<Ordering, Status> {
-        if self.numerator.is_negative() != rhs.numerator.is_negative() {
-            return Ok(self.numerator.cmp(&rhs.numerator));
-        }
-
-        let gcd_left = gcd_u128(self.numerator.unsigned_abs(), rhs.denominator as u128);
-        let gcd_right = gcd_u128(rhs.numerator.unsigned_abs(), self.denominator as u128);
-        let gcd_left_i = i128::try_from(gcd_left).map_err(|_| Status::OVERFLOW)?;
-        let gcd_right_i = i128::try_from(gcd_right).map_err(|_| Status::OVERFLOW)?;
-
-        let left = (self.numerator / gcd_left_i)
-            .checked_mul(rhs.denominator / gcd_left_i)
+        let left = self
+            .numerator
+            .checked_mul(rhs.denominator)
             .ok_or(Status::OVERFLOW)?;
-        let right = (rhs.numerator / gcd_right_i)
-            .checked_mul(self.denominator / gcd_right_i)
+        let right = rhs
+            .numerator
+            .checked_mul(self.denominator)
             .ok_or(Status::OVERFLOW)?;
         Ok(left.cmp(&right))
     }
@@ -263,11 +253,7 @@ impl WorkRational {
     ///
     /// Returns a stable status if the scale is unsupported or the rounded
     /// coefficient cannot be represented.
-    pub fn round_to_decimal(
-        self,
-        scale: u8,
-        mode: RoundingMode,
-    ) -> Result<RoundedDecimal, Status> {
+    pub fn round_to_decimal(self, scale: u8, mode: RoundingMode) -> Result<RoundedDecimal, Status> {
         if scale > 18 {
             return Err(Status::INVALID_REQUEST);
         }
@@ -292,9 +278,7 @@ impl WorkRational {
                     match half_order {
                         Ordering::Greater => true,
                         Ordering::Less => false,
-                        Ordering::Equal => {
-                            mode == RoundingMode::HalfAway || quotient % 2 == 1
-                        }
+                        Ordering::Equal => mode == RoundingMode::HalfAway || quotient % 2 == 1,
                     }
                 }
             }
@@ -385,7 +369,10 @@ mod tests {
         assert_eq!(one_half.checked_sub(one_third).unwrap(), rational(1, 6));
         assert_eq!(one_half.checked_mul(one_third).unwrap(), rational(1, 6));
         assert_eq!(one_half.checked_div(one_third).unwrap(), rational(3, 2));
-        assert_eq!(one_half.checked_div(WorkRational::ZERO), Err(Status::DIVIDE_BY_ZERO));
+        assert_eq!(
+            one_half.checked_div(WorkRational::ZERO),
+            Err(Status::DIVIDE_BY_ZERO)
+        );
     }
 
     #[test]
