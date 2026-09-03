@@ -57,11 +57,8 @@ mod tests {
 
         for case in CASES {
             let arguments = arguments(case.values);
-            let fused = evaluate_operation(
-                ECON_UNDERGRAD_PACK_SLOT,
-                &PED_MID_OPERATION,
-                &arguments,
-            );
+            let fused =
+                evaluate_operation(ECON_UNDERGRAD_PACK_SLOT, &PED_MID_OPERATION, &arguments);
             let dynamic = pack
                 .evaluate(ECON_UNDERGRAD_PACK_SLOT, dynamic_operation, &arguments)
                 .expect("validated dynamic operation remains readable");
