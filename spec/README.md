@@ -13,6 +13,7 @@ The files in this directory define the v0.1 implementation contract. Runtime cod
 | [SCOPEPACK_V0_1.md](SCOPEPACK_V0_1.md) | Source-pack schema, VM program, compiled `.xsp` format, identity/versioning |
 | [TINYWIRE_V0_1.md](TINYWIRE_V0_1.md) | Tiny JSON adapter messages and deterministic CBOR transport |
 | [WEARABLE_EDGE_PROFILE_V0_1.md](WEARABLE_EDGE_PROFILE_V0_1.md) | Product-level memory, latency, energy, privacy, update, and qualification contract for AI wearables |
+| [WEARABLE_BENCHMARK_V0_1.md](WEARABLE_BENCHMARK_V0_1.md) | O(1)-memory target latency collection, canonical raw CSV, nearest-rank percentiles, and target pass thresholds |
 | [WEARABLE_QUALIFICATION_V0_1.md](WEARABLE_QUALIFICATION_V0_1.md) | Target-device evidence collection, destructive testing, and measured/qualified release-claim procedure |
 
 ## Machine-readable schemas

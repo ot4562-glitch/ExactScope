@@ -15,10 +15,13 @@ ROOT = Path(__file__).resolve().parents[1]
 PROFILE_PATH = ROOT / "spec" / "examples" / "wearable-edge-profile.json"
 SCHEMA_PATH = ROOT / "spec" / "schemas" / "wearable-edge-profile.schema.json"
 SPEC_PATH = ROOT / "spec" / "WEARABLE_EDGE_PROFILE_V0_1.md"
+BENCH_SPEC_PATH = ROOT / "spec" / "WEARABLE_BENCHMARK_V0_1.md"
 ADAPTER_HEADER_PATH = ROOT / "adapters" / "wearable" / "exactscope_wearable_ref.h"
 ADAPTER_SOURCE_PATH = ROOT / "adapters" / "wearable" / "exactscope_wearable_ref.c"
 AB_HEADER_PATH = ROOT / "adapters" / "wearable" / "exactscope_wearable_ab.h"
 AB_SOURCE_PATH = ROOT / "adapters" / "wearable" / "exactscope_wearable_ab.c"
+BENCH_HEADER_PATH = ROOT / "adapters" / "wearable" / "exactscope_wearable_bench.h"
+BENCH_SOURCE_PATH = ROOT / "adapters" / "wearable" / "exactscope_wearable_bench.c"
 
 
 class ValidationFailure(Exception):
@@ -131,10 +134,30 @@ def validate_spec_presence(profile: dict[str, Any]) -> None:
     if profile["format"] not in text and "wearable-edge-v0.1" not in text:
         raise ValidationFailure("wearable specification does not identify the machine-readable profile")
 
+    try:
+        bench_text = BENCH_SPEC_PATH.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise ValidationFailure(
+            f"cannot read {BENCH_SPEC_PATH.relative_to(ROOT)}: {exc}"
+        ) from exc
+    benchmark_tokens = (
+        "# ExactScope Wearable Benchmark v0.1",
+        "1,000",
+        "10,000",
+        "nearest-rank",
+        "sequence,metric,duration_ns,status",
+        "ceil(duration_ns / 1000)",
+    )
+    benchmark_missing = [token for token in benchmark_tokens if token not in bench_text]
+    if benchmark_missing:
+        raise ValidationFailure(
+            f"wearable benchmark specification missing required contract text: {benchmark_missing}"
+        )
+
 
 def parse_adapter_uint_macros() -> dict[str, int]:
     texts: list[str] = []
-    for path in (ADAPTER_HEADER_PATH, AB_HEADER_PATH):
+    for path in (ADAPTER_HEADER_PATH, AB_HEADER_PATH, BENCH_HEADER_PATH):
         try:
             texts.append(path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError) as exc:
@@ -142,7 +165,7 @@ def parse_adapter_uint_macros() -> dict[str, int]:
 
     macros: dict[str, int] = {}
     pattern = re.compile(
-        r"^\s*#define\s+(XSW_(?:REF|AB)_[A-Z0-9_]+)\s+((?:0[xX])?[0-9A-Fa-f]+)[uU]?\s*$",
+        r"^\s*#define\s+(XSW_(?:REF|AB|BENCH)_[A-Z0-9_]+)\s+((?:0[xX])?[0-9A-Fa-f]+)[uU]?\s*$",
         re.MULTILINE,
     )
     for text in texts:
@@ -156,6 +179,7 @@ def validate_adapter_alignment(profile: dict[str, Any]) -> None:
     limits = profile["hard_limits"]
     targets = profile["product_targets"]
     update_policy = profile["update_policy"]
+    conformance = profile["conformance"]
 
     limit_mapping = {
         "max_context_bytes": "XSW_REF_MAX_CONTEXT_BYTES_V1",
@@ -184,6 +208,10 @@ def validate_adapter_alignment(profile: dict[str, Any]) -> None:
         "activation_journal_copies": "XSW_AB_RECORD_COPY_COUNT_V1",
         "activation_journal_record_bytes": "XSW_AB_RECORD_BYTES_V1",
     }
+    benchmark_mapping = {
+        "benchmark_warmup_iterations": "XSW_BENCH_MIN_WARMUP_ITERATIONS_V1",
+        "benchmark_sample_iterations": "XSW_BENCH_MIN_SAMPLE_ITERATIONS_V1",
+    }
 
     for field, macro in limit_mapping.items():
         if macro not in macros:
@@ -208,6 +236,19 @@ def validate_adapter_alignment(profile: dict[str, Any]) -> None:
             raise ValidationFailure(
                 f"wearable A/B header/profile drift: {macro}={macros[macro]} != {field}={update_policy[field]}"
             )
+
+    for field, macro in benchmark_mapping.items():
+        if macro not in macros:
+            raise ValidationFailure(f"wearable benchmark header is missing {macro}")
+        if macros[macro] != conformance[field]:
+            raise ValidationFailure(
+                f"wearable benchmark header/profile drift: {macro}={macros[macro]} != {field}={conformance[field]}"
+            )
+    max_required_benchmark_iterations = max(
+        conformance[field] for field in benchmark_mapping
+    )
+    if macros.get("XSW_BENCH_MAX_ITERATIONS_V1", 0) < max_required_benchmark_iterations:
+        raise ValidationFailure("wearable benchmark maximum iterations are below a required minimum")
 
     expected_frame = max(limits["max_tiny_request_bytes"], limits["max_tiny_response_bytes"])
     if macros.get("XSW_REF_MAX_TINYWIRE_FRAME_V1") != expected_frame:
@@ -294,6 +335,42 @@ def validate_adapter_source_boundary() -> None:
     if ab_missing:
         raise ValidationFailure(
             f"wearable A/B source is missing crash-consistency boundary tokens: {ab_missing}"
+        )
+
+    try:
+        bench_text = BENCH_SOURCE_PATH.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise ValidationFailure(
+            f"cannot read {BENCH_SOURCE_PATH.relative_to(ROOT)}: {exc}"
+        ) from exc
+
+    bench_includes = set(
+        re.findall(r'^\s*#include\s+[<\"]([^>\"]+)[>\"]', bench_text, re.MULTILINE)
+    )
+    bench_allowed_includes = {"exactscope_wearable_bench.h", "stddef.h", "string.h"}
+    bench_unexpected_includes = sorted(bench_includes - bench_allowed_includes)
+    if bench_unexpected_includes:
+        raise ValidationFailure(
+            f"wearable benchmark source imports unexpected host/runtime headers: {bench_unexpected_includes}"
+        )
+
+    bench_used = [
+        name for name in prohibited_calls if re.search(rf"\b{re.escape(name)}\s*\(", bench_text)
+    ]
+    if bench_used:
+        raise ValidationFailure(f"wearable benchmark source uses prohibited host services: {bench_used}")
+
+    bench_required_tokens = (
+        "callbacks->now_ns(",
+        "callbacks->iteration(",
+        "callbacks->emit(",
+        "end_ns < start_ns",
+        "XSW_BENCH_MIN_SAMPLE_ITERATIONS_V1",
+    )
+    bench_missing = [token for token in bench_required_tokens if token not in bench_text]
+    if bench_missing:
+        raise ValidationFailure(
+            f"wearable benchmark source is missing measurement-boundary tokens: {bench_missing}"
         )
 
 

@@ -87,6 +87,8 @@ For a fused build, `packs` MAY be empty when the pack data is part of the runtim
 
 ## 5. Latency evidence
 
+The executable collection boundary, canonical raw CSV, upward nanosecond-to-microsecond conversion, and nearest-rank percentile rule are normative in [`WEARABLE_BENCHMARK_V0_1.md`](WEARABLE_BENCHMARK_V0_1.md). A measured/qualified latency section SHOULD be populated from that reducer output rather than a separately implemented percentile script.
+
 ### 5.1 Required sample procedure
 
 A latency run MUST use:

@@ -1,5 +1,6 @@
 #include "exactscope_wearable_ref.h"
 #include "exactscope_wearable_ab.h"
+#include "exactscope_wearable_bench.h"
 
 #if XSW_REF_MAX_CONTEXT_BYTES_V1 != 4096u
 #error "wearable context budget drift"
@@ -27,6 +28,14 @@
 
 #if XSW_AB_RECORD_BYTES_V1 != 96u
 #error "wearable activation journal record-size drift"
+#endif
+
+#if XSW_BENCH_MIN_WARMUP_ITERATIONS_V1 != 1000u
+#error "wearable benchmark warmup-count drift"
+#endif
+
+#if XSW_BENCH_MIN_SAMPLE_ITERATIONS_V1 != 10000u
+#error "wearable benchmark sample-count drift"
 #endif
 
 int exactscope_wearable_reference_c99_smoke(void) {
