@@ -102,9 +102,9 @@ struct PackSource {
 
 #[derive(Clone, Copy, Debug)]
 struct Limits {
-    max_vector_len: u16,
-    max_vm_steps: u16,
-    max_stack: u16,
+    vector_len: u16,
+    vm_steps: u16,
+    stack: u16,
 }
 
 #[derive(Debug)]
@@ -217,11 +217,11 @@ fn parse_source(root: &Value) -> Result<PackSource, CompileError> {
     }
     let limits_value = object(required(root, "limits")?)?;
     let limits = Limits {
-        max_vector_len: to_u16(integer(limits_value, "max_vector_len")?)?,
-        max_vm_steps: to_u16(integer(limits_value, "max_vm_steps")?)?,
-        max_stack: to_u16(integer(limits_value, "max_stack")?)?,
+        vector_len: to_u16(integer(limits_value, "max_vector_len")?)?,
+        vm_steps: to_u16(integer(limits_value, "max_vm_steps")?)?,
+        stack: to_u16(integer(limits_value, "max_stack")?)?,
     };
-    if limits.max_vector_len > 256 || limits.max_vm_steps > 64 || limits.max_stack > 16 {
+    if limits.vector_len > 256 || limits.vm_steps > 64 || limits.stack > 16 {
         return Err(CompileError::Invalid(
             "declared limits exceed v0.1 runtime caps",
         ));
@@ -375,8 +375,8 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
         constants.len(),
         0,
     )?;
-    if formula.len() > usize::from(limits.max_vm_steps)
-        || formula_max_stack > usize::from(limits.max_stack)
+    if formula.len() > usize::from(limits.vm_steps)
+        || formula_max_stack > usize::from(limits.stack)
     {
         return Err(CompileError::Invalid(
             "formula exceeds source-declared VM limits",
@@ -680,9 +680,9 @@ fn emit_meta(
     put_u32(&mut bytes, 28, ABI_V1_0)?;
     put_u32(&mut bytes, 32, string_offset(strings, &source.locale)?)?;
     put_u32(&mut bytes, 36, 1)?;
-    put_u16(&mut bytes, 40, source.limits.max_vector_len)?;
-    put_u16(&mut bytes, 42, source.limits.max_vm_steps)?;
-    put_u16(&mut bytes, 44, source.limits.max_stack)?;
+    put_u16(&mut bytes, 40, source.limits.vector_len)?;
+    put_u16(&mut bytes, 42, source.limits.vm_steps)?;
+    put_u16(&mut bytes, 44, source.limits.stack)?;
     Ok(bytes)
 }
 
@@ -697,9 +697,9 @@ fn emit_operation(
     put_u32(&mut bytes, 0, operation.id)?;
     put_u16(&mut bytes, 4, operation.revision)?;
     bytes[6] = OPERATION_KIND_FORMULA;
-    bytes[7] = u8::from(operation.allow_scale_override) * OP_FLAG_SCALE_OVERRIDE
-        | u8::from(operation.allow_rounding_override) * OP_FLAG_ROUNDING_OVERRIDE
-        | u8::from(operation.classification_required) * OP_FLAG_CLASSIFICATION_REQUIRED;
+    bytes[7] = (u8::from(operation.allow_scale_override) * OP_FLAG_SCALE_OVERRIDE)
+        | (u8::from(operation.allow_rounding_override) * OP_FLAG_ROUNDING_OVERRIDE)
+        | (u8::from(operation.classification_required) * OP_FLAG_CLASSIFICATION_REQUIRED);
     put_u32(&mut bytes, 8, string_offset(strings, &operation.key)?)?;
     put_u32(&mut bytes, 12, string_offset(strings, &operation.name)?)?;
     put_u32(
@@ -984,7 +984,9 @@ fn validate_compiled(bytes: &[u8], source: &PackSource) -> Result<(), CompileErr
             }
         }
         if expected_status.is_ok() {
-            if result.value_count != test.values.len() as u16 {
+            let expected_value_count = u16::try_from(test.values.len())
+                .map_err(|_| CompileError::Invalid("golden-test value count exceeds u16"))?;
+            if result.value_count != expected_value_count {
                 return Err(CompileError::Invalid(
                     "compiled golden-test value-count mismatch",
                 ));

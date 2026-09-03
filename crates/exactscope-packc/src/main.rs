@@ -1,3 +1,6 @@
+#![allow(clippy::std_instead_of_core)]
+#![doc = "Command-line compiler for canonical ExactScope `.xsp` packs."]
+
 use std::{env, fs, process};
 
 fn main() {
