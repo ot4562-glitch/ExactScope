@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(target_arch = "wasm32", no_std)]
 #![doc = "No-import fused WebAssembly wrapper for `ExactScope`."]
 
 //! The release artifact targets `wasm32v1-none`. It owns no calculation
@@ -168,13 +168,7 @@ mod wasm32 {
         let result = exactscope_tinyjson::request(input, output);
 
         if result.status == Status::BUFFER_TOO_SMALL {
-            initialize_meta(
-                meta_offset,
-                result.status,
-                0,
-                0,
-                result.written_or_required,
-            );
+            initialize_meta(meta_offset, result.status, 0, 0, result.written_or_required);
         } else {
             initialize_meta(
                 meta_offset,
@@ -217,13 +211,7 @@ mod wasm32 {
         u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) == META_SIZE
     }
 
-    fn initialize_meta(
-        meta_offset: u32,
-        status: Status,
-        flags: u16,
-        written: u32,
-        required: u32,
-    ) {
+    fn initialize_meta(meta_offset: u32, status: Status, flags: u16, written: u32, required: u32) {
         let meta = IoMeta {
             struct_size: META_SIZE,
             status: status.code(),
@@ -260,7 +248,7 @@ mod wasm32 {
         unsafe { slice::from_raw_parts_mut(offset as *mut u8, len) }
     }
 
-    const fn align_up(value: u32, alignment: u32) -> Option<u32> {
+    fn align_up(value: u32, alignment: u32) -> Option<u32> {
         let mask = alignment - 1;
         value.checked_add(mask).map(|value| value & !mask)
     }

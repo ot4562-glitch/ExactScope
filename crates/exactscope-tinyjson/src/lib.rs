@@ -738,7 +738,10 @@ mod tests {
         assert_eq!(call_request(eval_input), call_eval(eval_input));
 
         let find_input = br#"{"q":"midpoint price elasticity","n":3}"#;
-        assert_eq!(call_request(find_input), call_find(find_input));
+        assert_eq!(
+            call_request(find_input),
+            call_find(find_input)
+        );
     }
 
     #[test]
@@ -776,11 +779,13 @@ mod tests {
 
     #[test]
     fn eval_preserves_core_failures() {
-        let (status, response) = call_eval(br#"{"op":"econ.ped.mid","a":["10","10","100","80"]}"#);
+        let (status, response) =
+            call_eval(br#"{"op":"econ.ped.mid","a":["10","10","100","80"]}"#);
         assert_eq!(status, Status::DIVIDE_BY_ZERO);
         assert_eq!(response, r#"{"s":13,"e":"DIVIDE_BY_ZERO"}"#);
 
-        let (status, response) = call_eval(br#"{"op":"econ.ped.mid","a":["-1","10","100","80"]}"#);
+        let (status, response) =
+            call_eval(br#"{"op":"econ.ped.mid","a":["-1","10","100","80"]}"#);
         assert_eq!(status, Status::CONSTRAINT_VIOLATION);
         assert_eq!(
             response,
