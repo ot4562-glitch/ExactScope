@@ -9,8 +9,7 @@
 use core::{
     ffi::c_void,
     mem::{align_of, size_of},
-    ptr,
-    slice,
+    ptr, slice,
 };
 
 use exactscope_kernel::{
@@ -930,7 +929,10 @@ mod tests {
     fn abi_layout_and_version_are_stable() {
         assert_eq!(size_of::<XsDecimalV1>(), 16);
         assert_eq!(xs_abi_version(), 0x0001_0000);
-        assert_eq!(xs_context_align(), u32::try_from(align_of::<XsContext>()).unwrap());
+        assert_eq!(
+            xs_context_align(),
+            u32::try_from(align_of::<XsContext>()).unwrap()
+        );
     }
 
     #[test]
