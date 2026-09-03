@@ -828,7 +828,8 @@ unsafe fn eval_dynamic(
     };
 
     if let Err(status) = unsafe { validate_options(options) } {
-        let evaluated = dynamic_failure(&pack, pack_slot, operation, status, ARGUMENT_INDEX_NONE, 0);
+        let evaluated =
+            dynamic_failure(&pack, pack_slot, operation, status, ARGUMENT_INDEX_NONE, 0);
         let result_status = evaluated.status;
         unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
         return result_status.code();
