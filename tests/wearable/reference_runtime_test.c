@@ -123,10 +123,11 @@ int main(void) {
     CHECK_TRUE(match.operation_id == operation_id);
     CHECK_TRUE(match.operation_revision == operation_revision);
 
-    values[0] = decimal(10000, 0, XS_SEMANTIC_PRICE_V1);
-    values[1] = decimal(12000, 0, XS_SEMANTIC_PRICE_V1);
-    values[2] = decimal(100, 0, XS_SEMANTIC_QUANTITY_V1);
-    values[3] = decimal(80, 0, XS_SEMANTIC_QUANTITY_V1);
+    /* xs_decimal_v1 is canonical: trailing decimal zeroes move into exponent. */
+    values[0] = decimal(1, 4, XS_SEMANTIC_PRICE_V1);
+    values[1] = decimal(12, 3, XS_SEMANTIC_PRICE_V1);
+    values[2] = decimal(1, 2, XS_SEMANTIC_QUANTITY_V1);
+    values[3] = decimal(8, 1, XS_SEMANTIC_QUANTITY_V1);
     args[0] = scalar_ref(&values[0]);
     args[1] = scalar_ref(&values[1]);
     args[2] = scalar_ref(&values[2]);

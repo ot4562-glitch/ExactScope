@@ -6,13 +6,13 @@
 //! remains in `exactscope-kernel` and fused identity/discovery remains in
 //! `exactscope-pack`.
 
+#[cfg(all(feature = "standalone-staticlib", not(test)))]
+use core::panic::PanicInfo;
 use core::{
     ffi::c_void,
     mem::{align_of, size_of},
     ptr, slice,
 };
-#[cfg(all(feature = "standalone-staticlib", not(test)))]
-use core::panic::PanicInfo;
 
 #[cfg(all(feature = "standalone-staticlib", not(test)))]
 unsafe extern "C" {
