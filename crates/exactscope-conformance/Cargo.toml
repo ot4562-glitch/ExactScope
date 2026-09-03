@@ -1,6 +1,6 @@
 [package]
 name = "exactscope-conformance"
-description = "Cross-target conformance harness scaffold for ExactScope"
+description = "Cross-target conformance harness for ExactScope"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -13,6 +13,9 @@ publish = false
 [dependencies]
 exactscope-kernel = { path = "../exactscope-kernel", default-features = false }
 exactscope-pack = { path = "../exactscope-pack", default-features = false }
+
+[dev-dependencies]
+exactscope-packc = { path = "../exactscope-packc" }
 
 [lints]
 workspace = true
