@@ -57,6 +57,7 @@ pub struct XsBytesV1 {
 }
 
 impl XsBytesV1 {
+    #[cfg(test)]
     const EMPTY: Self = Self {
         ptr: ptr::null(),
         len: 0,
@@ -132,7 +133,7 @@ pub struct XsConfigV1 {
     pub max_vector_len: u16,
     /// Configuration flags.
     pub flags: u16,
-    /// TinyWire frame cap reserved for compatible adapters.
+    /// `TinyWire` frame cap reserved for compatible adapters.
     pub max_tinywire_frame: u32,
     /// Reserved zero fields.
     pub reserved: [u32; 3],
@@ -481,9 +482,8 @@ pub unsafe extern "C" fn xs_find(
         Ok(count) => count,
         Err(status) => return status.code(),
     };
-    let count_u16 = match u16::try_from(count) {
-        Ok(count) => count,
-        Err(_) => return Status::INTERNAL_ERROR.code(),
+    let Ok(count_u16) = u16::try_from(count) else {
+        return Status::INTERNAL_ERROR.code();
     };
     unsafe { out_match_count.write(count_u16) };
 
@@ -906,8 +906,8 @@ mod tests {
             xs_context_init(
                 memory.as_mut_ptr().cast::<c_void>(),
                 size_u32::<XsContext>(),
-                &config,
-                &mut context,
+                ptr::from_ref(&config),
+                ptr::from_mut(&mut context),
             )
         };
         assert_eq!(status, Status::OK.code());
@@ -938,7 +938,7 @@ mod tests {
     #[test]
     fn context_rejects_dynamic_pack_configuration() {
         let dynamic = config(CONFIG_ALLOW_DYNAMIC_PACKS);
-        let size = unsafe { xs_context_size(&dynamic) };
+        let size = unsafe { xs_context_size(ptr::from_ref(&dynamic)) };
         assert_eq!(size, 0);
     }
 
@@ -954,9 +954,9 @@ mod tests {
                 context,
                 b"econ.ped.mid".as_ptr(),
                 12,
-                &mut slot,
-                &mut operation_id,
-                &mut revision,
+                ptr::from_mut(&mut slot),
+                ptr::from_mut(&mut operation_id),
+                ptr::from_mut(&mut revision),
             )
         };
         assert_eq!(status, Status::OK.code());
@@ -981,9 +981,9 @@ mod tests {
                 context,
                 query.as_ptr(),
                 u32::try_from(query.len()).unwrap(),
-                &mut match_output,
+                ptr::from_mut(&mut match_output),
                 1,
-                &mut count,
+                ptr::from_mut(&mut count),
             )
         };
         assert_eq!(status, Status::OK.code());
@@ -1022,10 +1022,10 @@ mod tests {
                 301,
                 args.as_ptr(),
                 4,
-                &options,
+                ptr::from_ref(&options),
                 ptr::null_mut(),
                 0,
-                &mut result,
+                ptr::from_mut(&mut result),
             )
         };
         assert_eq!(status, Status::OK.code());
@@ -1051,7 +1051,7 @@ mod tests {
                 ptr::null(),
                 ptr::null_mut(),
                 0,
-                &mut result,
+                ptr::from_mut(&mut result),
             )
         };
         assert_eq!(status, Status::ARGUMENT_COUNT.code());
@@ -1065,7 +1065,7 @@ mod tests {
             value_kind: VALUE_SCALAR,
             reserved0: 0,
             reserved1: 0,
-            values: value,
+            values: ptr::from_ref(value),
             value_count: 1,
             reserved2: 0,
         }
