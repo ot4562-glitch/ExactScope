@@ -65,7 +65,10 @@ impl WorkRational {
             (numerator, denominator)
         };
 
-        let gcd = gcd_u128(numerator.unsigned_abs(), positive_i128_to_u128(denominator)?);
+        let gcd = gcd_u128(
+            numerator.unsigned_abs(),
+            positive_i128_to_u128(denominator)?,
+        );
         let divisor = i128::try_from(gcd).map_err(|_| Status::OVERFLOW)?;
         Ok(Self {
             numerator: numerator / divisor,
