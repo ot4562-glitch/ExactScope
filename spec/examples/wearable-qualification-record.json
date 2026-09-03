@@ -1,0 +1,92 @@
+{
+  "$schema": "../schemas/wearable-qualification-record.schema.json",
+  "format": "exactscope.wearable-qualification-record",
+  "format_version": "0.1",
+  "profile": "wearable-edge-v0.1",
+  "execution_mode": "native-fused-discovery",
+  "status": "draft",
+  "device": {
+    "product": "TBD",
+    "board_revision": "TBD",
+    "soc": "TBD",
+    "cpu_arch": "aarch64",
+    "os": "TBD",
+    "os_build": "TBD",
+    "firmware_build": "TBD",
+    "power_mode": "TBD",
+    "thermal_state": "TBD",
+    "battery_mv": 0,
+    "display_state": "TBD",
+    "radio_state": "TBD"
+  },
+  "artifacts": {
+    "source_commit": "0000000000000000000000000000000000000000",
+    "runtime_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "runtime_size_bytes": 0,
+    "profile_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "packs": []
+  },
+  "latency": {
+    "state": "not-run",
+    "clock": "TBD",
+    "warmup_iterations": 0,
+    "sample_iterations": 0,
+    "lookup": {
+      "p50_us": 0,
+      "p95_us": 0,
+      "p99_us": 0,
+      "max_us": 0
+    },
+    "scalar_eval": {
+      "p50_us": 0,
+      "p95_us": 0,
+      "p99_us": 0,
+      "max_us": 0
+    },
+    "pack_mount_256k": {
+      "p50_us": 0,
+      "p95_us": 0,
+      "p99_us": 0,
+      "max_us": 0
+    }
+  },
+  "energy": {
+    "state": "not-run",
+    "method": "not-run",
+    "instrument": "",
+    "sample_iterations": 0,
+    "baseline_total_uj": 0,
+    "measured_total_uj": 0,
+    "incremental_per_eval_uj": 0,
+    "sampling_interval_us": 0
+  },
+  "footprint": {
+    "state": "not-run",
+    "context_bytes": 0,
+    "eval_scratch_bytes": 0,
+    "pack_mount_arena_bytes": 0,
+    "adapter_buffer_bytes": 0,
+    "mutable_total_bytes": 0,
+    "stripped_runtime_plus_fused_pack_bytes": 0
+  },
+  "conformance": {
+    "state": "not-run",
+    "design_baseline_run": "",
+    "wearable_profile_run": "",
+    "corpus_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "total": 0,
+    "passed": 0,
+    "failed": 0,
+    "truncate_every_pack_byte_pass": false,
+    "single_bit_corruption_pass": false,
+    "fused_dynamic_identity_pass": false,
+    "native_wasm_identity_pass": false,
+    "airplane_mode_pass": false,
+    "privacy_audit_pass": false,
+    "power_loss_update": {
+      "total_cases": 0,
+      "passed_cases": 0
+    }
+  },
+  "notes": "Draft template only. All placeholders and zero measurements must be replaced with immutable target-device evidence before measured or qualified status is permitted."
+}

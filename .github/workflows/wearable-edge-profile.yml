@@ -35,6 +35,9 @@ jobs:
       - name: Validate wearable product profile
         run: python tools/validate_wearable_profile.py
 
+      - name: Validate wearable qualification evidence and claim logic
+        run: python tools/validate_wearable_qualification.py --self-test
+
       - name: Compile wearable reference host as C99
         run: cc -std=c99 -Wall -Wextra -Werror -pedantic -Iinclude -Iadapters/wearable -fsyntax-only adapters/wearable/exactscope_wearable_ref.c tests/wearable/reference_host_c.c
 

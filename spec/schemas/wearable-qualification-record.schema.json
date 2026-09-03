@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:exactscope:schema:wearable-qualification-record:0.1",
+  "title": "ExactScope wearable qualification record v0.1",
+  "type": "object",
+  "properties": {
+    "$schema": {"type": "string"},
+    "format": {"const": "exactscope.wearable-qualification-record"},
+    "format_version": {"const": "0.1"},
+    "profile": {"const": "wearable-edge-v0.1"},
+    "execution_mode": {
+      "type": "string",
+      "enum": ["native-fused-discovery", "native-dynamic-exact", "wasm-fused-discovery"]
+    },
+    "status": {"type": "string", "enum": ["draft", "measured", "qualified"]},
+    "device": {"$ref": "#/$defs/device"},
+    "artifacts": {"$ref": "#/$defs/artifacts"},
+    "latency": {"$ref": "#/$defs/latency"},
+    "energy": {"$ref": "#/$defs/energy"},
+    "footprint": {"$ref": "#/$defs/footprint"},
+    "conformance": {"$ref": "#/$defs/conformance"},
+    "notes": {"type": "string", "maxLength": 2048}
+  },
+  "required": [
+    "$schema",
+    "format",
+    "format_version",
+    "profile",
+    "execution_mode",
+    "status",
+    "device",
+    "artifacts",
+    "latency",
+    "energy",
+    "footprint",
+    "conformance",
+    "notes"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "evidenceState": {
+      "type": "string",
+      "enum": ["not-run", "pass", "fail"]
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "device": {
+      "type": "object",
+      "properties": {
+        "product": {"type": "string", "minLength": 1, "maxLength": 128},
+        "board_revision": {"type": "string", "minLength": 1, "maxLength": 128},
+        "soc": {"type": "string", "minLength": 1, "maxLength": 128},
+        "cpu_arch": {"type": "string", "enum": ["aarch64", "armv7", "x86_64", "wasm32", "other"]},
+        "os": {"type": "string", "minLength": 1, "maxLength": 128},
+        "os_build": {"type": "string", "minLength": 1, "maxLength": 128},
+        "firmware_build": {"type": "string", "minLength": 1, "maxLength": 128},
+        "power_mode": {"type": "string", "minLength": 1, "maxLength": 128},
+        "thermal_state": {"type": "string", "minLength": 1, "maxLength": 128},
+        "battery_mv": {"type": "integer", "minimum": 0, "maximum": 20000},
+        "display_state": {"type": "string", "minLength": 1, "maxLength": 64},
+        "radio_state": {"type": "string", "minLength": 1, "maxLength": 128}
+      },
+      "required": [
+        "product",
+        "board_revision",
+        "soc",
+        "cpu_arch",
+        "os",
+        "os_build",
+        "firmware_build",
+        "power_mode",
+        "thermal_state",
+        "battery_mv",
+        "display_state",
+        "radio_state"
+      ],
+      "additionalProperties": false
+    },
+    "packArtifact": {
+      "type": "object",
+      "properties": {
+        "pack_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "sha256": {"$ref": "#/$defs/digest"},
+        "size_bytes": {"type": "integer", "minimum": 0, "maximum": 262144}
+      },
+      "required": ["pack_id", "sha256", "size_bytes"],
+      "additionalProperties": false
+    },
+    "artifacts": {
+      "type": "object",
+      "properties": {
+        "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "runtime_sha256": {"$ref": "#/$defs/digest"},
+        "runtime_size_bytes": {"type": "integer", "minimum": 0, "maximum": 1048576},
+        "profile_sha256": {"$ref": "#/$defs/digest"},
+        "packs": {
+          "type": "array",
+          "maxItems": 4,
+          "items": {"$ref": "#/$defs/packArtifact"}
+        }
+      },
+      "required": ["source_commit", "runtime_sha256", "runtime_size_bytes", "profile_sha256", "packs"],
+      "additionalProperties": false
+    },
+    "latencyMetric": {
+      "type": "object",
+      "properties": {
+        "p50_us": {"type": "integer", "minimum": 0},
+        "p95_us": {"type": "integer", "minimum": 0},
+        "p99_us": {"type": "integer", "minimum": 0},
+        "max_us": {"type": "integer", "minimum": 0}
+      },
+      "required": ["p50_us", "p95_us", "p99_us", "max_us"],
+      "additionalProperties": false
+    },
+    "latency": {
+      "type": "object",
+      "properties": {
+        "state": {"$ref": "#/$defs/evidenceState"},
+        "clock": {"type": "string", "minLength": 1, "maxLength": 128},
+        "warmup_iterations": {"type": "integer", "minimum": 0},
+        "sample_iterations": {"type": "integer", "minimum": 0},
+        "lookup": {"$ref": "#/$defs/latencyMetric"},
+        "scalar_eval": {"$ref": "#/$defs/latencyMetric"},
+        "pack_mount_256k": {"$ref": "#/$defs/latencyMetric"}
+      },
+      "required": ["state", "clock", "warmup_iterations", "sample_iterations", "lookup", "scalar_eval", "pack_mount_256k"],
+      "additionalProperties": false
+    },
+    "energy": {
+      "type": "object",
+      "properties": {
+        "state": {"$ref": "#/$defs/evidenceState"},
+        "method": {"type": "string", "enum": ["not-run", "battery-rail", "pmic-counter"]},
+        "instrument": {"type": "string", "maxLength": 256},
+        "sample_iterations": {"type": "integer", "minimum": 0},
+        "baseline_total_uj": {"type": "number", "minimum": 0},
+        "measured_total_uj": {"type": "number", "minimum": 0},
+        "incremental_per_eval_uj": {"type": "number", "minimum": 0},
+        "sampling_interval_us": {"type": "integer", "minimum": 0}
+      },
+      "required": [
+        "state",
+        "method",
+        "instrument",
+        "sample_iterations",
+        "baseline_total_uj",
+        "measured_total_uj",
+        "incremental_per_eval_uj",
+        "sampling_interval_us"
+      ],
+      "additionalProperties": false
+    },
+    "footprint": {
+      "type": "object",
+      "properties": {
+        "state": {"$ref": "#/$defs/evidenceState"},
+        "context_bytes": {"type": "integer", "minimum": 0},
+        "eval_scratch_bytes": {"type": "integer", "minimum": 0},
+        "pack_mount_arena_bytes": {"type": "integer", "minimum": 0},
+        "adapter_buffer_bytes": {"type": "integer", "minimum": 0},
+        "mutable_total_bytes": {"type": "integer", "minimum": 0},
+        "stripped_runtime_plus_fused_pack_bytes": {"type": "integer", "minimum": 0}
+      },
+      "required": [
+        "state",
+        "context_bytes",
+        "eval_scratch_bytes",
+        "pack_mount_arena_bytes",
+        "adapter_buffer_bytes",
+        "mutable_total_bytes",
+        "stripped_runtime_plus_fused_pack_bytes"
+      ],
+      "additionalProperties": false
+    },
+    "powerLoss": {
+      "type": "object",
+      "properties": {
+        "total_cases": {"type": "integer", "minimum": 0},
+        "passed_cases": {"type": "integer", "minimum": 0}
+      },
+      "required": ["total_cases", "passed_cases"],
+      "additionalProperties": false
+    },
+    "conformance": {
+      "type": "object",
+      "properties": {
+        "state": {"$ref": "#/$defs/evidenceState"},
+        "design_baseline_run": {"type": "string", "maxLength": 128},
+        "wearable_profile_run": {"type": "string", "maxLength": 128},
+        "corpus_sha256": {"$ref": "#/$defs/digest"},
+        "total": {"type": "integer", "minimum": 0},
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0},
+        "truncate_every_pack_byte_pass": {"type": "boolean"},
+        "single_bit_corruption_pass": {"type": "boolean"},
+        "fused_dynamic_identity_pass": {"type": "boolean"},
+        "native_wasm_identity_pass": {"type": "boolean"},
+        "airplane_mode_pass": {"type": "boolean"},
+        "privacy_audit_pass": {"type": "boolean"},
+        "power_loss_update": {"$ref": "#/$defs/powerLoss"}
+      },
+      "required": [
+        "state",
+        "design_baseline_run",
+        "wearable_profile_run",
+        "corpus_sha256",
+        "total",
+        "passed",
+        "failed",
+        "truncate_every_pack_byte_pass",
+        "single_bit_corruption_pass",
+        "fused_dynamic_identity_pass",
+        "native_wasm_identity_pass",
+        "airplane_mode_pass",
+        "privacy_audit_pass",
+        "power_loss_update"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -13,6 +13,7 @@ The files in this directory define the v0.1 implementation contract. Runtime cod
 | [SCOPEPACK_V0_1.md](SCOPEPACK_V0_1.md) | Source-pack schema, VM program, compiled `.xsp` format, identity/versioning |
 | [TINYWIRE_V0_1.md](TINYWIRE_V0_1.md) | Tiny JSON adapter messages and deterministic CBOR transport |
 | [WEARABLE_EDGE_PROFILE_V0_1.md](WEARABLE_EDGE_PROFILE_V0_1.md) | Product-level memory, latency, energy, privacy, update, and qualification contract for AI wearables |
+| [WEARABLE_QUALIFICATION_V0_1.md](WEARABLE_QUALIFICATION_V0_1.md) | Target-device evidence collection, destructive testing, and measured/qualified release-claim procedure |
 
 ## Machine-readable schemas
 
@@ -23,6 +24,7 @@ The files in this directory define the v0.1 implementation contract. Runtime cod
 | [schemas/scopepack-source.schema.json](schemas/scopepack-source.schema.json) | Build-time source pack validation |
 | [schemas/compatibility-manifest.schema.json](schemas/compatibility-manifest.schema.json) | Release target/conformance record |
 | [schemas/wearable-edge-profile.schema.json](schemas/wearable-edge-profile.schema.json) | Machine-readable wearable product ceilings, targets, and evidence states |
+| [schemas/wearable-qualification-record.schema.json](schemas/wearable-qualification-record.schema.json) | Target-device qualification record: device identity, artifact digests, latency, energy, footprint, and destructive-test evidence |
 
 ## Canonical ID registries
 
@@ -36,6 +38,7 @@ The machine-readable registries under [`registries/`](registries/README.md) are 
 | [examples/tiny-json.jsonl](examples/tiny-json.jsonl) | Model-facing request/response examples |
 | [examples/compatibility-manifest.json](examples/compatibility-manifest.json) | Planned release compatibility record |
 | [examples/wearable-edge-profile.json](examples/wearable-edge-profile.json) | Canonical wearable product contract and evidence-state fixture |
+| [examples/wearable-qualification-record.json](examples/wearable-qualification-record.json) | Draft physical-device qualification record template; contains no product measurements or qualification claim |
 
 ## Normative language
 
