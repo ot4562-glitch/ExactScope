@@ -1,6 +1,7 @@
 #include "exactscope_wearable_ref.h"
 #include "exactscope_wearable_ab.h"
 #include "exactscope_wearable_bench.h"
+#include "exactscope_platform.h"
 
 static_assert(XSW_REF_MAX_CONTEXT_BYTES_V1 == 4096u, "wearable context budget drift");
 static_assert(XSW_REF_MAX_EVAL_SCRATCH_BYTES_V1 == 4096u, "wearable scratch budget drift");

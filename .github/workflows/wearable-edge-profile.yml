@@ -66,7 +66,7 @@ jobs:
         run: rustup target add --toolchain "$RUST_TOOLCHAIN" aarch64-linux-android aarch64-unknown-linux-musl
 
       - name: Build native C ABI static library
-        run: cargo "+$RUST_TOOLCHAIN" build --release --package exactscope-cabi --features dynamic-packs
+        run: cargo "+$RUST_TOOLCHAIN" rustc --release --package exactscope-cabi --lib --features dynamic-packs,standalone-staticlib --crate-type staticlib
 
       - name: Link wearable C99 host against real Rust static library
         run: cc -std=c99 -Wall -Wextra -Werror -pedantic -Iinclude -Iadapters/wearable adapters/wearable/exactscope_wearable_ref.c tests/wearable/reference_runtime_test.c target/release/libexactscope_cabi.a -o /tmp/exactscope-wearable-runtime-test
@@ -75,10 +75,10 @@ jobs:
         run: /tmp/exactscope-wearable-runtime-test
 
       - name: Cross-build Android arm64 static library
-        run: cargo "+$RUST_TOOLCHAIN" build --release --target aarch64-linux-android --package exactscope-cabi --features dynamic-packs
+        run: cargo "+$RUST_TOOLCHAIN" rustc --release --target aarch64-linux-android --package exactscope-cabi --lib --features dynamic-packs,standalone-staticlib --crate-type staticlib
 
       - name: Cross-build embedded Linux arm64 static library
-        run: cargo "+$RUST_TOOLCHAIN" build --release --target aarch64-unknown-linux-musl --package exactscope-cabi --features dynamic-packs
+        run: cargo "+$RUST_TOOLCHAIN" rustc --release --target aarch64-unknown-linux-musl --package exactscope-cabi --lib --features dynamic-packs,standalone-staticlib --crate-type staticlib
 
       - name: Verify cross-target static library artifacts
         run: |

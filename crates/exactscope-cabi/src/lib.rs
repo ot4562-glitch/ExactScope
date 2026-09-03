@@ -11,6 +11,19 @@ use core::{
     mem::{align_of, size_of},
     ptr, slice,
 };
+#[cfg(all(feature = "standalone-staticlib", not(test)))]
+use core::panic::PanicInfo;
+
+#[cfg(all(feature = "standalone-staticlib", not(test)))]
+unsafe extern "C" {
+    fn xs_platform_panic_abort() -> !;
+}
+
+#[cfg(all(feature = "standalone-staticlib", not(test)))]
+#[panic_handler]
+fn panic(_info: &PanicInfo<'_>) -> ! {
+    unsafe { xs_platform_panic_abort() }
+}
 
 use exactscope_kernel::{
     evaluate_operation, Decimal64, EvaluationResult, ScalarValue, Status, ARGUMENT_INDEX_NONE,

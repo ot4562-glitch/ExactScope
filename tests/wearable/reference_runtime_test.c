@@ -1,8 +1,14 @@
 #include "exactscope_wearable_ref.h"
+#include "exactscope_platform.h"
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+void XS_CALL xs_platform_panic_abort(void) {
+    abort();
+}
 
 #define CHECK_STATUS(expr, expected) do { \
     const xs_status status__ = (expr); \

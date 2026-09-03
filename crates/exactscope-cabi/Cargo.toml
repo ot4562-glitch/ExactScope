@@ -10,14 +10,12 @@ homepage.workspace = true
 authors.workspace = true
 publish = false
 
-[lib]
-crate-type = ["rlib", "staticlib"]
-
 [features]
 default = []
 fused = []
 dynamic-packs = []
 discovery = []
+standalone-staticlib = []
 
 [dependencies]
 exactscope-kernel = { path = "../exactscope-kernel", default-features = false }
