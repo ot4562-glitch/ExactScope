@@ -121,3 +121,9 @@ jobs:
 
       - name: Check WebAssembly wrapper
         run: cargo "+$RUST_TOOLCHAIN" check --package exactscope-wasm --target wasm32v1-none --no-default-features
+
+      - name: Build fused Tiny JSON WebAssembly artifact
+        run: cargo "+$RUST_TOOLCHAIN" build --release --package exactscope-wasm --target wasm32v1-none --no-default-features --features fused,tinyjson
+
+      - name: Inspect no-import WebAssembly artifact
+        run: python tools/inspect_wasm.py target/wasm32v1-none/release/exactscope_wasm.wasm

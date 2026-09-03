@@ -72,15 +72,28 @@ pub fn eval(input: &[u8], output: &mut [u8]) -> AdapterResult {
 #[must_use]
 pub fn find(input: &[u8], output: &mut [u8]) -> AdapterResult {
     let response = match parse_find_request(input) {
-        Ok(request) => {
-            let registry = FusedRegistry::new();
-            let mut matches = empty_matches();
-            match registry.find(request.query.resolve(input), &mut matches[..request.limit]) {
-                Ok(count) => Response::FindSuccess(FindSuccess { matches, count }),
-                Err(status) => Response::Error(ErrorResponse::new(status)),
-            }
-        }
+        Ok(request) => find_request(input, request),
         Err(status) => Response::Error(ErrorResponse::new(status)),
+    };
+    write_response(&response, output)
+}
+
+/// Processes either canonical `xs_eval` or `xs_find` Tiny JSON arguments.
+///
+/// This is the fused one-call entry used by the WebAssembly helper. It parses
+/// the request shape first and then delegates to the same typed paths exposed
+/// by [`eval`] and [`find`].
+#[must_use]
+pub fn request(input: &[u8], output: &mut [u8]) -> AdapterResult {
+    let response = match parse_eval_request(input) {
+        Ok(request) => evaluate_request(input, request),
+        Err(eval_status) => match parse_find_request(input) {
+            Ok(request) => find_request(input, request),
+            Err(find_status) => Response::Error(ErrorResponse::new(select_parse_status(
+                eval_status,
+                find_status,
+            ))),
+        },
     };
     write_response(&response, output)
 }
@@ -220,6 +233,23 @@ fn evaluate_request(input: &[u8], request: EvalRequest) -> Response {
         provenance: operation.provenance,
         classification,
     })
+}
+
+fn find_request(input: &[u8], request: FindRequest) -> Response {
+    let registry = FusedRegistry::new();
+    let mut matches = empty_matches();
+    match registry.find(request.query.resolve(input), &mut matches[..request.limit]) {
+        Ok(count) => Response::FindSuccess(FindSuccess { matches, count }),
+        Err(status) => Response::Error(ErrorResponse::new(status)),
+    }
+}
+
+fn select_parse_status(eval_status: Status, find_status: Status) -> Status {
+    if eval_status == Status::RESOURCE_LIMIT || find_status == Status::RESOURCE_LIMIT {
+        Status::RESOURCE_LIMIT
+    } else {
+        Status::INVALID_REQUEST
+    }
 }
 
 fn parse_eval_request(input: &[u8]) -> Result<EvalRequest, Status> {
@@ -669,7 +699,7 @@ impl<'a> Writer<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{eval, find};
+    use super::{eval, find, request};
     use exactscope_kernel::Status;
 
     fn call_eval(input: &[u8]) -> (Status, std::string::String) {
@@ -690,6 +720,37 @@ mod tests {
             result.status,
             std::string::String::from(core::str::from_utf8(&output[..len]).unwrap()),
         )
+    }
+
+    fn call_request(input: &[u8]) -> (Status, std::string::String) {
+        let mut output = [0u8; 512];
+        let result = request(input, &mut output);
+        let len = usize::try_from(result.written_or_required).unwrap();
+        (
+            result.status,
+            std::string::String::from(core::str::from_utf8(&output[..len]).unwrap()),
+        )
+    }
+
+    #[test]
+    fn request_dispatches_eval_and_find() {
+        let eval_input = br#"{"op":"econ.ped.mid","a":["10000","12000","100","80"]}"#;
+        assert_eq!(call_request(eval_input), call_eval(eval_input));
+
+        let find_input = br#"{"q":"midpoint price elasticity","n":3}"#;
+        assert_eq!(call_request(find_input), call_find(find_input));
+    }
+
+    #[test]
+    fn request_rejects_unknown_shape_and_preserves_size_limit() {
+        let (status, response) = call_request(br#"{"x":"unknown"}"#);
+        assert_eq!(status, Status::INVALID_REQUEST);
+        assert_eq!(response, r#"{"s":1,"e":"INVALID_REQUEST"}"#);
+
+        let oversized = [b'x'; 513];
+        let (status, response) = call_request(&oversized);
+        assert_eq!(status, Status::RESOURCE_LIMIT);
+        assert_eq!(response, r#"{"s":20,"e":"RESOURCE_LIMIT"}"#);
     }
 
     #[test]

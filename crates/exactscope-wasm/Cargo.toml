@@ -1,6 +1,6 @@
 [package]
 name = "exactscope-wasm"
-description = "No-import WebAssembly wrapper scaffold for ExactScope"
+description = "No-import fused WebAssembly wrapper for ExactScope"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,6 +9,9 @@ repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
 publish = false
+
+[lib]
+crate-type = ["rlib", "cdylib"]
 
 [features]
 default = []
