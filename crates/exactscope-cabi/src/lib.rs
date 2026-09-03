@@ -1,5 +1,5 @@
 #![no_std]
-#![doc = "ExactScope C ABI wrapper scaffold."]
+#![doc = "`ExactScope` C ABI wrapper scaffold."]
 
 //! The actual exported ABI is not implemented in this design commit. When it
 //! is added, all unsafe pointer handling remains isolated in this crate and

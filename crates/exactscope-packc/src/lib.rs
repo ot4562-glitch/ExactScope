@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-#![doc = "ExactScope build-time pack compiler scaffold."]
+#![doc = "`ExactScope` build-time pack compiler scaffold."]
 
 //! This desktop-only crate will validate reviewed source JSON, execute golden
 //! vectors, and emit canonical `.xsp` bytes. It is not linked into devices.

@@ -1,6 +1,6 @@
 #![no_std]
 #![forbid(unsafe_code)]
-#![doc = "ExactScope deterministic kernel scaffold."]
+#![doc = "`ExactScope` deterministic kernel scaffold."]
 
 //! This crate intentionally contains no calculation implementation yet.
 //! Its public responsibility is frozen by `docs/ARCHITECTURE.md` and the

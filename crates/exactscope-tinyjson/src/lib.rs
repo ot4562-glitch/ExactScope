@@ -1,6 +1,6 @@
 #![no_std]
 #![forbid(unsafe_code)]
-#![doc = "ExactScope Tiny JSON adapter scaffold."]
+#![doc = "`ExactScope` Tiny JSON adapter scaffold."]
 
 //! This adapter will parse only the bounded `xs_find` and `xs_eval` envelopes.
 //! It must not calculate, coerce, round, classify, or repair values.

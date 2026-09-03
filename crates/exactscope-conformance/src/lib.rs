@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-#![doc = "ExactScope conformance harness scaffold."]
+#![doc = "`ExactScope` conformance harness scaffold."]
 
 //! This host-side crate will compare canonical result bytes across native,
 //! WebAssembly, fused, static, and dynamic-pack execution paths.

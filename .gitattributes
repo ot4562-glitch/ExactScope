@@ -1,0 +1,20 @@
+# Canonical repository text is UTF-8 with LF on every host.
+* text=auto eol=lf
+
+# Binary release and generated artifact formats.
+*.a binary
+*.aar binary
+*.dll binary
+*.dylib binary
+*.lib binary
+*.pdb binary
+*.so binary
+*.wasm binary
+*.xcframework/** binary
+*.xsp binary
+*.zip binary
+*.gz binary
+
+# Windows command scripts may require CRLF if introduced later.
+*.bat text eol=crlf
+*.cmd text eol=crlf
