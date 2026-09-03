@@ -32,18 +32,6 @@ typedef union xsw_context_storage_v1 {
     uint8_t bytes[XSW_REF_MAX_CONTEXT_BYTES_V1];
 } xsw_context_storage_v1;
 
-static xs_decimal_v1 decimal(
-    int64_t coefficient,
-    int8_t exponent,
-    uint8_t semantic_kind) {
-    xs_decimal_v1 value;
-    memset(&value, 0, sizeof(value));
-    value.coefficient = coefficient;
-    value.exponent = exponent;
-    value.semantic_kind = semantic_kind;
-    return value;
-}
-
 static xs_value_ref_v1 scalar_ref(const xs_decimal_v1* value) {
     xs_value_ref_v1 ref;
     memset(&ref, 0, sizeof(ref));
@@ -61,6 +49,7 @@ int main(void) {
     xsw_ref_host_v1 host;
     xsw_ref_telemetry_v1 telemetry;
     xs_decimal_v1 values[4];
+    xs_decimal_v1 rejected;
     xs_value_ref_v1 args[4];
     xs_eval_options_v1 options;
     xs_result_v1 result;
@@ -123,11 +112,58 @@ int main(void) {
     CHECK_TRUE(match.operation_id == operation_id);
     CHECK_TRUE(match.operation_revision == operation_revision);
 
-    /* xs_decimal_v1 is canonical: trailing decimal zeroes move into exponent. */
-    values[0] = decimal(1, 4, XS_SEMANTIC_PRICE_V1);
-    values[1] = decimal(12, 3, XS_SEMANTIC_PRICE_V1);
-    values[2] = decimal(1, 2, XS_SEMANTIC_QUANTITY_V1);
-    values[3] = decimal(8, 1, XS_SEMANTIC_QUANTITY_V1);
+    CHECK_STATUS(
+        xs_decimal_parse_ascii(
+            (const uint8_t*)"10000",
+            5u,
+            XS_SEMANTIC_PRICE_V1,
+            0u,
+            &values[0]),
+        XS_STATUS_OK);
+    CHECK_STATUS(
+        xs_decimal_parse_ascii(
+            (const uint8_t*)"12000",
+            5u,
+            XS_SEMANTIC_PRICE_V1,
+            0u,
+            &values[1]),
+        XS_STATUS_OK);
+    CHECK_STATUS(
+        xs_decimal_parse_ascii(
+            (const uint8_t*)"100",
+            3u,
+            XS_SEMANTIC_QUANTITY_V1,
+            0u,
+            &values[2]),
+        XS_STATUS_OK);
+    CHECK_STATUS(
+        xs_decimal_parse_ascii(
+            (const uint8_t*)"80",
+            2u,
+            XS_SEMANTIC_QUANTITY_V1,
+            0u,
+            &values[3]),
+        XS_STATUS_OK);
+    CHECK_TRUE(values[0].coefficient == 1 && values[0].exponent == 4);
+    CHECK_TRUE(values[1].coefficient == 12 && values[1].exponent == 3);
+    CHECK_TRUE(values[2].coefficient == 1 && values[2].exponent == 2);
+    CHECK_TRUE(values[3].coefficient == 8 && values[3].exponent == 1);
+
+    memset(&rejected, 0x7f, sizeof(rejected));
+    CHECK_STATUS(
+        xs_decimal_parse_ascii(
+            (const uint8_t*)"5%",
+            2u,
+            XS_SEMANTIC_RATE_PERCENT_V1,
+            0u,
+            &rejected),
+        XS_STATUS_INVALID_DECIMAL);
+    CHECK_TRUE(rejected.coefficient == 0);
+    CHECK_TRUE(rejected.exponent == 0);
+    CHECK_TRUE(rejected.semantic_kind == 0u);
+    CHECK_TRUE(rejected.unit_id == 0u);
+    CHECK_TRUE(rejected.flags == 0u);
+
     args[0] = scalar_ref(&values[0]);
     args[1] = scalar_ref(&values[1]);
     args[2] = scalar_ref(&values[2]);

@@ -195,6 +195,33 @@ uint32_t xs_abi_version(void);
 
 Returns `(major << 16) | minor`.
 
+### 7.1.1 Exact ASCII decimal parsing
+
+```c
+xs_status xs_decimal_parse_ascii(
+    const uint8_t* text,
+    uint32_t text_len,
+    uint8_t semantic_kind,
+    uint16_t unit_id,
+    xs_decimal_v1* out_value);
+```
+
+This backward-compatible helper exists so C/C++/JNI/OEM callers do not need to duplicate the canonical decimal grammar or normalize coefficient/exponent pairs themselves.
+
+Rules:
+
+- parsing delegates to the same `decimal64-v1` grammar used by Tiny JSON;
+- parsing is exact base-10 and MUST NOT use host binary floating point;
+- input is bounded to 96 bytes;
+- `semantic_kind` must be a registered v1 semantic kind (`0..10`);
+- `unit_id` is copied without interpretation; unit compatibility remains operation-specific;
+- successful output is canonical: trailing decimal zeroes are absorbed into the exponent when representable;
+- zero is returned as coefficient `0`, exponent `0`;
+- output flags are zero;
+- `out_value` is zero-initialized before any parse/semantic validation, so a non-`OK` return never leaves a plausible stale numeric value;
+- the input byte range and `out_value` must not overlap;
+- malformed decimal text returns `INVALID_DECIMAL`; oversized input returns `RESOURCE_LIMIT`; an unknown semantic kind returns `ARGUMENT_TYPE`.
+
 ### 7.2 Context sizing and initialization
 
 ```c

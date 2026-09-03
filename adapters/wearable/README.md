@@ -135,12 +135,14 @@ A product request should already contain normalized, typed values. Raw OCR/ASR t
 ```text
 perception/model
   -> canonical operation key
-  -> exact decimal strings parsed into xs_decimal_v1
+  -> xs_decimal_parse_ascii (exact string -> canonical xs_decimal_v1)
   -> xsw_ref_lookup
   -> xsw_ref_eval
   -> canonical xs_result_v1
   -> renderer copies result; renderer does not recompute
 ```
+
+Use `xs_decimal_parse_ascii` for model/OCR-derived numeric text instead of constructing coefficient/exponent fields manually. The helper uses the same strict base-10 parser as the core, canonicalizes trailing zeroes, never uses binary floating point, and zeroes the output on parse failure.
 
 The host should allocate `xs_result_v1` once in request-local storage and set `struct_size` before each call.
 

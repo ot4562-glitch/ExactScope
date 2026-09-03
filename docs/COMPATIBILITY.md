@@ -99,6 +99,9 @@ The exact header will be generated and checked against this logical surface:
 
 ```c
 uint32_t xs_abi_version(void);
+xs_status xs_decimal_parse_ascii(const uint8_t* text, uint32_t text_len,
+                                 uint8_t semantic_kind, uint16_t unit_id,
+                                 xs_decimal_v1* out_value);
 uint32_t xs_context_size(const xs_config_v1* config);
 uint32_t xs_context_align(void);
 xs_status xs_context_init(void* memory, uint32_t memory_len,

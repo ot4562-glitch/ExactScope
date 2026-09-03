@@ -190,6 +190,12 @@ typedef struct xs_result_v1 {
 } xs_result_v1;
 
 XS_API uint32_t XS_CALL xs_abi_version(void) XS_NOEXCEPT;
+XS_API xs_status XS_CALL xs_decimal_parse_ascii(
+    const uint8_t* text,
+    uint32_t text_len,
+    uint8_t semantic_kind,
+    uint16_t unit_id,
+    xs_decimal_v1* out_value) XS_NOEXCEPT;
 XS_API uint32_t XS_CALL xs_context_align(void) XS_NOEXCEPT;
 XS_API uint32_t XS_CALL xs_context_size(const xs_config_v1* config) XS_NOEXCEPT;
 XS_API xs_status XS_CALL xs_context_init(

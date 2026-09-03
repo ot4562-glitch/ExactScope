@@ -41,7 +41,7 @@ pub extern "C" fn rust_eh_personality() -> ! {
 
 use exactscope_kernel::{
     evaluate_operation, Decimal64, EvaluationResult, ScalarValue, Status, ARGUMENT_INDEX_NONE,
-    MAX_RESULT_VALUES, PED_MID_OPERATION,
+    MAX_RESULT_VALUES, PED_MID_OPERATION, SEMANTIC_ELASTICITY,
 };
 use exactscope_pack::{empty_matches, FusedRegistry, ECON_UNDERGRAD_PACK_SLOT};
 #[cfg(feature = "dynamic-packs")]
@@ -299,6 +299,56 @@ impl XsResultV1 {
 #[unsafe(no_mangle)]
 pub extern "C" fn xs_abi_version() -> u32 {
     ABI_VERSION
+}
+
+/// Parses strict ExactScope ASCII decimal text into canonical C representation.
+///
+/// The output is zeroed before validation so callers never observe a plausible
+/// value after a failed parse. Parsing is exact base-10 and never uses host
+/// binary floating point.
+///
+/// # Safety
+///
+/// `out_value` must be a valid writable aligned pointer. For nonzero
+/// `text_len`, `text` must point to `text_len` readable bytes for this call.
+/// The input byte range must not overlap `out_value`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn xs_decimal_parse_ascii(
+    text: *const u8,
+    text_len: u32,
+    semantic_kind: u8,
+    unit_id: u16,
+    out_value: *mut XsDecimalV1,
+) -> u16 {
+    if out_value.is_null() || !out_value.is_aligned() {
+        return Status::INVALID_REQUEST.code();
+    }
+    unsafe { out_value.write(XsDecimalV1::ZERO) };
+    if semantic_kind > SEMANTIC_ELASTICITY {
+        return Status::ARGUMENT_TYPE.code();
+    }
+    let text = match unsafe { byte_slice(text, text_len, true) } {
+        Ok(text) => text,
+        Err(status) => return status.code(),
+    };
+    let decimal = match Decimal64::parse_ascii(text) {
+        Ok(decimal) => decimal,
+        Err(status) => return status.code(),
+    };
+    let value = ScalarValue::new(decimal, semantic_kind, unit_id);
+    if let Err(status) = value.validate() {
+        return status.code();
+    }
+    unsafe {
+        out_value.write(XsDecimalV1 {
+            coefficient: decimal.coefficient(),
+            exponent: decimal.exponent(),
+            semantic_kind,
+            unit_id,
+            flags: 0,
+        })
+    };
+    Status::OK.code()
 }
 
 /// Returns the required alignment of caller-owned context memory.
@@ -1354,6 +1404,58 @@ mod tests {
             xs_context_align(),
             u32::try_from(align_of::<XsContext>()).unwrap()
         );
+    }
+
+    #[test]
+    fn decimal_ascii_helper_canonicalizes_and_fails_closed() {
+        let mut output = XsDecimalV1 {
+            coefficient: i64::MAX,
+            exponent: 18,
+            semantic_kind: SEMANTIC_PRICE,
+            unit_id: u16::MAX,
+            flags: u32::MAX,
+        };
+        let text = b"12000.00";
+        let status = unsafe {
+            xs_decimal_parse_ascii(
+                text.as_ptr(),
+                u32::try_from(text.len()).unwrap(),
+                SEMANTIC_PRICE,
+                42,
+                ptr::from_mut(&mut output),
+            )
+        };
+        assert_eq!(status, Status::OK.code());
+        assert_eq!(output.coefficient, 12);
+        assert_eq!(output.exponent, 3);
+        assert_eq!(output.semantic_kind, SEMANTIC_PRICE);
+        assert_eq!(output.unit_id, 42);
+        assert_eq!(output.flags, 0);
+
+        let invalid = b"5%";
+        let status = unsafe {
+            xs_decimal_parse_ascii(
+                invalid.as_ptr(),
+                u32::try_from(invalid.len()).unwrap(),
+                SEMANTIC_PRICE,
+                0,
+                ptr::from_mut(&mut output),
+            )
+        };
+        assert_eq!(status, Status::INVALID_DECIMAL.code());
+        assert_eq!(output, XsDecimalV1::ZERO);
+
+        let status = unsafe {
+            xs_decimal_parse_ascii(
+                b"1".as_ptr(),
+                1,
+                SEMANTIC_ELASTICITY + 1,
+                0,
+                ptr::from_mut(&mut output),
+            )
+        };
+        assert_eq!(status, Status::ARGUMENT_TYPE.code());
+        assert_eq!(output, XsDecimalV1::ZERO);
     }
 
     #[cfg(not(feature = "dynamic-packs"))]
