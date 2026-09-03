@@ -9,8 +9,8 @@
 
 pub use exactscope_kernel::{DESIGN_ABI_MAJOR, DESIGN_ABI_MINOR};
 
-pub mod format;
 mod dynamic;
+pub mod format;
 
 pub use dynamic::{DynamicOperation, PackView};
 

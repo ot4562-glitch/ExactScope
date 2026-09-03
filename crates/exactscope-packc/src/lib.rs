@@ -62,8 +62,14 @@ impl fmt::Display for CompileError {
         match self {
             Self::Json(error) => write!(formatter, "invalid source JSON: {error}"),
             Self::Invalid(message) => write!(formatter, "invalid scope-pack source: {message}"),
-            Self::Unsupported(message) => write!(formatter, "unsupported v0.1 compiler feature: {message}"),
-            Self::Runtime(status) => write!(formatter, "runtime validator rejected pack with status {}", status.code()),
+            Self::Unsupported(message) => {
+                write!(formatter, "unsupported v0.1 compiler feature: {message}")
+            }
+            Self::Runtime(status) => write!(
+                formatter,
+                "runtime validator rejected pack with status {}",
+                status.code()
+            ),
         }
     }
 }
@@ -182,7 +188,9 @@ struct SectionData {
 /// binary structure, or source golden vectors fail validation.
 pub fn compile_source(source: &str) -> Result<Vec<u8>, CompileError> {
     if source.len() > MAX_SOURCE_BYTES {
-        return Err(CompileError::Invalid("source exceeds one MiB build-time limit"));
+        return Err(CompileError::Invalid(
+            "source exceeds one MiB build-time limit",
+        ));
     }
     let root: Value = serde_json::from_str(source)?;
     let parsed = parse_source(&root)?;
@@ -193,7 +201,8 @@ pub fn compile_source(source: &str) -> Result<Vec<u8>, CompileError> {
 
 fn parse_source(root: &Value) -> Result<PackSource, CompileError> {
     let root = object(root)?;
-    if string(root, "format")? != SOURCE_FORMAT || string(root, "format_version")? != SOURCE_VERSION {
+    if string(root, "format")? != SOURCE_FORMAT || string(root, "format_version")? != SOURCE_VERSION
+    {
         return Err(CompileError::Invalid("unsupported source format/version"));
     }
 
@@ -202,7 +211,9 @@ fn parse_source(root: &Value) -> Result<PackSource, CompileError> {
         || string(pack, "abi_min")? != "1.0"
         || string(pack, "abi_max")? != "1.0"
     {
-        return Err(CompileError::Unsupported("numeric profile or ABI outside decimal64-v1 / ABI 1.0"));
+        return Err(CompileError::Unsupported(
+            "numeric profile or ABI outside decimal64-v1 / ABI 1.0",
+        ));
     }
     let limits_value = object(required(root, "limits")?)?;
     let limits = Limits {
@@ -211,12 +222,16 @@ fn parse_source(root: &Value) -> Result<PackSource, CompileError> {
         max_stack: to_u16(integer(limits_value, "max_stack")?)?,
     };
     if limits.max_vector_len > 256 || limits.max_vm_steps > 64 || limits.max_stack > 16 {
-        return Err(CompileError::Invalid("declared limits exceed v0.1 runtime caps"));
+        return Err(CompileError::Invalid(
+            "declared limits exceed v0.1 runtime caps",
+        ));
     }
 
     let operations = array(required(root, "operations")?)?;
     if operations.len() != 1 {
-        return Err(CompileError::Unsupported("first compiler slice requires exactly one operation"));
+        return Err(CompileError::Unsupported(
+            "first compiler slice requires exactly one operation",
+        ));
     }
     let operation = parse_operation(&operations[0], limits)?;
 
@@ -236,12 +251,16 @@ fn parse_source(root: &Value) -> Result<PackSource, CompileError> {
 fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, CompileError> {
     let operation = object(value)?;
     if string(operation, "kind")? != "formula" {
-        return Err(CompileError::Unsupported("first compiler slice supports formula operations only"));
+        return Err(CompileError::Unsupported(
+            "first compiler slice supports formula operations only",
+        ));
     }
     let id = to_u32(integer(operation, "id")?)?;
     let revision = to_u16(integer(operation, "revision")?)?;
     if id == 0 || revision == 0 {
-        return Err(CompileError::Invalid("operation id/revision must be nonzero"));
+        return Err(CompileError::Invalid(
+            "operation id/revision must be nonzero",
+        ));
     }
     let key = string(operation, "key")?.to_owned();
     let name = string(operation, "name")?.to_owned();
@@ -256,7 +275,9 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
     let mut constants = Vec::<Decimal64>::new();
     let mut local_constant_map = Vec::<usize>::new();
     for value in source_constants {
-        let text = value.as_str().ok_or(CompileError::Invalid("constant must be a decimal string"))?;
+        let text = value
+            .as_str()
+            .ok_or(CompileError::Invalid("constant must be a decimal string"))?;
         let decimal = parse_decimal(text)?;
         let index = intern_constant(&mut constants, decimal);
         local_constant_map.push(index);
@@ -267,19 +288,27 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
     for input_value in input_values {
         let input = object(input_value)?;
         if string(input, "shape")? != "scalar" {
-            return Err(CompileError::Unsupported("vector inputs are deferred until statistics kernels"));
+            return Err(CompileError::Unsupported(
+                "vector inputs are deferred until statistics kernels",
+            ));
         }
         let name = string(input, "name")?.to_owned();
         input_names.push(name.clone());
         let constraints = array(required(input, "constraints")?)?;
         if constraints.len() != 1 {
-            return Err(CompileError::Unsupported("first compiler slice requires one scalar constraint per input"));
+            return Err(CompileError::Unsupported(
+                "first compiler slice requires one scalar constraint per input",
+            ));
         }
         let constraint = object(&constraints[0])?;
         let constraint_kind = match string(constraint, "kind")? {
             "gt" => CONSTRAINT_GT,
             "ge" => CONSTRAINT_GE,
-            _ => return Err(CompileError::Unsupported("first compiler slice supports gt/ge constraints only")),
+            _ => {
+                return Err(CompileError::Unsupported(
+                    "first compiler slice supports gt/ge constraints only",
+                ))
+            }
         };
         let constraint_decimal = parse_decimal(string(constraint, "value")?)?;
         let constraint_constant = intern_constant(&mut constants, constraint_decimal);
@@ -297,7 +326,9 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
 
     let output_values = array(required(operation, "outputs")?)?;
     if output_values.len() != 1 {
-        return Err(CompileError::Unsupported("first compiler slice supports one scalar output"));
+        return Err(CompileError::Unsupported(
+            "first compiler slice supports one scalar output",
+        ));
     }
     let output_value = object(&output_values[0])?;
     let output = OutputSource {
@@ -306,7 +337,9 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
         unit_rule: string(output_value, "unit_rule")?.to_owned(),
     };
     if output.unit_rule != "dimensionless" {
-        return Err(CompileError::Unsupported("first compiler slice supports dimensionless output only"));
+        return Err(CompileError::Unsupported(
+            "first compiler slice supports dimensionless output only",
+        ));
     }
 
     let output_policy = object(required(operation, "output_policy")?)?;
@@ -321,11 +354,15 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
 
     let programs = array(required(operation, "programs")?)?;
     if programs.len() != 1 {
-        return Err(CompileError::Unsupported("first compiler slice requires exactly one formula program"));
+        return Err(CompileError::Unsupported(
+            "first compiler slice requires exactly one formula program",
+        ));
     }
     let formula_source = object(&programs[0])?;
     if string(formula_source, "output")? != output.name {
-        return Err(CompileError::Invalid("formula program output does not match declared output"));
+        return Err(CompileError::Invalid(
+            "formula program output does not match declared output",
+        ));
     }
     let formula = parse_program(
         array(required(formula_source, "instructions")?)?,
@@ -338,8 +375,12 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
         constants.len(),
         0,
     )?;
-    if formula.len() > usize::from(limits.max_vm_steps) || formula_max_stack > usize::from(limits.max_stack) {
-        return Err(CompileError::Invalid("formula exceeds source-declared VM limits"));
+    if formula.len() > usize::from(limits.max_vm_steps)
+        || formula_max_stack > usize::from(limits.max_stack)
+    {
+        return Err(CompileError::Invalid(
+            "formula exceeds source-declared VM limits",
+        ));
     }
 
     let classification_values = array(required(operation, "classifications")?)?;
@@ -358,16 +399,15 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
             || (index != 0 && priority < previous_priority)
             || to_u8(integer(classification, "output_index")?)? != 0
         {
-            return Err(CompileError::Invalid("invalid or duplicate classification declaration"));
+            return Err(CompileError::Invalid(
+                "invalid or duplicate classification declaration",
+            ));
         }
-        let program = parse_program(array(required(classification, "program")?)?, &local_constant_map)?;
-        validate_program(
-            &program,
-            ProgramKind::Classification,
-            0,
-            constants.len(),
-            1,
+        let program = parse_program(
+            array(required(classification, "program")?)?,
+            &local_constant_map,
         )?;
+        validate_program(&program, ProgramKind::Classification, 0, constants.len(), 1)?;
         classifications.push(ClassificationSource {
             id,
             key,
@@ -377,12 +417,16 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
         previous_priority = priority;
     }
     if classification_required && classifications.is_empty() {
-        return Err(CompileError::Invalid("classification is required but no classes are declared"));
+        return Err(CompileError::Invalid(
+            "classification is required but no classes are declared",
+        ));
     }
 
     let mut aliases = Vec::new();
     for value in array(required(operation, "aliases")?)? {
-        let alias = value.as_str().ok_or(CompileError::Invalid("alias must be a string"))?;
+        let alias = value
+            .as_str()
+            .ok_or(CompileError::Invalid("alias must be a string"))?;
         aliases.push(alias.to_owned());
     }
     aliases.sort();
@@ -414,9 +458,14 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
     })
 }
 
-fn parse_program(values: &[Value], local_constant_map: &[usize]) -> Result<Vec<Instruction>, CompileError> {
+fn parse_program(
+    values: &[Value],
+    local_constant_map: &[usize],
+) -> Result<Vec<Instruction>, CompileError> {
     if values.is_empty() || values.len() > 64 {
-        return Err(CompileError::Invalid("program instruction count outside v0.1 limits"));
+        return Err(CompileError::Invalid(
+            "program instruction count outside v0.1 limits",
+        ));
     }
     let mut output = Vec::with_capacity(values.len());
     for value in values {
@@ -430,25 +479,32 @@ fn parse_program(values: &[Value], local_constant_map: &[usize]) -> Result<Vec<I
             let raw = parts
                 .get(1)
                 .and_then(Value::as_i64)
-                .ok_or(CompileError::Invalid("instruction operand must be an integer"))?;
-            i32::try_from(raw).map_err(|_| CompileError::Invalid("instruction operand exceeds i32"))?
+                .ok_or(CompileError::Invalid(
+                    "instruction operand must be an integer",
+                ))?;
+            i32::try_from(raw)
+                .map_err(|_| CompileError::Invalid("instruction operand exceeds i32"))?
         } else {
             0
         };
         if (opcode == 2) && needs_operand {
             let local = usize::try_from(operand)
                 .map_err(|_| CompileError::Invalid("constant index must be nonnegative"))?;
-            let global = *local_constant_map
-                .get(local)
-                .ok_or(CompileError::Invalid("constant instruction index is out of range"))?;
+            let global = *local_constant_map.get(local).ok_or(CompileError::Invalid(
+                "constant instruction index is out of range",
+            ))?;
             operand = i32::try_from(global)
                 .map_err(|_| CompileError::Invalid("compiled constant index exceeds i32"))?;
         }
         if needs_operand && parts.len() != 2 || !needs_operand && parts.len() != 1 {
-            return Err(CompileError::Invalid("instruction operand count is invalid"));
+            return Err(CompileError::Invalid(
+                "instruction operand count is invalid",
+            ));
         }
         if !(-8_388_608..=8_388_607).contains(&operand) {
-            return Err(CompileError::Invalid("instruction operand exceeds signed 24-bit range"));
+            return Err(CompileError::Invalid(
+                "instruction operand exceeds signed 24-bit range",
+            ));
         }
         output.push(Instruction::new(opcode, operand));
     }
@@ -468,7 +524,9 @@ fn parse_tests(values: &[Value]) -> Result<Vec<TestSource>, CompileError> {
         for arg in array(required(test, "args")?)? {
             args.push(
                 arg.as_str()
-                    .ok_or(CompileError::Unsupported("first compiler slice supports scalar string test args only"))?
+                    .ok_or(CompileError::Unsupported(
+                        "first compiler slice supports scalar string test args only",
+                    ))?
                     .to_owned(),
             );
         }
@@ -479,7 +537,9 @@ fn parse_tests(values: &[Value]) -> Result<Vec<TestSource>, CompileError> {
                 expected_values.push(
                     expected
                         .as_str()
-                        .ok_or(CompileError::Invalid("expected result must be a decimal string"))?
+                        .ok_or(CompileError::Invalid(
+                            "expected result must be a decimal string",
+                        ))?
                         .to_owned(),
                 );
             }
@@ -542,7 +602,8 @@ fn emit_pack(source: &PackSource) -> Result<Vec<u8>, CompileError> {
     });
     sections.push(SectionData {
         kind: u16::try_from(SECTION_STRINGS).expect("section kind fits u16"),
-        count: u32::try_from(string_offsets.len()).map_err(|_| CompileError::Invalid("too many strings"))?,
+        count: u32::try_from(string_offsets.len())
+            .map_err(|_| CompileError::Invalid("too many strings"))?,
         bytes: string_bytes,
     });
 
@@ -551,7 +612,8 @@ fn emit_pack(source: &PackSource) -> Result<Vec<u8>, CompileError> {
     let formula_count = to_u16_usize(operation.formula.len())?;
     let mut class_program_ranges = Vec::with_capacity(operation.classifications.len());
     for classification in &operation.classifications {
-        let start = u32::try_from(programs.len()).map_err(|_| CompileError::Invalid("program index exceeds u32"))?;
+        let start = u32::try_from(programs.len())
+            .map_err(|_| CompileError::Invalid("program index exceeds u32"))?;
         let count = to_u16_usize(classification.program.len())?;
         programs.extend_from_slice(&classification.program);
         class_program_ranges.push((start, count));
@@ -601,7 +663,10 @@ fn emit_pack(source: &PackSource) -> Result<Vec<u8>, CompileError> {
     assemble_sections(&sections)
 }
 
-fn emit_meta(source: &PackSource, strings: &BTreeMap<String, u32>) -> Result<Vec<u8>, CompileError> {
+fn emit_meta(
+    source: &PackSource,
+    strings: &BTreeMap<String, u32>,
+) -> Result<Vec<u8>, CompileError> {
     let mut bytes = vec![0u8; META_RECORD_SIZE];
     put_u32(&mut bytes, 0, string_offset(strings, &source.id)?)?;
     put_u32(&mut bytes, 4, string_offset(strings, &source.name)?)?;
@@ -637,7 +702,11 @@ fn emit_operation(
         | u8::from(operation.classification_required) * OP_FLAG_CLASSIFICATION_REQUIRED;
     put_u32(&mut bytes, 8, string_offset(strings, &operation.key)?)?;
     put_u32(&mut bytes, 12, string_offset(strings, &operation.name)?)?;
-    put_u32(&mut bytes, 16, string_offset(strings, &operation.signature)?)?;
+    put_u32(
+        &mut bytes,
+        16,
+        string_offset(strings, &operation.signature)?,
+    )?;
     put_u32(
         &mut bytes,
         20,
@@ -714,7 +783,11 @@ fn emit_output(
     formula_count: u16,
 ) -> Result<Vec<u8>, CompileError> {
     let mut bytes = vec![0u8; OUTPUT_RECORD_SIZE];
-    put_u32(&mut bytes, 0, string_offset(strings, &operation.output.name)?)?;
+    put_u32(
+        &mut bytes,
+        0,
+        string_offset(strings, &operation.output.name)?,
+    )?;
     bytes[4] = operation.output.semantic;
     bytes[5] = 0;
     put_u16(&mut bytes, 6, 0)?;
@@ -735,7 +808,11 @@ fn emit_constraints(operation: &OperationSource) -> Result<Vec<u8>, CompileError
         bytes[base] = input.constraint_kind;
         bytes[base + 1] = 0;
         put_u16(&mut bytes, base + 2, input.detail_id)?;
-        put_u32(&mut bytes, base + 4, to_u32_usize(input.constraint_constant)?)?;
+        put_u32(
+            &mut bytes,
+            base + 4,
+            to_u32_usize(input.constraint_constant)?,
+        )?;
     }
     Ok(bytes)
 }
@@ -755,7 +832,9 @@ fn emit_programs(programs: &[Instruction]) -> Result<Vec<u8>, CompileError> {
     let mut bytes = vec![0u8; programs.len() * INSTRUCTION_RECORD_SIZE];
     for (index, instruction) in programs.iter().enumerate() {
         if !(-8_388_608..=8_388_607).contains(&instruction.operand) {
-            return Err(CompileError::Invalid("instruction operand exceeds signed 24-bit range"));
+            return Err(CompileError::Invalid(
+                "instruction operand exceeds signed 24-bit range",
+            ));
         }
         let operand_bits = u32::from_ne_bytes(instruction.operand.to_ne_bytes()) & 0x00ff_ffff;
         let raw = u32::from(instruction.opcode) | (operand_bits << 8);
@@ -774,7 +853,11 @@ fn emit_classifications(
         let base = index * CLASSIFICATION_RECORD_SIZE;
         put_u16(&mut bytes, base, classification.id)?;
         put_u16(&mut bytes, base + 2, classification.priority)?;
-        put_u32(&mut bytes, base + 4, string_offset(strings, &classification.key)?)?;
+        put_u32(
+            &mut bytes,
+            base + 4,
+            string_offset(strings, &classification.key)?,
+        )?;
         put_u32(&mut bytes, base + 8, ranges[index].0)?;
         put_u16(&mut bytes, base + 12, ranges[index].1)?;
         put_u16(&mut bytes, base + 14, 0)?;
@@ -813,12 +896,19 @@ fn assemble_sections(sections: &[SectionData]) -> Result<Vec<u8>, CompileError> 
     let mut previous_kind = 0u16;
     for section in sections {
         if section.kind <= previous_kind {
-            return Err(CompileError::Invalid("sections are not in canonical kind order"));
+            return Err(CompileError::Invalid(
+                "sections are not in canonical kind order",
+            ));
         }
         pad4(&mut output);
         let offset = to_u32_usize(output.len())?;
         output.extend_from_slice(&section.bytes);
-        entries.push((section.kind, offset, to_u32_usize(section.bytes.len())?, section.count));
+        entries.push((
+            section.kind,
+            offset,
+            to_u32_usize(section.bytes.len())?,
+            section.count,
+        ));
         previous_kind = section.kind;
     }
 
@@ -849,13 +939,20 @@ fn assemble_sections(sections: &[SectionData]) -> Result<Vec<u8>, CompileError> 
 
 fn validate_compiled(bytes: &[u8], source: &PackSource) -> Result<(), CompileError> {
     let pack = PackView::parse(bytes)?;
-    if pack.pack_id()? != source.id || pack.version()? != source.version || pack.operation_count() != 1 {
-        return Err(CompileError::Invalid("compiled pack metadata drifted from source"));
+    if pack.pack_id()? != source.id
+        || pack.version()? != source.version
+        || pack.operation_count() != 1
+    {
+        return Err(CompileError::Invalid(
+            "compiled pack metadata drifted from source",
+        ));
     }
     let operation = pack.operation_by_key(source.operation.key.as_bytes())?;
     for test in &source.operation.tests {
         if test.args.len() != source.operation.inputs.len() {
-            return Err(CompileError::Invalid("golden test argument count differs from operation signature"));
+            return Err(CompileError::Invalid(
+                "golden test argument count differs from operation signature",
+            ));
         }
         let mut arguments = Vec::with_capacity(test.args.len());
         for (index, text) in test.args.iter().enumerate() {
@@ -868,21 +965,29 @@ fn validate_compiled(bytes: &[u8], source: &PackSource) -> Result<(), CompileErr
         let result = pack.evaluate(1, operation, &arguments)?;
         let expected_status = status_from_key(&test.status)?;
         if result.status != expected_status {
-            return Err(CompileError::Invalid("compiled golden-test status mismatch"));
+            return Err(CompileError::Invalid(
+                "compiled golden-test status mismatch",
+            ));
         }
         if let Some(argument_index) = test.argument_index {
             if result.argument_index != argument_index {
-                return Err(CompileError::Invalid("compiled golden-test argument index mismatch"));
+                return Err(CompileError::Invalid(
+                    "compiled golden-test argument index mismatch",
+                ));
             }
         }
         if let Some(detail_id) = test.detail_id {
             if result.detail_code != detail_id {
-                return Err(CompileError::Invalid("compiled golden-test detail id mismatch"));
+                return Err(CompileError::Invalid(
+                    "compiled golden-test detail id mismatch",
+                ));
             }
         }
         if expected_status.is_ok() {
             if result.value_count != test.values.len() as u16 {
-                return Err(CompileError::Invalid("compiled golden-test value-count mismatch"));
+                return Err(CompileError::Invalid(
+                    "compiled golden-test value-count mismatch",
+                ));
             }
             for (index, expected) in test.values.iter().enumerate() {
                 let mut buffer = [0u8; 64];
@@ -895,29 +1000,38 @@ fn validate_compiled(bytes: &[u8], source: &PackSource) -> Result<(), CompileErr
             }
             if let Some(expected_class) = &test.classification {
                 if pack.classification_key(operation, result.classification_id)? != expected_class {
-                    return Err(CompileError::Invalid("compiled golden-test classification mismatch"));
+                    return Err(CompileError::Invalid(
+                        "compiled golden-test classification mismatch",
+                    ));
                 }
             }
             if let Some(expected_rounded) = test.rounded {
                 let rounded = result.values[0].flags & VALUE_FLAG_ROUNDED != 0;
                 if rounded != expected_rounded {
-                    return Err(CompileError::Invalid("compiled golden-test rounded flag mismatch"));
+                    return Err(CompileError::Invalid(
+                        "compiled golden-test rounded flag mismatch",
+                    ));
                 }
             }
         } else if result.value_count != 0 {
-            return Err(CompileError::Invalid("failed golden test exposed a numeric result"));
+            return Err(CompileError::Invalid(
+                "failed golden test exposed a numeric result",
+            ));
         }
         let _ = &test.name;
     }
     Ok(())
 }
 
-fn build_strings(strings: BTreeSet<String>) -> Result<(Vec<u8>, BTreeMap<String, u32>), CompileError> {
+fn build_strings(
+    strings: BTreeSet<String>,
+) -> Result<(Vec<u8>, BTreeMap<String, u32>), CompileError> {
     let mut bytes = Vec::new();
     let mut offsets = BTreeMap::new();
     for value in strings {
         let offset = to_u32_usize(bytes.len())?;
-        let len = u16::try_from(value.len()).map_err(|_| CompileError::Invalid("string exceeds u16 length"))?;
+        let len = u16::try_from(value.len())
+            .map_err(|_| CompileError::Invalid("string exceeds u16 length"))?;
         bytes.extend_from_slice(&len.to_le_bytes());
         bytes.extend_from_slice(value.as_bytes());
         if bytes.len() % 2 != 0 {
@@ -943,14 +1057,18 @@ fn parse_decimal(text: &str) -> Result<Decimal64, CompileError> {
 
 fn parse_semver(text: &str) -> Result<(u16, u16, u16), CompileError> {
     if text.contains('-') || text.contains('+') {
-        return Err(CompileError::Unsupported("runtime pack semantic version prerelease/build metadata"));
+        return Err(CompileError::Unsupported(
+            "runtime pack semantic version prerelease/build metadata",
+        ));
     }
     let mut parts = text.split('.');
     let major = parse_u16_part(parts.next())?;
     let minor = parse_u16_part(parts.next())?;
     let patch = parse_u16_part(parts.next())?;
     if parts.next().is_some() {
-        return Err(CompileError::Invalid("semantic version must have three components"));
+        return Err(CompileError::Invalid(
+            "semantic version must have three components",
+        ));
     }
     Ok((major, minor, patch))
 }
@@ -958,7 +1076,9 @@ fn parse_semver(text: &str) -> Result<(u16, u16, u16), CompileError> {
 fn parse_u16_part(part: Option<&str>) -> Result<u16, CompileError> {
     let part = part.ok_or(CompileError::Invalid("semantic version is incomplete"))?;
     if part.is_empty() || (part.len() > 1 && part.starts_with('0')) {
-        return Err(CompileError::Invalid("semantic version component is not canonical"));
+        return Err(CompileError::Invalid(
+            "semantic version component is not canonical",
+        ));
     }
     part.parse::<u16>()
         .map_err(|_| CompileError::Invalid("semantic version component exceeds u16"))
@@ -1017,7 +1137,11 @@ fn opcode_id(value: &str) -> Result<(u8, bool), CompileError> {
         "or" => (20, false),
         "not" => (21, false),
         "select" => (22, false),
-        "round" => return Err(CompileError::Unsupported("ROUND source operands are deferred")),
+        "round" => {
+            return Err(CompileError::Unsupported(
+                "ROUND source operands are deferred",
+            ))
+        }
         _ => return Err(CompileError::Invalid("unknown VM opcode")),
     };
     Ok(result)
@@ -1074,9 +1198,9 @@ fn required<'a>(object: &'a Map<String, Value>, key: &str) -> Result<&'a Value, 
 }
 
 fn string<'a>(object: &'a Map<String, Value>, key: &str) -> Result<&'a str, CompileError> {
-    required(object, key)?
-        .as_str()
-        .ok_or(CompileError::Invalid("required source field must be a string"))
+    required(object, key)?.as_str().ok_or(CompileError::Invalid(
+        "required source field must be a string",
+    ))
 }
 
 fn optional_string(object: &Map<String, Value>, key: &str) -> Result<Option<String>, CompileError> {
@@ -1086,7 +1210,9 @@ fn optional_string(object: &Map<String, Value>, key: &str) -> Result<Option<Stri
             value
                 .as_str()
                 .map(ToOwned::to_owned)
-                .ok_or(CompileError::Invalid("optional source field must be a string"))
+                .ok_or(CompileError::Invalid(
+                    "optional source field must be a string",
+                ))
         })
         .transpose()
 }
@@ -1094,24 +1220,26 @@ fn optional_string(object: &Map<String, Value>, key: &str) -> Result<Option<Stri
 fn boolean(object: &Map<String, Value>, key: &str) -> Result<bool, CompileError> {
     required(object, key)?
         .as_bool()
-        .ok_or(CompileError::Invalid("required source field must be boolean"))
+        .ok_or(CompileError::Invalid(
+            "required source field must be boolean",
+        ))
 }
 
 fn optional_bool(object: &Map<String, Value>, key: &str) -> Result<Option<bool>, CompileError> {
     object
         .get(key)
         .map(|value| {
-            value
-                .as_bool()
-                .ok_or(CompileError::Invalid("optional source field must be boolean"))
+            value.as_bool().ok_or(CompileError::Invalid(
+                "optional source field must be boolean",
+            ))
         })
         .transpose()
 }
 
 fn integer(object: &Map<String, Value>, key: &str) -> Result<u64, CompileError> {
-    required(object, key)?
-        .as_u64()
-        .ok_or(CompileError::Invalid("required source field must be a nonnegative integer"))
+    required(object, key)?.as_u64().ok_or(CompileError::Invalid(
+        "required source field must be a nonnegative integer",
+    ))
 }
 
 fn optional_u16(object: &Map<String, Value>, key: &str) -> Result<Option<u16>, CompileError> {
@@ -1120,7 +1248,9 @@ fn optional_u16(object: &Map<String, Value>, key: &str) -> Result<Option<u16>, C
         .map(|value| {
             value
                 .as_u64()
-                .ok_or(CompileError::Invalid("optional source field must be a nonnegative integer"))
+                .ok_or(CompileError::Invalid(
+                    "optional source field must be a nonnegative integer",
+                ))
                 .and_then(to_u16)
         })
         .transpose()
@@ -1230,15 +1360,24 @@ mod tests {
         assert_eq!(result.pack_slot, 7);
         assert_eq!(result.operation_id, 301);
         assert_eq!(result.classification_id, 3);
-        assert_eq!(result.values[0].decimal, Decimal64::from_parts(-1_222_222, -6).unwrap());
-        assert_eq!(pack.classification_key(operation, result.classification_id), Ok("elastic"));
+        assert_eq!(
+            result.values[0].decimal,
+            Decimal64::from_parts(-1_222_222, -6).unwrap()
+        );
+        assert_eq!(
+            pack.classification_key(operation, result.classification_id),
+            Ok("elastic")
+        );
     }
 
     #[test]
     fn every_truncated_compiled_pack_is_rejected() {
         let bytes = compile_source(SOURCE).expect("compile");
         for length in 0..bytes.len() {
-            assert!(PackView::parse(&bytes[..length]).is_err(), "accepted truncation at {length}");
+            assert!(
+                PackView::parse(&bytes[..length]).is_err(),
+                "accepted truncation at {length}"
+            );
         }
     }
 
@@ -1247,7 +1386,10 @@ mod tests {
         let mut bytes = compile_source(SOURCE).expect("compile");
         let last = bytes.len() - 1;
         bytes[last] ^= 0x01;
-        assert_eq!(PackView::parse(&bytes).unwrap_err(), Status::INTEGRITY_ERROR);
+        assert_eq!(
+            PackView::parse(&bytes).unwrap_err(),
+            Status::INTEGRITY_ERROR
+        );
     }
 
     fn scalar(text: &[u8], semantic: u8) -> ScalarValue {

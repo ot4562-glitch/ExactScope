@@ -13,11 +13,11 @@ use crate::format::{
     CLASSIFICATION_RECORD_SIZE, CONSTANT_RECORD_SIZE, CONSTRAINT_GE, CONSTRAINT_GT,
     CONSTRAINT_RECORD_SIZE, FORMAT_MAJOR, FORMAT_MINOR, HEADER_SIZE, INPUT_FLAGS_V1,
     INPUT_FLAG_UNIT_REQUIRED, INPUT_RECORD_SIZE, INSTRUCTION_RECORD_SIZE, MAGIC, MAX_SECTION_KIND,
-    META_RECORD_SIZE, NUMERIC_PROFILE_DECIMAL64_V1, OPERATION_KIND_FORMULA,
-    OPERATION_RECORD_SIZE, OP_FLAGS_V1, OP_FLAG_CLASSIFICATION_REQUIRED, OUTPUT_RECORD_SIZE,
-    SECTION_ALIASES, SECTION_CLASSIFICATIONS, SECTION_CONSTANTS, SECTION_CONSTRAINTS,
-    SECTION_ENTRY_SIZE, SECTION_INPUTS, SECTION_META, SECTION_OPERATIONS, SECTION_OUTPUTS,
-    SECTION_PROGRAMS, SECTION_STRINGS,
+    META_RECORD_SIZE, NUMERIC_PROFILE_DECIMAL64_V1, OPERATION_KIND_FORMULA, OPERATION_RECORD_SIZE,
+    OP_FLAGS_V1, OP_FLAG_CLASSIFICATION_REQUIRED, OUTPUT_RECORD_SIZE, SECTION_ALIASES,
+    SECTION_CLASSIFICATIONS, SECTION_CONSTANTS, SECTION_CONSTRAINTS, SECTION_ENTRY_SIZE,
+    SECTION_INPUTS, SECTION_META, SECTION_OPERATIONS, SECTION_OUTPUTS, SECTION_PROGRAMS,
+    SECTION_STRINGS,
 };
 
 const ABI_V1_0: u32 = 0x0001_0000;
@@ -43,7 +43,9 @@ impl Section {
     };
 
     fn end(self) -> Result<usize, Status> {
-        self.offset.checked_add(self.len).ok_or(Status::PACK_INVALID)
+        self.offset
+            .checked_add(self.len)
+            .ok_or(Status::PACK_INVALID)
     }
 }
 
@@ -128,12 +130,12 @@ impl<'a> PackView<'a> {
             let base = directory_offset + index * SECTION_ENTRY_SIZE;
             let kind = usize::from(read_u16(bytes, base)?);
             let flags = read_u16(bytes, base + 2)?;
-            let offset = usize::try_from(read_u32(bytes, base + 4)?)
-                .map_err(|_| Status::PACK_INVALID)?;
-            let len = usize::try_from(read_u32(bytes, base + 8)?)
-                .map_err(|_| Status::PACK_INVALID)?;
-            let count = usize::try_from(read_u32(bytes, base + 12)?)
-                .map_err(|_| Status::PACK_INVALID)?;
+            let offset =
+                usize::try_from(read_u32(bytes, base + 4)?).map_err(|_| Status::PACK_INVALID)?;
+            let len =
+                usize::try_from(read_u32(bytes, base + 8)?).map_err(|_| Status::PACK_INVALID)?;
+            let count =
+                usize::try_from(read_u32(bytes, base + 12)?).map_err(|_| Status::PACK_INVALID)?;
 
             if kind == 0
                 || kind > MAX_SECTION_KIND
@@ -161,18 +163,15 @@ impl<'a> PackView<'a> {
         }
 
         require_section(sections[SECTION_META], META_RECORD_SIZE, 1)?;
-        require_section(sections[SECTION_STRINGS], 0, sections[SECTION_STRINGS].count)?;
-        require_record_section(
-            sections[SECTION_OPERATIONS],
-            OPERATION_RECORD_SIZE,
-            true,
+        require_section(
+            sections[SECTION_STRINGS],
+            0,
+            sections[SECTION_STRINGS].count,
         )?;
+        require_record_section(sections[SECTION_OPERATIONS], OPERATION_RECORD_SIZE, true)?;
         require_record_section(sections[SECTION_OUTPUTS], OUTPUT_RECORD_SIZE, true)?;
         validate_optional_record_section(sections[SECTION_INPUTS], INPUT_RECORD_SIZE)?;
-        validate_optional_record_section(
-            sections[SECTION_CONSTRAINTS],
-            CONSTRAINT_RECORD_SIZE,
-        )?;
+        validate_optional_record_section(sections[SECTION_CONSTRAINTS], CONSTRAINT_RECORD_SIZE)?;
         validate_optional_record_section(sections[SECTION_CONSTANTS], CONSTANT_RECORD_SIZE)?;
         validate_optional_record_section(sections[SECTION_PROGRAMS], INSTRUCTION_RECORD_SIZE)?;
         validate_optional_record_section(
@@ -281,8 +280,8 @@ impl<'a> PackView<'a> {
         let output = self.output_record_for(record)?;
         let output_semantic_kind = read_u8(output, 4)?;
         let output_scale = read_u8(record, 50)?;
-        let rounding_mode = RoundingMode::from_id(read_u8(record, 51)?)
-            .map_err(|_| Status::PACK_INVALID)?;
+        let rounding_mode =
+            RoundingMode::from_id(read_u8(record, 51)?).map_err(|_| Status::PACK_INVALID)?;
 
         let runtime = RuntimeOperation {
             id: operation.id,
@@ -463,8 +462,7 @@ impl<'a> PackView<'a> {
         operation: &[u8],
         output: &mut [InputDecl; MAX_INPUTS],
     ) -> Result<usize, Status> {
-        let first =
-            usize::try_from(read_u32(operation, 24)?).map_err(|_| Status::PACK_INVALID)?;
+        let first = usize::try_from(read_u32(operation, 24)?).map_err(|_| Status::PACK_INVALID)?;
         let count = usize::from(read_u16(operation, 28)?);
         if count > output.len() {
             return Err(Status::RESOURCE_LIMIT);
@@ -513,8 +511,8 @@ impl<'a> PackView<'a> {
                 CONSTRAINT_GE => ConstraintKind::GreaterOrEqual,
                 _ => return Err(Status::UNSUPPORTED_OPERATION),
             };
-            let constant_index = usize::try_from(read_u32(constraint, 4)?)
-                .map_err(|_| Status::PACK_INVALID)?;
+            let constant_index =
+                usize::try_from(read_u32(constraint, 4)?).map_err(|_| Status::PACK_INVALID)?;
             let constraint_value = self.constant_at(constant_index)?;
 
             let same_unit_group = if group_offset == ABSENT_STRING {
@@ -565,10 +563,7 @@ impl<'a> PackView<'a> {
         let record = self.record(SECTION_CONSTANTS, index, CONSTANT_RECORD_SIZE)?;
         let coefficient = read_i64(record, 0)?;
         let exponent = i8::from_ne_bytes([read_u8(record, 8)?]);
-        if read_u8(record, 9)? != 0
-            || read_u16(record, 10)? != 0
-            || read_u32(record, 12)? != 0
-        {
+        if read_u8(record, 9)? != 0 || read_u16(record, 10)? != 0 || read_u32(record, 12)? != 0 {
             return Err(Status::PACK_INVALID);
         }
         let decimal = Decimal64::from_parts(coefficient, exponent)?;
@@ -583,8 +578,7 @@ impl<'a> PackView<'a> {
         operation: &[u8],
         output: &mut [Instruction; MAX_VM_INSTRUCTIONS],
     ) -> Result<usize, Status> {
-        let start =
-            usize::try_from(read_u32(operation, 36)?).map_err(|_| Status::PACK_INVALID)?;
+        let start = usize::try_from(read_u32(operation, 36)?).map_err(|_| Status::PACK_INVALID)?;
         let count = usize::from(read_u16(operation, 40)?);
         self.decode_program(start, count, output)
     }
@@ -622,8 +616,7 @@ impl<'a> PackView<'a> {
         operation: &[u8],
         constant_count: usize,
     ) -> Result<(), Status> {
-        let first =
-            usize::try_from(read_u32(operation, 44)?).map_err(|_| Status::PACK_INVALID)?;
+        let first = usize::try_from(read_u32(operation, 44)?).map_err(|_| Status::PACK_INVALID)?;
         let count = usize::from(read_u16(operation, 48)?);
         if count > MAX_CLASSIFICATIONS {
             return Err(Status::RESOURCE_LIMIT);
@@ -644,8 +637,8 @@ impl<'a> PackView<'a> {
                 return Err(Status::PACK_INVALID);
             }
             self.string_at(read_u32(classification, 4)?)?;
-            let start = usize::try_from(read_u32(classification, 8)?)
-                .map_err(|_| Status::PACK_INVALID)?;
+            let start =
+                usize::try_from(read_u32(classification, 8)?).map_err(|_| Status::PACK_INVALID)?;
             let program_count = usize::from(read_u16(classification, 12)?);
             let mut program = [Instruction::new(0, 0); MAX_VM_INSTRUCTIONS];
             let decoded = self.decode_program(start, program_count, &mut program)?;
@@ -671,14 +664,13 @@ impl<'a> PackView<'a> {
         exact: WorkRational,
         constants: &[WorkRational],
     ) -> Result<u16, Status> {
-        let first =
-            usize::try_from(read_u32(operation, 44)?).map_err(|_| Status::PACK_INVALID)?;
+        let first = usize::try_from(read_u32(operation, 44)?).map_err(|_| Status::PACK_INVALID)?;
         let count = usize::from(read_u16(operation, 48)?);
         let mut matched = 0u16;
         for index in 0..count {
             let classification = self.classification_record(first + index)?;
-            let start = usize::try_from(read_u32(classification, 8)?)
-                .map_err(|_| Status::PACK_INVALID)?;
+            let start =
+                usize::try_from(read_u32(classification, 8)?).map_err(|_| Status::PACK_INVALID)?;
             let program_count = usize::from(read_u16(classification, 12)?);
             let mut program = [Instruction::new(0, 0); MAX_VM_INSTRUCTIONS];
             let decoded = self.decode_program(start, program_count, &mut program)?;
@@ -693,8 +685,7 @@ impl<'a> PackView<'a> {
     }
 
     fn validate_aliases(&self, operation: &[u8], record_index: usize) -> Result<(), Status> {
-        let first =
-            usize::try_from(read_u32(operation, 52)?).map_err(|_| Status::PACK_INVALID)?;
+        let first = usize::try_from(read_u32(operation, 52)?).map_err(|_| Status::PACK_INVALID)?;
         let count = usize::from(read_u16(operation, 56)?);
         if count == 0 {
             return Ok(());
@@ -733,8 +724,7 @@ impl<'a> PackView<'a> {
     }
 
     fn output_record_for(&self, operation: &[u8]) -> Result<&'a [u8], Status> {
-        let first =
-            usize::try_from(read_u32(operation, 32)?).map_err(|_| Status::PACK_INVALID)?;
+        let first = usize::try_from(read_u32(operation, 32)?).map_err(|_| Status::PACK_INVALID)?;
         self.record(SECTION_OUTPUTS, first, OUTPUT_RECORD_SIZE)
     }
 
@@ -751,11 +741,7 @@ impl<'a> PackView<'a> {
     }
 
     fn classification_record(&self, index: usize) -> Result<&'a [u8], Status> {
-        self.record(
-            SECTION_CLASSIFICATIONS,
-            index,
-            CLASSIFICATION_RECORD_SIZE,
-        )
+        self.record(SECTION_CLASSIFICATIONS, index, CLASSIFICATION_RECORD_SIZE)
     }
 
     fn record(&self, kind: usize, index: usize, record_size: usize) -> Result<&'a [u8], Status> {
@@ -767,9 +753,7 @@ impl<'a> PackView<'a> {
         if !section.present || index >= section.count {
             return Err(Status::PACK_INVALID);
         }
-        let relative = index
-            .checked_mul(record_size)
-            .ok_or(Status::PACK_INVALID)?;
+        let relative = index.checked_mul(record_size).ok_or(Status::PACK_INVALID)?;
         let start = section
             .offset
             .checked_add(relative)
