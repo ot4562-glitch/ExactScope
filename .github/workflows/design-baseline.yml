@@ -22,9 +22,9 @@ jobs:
     name: Design contracts and C ABI headers
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -53,7 +53,7 @@ jobs:
           - windows-latest
           - macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install pinned Rust toolchain
         shell: bash
@@ -87,7 +87,7 @@ jobs:
     name: Rust 1.84 MSRV
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install MSRV and portable Wasm target
         run: rustup toolchain install "$RUST_MSRV" --profile minimal --target wasm32v1-none
@@ -105,7 +105,7 @@ jobs:
     name: WebAssembly 1.0 no_std scaffold
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install pinned Rust and wasm32v1-none
         run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target wasm32v1-none
