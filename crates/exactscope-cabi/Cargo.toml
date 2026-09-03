@@ -10,6 +10,9 @@ homepage.workspace = true
 authors.workspace = true
 publish = false
 
+[lib]
+crate-type = ["rlib", "staticlib"]
+
 [features]
 default = []
 fused = []
