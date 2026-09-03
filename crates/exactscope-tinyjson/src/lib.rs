@@ -61,7 +61,7 @@ pub fn eval(input: &[u8], output: &mut [u8]) -> AdapterResult {
         Ok(request) => evaluate_request(input, request),
         Err(status) => Response::Error(ErrorResponse::new(status)),
     };
-    write_response(response, output)
+    write_response(&response, output)
 }
 
 /// Discovers one method-specific fused operation using `xs_find` Tiny JSON.
@@ -82,7 +82,7 @@ pub fn find(input: &[u8], output: &mut [u8]) -> AdapterResult {
         }
         Err(status) => Response::Error(ErrorResponse::new(status)),
     };
-    write_response(response, output)
+    write_response(&response, output)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -255,7 +255,6 @@ fn parse_eval_request(input: &[u8]) -> Result<EvalRequest, Status> {
                 argument_count = parser.parse_string_array(&mut arguments)?;
                 seen_arguments = true;
             }
-            b"op" | b"a" => return Err(Status::INVALID_REQUEST),
             _ => return Err(Status::INVALID_REQUEST),
         }
 
@@ -314,7 +313,6 @@ fn parse_find_request(input: &[u8]) -> Result<FindRequest, Status> {
                 limit = parser.parse_bounded_usize(1, exactscope_pack::MAX_FIND_MATCHES)?;
                 seen_limit = true;
             }
-            b"q" | b"n" => return Err(Status::INVALID_REQUEST),
             _ => return Err(Status::INVALID_REQUEST),
         }
 
@@ -472,7 +470,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn write_response(response: Response, output: &mut [u8]) -> AdapterResult {
+fn write_response(response: &Response, output: &mut [u8]) -> AdapterResult {
     let mut staging = [0u8; MAX_TINY_JSON_RESPONSE_BYTES];
     let mut writer = Writer::new(&mut staging);
     let semantic_status = match response {
@@ -528,7 +526,7 @@ fn internal_adapter_failure(output: &mut [u8]) -> AdapterResult {
     }
 }
 
-fn write_error(writer: &mut Writer<'_>, error: ErrorResponse) -> Result<(), Status> {
+fn write_error(writer: &mut Writer<'_>, error: &ErrorResponse) -> Result<(), Status> {
     writer.bytes(b"{\"s\":")?;
     writer.u16(error.status.code())?;
     writer.bytes(b",\"e\":\"")?;
@@ -548,7 +546,7 @@ fn write_error(writer: &mut Writer<'_>, error: ErrorResponse) -> Result<(), Stat
     writer.byte(b'}')
 }
 
-fn write_eval_success(writer: &mut Writer<'_>, success: EvalSuccess) -> Result<(), Status> {
+fn write_eval_success(writer: &mut Writer<'_>, success: &EvalSuccess) -> Result<(), Status> {
     let result = success.result;
     if result.value_count != 1 {
         return Err(Status::INTERNAL_ERROR);
@@ -570,7 +568,7 @@ fn write_eval_success(writer: &mut Writer<'_>, success: EvalSuccess) -> Result<(
     writer.byte(b'}')
 }
 
-fn write_find_success(writer: &mut Writer<'_>, success: FindSuccess) -> Result<(), Status> {
+fn write_find_success(writer: &mut Writer<'_>, success: &FindSuccess) -> Result<(), Status> {
     writer.bytes(b"{\"s\":0,\"m\":[")?;
     for index in 0..success.count {
         if index != 0 {
@@ -613,7 +611,6 @@ fn status_key(status: Status) -> &'static str {
         20 => "RESOURCE_LIMIT",
         21 => "UNSUPPORTED_OPERATION",
         22 => "INTEGRITY_ERROR",
-        23 => "INTERNAL_ERROR",
         _ => "INTERNAL_ERROR",
     }
 }
