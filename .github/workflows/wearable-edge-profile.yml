@@ -1,0 +1,48 @@
+name: wearable-edge-profile
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RUST_TOOLCHAIN: "1.98.0"
+
+jobs:
+  wearable-contract:
+    name: Wearable edge contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install validator dependencies
+        run: python -m pip install --requirement requirements-dev.txt
+
+      - name: Validate repository design contracts
+        run: python tools/validate_design.py
+
+      - name: Validate wearable product profile
+        run: python tools/validate_wearable_profile.py
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component clippy
+
+      - name: Check deterministic conformance harness
+        run: cargo "+$RUST_TOOLCHAIN" test --package exactscope-conformance
+
+      - name: Check dynamic-pack C ABI wearable boundary
+        run: cargo "+$RUST_TOOLCHAIN" test --package exactscope-cabi --features dynamic-packs
+
+      - name: Lint dynamic-pack C ABI wearable boundary
+        run: cargo "+$RUST_TOOLCHAIN" clippy --package exactscope-cabi --features dynamic-packs --all-targets -- -D warnings

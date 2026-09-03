@@ -1,0 +1,85 @@
+{
+  "$schema": "../schemas/wearable-edge-profile.schema.json",
+  "format": "exactscope.wearable-edge-profile",
+  "format_version": "0.1",
+  "profile": "wearable-edge-v0.1",
+  "claim_state": "contract-only",
+  "runtime_boundary": {
+    "network_required_for_eval": false,
+    "owned_background_threads": 0,
+    "owned_sockets": 0,
+    "periodic_wakeups": 0,
+    "heap_required_in_eval": false,
+    "raw_camera_frames_accepted": false,
+    "raw_audio_frames_accepted": false,
+    "persistent_user_storage_required": false,
+    "call_model": "synchronous-bounded",
+    "concurrency": "one-context-per-worker-until-qualified"
+  },
+  "hard_limits": {
+    "max_context_bytes": 4096,
+    "max_eval_scratch_bytes": 4096,
+    "max_adapter_buffer_bytes": 8192,
+    "max_mutable_runtime_bytes": 16384,
+    "max_tiny_request_bytes": 512,
+    "max_tiny_response_bytes": 512,
+    "max_pack_bytes": 262144,
+    "max_total_mounted_pack_bytes": 524288,
+    "max_mounted_packs": 4,
+    "max_vector_len": 64,
+    "max_vm_steps": 64,
+    "max_vm_stack": 16,
+    "max_result_values": 4,
+    "max_operation_key_bytes": 96
+  },
+  "product_targets": {
+    "scalar_eval_p50_us": 250,
+    "scalar_eval_p99_us": 1000,
+    "lookup_p99_us": 250,
+    "pack_mount_256k_p99_us": 10000,
+    "scalar_eval_energy_uj_excluding_host_wake": 500,
+    "stripped_runtime_plus_fused_pack_bytes": 1048576,
+    "steady_state_periodic_wakeups_per_minute": 0
+  },
+  "update_policy": {
+    "host_authenticates_before_mount": true,
+    "runtime_crc_required": true,
+    "ab_slots_minimum": 2,
+    "atomic_activation": true,
+    "rollback_without_recompilation": true,
+    "registry_freeze_before_serving": true,
+    "runtime_downloads_packs": false
+  },
+  "privacy_policy": {
+    "raw_sensor_data_enters_core": false,
+    "default_telemetry_contains_argument_values": false,
+    "default_telemetry_contains_result_values": false,
+    "allowed_default_telemetry": [
+      "status_code",
+      "operation_id",
+      "pack_slot",
+      "duration_bucket",
+      "artifact_digest"
+    ],
+    "failed_eval_may_fabricate_value": false
+  },
+  "conformance": {
+    "benchmark_warmup_iterations": 1000,
+    "benchmark_sample_iterations": 10000,
+    "airplane_mode_eval_required": true,
+    "single_bit_pack_corruption_required": true,
+    "truncate_at_every_pack_byte_required": true,
+    "fused_dynamic_result_identity_required": true,
+    "native_wasm_result_identity_required": true,
+    "non_ok_result_value_count_zero_required": true,
+    "no_panic_or_trap_on_malformed_input_required": true,
+    "power_measurement_point": "device-battery-rail-or-pmic-counter"
+  },
+  "evidence": {
+    "latency": "unmeasured",
+    "energy": "unmeasured",
+    "footprint": "unmeasured",
+    "real_device": "unmeasured",
+    "notes": "Contract target only. No product qualification claim is permitted until target-device evidence is recorded."
+  }
+}
