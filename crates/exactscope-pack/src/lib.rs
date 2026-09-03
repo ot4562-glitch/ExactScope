@@ -167,8 +167,7 @@ fn normalize_query(input: &[u8], output: &mut [u8; 96]) -> Result<usize, Status>
         }
         let normalized = match byte {
             b'A'..=b'Z' => byte + (b'a' - b'A'),
-            b'a'..=b'z' | b'0'..=b'9' => byte,
-            b'.' | b'_' => byte,
+            b'a'..=b'z' | b'0'..=b'9' | b'.' | b'_' => byte,
             _ if byte.is_ascii_whitespace() || byte.is_ascii_punctuation() => {
                 pending_space = written != 0;
                 continue;
