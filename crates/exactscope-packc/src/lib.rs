@@ -375,8 +375,7 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
         constants.len(),
         0,
     )?;
-    if formula.len() > usize::from(limits.vm_steps)
-        || formula_max_stack > usize::from(limits.stack)
+    if formula.len() > usize::from(limits.vm_steps) || formula_max_stack > usize::from(limits.stack)
     {
         return Err(CompileError::Invalid(
             "formula exceeds source-declared VM limits",
