@@ -20,5 +20,8 @@ discovery = []
 exactscope-kernel = { path = "../exactscope-kernel", default-features = false }
 exactscope-pack = { path = "../exactscope-pack", default-features = false }
 
+[dev-dependencies]
+exactscope-packc = { path = "../exactscope-packc" }
+
 [lints]
 workspace = true

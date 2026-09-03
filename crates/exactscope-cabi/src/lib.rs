@@ -17,6 +17,8 @@ use exactscope_kernel::{
     MAX_RESULT_VALUES, PED_MID_OPERATION,
 };
 use exactscope_pack::{empty_matches, FusedRegistry, ECON_UNDERGRAD_PACK_SLOT};
+#[cfg(feature = "dynamic-packs")]
+use exactscope_pack::{PackView, ECON_UNDERGRAD_PACK_ID};
 
 pub use exactscope_kernel::{DESIGN_ABI_MAJOR, DESIGN_ABI_MINOR};
 
@@ -33,6 +35,29 @@ const EVAL_KNOWN_FLAGS: u16 = EVAL_INCLUDE_PROVENANCE | EVAL_REQUIRE_CLASSIFICAT
 const VALUE_SCALAR: u8 = 0;
 const USE_OPERATION_SCALE: i8 = -128;
 const USE_OPERATION_ROUNDING: u8 = 255;
+#[cfg(feature = "dynamic-packs")]
+const MAX_PACKS: usize = 8;
+#[cfg(feature = "dynamic-packs")]
+const FIRST_DYNAMIC_PACK_SLOT: u16 = 2;
+
+#[cfg(feature = "dynamic-packs")]
+#[derive(Clone, Copy)]
+struct DynamicSlot {
+    bytes: *const u8,
+    len: u32,
+}
+
+#[cfg(feature = "dynamic-packs")]
+impl DynamicSlot {
+    const EMPTY: Self = Self {
+        bytes: ptr::null(),
+        len: 0,
+    };
+
+    const fn is_empty(self) -> bool {
+        self.len == 0
+    }
+}
 
 /// Opaque caller-owned context backing the C `xs_context` forward declaration.
 #[repr(C)]
@@ -41,9 +66,13 @@ pub struct XsContext {
     config_flags: u16,
     max_find_matches: u16,
     max_vector_len: u16,
+    #[cfg(feature = "dynamic-packs")]
+    max_packs: u16,
     frozen: u8,
     reserved0: u8,
     reserved1: u32,
+    #[cfg(feature = "dynamic-packs")]
+    dynamic_slots: [DynamicSlot; MAX_PACKS],
 }
 
 /// Borrowed byte slice used by metadata results.
@@ -310,9 +339,13 @@ pub unsafe extern "C" fn xs_context_init(
         config_flags: config.flags,
         max_find_matches: config.max_find_matches,
         max_vector_len: config.max_vector_len,
+        #[cfg(feature = "dynamic-packs")]
+        max_packs: config.max_packs,
         frozen: u8::from(config.flags & CONFIG_FREEZE_AFTER_INIT != 0),
         reserved0: 0,
         reserved1: 0,
+        #[cfg(feature = "dynamic-packs")]
+        dynamic_slots: [DynamicSlot::EMPTY; MAX_PACKS],
     };
     unsafe { context_ptr.write(context) };
     unsafe { out_context.write(context_ptr) };
@@ -332,29 +365,39 @@ pub unsafe extern "C" fn xs_context_reset(context: *mut XsContext) -> u16 {
         Err(status) => return status.code(),
     };
     context.frozen = u8::from(context.config_flags & CONFIG_FREEZE_AFTER_INIT != 0);
+    #[cfg(feature = "dynamic-packs")]
+    {
+        context.dynamic_slots = [DynamicSlot::EMPTY; MAX_PACKS];
+    }
     Status::OK.code()
 }
 
-/// Dynamic pack mounting is not implemented in the first fused slice.
+/// Validates and mounts one caller-owned immutable `.xsp` pack.
+///
+/// Dynamic-pack builds use the pack's prebuilt tables directly, so the first
+/// formula slice requires zero arena bytes. Fused-only builds return
+/// [`Status::UNSUPPORTED_OPERATION`].
 ///
 /// # Safety
 ///
 /// `context`, `out_pack_slot`, and `required_arena_len` must satisfy the public
-/// C ABI pointer contract. Other input pointers are not dereferenced by this
-/// unsupported fused-only implementation.
+/// C ABI pointer contract. `pack_bytes` must remain readable, immutable, and
+/// alive until unmount/reset. When `arena_len` is nonzero, `arena` must be
+/// non-null even though this zero-copy slice does not retain or dereference it.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn xs_pack_mount(
     context: *mut XsContext,
-    _pack_bytes: *const u8,
-    _pack_len: u32,
-    _arena: *mut c_void,
-    _arena_len: u32,
+    pack_bytes: *const u8,
+    pack_len: u32,
+    arena: *mut c_void,
+    arena_len: u32,
     out_pack_slot: *mut u16,
     required_arena_len: *mut u32,
 ) -> u16 {
-    if unsafe { context_ref(context) }.is_err() {
-        return Status::INVALID_REQUEST.code();
-    }
+    let context = match unsafe { context_mut(context) } {
+        Ok(context) => context,
+        Err(status) => return status.code(),
+    };
     if !valid_mut_ptr(out_pack_slot) || !valid_mut_ptr(required_arena_len) {
         return Status::INVALID_REQUEST.code();
     }
@@ -362,20 +405,98 @@ pub unsafe extern "C" fn xs_pack_mount(
         out_pack_slot.write(0);
         required_arena_len.write(0);
     }
-    Status::UNSUPPORTED_OPERATION.code()
+
+    #[cfg(not(feature = "dynamic-packs"))]
+    {
+        let _ = (context, pack_bytes, pack_len, arena, arena_len);
+        Status::UNSUPPORTED_OPERATION.code()
+    }
+
+    #[cfg(feature = "dynamic-packs")]
+    {
+        if context.config_flags & CONFIG_ALLOW_DYNAMIC_PACKS == 0 {
+            return Status::UNSUPPORTED_OPERATION.code();
+        }
+        if context.frozen != 0 || (arena.is_null() && arena_len != 0) {
+            return Status::INVALID_REQUEST.code();
+        }
+        let bytes = match unsafe { byte_slice(pack_bytes, pack_len, false) } {
+            Ok(bytes) => bytes,
+            Err(status) => return status.code(),
+        };
+        let pack = match PackView::parse(bytes) {
+            Ok(pack) => pack,
+            Err(status) => return status.code(),
+        };
+        let declared_vector_len = match pack.max_vector_len() {
+            Ok(limit) => limit,
+            Err(status) => return status.code(),
+        };
+        if declared_vector_len > context.max_vector_len {
+            return Status::RESOURCE_LIMIT.code();
+        }
+        if let Err(status) = unsafe { validate_dynamic_pack_registration(context, pack) } {
+            return status.code();
+        }
+
+        let mut selected_slot = 0u16;
+        for pack_slot in FIRST_DYNAMIC_PACK_SLOT..=context.max_packs {
+            let index = usize::from(pack_slot - 1);
+            if context.dynamic_slots[index].is_empty() {
+                selected_slot = pack_slot;
+                break;
+            }
+        }
+        if selected_slot == 0 {
+            return Status::RESOURCE_LIMIT.code();
+        }
+        let index = usize::from(selected_slot - 1);
+        context.dynamic_slots[index] = DynamicSlot {
+            bytes: pack_bytes,
+            len: pack_len,
+        };
+        unsafe { out_pack_slot.write(selected_slot) };
+        Status::OK.code()
+    }
 }
 
-/// Dynamic pack unmounting is not implemented in the first fused slice.
+/// Unmounts one dynamic pack slot.
 ///
 /// # Safety
 ///
-/// `context` must be a valid initialized context.
+/// `context` must be valid and exclusively mutable for this call. The function
+/// never dereferences the previously mounted pack after clearing its slot.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn xs_pack_unmount(context: *mut XsContext, _pack_slot: u16) -> u16 {
-    if unsafe { context_ref(context) }.is_err() {
-        return Status::INVALID_REQUEST.code();
+pub unsafe extern "C" fn xs_pack_unmount(context: *mut XsContext, pack_slot: u16) -> u16 {
+    let context = match unsafe { context_mut(context) } {
+        Ok(context) => context,
+        Err(status) => return status.code(),
+    };
+
+    #[cfg(not(feature = "dynamic-packs"))]
+    {
+        let _ = (context, pack_slot);
+        Status::UNSUPPORTED_OPERATION.code()
     }
-    Status::UNSUPPORTED_OPERATION.code()
+
+    #[cfg(feature = "dynamic-packs")]
+    {
+        if context.config_flags & CONFIG_ALLOW_DYNAMIC_PACKS == 0 {
+            return Status::UNSUPPORTED_OPERATION.code();
+        }
+        if context.frozen != 0 {
+            return Status::INVALID_REQUEST.code();
+        }
+        let index = match dynamic_slot_index(context, pack_slot) {
+            Ok(index) => index,
+            Err(status) => return status.code(),
+        };
+        if context.dynamic_slots[index].is_empty() {
+            return Status::UNKNOWN_PACK.code();
+        }
+        context.dynamic_slots[index] = DynamicSlot::EMPTY;
+        Status::OK.code()
+    }
 }
 
 /// Freezes registry mutation for this context.
@@ -408,9 +529,10 @@ pub unsafe extern "C" fn xs_lookup(
     out_operation_id: *mut u32,
     out_operation_revision: *mut u16,
 ) -> u16 {
-    if unsafe { context_ref(context) }.is_err() {
-        return Status::INVALID_REQUEST.code();
-    }
+    let context = match unsafe { context_ref(context) } {
+        Ok(context) => context,
+        Err(status) => return status.code(),
+    };
     if !valid_mut_ptr(out_pack_slot)
         || !valid_mut_ptr(out_operation_id)
         || !valid_mut_ptr(out_operation_revision)
@@ -439,6 +561,27 @@ pub unsafe extern "C" fn xs_lookup(
                 out_operation_revision.write(operation.operation.revision);
             }
             Status::OK.code()
+        }
+        Err(Status::UNKNOWN_OPERATION) => {
+            #[cfg(feature = "dynamic-packs")]
+            {
+                if context.config_flags & CONFIG_ALLOW_DYNAMIC_PACKS != 0 {
+                    match unsafe { lookup_dynamic(context, key) } {
+                        Ok((pack_slot, _pack, operation)) => {
+                            unsafe {
+                                out_pack_slot.write(pack_slot);
+                                out_operation_id.write(operation.id);
+                                out_operation_revision.write(operation.revision);
+                            }
+                            return Status::OK.code();
+                        }
+                        Err(status) => return status.code(),
+                    }
+                }
+            }
+            #[cfg(not(feature = "dynamic-packs"))]
+            let _ = context;
+            Status::UNKNOWN_OPERATION.code()
         }
         Err(status) => status.code(),
     }
@@ -534,19 +677,43 @@ pub unsafe extern "C" fn xs_eval(
     scratch_len: u32,
     out_result: *mut XsResultV1,
 ) -> u16 {
-    if unsafe { context_ref(context) }.is_err() {
-        return Status::INVALID_REQUEST.code();
-    }
+    let context = match unsafe { context_ref(context) } {
+        Ok(context) => context,
+        Err(status) => return status.code(),
+    };
     let result_struct_size = match unsafe { result_output_size(out_result) } {
         Ok(size) => size,
         Err(status) => return status.code(),
     };
 
-    let operation = if pack_slot != ECON_UNDERGRAD_PACK_SLOT {
+    if pack_slot != ECON_UNDERGRAD_PACK_SLOT {
+        #[cfg(feature = "dynamic-packs")]
+        {
+            if context.config_flags & CONFIG_ALLOW_DYNAMIC_PACKS != 0 {
+                return unsafe {
+                    eval_dynamic(
+                        context,
+                        result_struct_size,
+                        pack_slot,
+                        operation_id,
+                        args,
+                        arg_count,
+                        options,
+                        scratch,
+                        scratch_len,
+                        out_result,
+                    )
+                };
+            }
+        }
+        #[cfg(not(feature = "dynamic-packs"))]
+        let _ = context;
         let result = unidentified_result(result_struct_size, Status::UNKNOWN_PACK);
         unsafe { out_result.write(result) };
         return Status::UNKNOWN_PACK.code();
-    } else if operation_id != PED_MID_OPERATION.id {
+    }
+
+    let operation = if operation_id != PED_MID_OPERATION.id {
         let result = unidentified_result(result_struct_size, Status::UNKNOWN_OPERATION);
         unsafe { out_result.write(result) };
         return Status::UNKNOWN_OPERATION.code();
@@ -631,6 +798,148 @@ pub unsafe extern "C" fn xs_eval(
     status.code()
 }
 
+#[cfg(feature = "dynamic-packs")]
+#[allow(clippy::too_many_arguments)]
+unsafe fn eval_dynamic(
+    context: &XsContext,
+    result_struct_size: u32,
+    pack_slot: u16,
+    operation_id: u32,
+    args: *const XsValueRefV1,
+    arg_count: u16,
+    options: *const XsEvalOptionsV1,
+    scratch: *mut c_void,
+    scratch_len: u32,
+    out_result: *mut XsResultV1,
+) -> u16 {
+    let pack = match unsafe { dynamic_pack_view(context, pack_slot) } {
+        Ok(pack) => pack,
+        Err(status) => {
+            unsafe { out_result.write(unidentified_result(result_struct_size, status)) };
+            return status.code();
+        }
+    };
+    let operation = match pack.operation_by_id(operation_id) {
+        Ok(operation) => operation,
+        Err(status) => {
+            unsafe { out_result.write(unidentified_result(result_struct_size, status)) };
+            return status.code();
+        }
+    };
+
+    if let Err(status) = unsafe { validate_options(options) } {
+        let evaluated = dynamic_failure(
+            pack,
+            pack_slot,
+            operation,
+            status,
+            ARGUMENT_INDEX_NONE,
+            0,
+        );
+        let result_status = evaluated.status;
+        unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+        return result_status.code();
+    }
+    if scratch.is_null() && scratch_len != 0 {
+        let evaluated = dynamic_failure(
+            pack,
+            pack_slot,
+            operation,
+            Status::INVALID_REQUEST,
+            ARGUMENT_INDEX_NONE,
+            0,
+        );
+        let result_status = evaluated.status;
+        unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+        return result_status.code();
+    }
+
+    let input_count = match pack.input_count(operation) {
+        Ok(input_count) => input_count,
+        Err(status) => {
+            unsafe { out_result.write(unidentified_result(result_struct_size, status)) };
+            return status.code();
+        }
+    };
+    if usize::from(arg_count) != input_count {
+        let evaluated = dynamic_failure(
+            pack,
+            pack_slot,
+            operation,
+            Status::ARGUMENT_COUNT,
+            ARGUMENT_INDEX_NONE,
+            0,
+        );
+        let result_status = evaluated.status;
+        unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+        return result_status.code();
+    }
+
+    let arg_refs = match unsafe { typed_slice(args, usize::from(arg_count)) } {
+        Ok(args) => args,
+        Err(status) => {
+            let evaluated = dynamic_failure(
+                pack,
+                pack_slot,
+                operation,
+                status,
+                ARGUMENT_INDEX_NONE,
+                0,
+            );
+            let result_status = evaluated.status;
+            unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+            return result_status.code();
+        }
+    };
+
+    let mut typed_arguments = [ScalarValue::new(Decimal64::ZERO, 0, 0); 12];
+    for (index, argument) in arg_refs.iter().enumerate() {
+        let argument_index = u16::try_from(index).unwrap_or(ARGUMENT_INDEX_NONE);
+        let value = match unsafe { scalar_from_ref(argument) } {
+            Ok(value) => value,
+            Err(status) => {
+                let evaluated =
+                    dynamic_failure(pack, pack_slot, operation, status, argument_index, 0);
+                let result_status = evaluated.status;
+                unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+                return result_status.code();
+            }
+        };
+        typed_arguments[index] = value;
+    }
+
+    let evaluated = match pack.evaluate(
+        pack_slot,
+        operation,
+        &typed_arguments[..usize::from(arg_count)],
+    ) {
+        Ok(evaluated) => evaluated,
+        Err(status) => EvaluationResult::unidentified_failure(status),
+    };
+    let status = evaluated.status;
+    unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+    status.code()
+}
+
+#[cfg(feature = "dynamic-packs")]
+fn dynamic_failure(
+    pack: PackView<'_>,
+    pack_slot: u16,
+    operation: exactscope_pack::DynamicOperation<'_>,
+    status: Status,
+    argument_index: u16,
+    detail_code: u16,
+) -> EvaluationResult {
+    pack.failure_result(
+        pack_slot,
+        operation,
+        status,
+        argument_index,
+        detail_code,
+    )
+    .unwrap_or_else(EvaluationResult::unidentified_failure)
+}
+
 /// Optional result JSON helper; not linked into the minimal C ABI slice yet.
 ///
 /// # Safety
@@ -672,6 +981,96 @@ pub unsafe extern "C" fn xs_match_json(
     Status::UNSUPPORTED_OPERATION.code()
 }
 
+#[cfg(feature = "dynamic-packs")]
+fn dynamic_slot_index(context: &XsContext, pack_slot: u16) -> Result<usize, Status> {
+    if pack_slot < FIRST_DYNAMIC_PACK_SLOT || pack_slot > context.max_packs {
+        return Err(Status::UNKNOWN_PACK);
+    }
+    let index = usize::from(pack_slot - 1);
+    if index >= MAX_PACKS {
+        return Err(Status::INTERNAL_ERROR);
+    }
+    Ok(index)
+}
+
+#[cfg(feature = "dynamic-packs")]
+unsafe fn dynamic_pack_view<'a>(
+    context: &XsContext,
+    pack_slot: u16,
+) -> Result<PackView<'a>, Status> {
+    let index = dynamic_slot_index(context, pack_slot)?;
+    let slot = context.dynamic_slots[index];
+    if slot.is_empty() {
+        return Err(Status::UNKNOWN_PACK);
+    }
+    if slot.bytes.is_null() {
+        return Err(Status::INTERNAL_ERROR);
+    }
+    let len = usize::try_from(slot.len).map_err(|_| Status::RESOURCE_LIMIT)?;
+    let bytes = unsafe { slice::from_raw_parts(slot.bytes, len) };
+    PackView::parse(bytes)
+}
+
+#[cfg(feature = "dynamic-packs")]
+unsafe fn validate_dynamic_pack_registration(
+    context: &XsContext,
+    candidate: PackView<'_>,
+) -> Result<(), Status> {
+    let candidate_pack_id = candidate.pack_id()?;
+    if candidate_pack_id == ECON_UNDERGRAD_PACK_ID {
+        return Err(Status::PACK_INVALID);
+    }
+
+    for operation_index in 0..candidate.operation_count() {
+        let operation = candidate.operation(operation_index)?;
+        match FusedRegistry::new().lookup(operation.key.as_bytes()) {
+            Ok(_) => return Err(Status::PACK_INVALID),
+            Err(Status::UNKNOWN_OPERATION) => {}
+            Err(status) => return Err(status),
+        }
+    }
+
+    for pack_slot in FIRST_DYNAMIC_PACK_SLOT..=context.max_packs {
+        let index = usize::from(pack_slot - 1);
+        if context.dynamic_slots[index].is_empty() {
+            continue;
+        }
+        let installed = unsafe { dynamic_pack_view(context, pack_slot) }?;
+        if installed.pack_id()? == candidate_pack_id {
+            return Err(Status::PACK_INVALID);
+        }
+        for operation_index in 0..candidate.operation_count() {
+            let operation = candidate.operation(operation_index)?;
+            match installed.operation_by_key(operation.key.as_bytes()) {
+                Ok(_) => return Err(Status::PACK_INVALID),
+                Err(Status::UNKNOWN_OPERATION) => {}
+                Err(status) => return Err(status),
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "dynamic-packs")]
+unsafe fn lookup_dynamic<'a>(
+    context: &XsContext,
+    key: &[u8],
+) -> Result<(u16, PackView<'a>, exactscope_pack::DynamicOperation<'a>), Status> {
+    for pack_slot in FIRST_DYNAMIC_PACK_SLOT..=context.max_packs {
+        let index = usize::from(pack_slot - 1);
+        if context.dynamic_slots[index].is_empty() {
+            continue;
+        }
+        let pack = unsafe { dynamic_pack_view(context, pack_slot) }?;
+        match pack.operation_by_key(key) {
+            Ok(operation) => return Ok((pack_slot, pack, operation)),
+            Err(Status::UNKNOWN_OPERATION) => {}
+            Err(status) => return Err(status),
+        }
+    }
+    Err(Status::UNKNOWN_OPERATION)
+}
+
 fn validate_config(config: &XsConfigV1) -> Result<(), Status> {
     if config.struct_size < size_u32::<XsConfigV1>() {
         return Err(Status::INVALID_REQUEST);
@@ -682,7 +1081,14 @@ fn validate_config(config: &XsConfigV1) -> Result<(), Status> {
     if config.flags & !CONFIG_KNOWN_FLAGS != 0 || config.reserved != [0; 3] {
         return Err(Status::INVALID_REQUEST);
     }
+    #[cfg(not(feature = "dynamic-packs"))]
     if config.flags & CONFIG_ALLOW_DYNAMIC_PACKS != 0 {
+        return Err(Status::UNSUPPORTED_OPERATION);
+    }
+    #[cfg(feature = "dynamic-packs")]
+    if config.flags & CONFIG_ALLOW_DYNAMIC_PACKS != 0
+        && config.flags & CONFIG_ENABLE_DISCOVERY != 0
+    {
         return Err(Status::UNSUPPORTED_OPERATION);
     }
     if !(1..=8).contains(&config.max_packs)
@@ -900,13 +1306,20 @@ mod tests {
         memory: &mut MaybeUninit<XsContext>,
         flags: u16,
     ) -> *mut XsContext {
-        let mut context = ptr::null_mut();
         let config = config(flags);
+        unsafe { initialized_context_with_config(memory, &config) }
+    }
+
+    unsafe fn initialized_context_with_config(
+        memory: &mut MaybeUninit<XsContext>,
+        config: &XsConfigV1,
+    ) -> *mut XsContext {
+        let mut context = ptr::null_mut();
         let status = unsafe {
             xs_context_init(
                 memory.as_mut_ptr().cast::<c_void>(),
                 size_u32::<XsContext>(),
-                ptr::from_ref(&config),
+                ptr::from_ref(config),
                 ptr::from_mut(&mut context),
             )
         };
@@ -935,11 +1348,184 @@ mod tests {
         );
     }
 
+    #[cfg(not(feature = "dynamic-packs"))]
     #[test]
     fn context_rejects_dynamic_pack_configuration() {
         let dynamic = config(CONFIG_ALLOW_DYNAMIC_PACKS);
         let size = unsafe { xs_context_size(ptr::from_ref(&dynamic)) };
         assert_eq!(size, 0);
+    }
+
+    #[cfg(feature = "dynamic-packs")]
+    #[test]
+    fn dynamic_discovery_configuration_fails_closed() {
+        let mut dynamic = config(CONFIG_ALLOW_DYNAMIC_PACKS | CONFIG_ENABLE_DISCOVERY);
+        dynamic.max_packs = 2;
+        let size = unsafe { xs_context_size(ptr::from_ref(&dynamic)) };
+        assert_eq!(size, 0);
+    }
+
+    #[cfg(feature = "dynamic-packs")]
+    #[test]
+    fn dynamic_pack_mount_lookup_eval_freeze_reset_and_unmount() {
+        let custom_pack = custom_dynamic_pack();
+        let official_pack = exactscope_packc::compile_source(include_str!(
+            "../../../spec/examples/econ-undergrad-minimal.xsp.json"
+        ))
+        .unwrap();
+
+        let mut dynamic_config = config(CONFIG_ALLOW_DYNAMIC_PACKS);
+        dynamic_config.max_packs = 2;
+        assert_ne!(
+            unsafe { xs_context_size(ptr::from_ref(&dynamic_config)) },
+            0
+        );
+
+        let mut memory = MaybeUninit::<XsContext>::uninit();
+        let context =
+            unsafe { initialized_context_with_config(&mut memory, &dynamic_config) };
+        let (status, slot, required_arena) = mount_pack(context, &custom_pack);
+        assert_eq!(status, Status::OK.code());
+        assert_eq!(slot, FIRST_DYNAMIC_PACK_SLOT);
+        assert_eq!(required_arena, 0);
+
+        let (status, collision_slot, _) = mount_pack(context, &official_pack);
+        assert_eq!(status, Status::PACK_INVALID.code());
+        assert_eq!(collision_slot, 0);
+
+        let key = b"custom.ped.mid";
+        let mut lookup_slot = 0u16;
+        let mut operation_id = 0u32;
+        let mut revision = 0u16;
+        let status = unsafe {
+            xs_lookup(
+                context,
+                key.as_ptr(),
+                u32::try_from(key.len()).unwrap(),
+                ptr::from_mut(&mut lookup_slot),
+                ptr::from_mut(&mut operation_id),
+                ptr::from_mut(&mut revision),
+            )
+        };
+        assert_eq!(status, Status::OK.code());
+        assert_eq!((lookup_slot, operation_id, revision), (slot, 301, 1));
+
+        let mut count_failure =
+            XsResultV1::empty(size_u32::<XsResultV1>(), Status::INTERNAL_ERROR);
+        let status = unsafe {
+            xs_eval(
+                context,
+                slot,
+                301,
+                ptr::null(),
+                1,
+                ptr::null(),
+                ptr::null_mut(),
+                0,
+                ptr::from_mut(&mut count_failure),
+            )
+        };
+        assert_eq!(status, Status::ARGUMENT_COUNT.code());
+        assert_eq!(count_failure.status, Status::ARGUMENT_COUNT.code());
+        assert_eq!(count_failure.pack_slot, slot);
+        assert_eq!(count_failure.operation_id, 301);
+        assert_eq!(count_failure.operation_revision, 1);
+        assert_eq!(count_failure.value_count, 0);
+
+        let decimals = [
+            decimal(b"10000", SEMANTIC_PRICE),
+            decimal(b"12000", SEMANTIC_PRICE),
+            decimal(b"100", SEMANTIC_QUANTITY),
+            decimal(b"80", SEMANTIC_QUANTITY),
+        ];
+        let args = [
+            value_ref(&decimals[0]),
+            value_ref(&decimals[1]),
+            value_ref(&decimals[2]),
+            value_ref(&decimals[3]),
+        ];
+        let mut result = XsResultV1::empty(size_u32::<XsResultV1>(), Status::INTERNAL_ERROR);
+        let status = unsafe {
+            xs_eval(
+                context,
+                slot,
+                301,
+                args.as_ptr(),
+                4,
+                ptr::null(),
+                ptr::null_mut(),
+                0,
+                ptr::from_mut(&mut result),
+            )
+        };
+        assert_eq!(status, Status::OK.code());
+        assert_eq!(result.status, Status::OK.code());
+        assert_eq!(result.pack_slot, slot);
+        assert_eq!(result.operation_id, 301);
+        assert_eq!(result.operation_revision, 1);
+        assert_eq!(result.classification_id, 3);
+        assert_eq!(result.values[0].coefficient, -1_222_222);
+        assert_eq!(result.values[0].exponent, -6);
+
+        let status = unsafe { xs_pack_unmount(context, slot) };
+        assert_eq!(status, Status::OK.code());
+        assert_lookup_unknown(context, key);
+
+        let (status, remounted_slot, _) = mount_pack(context, &custom_pack);
+        assert_eq!(status, Status::OK.code());
+        assert_eq!(remounted_slot, slot);
+        assert_eq!(unsafe { xs_registry_freeze(context) }, Status::OK.code());
+        assert_eq!(
+            unsafe { xs_pack_unmount(context, remounted_slot) },
+            Status::INVALID_REQUEST.code()
+        );
+        assert_eq!(unsafe { xs_context_reset(context) }, Status::OK.code());
+        assert_lookup_unknown(context, key);
+    }
+
+    #[cfg(feature = "dynamic-packs")]
+    fn custom_dynamic_pack() -> std::vec::Vec<u8> {
+        let source = include_str!("../../../spec/examples/econ-undergrad-minimal.xsp.json")
+            .replace("org.exactscope.econ-undergrad", "org.example.custom-econ")
+            .replace("econ.ped.mid", "custom.ped.mid");
+        exactscope_packc::compile_source(&source).unwrap()
+    }
+
+    #[cfg(feature = "dynamic-packs")]
+    fn mount_pack(context: *mut XsContext, pack: &[u8]) -> (u16, u16, u32) {
+        let mut slot = 0u16;
+        let mut required_arena = u32::MAX;
+        let status = unsafe {
+            xs_pack_mount(
+                context,
+                pack.as_ptr(),
+                u32::try_from(pack.len()).unwrap(),
+                ptr::null_mut(),
+                0,
+                ptr::from_mut(&mut slot),
+                ptr::from_mut(&mut required_arena),
+            )
+        };
+        (status, slot, required_arena)
+    }
+
+    #[cfg(feature = "dynamic-packs")]
+    fn assert_lookup_unknown(context: *mut XsContext, key: &[u8]) {
+        let mut slot = u16::MAX;
+        let mut operation_id = u32::MAX;
+        let mut revision = u16::MAX;
+        let status = unsafe {
+            xs_lookup(
+                context,
+                key.as_ptr(),
+                u32::try_from(key.len()).unwrap(),
+                ptr::from_mut(&mut slot),
+                ptr::from_mut(&mut operation_id),
+                ptr::from_mut(&mut revision),
+            )
+        };
+        assert_eq!(status, Status::UNKNOWN_OPERATION.code());
+        assert_eq!((slot, operation_id, revision), (0, 0, 0));
     }
 
     #[test]

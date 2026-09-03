@@ -210,6 +210,16 @@ impl<'a> PackView<'a> {
         self.string_at(read_u32(meta, 0)?)
     }
 
+    /// Maximum vector length declared by the pack metadata.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Status::PACK_INVALID`] on impossible META inconsistency.
+    pub fn max_vector_len(self) -> Result<u16, Status> {
+        let meta = self.section_bytes(SECTION_META)?;
+        read_u16(meta, 40)
+    }
+
     /// Pack semantic version `(major, minor, patch)`.
     ///
     /// # Errors
@@ -222,6 +232,18 @@ impl<'a> PackView<'a> {
             read_u16(meta, 18)?,
             read_u16(meta, 20)?,
         ))
+    }
+
+    /// Returns one operation by canonical record order.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Status::UNKNOWN_OPERATION`] when `index` is outside the pack.
+    pub fn operation(self, index: usize) -> Result<DynamicOperation<'a>, Status> {
+        if index >= self.operation_count {
+            return Err(Status::UNKNOWN_OPERATION);
+        }
+        self.operation_at(index)
     }
 
     /// Finds one exact canonical operation key.
@@ -252,6 +274,45 @@ impl<'a> PackView<'a> {
             }
         }
         Err(Status::UNKNOWN_OPERATION)
+    }
+
+    /// Returns the declared positional input count for an operation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Status::PACK_INVALID`] if previously validated bytes were
+    /// mutated by the host after mounting.
+    pub fn input_count(self, operation: DynamicOperation<'a>) -> Result<usize, Status> {
+        let record = self.operation_record(operation.record_index)?;
+        Ok(usize::from(read_u16(record, 28)?))
+    }
+
+    /// Builds a normalized failure tied to one dynamic operation identity.
+    ///
+    /// # Errors
+    ///
+    /// Returns a pack status if previously validated bytes were mutated after
+    /// mounting and the operation policy can no longer be decoded.
+    pub fn failure_result(
+        self,
+        pack_slot: u16,
+        operation: DynamicOperation<'a>,
+        status: Status,
+        argument_index: u16,
+        detail_code: u16,
+    ) -> Result<EvaluationResult, Status> {
+        let record = self.operation_record(operation.record_index)?;
+        let rounding_mode = RoundingMode::from_id(read_u8(record, 51)?)
+            .map_err(|_| Status::PACK_INVALID)?;
+        let mut result = EvaluationResult::unidentified_failure(status);
+        result.pack_slot = pack_slot;
+        result.operation_revision = operation.revision;
+        result.operation_id = operation.id;
+        result.output_scale = i8::try_from(read_u8(record, 50)?).map_err(|_| Status::PACK_INVALID)?;
+        result.rounding_mode = rounding_mode.id();
+        result.argument_index = argument_index;
+        result.detail_code = detail_code;
+        Ok(result)
     }
 
     /// Evaluates one validated dynamic formula using the shared kernel runtime.

@@ -83,6 +83,14 @@ jobs:
         shell: bash
         run: cargo "+$RUST_TOOLCHAIN" test --workspace
 
+      - name: Lint dynamic-pack C ABI feature
+        shell: bash
+        run: cargo "+$RUST_TOOLCHAIN" clippy --package exactscope-cabi --features dynamic-packs --all-targets -- -D warnings
+
+      - name: Test dynamic-pack C ABI feature
+        shell: bash
+        run: cargo "+$RUST_TOOLCHAIN" test --package exactscope-cabi --features dynamic-packs
+
   msrv:
     name: Rust 1.84 MSRV
     runs-on: ubuntu-latest
@@ -100,6 +108,9 @@ jobs:
 
       - name: Check no_std pack layer at MSRV
         run: cargo "+$RUST_MSRV" check --package exactscope-pack --target wasm32v1-none --no-default-features
+
+      - name: Check dynamic-pack C ABI feature at MSRV
+        run: cargo "+$RUST_MSRV" check --package exactscope-cabi --features dynamic-packs --all-targets
 
   wasm-baseline:
     name: WebAssembly 1.0 no_std scaffold
