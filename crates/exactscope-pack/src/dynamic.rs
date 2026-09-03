@@ -302,13 +302,14 @@ impl<'a> PackView<'a> {
         detail_code: u16,
     ) -> Result<EvaluationResult, Status> {
         let record = self.operation_record(operation.record_index)?;
-        let rounding_mode = RoundingMode::from_id(read_u8(record, 51)?)
-            .map_err(|_| Status::PACK_INVALID)?;
+        let rounding_mode =
+            RoundingMode::from_id(read_u8(record, 51)?).map_err(|_| Status::PACK_INVALID)?;
         let mut result = EvaluationResult::unidentified_failure(status);
         result.pack_slot = pack_slot;
         result.operation_revision = operation.revision;
         result.operation_id = operation.id;
-        result.output_scale = i8::try_from(read_u8(record, 50)?).map_err(|_| Status::PACK_INVALID)?;
+        result.output_scale =
+            i8::try_from(read_u8(record, 50)?).map_err(|_| Status::PACK_INVALID)?;
         result.rounding_mode = rounding_mode.id();
         result.argument_index = argument_index;
         result.detail_code = detail_code;

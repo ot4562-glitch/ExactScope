@@ -828,14 +828,7 @@ unsafe fn eval_dynamic(
     };
 
     if let Err(status) = unsafe { validate_options(options) } {
-        let evaluated = dynamic_failure(
-            pack,
-            pack_slot,
-            operation,
-            status,
-            ARGUMENT_INDEX_NONE,
-            0,
-        );
+        let evaluated = dynamic_failure(pack, pack_slot, operation, status, ARGUMENT_INDEX_NONE, 0);
         let result_status = evaluated.status;
         unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
         return result_status.code();
@@ -878,14 +871,8 @@ unsafe fn eval_dynamic(
     let arg_refs = match unsafe { typed_slice(args, usize::from(arg_count)) } {
         Ok(args) => args,
         Err(status) => {
-            let evaluated = dynamic_failure(
-                pack,
-                pack_slot,
-                operation,
-                status,
-                ARGUMENT_INDEX_NONE,
-                0,
-            );
+            let evaluated =
+                dynamic_failure(pack, pack_slot, operation, status, ARGUMENT_INDEX_NONE, 0);
             let result_status = evaluated.status;
             unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
             return result_status.code();
@@ -930,14 +917,8 @@ fn dynamic_failure(
     argument_index: u16,
     detail_code: u16,
 ) -> EvaluationResult {
-    pack.failure_result(
-        pack_slot,
-        operation,
-        status,
-        argument_index,
-        detail_code,
-    )
-    .unwrap_or_else(EvaluationResult::unidentified_failure)
+    pack.failure_result(pack_slot, operation, status, argument_index, detail_code)
+        .unwrap_or_else(EvaluationResult::unidentified_failure)
 }
 
 /// Optional result JSON helper; not linked into the minimal C ABI slice yet.
@@ -1086,8 +1067,7 @@ fn validate_config(config: &XsConfigV1) -> Result<(), Status> {
         return Err(Status::UNSUPPORTED_OPERATION);
     }
     #[cfg(feature = "dynamic-packs")]
-    if config.flags & CONFIG_ALLOW_DYNAMIC_PACKS != 0
-        && config.flags & CONFIG_ENABLE_DISCOVERY != 0
+    if config.flags & CONFIG_ALLOW_DYNAMIC_PACKS != 0 && config.flags & CONFIG_ENABLE_DISCOVERY != 0
     {
         return Err(Status::UNSUPPORTED_OPERATION);
     }
@@ -1382,8 +1362,7 @@ mod tests {
         );
 
         let mut memory = MaybeUninit::<XsContext>::uninit();
-        let context =
-            unsafe { initialized_context_with_config(&mut memory, &dynamic_config) };
+        let context = unsafe { initialized_context_with_config(&mut memory, &dynamic_config) };
         let (status, slot, required_arena) = mount_pack(context, &custom_pack);
         assert_eq!(status, Status::OK.code());
         assert_eq!(slot, FIRST_DYNAMIC_PACK_SLOT);
@@ -1410,8 +1389,7 @@ mod tests {
         assert_eq!(status, Status::OK.code());
         assert_eq!((lookup_slot, operation_id, revision), (slot, 301, 1));
 
-        let mut count_failure =
-            XsResultV1::empty(size_u32::<XsResultV1>(), Status::INTERNAL_ERROR);
+        let mut count_failure = XsResultV1::empty(size_u32::<XsResultV1>(), Status::INTERNAL_ERROR);
         let status = unsafe {
             xs_eval(
                 context,
