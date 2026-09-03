@@ -1,6 +1,6 @@
 [package]
 name = "exactscope-packc"
-description = "Build-time scope-pack compiler scaffold for ExactScope"
+description = "Build-time canonical scope-pack compiler for ExactScope"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,6 +12,8 @@ publish = false
 
 [dependencies]
 exactscope-kernel = { path = "../exactscope-kernel", default-features = false }
+exactscope-pack = { path = "../exactscope-pack", default-features = false }
+serde_json = "1"
 
 [lints]
 workspace = true

@@ -9,6 +9,11 @@
 
 pub use exactscope_kernel::{DESIGN_ABI_MAJOR, DESIGN_ABI_MINOR};
 
+pub mod format;
+mod dynamic;
+
+pub use dynamic::{DynamicOperation, PackView};
+
 use exactscope_kernel::{OperationDecl, Status, PED_MID_OPERATION};
 
 /// Fused pack slot reserved for the first official economics pack.
