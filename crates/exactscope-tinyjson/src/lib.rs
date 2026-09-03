@@ -76,10 +76,7 @@ pub fn find(input: &[u8], output: &mut [u8]) -> AdapterResult {
             let registry = FusedRegistry::new();
             let mut matches = empty_matches();
             match registry.find(request.query.resolve(input), &mut matches[..request.limit]) {
-                Ok(count) => Response::FindSuccess(FindSuccess {
-                    matches,
-                    count,
-                }),
+                Ok(count) => Response::FindSuccess(FindSuccess { matches, count }),
                 Err(status) => Response::Error(ErrorResponse::new(status)),
             }
         }
@@ -178,38 +175,34 @@ fn evaluate_request(input: &[u8], request: EvalRequest) -> Response {
     };
 
     if request.argument_count != operation.operation.inputs.len() {
-        return Response::Error(ErrorResponse::from_evaluation(
-            EvaluationResult::failure(
-                Status::ARGUMENT_COUNT,
-                operation.pack_slot,
-                operation.operation,
-                ARGUMENT_INDEX_NONE,
-                0,
-            ),
-        ));
+        return Response::Error(ErrorResponse::from_evaluation(EvaluationResult::failure(
+            Status::ARGUMENT_COUNT,
+            operation.pack_slot,
+            operation.operation,
+            ARGUMENT_INDEX_NONE,
+            0,
+        )));
     }
 
     let mut arguments = [EMPTY_SCALAR; MAX_TINY_JSON_ARGUMENTS];
-    for (index, span) in request.arguments[..request.argument_count].iter().enumerate() {
+    for (index, span) in request.arguments[..request.argument_count]
+        .iter()
+        .enumerate()
+    {
         let decimal = match Decimal64::parse_ascii(span.resolve(input)) {
             Ok(decimal) => decimal,
             Err(status) => {
-                return Response::Error(ErrorResponse::from_evaluation(
-                    EvaluationResult::failure(
-                        status,
-                        operation.pack_slot,
-                        operation.operation,
-                        u16::try_from(index).unwrap_or(ARGUMENT_INDEX_NONE),
-                        0,
-                    ),
-                ));
+                return Response::Error(ErrorResponse::from_evaluation(EvaluationResult::failure(
+                    status,
+                    operation.pack_slot,
+                    operation.operation,
+                    u16::try_from(index).unwrap_or(ARGUMENT_INDEX_NONE),
+                    0,
+                )));
             }
         };
-        arguments[index] = ScalarValue::new(
-            decimal,
-            operation.operation.inputs[index].semantic_kind,
-            0,
-        );
+        arguments[index] =
+            ScalarValue::new(decimal, operation.operation.inputs[index].semantic_kind, 0);
     }
 
     let result = evaluate_operation(
@@ -366,7 +359,10 @@ impl<'a> Parser<'a> {
     }
 
     fn skip_whitespace(&mut self) {
-        while matches!(self.input.get(self.index), Some(b' ' | b'\n' | b'\r' | b'\t')) {
+        while matches!(
+            self.input.get(self.index),
+            Some(b' ' | b'\n' | b'\r' | b'\t')
+        ) {
             self.index += 1;
         }
     }
@@ -701,9 +697,8 @@ mod tests {
 
     #[test]
     fn eval_golden_request_is_exact() {
-        let (status, response) = call_eval(
-            br#"{"op":"econ.ped.mid","a":["10000","12000","100","80"]}"#,
-        );
+        let (status, response) =
+            call_eval(br#"{"op":"econ.ped.mid","a":["10000","12000","100","80"]}"#);
         assert_eq!(status, Status::OK);
         assert_eq!(
             response,
@@ -723,15 +718,11 @@ mod tests {
 
     #[test]
     fn eval_preserves_core_failures() {
-        let (status, response) = call_eval(
-            br#"{"op":"econ.ped.mid","a":["10","10","100","80"]}"#,
-        );
+        let (status, response) = call_eval(br#"{"op":"econ.ped.mid","a":["10","10","100","80"]}"#);
         assert_eq!(status, Status::DIVIDE_BY_ZERO);
         assert_eq!(response, r#"{"s":13,"e":"DIVIDE_BY_ZERO"}"#);
 
-        let (status, response) = call_eval(
-            br#"{"op":"econ.ped.mid","a":["-1","10","100","80"]}"#,
-        );
+        let (status, response) = call_eval(br#"{"op":"econ.ped.mid","a":["-1","10","100","80"]}"#);
         assert_eq!(status, Status::CONSTRAINT_VIOLATION);
         assert_eq!(
             response,
@@ -741,9 +732,7 @@ mod tests {
 
     #[test]
     fn eval_checks_count_before_decimal_lexing() {
-        let (status, response) = call_eval(
-            br#"{"op":"econ.ped.mid","a":["not-a-number"]}"#,
-        );
+        let (status, response) = call_eval(br#"{"op":"econ.ped.mid","a":["not-a-number"]}"#);
         assert_eq!(status, Status::ARGUMENT_COUNT);
         assert_eq!(response, r#"{"s":5,"e":"ARGUMENT_COUNT"}"#);
     }

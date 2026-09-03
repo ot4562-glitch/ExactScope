@@ -249,9 +249,7 @@ fn mentions_price_elasticity(query: &[u8]) -> bool {
 }
 
 fn has_midpoint_cue(query: &[u8]) -> bool {
-    query == b"econ.ped.mid"
-        || contains_token(query, b"midpoint")
-        || contains_token(query, b"arc")
+    query == b"econ.ped.mid" || contains_token(query, b"midpoint") || contains_token(query, b"arc")
 }
 
 #[cfg(test)]
