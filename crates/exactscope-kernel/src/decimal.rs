@@ -352,9 +352,7 @@ mod tests {
     fn rendered(value: Decimal64) -> std::string::String {
         let mut output = [0u8; 64];
         let written = value.write_canonical(&mut output).expect("format");
-        std::string::String::from(
-            std::str::from_utf8(&output[..written]).expect("ascii"),
-        )
+        std::string::String::from(std::str::from_utf8(&output[..written]).expect("ascii"))
     }
 
     #[test]

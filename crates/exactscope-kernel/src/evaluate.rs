@@ -277,7 +277,13 @@ pub fn evaluate_operation(
             }
             Ok(false) => {}
             Err(status) => {
-                return EvaluationResult::failure(status, pack_slot, operation, ARGUMENT_INDEX_NONE, 0);
+                return EvaluationResult::failure(
+                    status,
+                    pack_slot,
+                    operation,
+                    ARGUMENT_INDEX_NONE,
+                    0,
+                );
             }
         }
     }
