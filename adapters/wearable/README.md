@@ -8,8 +8,11 @@ The reference is intentionally plain C99 so a device team can compile it into a 
 
 - `exactscope_wearable_ref.h` — host state, constants, privacy-minimized telemetry, wrapper API.
 - `exactscope_wearable_ref.c` — bounded reference state machine.
+- `exactscope_wearable_ab.h` — two-slot activation journal/storage callback API.
+- `exactscope_wearable_ab.c` — 96-byte dual-copy CRC journal, crash recovery, rollback retention, stale-state rejection.
+- [`AB_UPDATE.md`](AB_UPDATE.md) — byte layout, durability contract, commit ordering, and real-device power-loss qualification guidance.
 
-No function in this adapter performs network I/O, file I/O, allocation, logging, timing, sensor capture, or model inference.
+No function in these reference modules performs network I/O, file I/O, allocation, logging, timing, sensor capture, or model inference. Persistent pack contents and metadata I/O are supplied through product-owned storage boundaries.
 
 ## Product modes
 

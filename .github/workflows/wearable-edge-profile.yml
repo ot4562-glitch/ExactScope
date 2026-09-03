@@ -44,6 +44,12 @@ jobs:
       - name: Compile wearable reference header as C++11
         run: c++ -std=c++11 -Wall -Wextra -Werror -pedantic -Iinclude -Iadapters/wearable -fsyntax-only tests/wearable/reference_host_cpp.cpp
 
+      - name: Build wearable A/B crash-consistency test
+        run: cc -std=c99 -Wall -Wextra -Werror -pedantic -Iinclude -Iadapters/wearable adapters/wearable/exactscope_wearable_ab.c tests/wearable/ab_update_test.c -o /tmp/exactscope-ab-update-test
+
+      - name: Execute wearable A/B power-loss matrix
+        run: /tmp/exactscope-ab-update-test
+
       - name: Install pinned Rust toolchain
         run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component clippy
 

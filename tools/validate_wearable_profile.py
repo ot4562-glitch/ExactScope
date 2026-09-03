@@ -17,6 +17,8 @@ SCHEMA_PATH = ROOT / "spec" / "schemas" / "wearable-edge-profile.schema.json"
 SPEC_PATH = ROOT / "spec" / "WEARABLE_EDGE_PROFILE_V0_1.md"
 ADAPTER_HEADER_PATH = ROOT / "adapters" / "wearable" / "exactscope_wearable_ref.h"
 ADAPTER_SOURCE_PATH = ROOT / "adapters" / "wearable" / "exactscope_wearable_ref.c"
+AB_HEADER_PATH = ROOT / "adapters" / "wearable" / "exactscope_wearable_ab.h"
+AB_SOURCE_PATH = ROOT / "adapters" / "wearable" / "exactscope_wearable_ab.c"
 
 
 class ValidationFailure(Exception):
@@ -131,20 +133,21 @@ def validate_spec_presence(profile: dict[str, Any]) -> None:
 
 
 def parse_adapter_uint_macros() -> dict[str, int]:
-    try:
-        text = ADAPTER_HEADER_PATH.read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as exc:
-        raise ValidationFailure(
-            f"cannot read {ADAPTER_HEADER_PATH.relative_to(ROOT)}: {exc}"
-        ) from exc
+    texts: list[str] = []
+    for path in (ADAPTER_HEADER_PATH, AB_HEADER_PATH):
+        try:
+            texts.append(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError) as exc:
+            raise ValidationFailure(f"cannot read {path.relative_to(ROOT)}: {exc}") from exc
 
     macros: dict[str, int] = {}
     pattern = re.compile(
-        r"^\s*#define\s+(XSW_REF_[A-Z0-9_]+)\s+((?:0[xX])?[0-9A-Fa-f]+)[uU]?\s*$",
+        r"^\s*#define\s+(XSW_(?:REF|AB)_[A-Z0-9_]+)\s+((?:0[xX])?[0-9A-Fa-f]+)[uU]?\s*$",
         re.MULTILINE,
     )
-    for name, literal in pattern.findall(text):
-        macros[name] = int(literal, 0)
+    for text in texts:
+        for name, literal in pattern.findall(text):
+            macros[name] = int(literal, 0)
     return macros
 
 
@@ -152,6 +155,7 @@ def validate_adapter_alignment(profile: dict[str, Any]) -> None:
     macros = parse_adapter_uint_macros()
     limits = profile["hard_limits"]
     targets = profile["product_targets"]
+    update_policy = profile["update_policy"]
 
     limit_mapping = {
         "max_context_bytes": "XSW_REF_MAX_CONTEXT_BYTES_V1",
@@ -176,6 +180,10 @@ def validate_adapter_alignment(profile: dict[str, Any]) -> None:
         "scalar_eval_energy_uj_excluding_host_wake": "XSW_REF_TARGET_SCALAR_EVAL_ENERGY_UJ_V1",
         "stripped_runtime_plus_fused_pack_bytes": "XSW_REF_TARGET_STRIPPED_ARTIFACT_BYTES_V1",
     }
+    update_mapping = {
+        "activation_journal_copies": "XSW_AB_RECORD_COPY_COUNT_V1",
+        "activation_journal_record_bytes": "XSW_AB_RECORD_BYTES_V1",
+    }
 
     for field, macro in limit_mapping.items():
         if macro not in macros:
@@ -191,6 +199,14 @@ def validate_adapter_alignment(profile: dict[str, Any]) -> None:
         if macros[macro] != targets[field]:
             raise ValidationFailure(
                 f"wearable header/profile drift: {macro}={macros[macro]} != {field}={targets[field]}"
+            )
+
+    for field, macro in update_mapping.items():
+        if macro not in macros:
+            raise ValidationFailure(f"wearable A/B header is missing {macro}")
+        if macros[macro] != update_policy[field]:
+            raise ValidationFailure(
+                f"wearable A/B header/profile drift: {macro}={macros[macro]} != {field}={update_policy[field]}"
             )
 
     expected_frame = max(limits["max_tiny_request_bytes"], limits["max_tiny_response_bytes"])
@@ -245,6 +261,40 @@ def validate_adapter_source_boundary() -> None:
     missing = [token for token in required_tokens if token not in text]
     if missing:
         raise ValidationFailure(f"wearable reference source is missing fail-closed boundary tokens: {missing}")
+
+    try:
+        ab_text = AB_SOURCE_PATH.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise ValidationFailure(f"cannot read {AB_SOURCE_PATH.relative_to(ROOT)}: {exc}") from exc
+
+    ab_includes = set(
+        re.findall(r'^\s*#include\s+[<\"]([^>\"]+)[>\"]', ab_text, re.MULTILINE)
+    )
+    ab_allowed_includes = {"exactscope_wearable_ab.h", "stddef.h", "string.h"}
+    ab_unexpected_includes = sorted(ab_includes - ab_allowed_includes)
+    if ab_unexpected_includes:
+        raise ValidationFailure(
+            f"wearable A/B source imports unexpected host/runtime headers: {ab_unexpected_includes}"
+        )
+
+    ab_used = [
+        name for name in prohibited_calls if re.search(rf"\b{re.escape(name)}\s*\(", ab_text)
+    ]
+    if ab_used:
+        raise ValidationFailure(f"wearable A/B source uses prohibited host services: {ab_used}")
+
+    ab_required_tokens = (
+        "0xedb88320u",
+        "storage->flush(",
+        "xsw_ab_decode_record(",
+        "XSW_AB_FLAG_ROLLBACK_AVAILABLE_V1",
+        "1u - state->selected_record_copy",
+    )
+    ab_missing = [token for token in ab_required_tokens if token not in ab_text]
+    if ab_missing:
+        raise ValidationFailure(
+            f"wearable A/B source is missing crash-consistency boundary tokens: {ab_missing}"
+        )
 
 
 def main() -> int:

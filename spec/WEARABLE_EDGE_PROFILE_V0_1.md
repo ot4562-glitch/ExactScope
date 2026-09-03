@@ -224,6 +224,8 @@ Cross-target drift is a release blocker, not an adapter concern.
 
 A shipping wearable host MUST implement pack updates as an A/B transaction.
 
+The v0.1 reference activation contract uses two independent 96-byte journal copies. Each record carries a monotonic generation, active/previous slot identity, active/previous SHA-256 digests, rollback-retention state, and CRC-32/ISO-HDLC. The non-current metadata copy is written and durably flushed before it can become authoritative; the previous known-good slot remains protected until an explicit accept or rollback commit. The byte layout and storage-callback semantics are specified in [`../adapters/wearable/AB_UPDATE.md`](../adapters/wearable/AB_UPDATE.md).
+
 ### 8.1 Required host sequence
 
 1. Download or receive a candidate pack through the product's existing authenticated update channel.

@@ -1,4 +1,5 @@
 #include "exactscope_wearable_ref.h"
+#include "exactscope_wearable_ab.h"
 
 #if XSW_REF_MAX_CONTEXT_BYTES_V1 != 4096u
 #error "wearable context budget drift"
@@ -18,6 +19,14 @@
 
 #if XSW_REF_MAX_TOTAL_PACK_BYTES_V1 != 524288u
 #error "wearable total-pack budget drift"
+#endif
+
+#if XSW_AB_RECORD_COPY_COUNT_V1 != 2u
+#error "wearable activation journal copy-count drift"
+#endif
+
+#if XSW_AB_RECORD_BYTES_V1 != 96u
+#error "wearable activation journal record-size drift"
 #endif
 
 int exactscope_wearable_reference_c99_smoke(void) {
