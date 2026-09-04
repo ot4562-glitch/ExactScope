@@ -765,6 +765,17 @@ mod tests {
     }
 
     #[test]
+    fn eval_executes_non_ped_economics_operation() {
+        let (status, response) =
+            call_eval(br#"{"op":"econ.gdp.deflator100","a":["120","100"]}"#);
+        assert_eq!(status, Status::OK);
+        assert_eq!(
+            response,
+            r#"{"s":0,"v":"120","p":"econ-undergrad@0.1.0","r":1}"#
+        );
+    }
+
+    #[test]
     fn eval_accepts_field_order_and_json_whitespace() {
         let (status, response) = call_eval(
             b" { \"a\" : [ \"10\", \"20\", \"20\", \"10\" ], \"op\" : \"econ.ped.mid\" } ",
@@ -817,6 +828,21 @@ mod tests {
             response,
             r#"{"s":0,"m":[{"op":"econ.ped.mid","sig":"econ.ped.mid(p1,p2,q1,q2)","method":"midpoint"}]}"#
         );
+    }
+
+    #[test]
+    fn find_discovers_multiple_economics_methods() {
+        let (status, response) = call_find(br#"{"q":"gdp deflator","n":3}"#);
+        assert_eq!(status, Status::OK);
+        assert_eq!(
+            response,
+            r#"{"s":0,"m":[{"op":"econ.gdp.deflator100","sig":"econ.gdp.deflator100(nominal_gdp,real_gdp)","method":"deflator100"}]}"#
+        );
+
+        let (status, response) = call_find(br#"{"q":"real interest rate","n":5}"#);
+        assert_eq!(status, Status::OK);
+        assert!(response.contains("\"op\":\"econ.rate.real.exact_pct\""));
+        assert!(response.contains("\"op\":\"econ.rate.real.approx_pct\""));
     }
 
     #[test]

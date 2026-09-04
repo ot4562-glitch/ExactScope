@@ -228,22 +228,28 @@ where
 
     for (index, declaration) in operation.inputs.iter().enumerate() {
         let value = work[index];
-        let ordering = match value.checked_cmp(declaration.constraint_value) {
-            Ok(ordering) => ordering,
-            Err(status) => {
-                return EvaluationResult::failure_runtime(
-                    status,
-                    pack_slot,
-                    operation,
-                    u16::try_from(index).unwrap_or(ARGUMENT_INDEX_NONE),
-                    declaration.detail_id,
-                );
-            }
-        };
-        let accepted = match declaration.constraint {
-            ConstraintKind::GreaterThan => ordering == Ordering::Greater,
-            ConstraintKind::GreaterOrEqual => {
-                matches!(ordering, Ordering::Greater | Ordering::Equal)
+        let accepted = if declaration.constraint == ConstraintKind::None {
+            true
+        } else {
+            let ordering = match value.checked_cmp(declaration.constraint_value) {
+                Ok(ordering) => ordering,
+                Err(status) => {
+                    return EvaluationResult::failure_runtime(
+                        status,
+                        pack_slot,
+                        operation,
+                        u16::try_from(index).unwrap_or(ARGUMENT_INDEX_NONE),
+                        declaration.detail_id,
+                    );
+                }
+            };
+            match declaration.constraint {
+                ConstraintKind::None => true,
+                ConstraintKind::GreaterThan => ordering == Ordering::Greater,
+                ConstraintKind::GreaterOrEqual => {
+                    matches!(ordering, Ordering::Greater | Ordering::Equal)
+                }
+                ConstraintKind::NotEqual => ordering != Ordering::Equal,
             }
         };
         if !accepted {

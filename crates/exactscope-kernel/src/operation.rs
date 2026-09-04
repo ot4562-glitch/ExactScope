@@ -7,10 +7,14 @@ use crate::{
 /// Scalar constraint kind used by the first slice.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ConstraintKind {
+    /// No scalar constant constraint is applied.
+    None,
     /// Input must be strictly greater than the constant.
     GreaterThan,
     /// Input must be greater than or equal to the constant.
     GreaterOrEqual,
+    /// Input must not be exactly equal to the constant.
+    NotEqual,
 }
 
 /// One ordered scalar input declaration.
@@ -123,7 +127,7 @@ impl InputDecl {
         semantic_kind: 0,
         same_unit_group: 0,
         unit_required: false,
-        constraint: ConstraintKind::GreaterOrEqual,
+        constraint: ConstraintKind::None,
         constraint_value: WorkRational::ZERO,
         detail_id: 0,
     };

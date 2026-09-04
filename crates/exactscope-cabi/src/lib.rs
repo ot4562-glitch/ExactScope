@@ -41,7 +41,7 @@ pub extern "C" fn rust_eh_personality() -> ! {
 
 use exactscope_kernel::{
     evaluate_operation, Decimal64, EvaluationResult, ScalarValue, Status, ARGUMENT_INDEX_NONE,
-    MAX_RESULT_VALUES, PED_MID_OPERATION, SEMANTIC_ELASTICITY,
+    MAX_RESULT_VALUES, SEMANTIC_ELASTICITY,
 };
 use exactscope_pack::{empty_matches, FusedRegistry, ECON_UNDERGRAD_PACK_SLOT};
 #[cfg(feature = "dynamic-packs")]
@@ -790,12 +790,13 @@ pub unsafe extern "C" fn xs_eval(
         return Status::UNKNOWN_PACK.code();
     }
 
-    let operation = if operation_id == PED_MID_OPERATION.id {
-        &PED_MID_OPERATION
-    } else {
-        let result = unidentified_result(result_struct_size, Status::UNKNOWN_OPERATION);
-        unsafe { out_result.write(result) };
-        return Status::UNKNOWN_OPERATION.code();
+    let operation = match FusedRegistry::new().lookup_id(operation_id) {
+        Ok(found) => found.operation,
+        Err(status) => {
+            let result = unidentified_result(result_struct_size, status);
+            unsafe { out_result.write(result) };
+            return status.code();
+        }
     };
 
     if let Err(status) = unsafe { validate_options(options) } {

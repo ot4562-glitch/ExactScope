@@ -14,7 +14,7 @@ pub mod format;
 
 pub use dynamic::{DynamicOperation, PackView};
 
-use exactscope_kernel::{OperationDecl, Status, PED_MID_OPERATION};
+use exactscope_kernel::{OperationDecl, Status, OFFICIAL_ECON_OPERATIONS, PED_MID_OPERATION};
 
 /// Fused pack slot reserved for the first official economics pack.
 pub const ECON_UNDERGRAD_PACK_SLOT: u16 = 1;
@@ -33,6 +33,67 @@ const PED_ALIASES: [&str; 5] = [
     "arc elasticity of demand",
     "ped midpoint",
     "econ.ped.mid",
+];
+
+const GDP_DEFLATOR_ALIASES: [&str; 3] = [
+    "gdp deflator",
+    "nominal real gdp deflator",
+    "deflator from nominal and real gdp",
+];
+const CPI_INFLATION_ALIASES: [&str; 3] = [
+    "cpi inflation",
+    "inflation from cpi",
+    "consumer price index inflation",
+];
+const MONEY_VELOCITY_ALIASES: [&str; 3] = [
+    "money velocity",
+    "velocity of money",
+    "quantity equation velocity",
+];
+const REAL_RATE_EXACT_ALIASES: [&str; 3] = [
+    "exact real interest rate",
+    "fisher exact real rate",
+    "exact fisher equation",
+];
+const REAL_RATE_APPROX_ALIASES: [&str; 3] = [
+    "approx real interest rate",
+    "approximate real interest rate",
+    "fisher approximation real rate",
+];
+const OUTPUT_GAP_ALIASES: [&str; 2] = ["output gap", "gdp output gap"];
+const MPC_ALIASES: [&str; 3] = ["mpc", "marginal propensity to consume", "consumption mpc"];
+const MPS_ALIASES: [&str; 3] = ["mps", "marginal propensity to save", "saving mps"];
+const TERMS_OF_TRADE_ALIASES: [&str; 3] = [
+    "terms of trade",
+    "terms of trade index",
+    "export import price index ratio",
+];
+const OPPORTUNITY_COST_ALIASES: [&str; 2] = ["opportunity cost", "output opportunity cost"];
+const GROWTH_RATE_ALIASES: [&str; 3] = ["growth rate", "percent growth", "percentage growth"];
+const RULE70_ALIASES: [&str; 3] = ["rule of 70", "rule70", "doubling time rule 70"];
+const RULE72_ALIASES: [&str; 3] = ["rule of 72", "rule72", "doubling time rule 72"];
+const PER_CAPITA_GROWTH_ALIASES: [&str; 3] = [
+    "per capita growth approximation",
+    "approx per capita growth",
+    "per capita growth difference",
+];
+
+const ECON_ALIASES: [&[&str]; 15] = [
+    &PED_ALIASES,
+    &GDP_DEFLATOR_ALIASES,
+    &CPI_INFLATION_ALIASES,
+    &MONEY_VELOCITY_ALIASES,
+    &REAL_RATE_EXACT_ALIASES,
+    &REAL_RATE_APPROX_ALIASES,
+    &OUTPUT_GAP_ALIASES,
+    &MPC_ALIASES,
+    &MPS_ALIASES,
+    &TERMS_OF_TRADE_ALIASES,
+    &OPPORTUNITY_COST_ALIASES,
+    &GROWTH_RATE_ALIASES,
+    &RULE70_ALIASES,
+    &RULE72_ALIASES,
+    &PER_CAPITA_GROWTH_ALIASES,
 ];
 
 /// Immutable reference to one installed operation.
@@ -86,11 +147,26 @@ impl FusedRegistry {
     ///
     /// Returns [`Status::UNKNOWN_OPERATION`] when the exact key is not fused.
     pub fn lookup(self, key: &[u8]) -> Result<OperationRef, Status> {
-        if key == PED_MID_OPERATION.key.as_bytes() {
-            Ok(ped_operation_ref())
-        } else {
-            Err(Status::UNKNOWN_OPERATION)
+        for operation in OFFICIAL_ECON_OPERATIONS {
+            if key == operation.key.as_bytes() {
+                return Ok(econ_operation_ref(operation));
+            }
         }
+        Err(Status::UNKNOWN_OPERATION)
+    }
+
+    /// Looks up one fused economics operation by its stable pack-local ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Status::UNKNOWN_OPERATION`] when the ID is not fused.
+    pub fn lookup_id(self, operation_id: u32) -> Result<OperationRef, Status> {
+        for operation in OFFICIAL_ECON_OPERATIONS {
+            if operation.id == operation_id {
+                return Ok(econ_operation_ref(operation));
+            }
+        }
+        Err(Status::UNKNOWN_OPERATION)
     }
 
     /// Resolves a deliberately narrow discovery query into installed matches.
@@ -119,29 +195,40 @@ impl FusedRegistry {
             return Err(Status::AMBIGUOUS_METHOD);
         }
 
-        let mut best_rank = u16::MAX;
-        for alias in PED_ALIASES {
-            let rank = alias_rank(query, alias.as_bytes());
-            best_rank = best_rank.min(rank);
+        let mut matches = empty_matches();
+        let mut match_count = 0usize;
+        for (index, operation) in OFFICIAL_ECON_OPERATIONS.iter().enumerate() {
+            let mut best_rank = alias_rank(query, operation.key.as_bytes());
+            for alias in ECON_ALIASES[index] {
+                best_rank = best_rank.min(alias_rank(query, alias.as_bytes()));
+            }
+            if best_rank != u16::MAX {
+                insert_match(
+                    &mut matches,
+                    &mut match_count,
+                    Match {
+                        operation: econ_operation_ref(operation),
+                        rank: best_rank,
+                    },
+                );
+            }
         }
-        if best_rank == u16::MAX {
+        if match_count == 0 {
             return Err(Status::UNKNOWN_OPERATION);
         }
         if output.is_empty() {
             return Err(Status::BUFFER_TOO_SMALL);
         }
 
-        output[0] = Match {
-            operation: ped_operation_ref(),
-            rank: best_rank,
-        };
-        Ok(1)
+        let written = output.len().min(match_count);
+        output[..written].copy_from_slice(&matches[..written]);
+        Ok(written)
     }
 
     /// Returns the number of fused operations.
     #[must_use]
     pub const fn operation_count(self) -> usize {
-        1
+        OFFICIAL_ECON_OPERATIONS.len()
     }
 }
 
@@ -154,12 +241,41 @@ pub const fn empty_matches() -> [Match; MAX_FIND_MATCHES] {
 /// Returns the first fused economics operation.
 #[must_use]
 pub const fn ped_operation_ref() -> OperationRef {
+    econ_operation_ref(&PED_MID_OPERATION)
+}
+
+const fn econ_operation_ref(operation: &'static OperationDecl) -> OperationRef {
     OperationRef {
         pack_slot: ECON_UNDERGRAD_PACK_SLOT,
         pack_id: ECON_UNDERGRAD_PACK_ID,
         provenance: ECON_UNDERGRAD_PROVENANCE,
-        operation: &PED_MID_OPERATION,
+        operation,
     }
+}
+
+fn insert_match(matches: &mut [Match; MAX_FIND_MATCHES], count: &mut usize, candidate: Match) {
+    let occupied = (*count).min(MAX_FIND_MATCHES);
+    let candidate_key = (candidate.rank, candidate.operation.operation.id);
+    let mut insertion = occupied;
+    for (index, existing) in matches[..occupied].iter().enumerate() {
+        let existing_key = (existing.rank, existing.operation.operation.id);
+        if candidate_key < existing_key {
+            insertion = index;
+            break;
+        }
+    }
+    if insertion >= MAX_FIND_MATCHES {
+        return;
+    }
+
+    let new_occupied = (occupied + 1).min(MAX_FIND_MATCHES);
+    let mut index = new_occupied;
+    while index > insertion + 1 {
+        matches[index - 1] = matches[index - 2];
+        index -= 1;
+    }
+    matches[insertion] = candidate;
+    *count = new_occupied;
 }
 
 fn normalize_query(input: &[u8], output: &mut [u8; 96]) -> Result<usize, Status> {
@@ -268,6 +384,13 @@ mod tests {
         assert_eq!(operation.pack_slot, ECON_UNDERGRAD_PACK_SLOT);
         assert_eq!(operation.operation.id, 301);
         assert_eq!(operation.operation.revision, 1);
+
+        let deflator = registry.lookup(b"econ.gdp.deflator100").unwrap();
+        assert_eq!(deflator.operation.id, 401);
+        assert_eq!(deflator.operation.revision, 1);
+        assert_eq!(registry.lookup_id(401).unwrap(), deflator);
+        assert_eq!(registry.operation_count(), 15);
+
         assert_eq!(
             registry.lookup(b"ECON.PED.MID"),
             Err(Status::UNKNOWN_OPERATION)
@@ -283,6 +406,26 @@ mod tests {
             .unwrap();
         assert_eq!(count, 1);
         assert_eq!(matches[0].operation.operation.key, "econ.ped.mid");
+    }
+
+    #[test]
+    fn economics_discovery_finds_non_ped_operations() {
+        let registry = FusedRegistry::new();
+        let mut matches = empty_matches();
+
+        let count = registry.find(b"gdp deflator", &mut matches).unwrap();
+        assert_eq!(count, 1);
+        assert_eq!(matches[0].operation.operation.id, 401);
+        assert_eq!(matches[0].operation.operation.key, "econ.gdp.deflator100");
+
+        let count = registry.find(b"rule of 70", &mut matches).unwrap();
+        assert_eq!(count, 1);
+        assert_eq!(matches[0].operation.operation.id, 702);
+
+        let count = registry.find(b"real interest rate", &mut matches).unwrap();
+        assert_eq!(count, 2);
+        assert_eq!(matches[0].operation.operation.id, 417);
+        assert_eq!(matches[1].operation.operation.id, 418);
     }
 
     #[test]

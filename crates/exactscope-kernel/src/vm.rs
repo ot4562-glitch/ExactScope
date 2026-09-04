@@ -112,7 +112,7 @@ pub fn validate_program(
                 let _ = result;
                 push_type(&mut stack, &mut depth, ValueType::Number)?;
             }
-            4 | 5 | 7 => {
+            4 | 5 | 6 | 7 => {
                 require_zero_operand(*instruction)?;
                 pop_type(&stack, &mut depth, ValueType::Number)?;
                 pop_type(&stack, &mut depth, ValueType::Number)?;
@@ -129,7 +129,7 @@ pub fn validate_program(
                 pop_type(&stack, &mut depth, ValueType::Number)?;
                 push_type(&mut stack, &mut depth, ValueType::Boolean)?;
             }
-            6 | 8 | 10..=13 | 15 | 17 | 19..=23 => return Err(Status::UNSUPPORTED_OPERATION),
+            8 | 10..=13 | 15 | 17 | 19..=23 => return Err(Status::UNSUPPORTED_OPERATION),
             _ => return Err(Status::PACK_INVALID),
         }
         maximum_depth = maximum_depth.max(depth);
@@ -248,6 +248,15 @@ fn execute(
                     VmValue::Number(lhs.checked_sub(rhs)?),
                 )?;
             }
+            6 => {
+                let rhs = pop_number(&stack, &mut depth)?;
+                let lhs = pop_number(&stack, &mut depth)?;
+                push_value(
+                    &mut stack,
+                    &mut depth,
+                    VmValue::Number(lhs.checked_mul(rhs)?),
+                )?;
+            }
             7 => {
                 let rhs = pop_number(&stack, &mut depth)?;
                 let lhs = pop_number(&stack, &mut depth)?;
@@ -277,7 +286,7 @@ fn execute(
                 };
                 push_value(&mut stack, &mut depth, VmValue::Boolean(value))?;
             }
-            6 | 8 | 10..=13 | 15 | 17 | 19..=23 => return Err(Status::UNSUPPORTED_OPERATION),
+            8 | 10..=13 | 15 | 17 | 19..=23 => return Err(Status::UNSUPPORTED_OPERATION),
             _ => return Err(Status::PACK_INVALID),
         }
     }
@@ -405,7 +414,7 @@ mod tests {
             validate_program(&underflow, ProgramKind::Formula, 0, 0, 0),
             Err(Status::PACK_INVALID)
         );
-        let unsupported = [Instruction::new(6, 0), Instruction::new(0, 0)];
+        let unsupported = [Instruction::new(8, 0), Instruction::new(0, 0)];
         assert_eq!(
             validate_program(&unsupported, ProgramKind::Formula, 0, 0, 0),
             Err(Status::UNSUPPORTED_OPERATION)

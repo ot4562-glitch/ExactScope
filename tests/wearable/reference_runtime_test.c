@@ -207,6 +207,62 @@ int main(void) {
     CHECK_TRUE(telemetry.operation_id == 301u);
     CHECK_TRUE(telemetry.duration_bucket == XSW_REF_DURATION_LE_1_MS_V1);
 
+    {
+        static const uint8_t deflator_key[] = "econ.gdp.deflator100";
+        CHECK_STATUS(
+            xsw_ref_lookup(
+                &host,
+                deflator_key,
+                (uint32_t)(sizeof(deflator_key) - 1u),
+                &pack_slot,
+                &operation_id,
+                &operation_revision),
+            XS_STATUS_OK);
+        CHECK_TRUE(pack_slot == 1u);
+        CHECK_TRUE(operation_id == 401u);
+        CHECK_TRUE(operation_revision == 1u);
+
+        CHECK_STATUS(
+            xs_decimal_parse_ascii(
+                (const uint8_t*)"120",
+                3u,
+                XS_SEMANTIC_CURRENCY_AMOUNT_V1,
+                7u,
+                &values[0]),
+            XS_STATUS_OK);
+        CHECK_STATUS(
+            xs_decimal_parse_ascii(
+                (const uint8_t*)"100",
+                3u,
+                XS_SEMANTIC_CURRENCY_AMOUNT_V1,
+                7u,
+                &values[1]),
+            XS_STATUS_OK);
+        args[0] = scalar_ref(&values[0]);
+        args[1] = scalar_ref(&values[1]);
+        options.flags = 0u;
+        memset(&result, 0, sizeof(result));
+        result.struct_size = (uint32_t)sizeof(result);
+        CHECK_STATUS(
+            xsw_ref_eval(
+                &host,
+                pack_slot,
+                operation_id,
+                args,
+                2u,
+                &options,
+                NULL,
+                0u,
+                &result),
+            XS_STATUS_OK);
+        CHECK_TRUE(result.status == XS_STATUS_OK);
+        CHECK_TRUE(result.operation_id == 401u);
+        CHECK_TRUE(result.classification_id == 0u);
+        CHECK_TRUE(result.values[0].coefficient == 12);
+        CHECK_TRUE(result.values[0].exponent == 1);
+        CHECK_TRUE(result.values[0].semantic_kind == XS_SEMANTIC_INDEX_V1);
+    }
+
     puts("ExactScope wearable native C ABI runtime test: PASS");
     return 0;
 }
