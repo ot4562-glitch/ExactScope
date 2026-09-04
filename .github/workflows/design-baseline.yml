@@ -36,6 +36,9 @@ jobs:
       - name: Validate schemas, registries, examples, catalog, ABI constants, and links
         run: python tools/validate_design.py
 
+      - name: Validate llama.cpp direct-eval adapter envelope
+        run: python adapters/llama-cpp/direct_eval_smoke.py --self-test
+
       - name: Compile public headers as C99
         run: cc -std=c99 -Wall -Wextra -Werror -pedantic -Iinclude -fsyntax-only tests/abi/header_c.c
 
@@ -101,6 +104,14 @@ jobs:
           cmp target/conformance/econ-undergrad-minimal.xsp target/conformance/econ-undergrad-minimal.second.xsp
           sha256sum target/conformance/econ-undergrad-minimal.xsp > target/conformance/econ-undergrad-minimal.xsp.sha256
           rm target/conformance/econ-undergrad-minimal.second.xsp
+
+      - name: Verify generated P0 hot-set assets
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          rm -rf target/hotset-check
+          cargo "+$RUST_TOOLCHAIN" run --quiet --package exactscope-packc -- hotset hotsets/p0-smoke.json target/hotset-check
+          diff -ru adapters/generated/p0-smoke target/hotset-check
 
       - name: Upload canonical scope-pack artifact
         if: matrix.os == 'ubuntu-latest'

@@ -32,21 +32,21 @@ This is enough engine to stop treating engine completeness as the primary blocke
 - [x] `xs_eval` can execute known canonical operations directly.
 - [x] Document `xs_find` as optional fallback rather than mandatory first hop.
 - [x] Bind cached operation metadata to registry/pack digest and revision in the integration contract.
-- [ ] Add a generated hot-set manifest format for 8-32 operations.
-- [ ] Add direct hot-set fixtures that never require discovery.
-- [ ] Add cache invalidation tests for digest/revision changes.
+- [x] Add a bounded generated hot-set manifest format (1-32 operations; production target 8-32, with smaller smoke fixtures allowed).
+- [x] Add direct hot-set fixtures that never require discovery.
+- [x] Add cache invalidation tests for digest/revision changes.
 
 Success criterion: common product calls require one model inference turn, not `find -> model -> eval`.
 
 ## P0.2 AI runtime adapters
 
-- [ ] Generate conservative OpenAI-compatible `xs_eval` tool assets.
-- [ ] Generate optional `xs_find` fallback assets.
-- [ ] Generate checked-in/reproducible GBNF for the direct hot path.
-- [ ] Generate compact hot-set hints/catalogs from installed metadata.
-- [ ] Add llama.cpp reference integration fixtures.
-- [ ] Add one runnable local-model example from a prebuilt ExactScope artifact.
-- [ ] Keep every adapter calculation-free.
+- [x] Generate conservative OpenAI-compatible `xs_eval` tool assets.
+- [x] Generate optional `xs_find` fallback assets.
+- [x] Generate checked-in/reproducible GBNF for the direct hot path.
+- [x] Generate compact digest-bound hot-set hints/catalogs from canonical pack metadata.
+- [x] Add llama.cpp reference integration fixtures and an offline envelope self-test.
+- [ ] Add one runnable local-model example from a prebuilt ExactScope artifact and record a real model result.
+- [x] Keep every adapter calculation-free.
 
 Success criterion: a local-AI developer does not write custom ExactScope glue from scratch.
 

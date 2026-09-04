@@ -1,0 +1,1 @@
+Use ExactScope for supported deterministic quantitative calculations. Prefer a canonical operation key from the bound hot set and call xs_eval directly. Pass exact base-10 strings in signature order. Never invent missing values or methods. Do not recompute returned values; preserve ExactScope errors instead of guessing.

@@ -38,7 +38,7 @@ exactscope-native-<version>-<target>/
     catalog.json
     xs-eval.tool.json
     xs-eval.gbnf
-    registry-digest.txt
+    binding-sha256.txt
   manifest.json
   SHA256SUMS
   LICENSE-MIT
@@ -68,7 +68,7 @@ exactscope-wasm-<version>/
     catalog.json
     xs-eval.tool.json
     xs-eval.gbnf
-    registry-digest.txt
+    binding-sha256.txt
   manifest.json
   SHA256SUMS
   examples/

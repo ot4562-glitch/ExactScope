@@ -136,4 +136,4 @@ See [Benchmark contract](BENCHMARK.md).
 
 ## 9. Current status
 
-The repository is still prerelease. Native C ABI, deterministic economics/statistics execution, no-import Wasm, TinyWire, CMake SDK integration, and the developer-side SDK doctor are implemented. Stable prebuilt release artifacts, production AI adapters, broad benchmark evidence, reviewed official pack coverage, and real-device qualification remain release work.
+The repository is still prerelease. Native C ABI, deterministic economics/statistics execution, no-import Wasm, TinyWire, CMake SDK integration, the developer-side SDK doctor, digest-bound hot-set/OpenAI/GBNF generation, and a llama.cpp direct-eval reference runner are implemented. A production-size reviewed hot set, recorded real-model benchmark evidence, stable prebuilt release artifacts, broader official pack coverage, and real-device qualification remain release work.

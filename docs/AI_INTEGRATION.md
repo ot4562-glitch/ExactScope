@@ -74,11 +74,11 @@ The intended generator output is conceptually:
 ```text
 hotset/
   catalog.json
-  registry-digest.txt
+  binding-sha256.txt
   xs-eval.tool.json
   xs-eval.gbnf
-  optional-xs-find.tool.json
-  optional-xs-find.gbnf
+  xs-find.tool.json       # only when include_find=true
+  xs-find.gbnf            # only when include_find=true
   prompt-fragment.txt
 ```
 

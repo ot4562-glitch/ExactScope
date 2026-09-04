@@ -186,13 +186,14 @@ Implemented today:
 - experimental ARM64 SDK packaging;
 - relocatable `ExactScope::exactscope` CMake package;
 - developer-side SDK doctor;
-- CI covering design validation, C/C++ headers, Rust/MSRV, no-import Wasm, native/dynamic conformance, wearable reference integration, and experimental Android/Linux ARM64 SDK builds.
+- build-time digest-bound hot-set generator in `exactscope-packc`, including conservative OpenAI-compatible `xs_eval`, optional `xs_find`, direct-eval GBNF, and checked-in reproducibility fixtures;
+- llama.cpp OpenAI-compatible direct-eval reference runner with strict tool-call validation and an offline CI self-test;
+- CI covering design validation, C/C++ headers, Rust/MSRV, no-import Wasm, native/dynamic conformance, hot-set reproducibility, adapter envelope validation, wearable reference integration, and experimental Android/Linux ARM64 SDK builds.
 
 Still missing before a stable product release:
 
-- generated production hot-set/OpenAI/GBNF adapter artifacts;
-- llama.cpp reference integration;
-- model-only vs ExactScope benchmark evidence;
+- a reviewed production-size 8-32 operation benchmark hot set rather than only the one-operation reproducibility fixture;
+- recorded real-model llama.cpp runs and model-only vs ExactScope benchmark evidence;
 - stable downloadable/prebuilt release assets;
 - reviewed official hot-set/domain pack coverage and large golden corpora;
 - complete target self-test/qualification tooling;

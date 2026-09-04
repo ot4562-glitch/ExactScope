@@ -1,0 +1,31 @@
+{
+  "function": {
+    "description": "Evaluate one deterministic ExactScope operation from the bound hot set. Pass exact base-10 decimal arguments as strings in the declared signature order.",
+    "name": "xs_eval",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "a": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 12,
+          "minItems": 0,
+          "type": "array"
+        },
+        "op": {
+          "enum": [
+            "econ.ped.mid"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "a"
+      ],
+      "type": "object"
+    }
+  },
+  "type": "function"
+}

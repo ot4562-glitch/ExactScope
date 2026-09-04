@@ -1,0 +1,13 @@
+{
+  "$schema": "../spec/schemas/hotset-source.schema.json",
+  "format": "exactscope.hotset.source",
+  "format_version": "0.1",
+  "name": "p0-smoke",
+  "sources": [
+    "../spec/examples/econ-undergrad-minimal.xsp.json"
+  ],
+  "operations": [
+    "econ.ped.mid"
+  ],
+  "include_find": false
+}

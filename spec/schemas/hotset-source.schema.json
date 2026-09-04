@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:exactscope:schema:hotset-source:0.1",
+  "title": "ExactScope hot-set source manifest",
+  "description": "Build-time selection of canonical ExactScope operations for generated direct-eval adapter assets.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "format": {
+      "const": "exactscope.hotset.source"
+    },
+    "format_version": {
+      "const": "0.1"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      }
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 96,
+        "pattern": "^[a-z0-9][a-z0-9._-]*$"
+      }
+    },
+    "include_find": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "format",
+    "format_version",
+    "name",
+    "sources",
+    "operations",
+    "include_find"
+  ],
+  "additionalProperties": false
+}

@@ -34,19 +34,19 @@ It is not generic “smart-glasses support” and is not the primary proof-of-va
 
 ## 3. P0 — generated hot-set assets
 
-A hot-set generator should consume installed operation metadata and produce a bounded 8-32 operation product subset tied to the registry/pack digest.
+`exactscope-packc hotset` now consumes reviewed scope-pack source, compiles it through the canonical pack compiler, and emits a digest-bound 1-32 operation hot set. Production hot sets should normally use 8-32 operations; smaller sets such as `p0-smoke` are permitted as reproducibility/conformance fixtures.
 
-Expected generated outputs:
+Generated outputs:
 
 ```text
 adapters/generated/<hotset>/
   catalog.json
-  registry-digest.txt
+  binding-sha256.txt
   xs-eval.tool.json
   xs-eval.gbnf
   prompt-fragment.txt
-  optional-xs-find.tool.json
-  optional-xs-find.gbnf
+  xs-find.tool.json       # only when include_find=true
+  xs-find.gbnf            # only when include_find=true
 ```
 
 The hot set contains only selection/integration metadata. It never duplicates formulas.
@@ -68,17 +68,23 @@ Deliverables:
 
 ## 5. P0 — llama.cpp
 
-Deliverables:
+Implemented now:
 
-- direct-eval GBNF;
-- optional discovery GBNF;
+- generated direct-eval GBNF;
+- optional discovery GBNF generation;
 - compact system/tool prompt fragment;
-- OpenAI-compatible, raw JSON, and common tag-wrapped fixtures;
-- one runnable in-process or server-style reference integration;
-- benchmark configuration for selected small GGUF models;
-- hot-set digest binding.
+- OpenAI-compatible server-style reference runner;
+- strict returned-tool-call validation against the bound hot set;
+- offline synthetic envelope self-test in CI;
+- hot-set binding digest/revision propagation.
 
-The primary example must not require `xs_find` before every calculation.
+Still required for benchmark completion:
+
+- recorded runs against selected small GGUF models;
+- benchmark configuration/results for those model revisions;
+- additional raw/tag-wrapped model-template fixtures where they materially improve compatibility.
+
+The primary example does not require `xs_find` before every calculation.
 
 ## 6. Secondary adapters
 

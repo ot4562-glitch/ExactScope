@@ -7,6 +7,12 @@
 //! with the same allocation-free runtime loader, and runs every source golden
 //! vector before returning the artifact.
 
+mod hotset;
+
+pub use hotset::{
+    generate_hotset, parse_hotset_manifest, HotsetBundle, HotsetError, HotsetManifest, HotsetSource,
+};
+
 use std::{
     collections::{BTreeMap, BTreeSet},
     error::Error,

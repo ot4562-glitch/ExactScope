@@ -186,6 +186,7 @@ def validate_examples(schemas: dict[str, Any]) -> int:
     }
     json_documents = list(examples.glob("*.json"))
     json_documents.extend((ROOT / "packs").glob("*.xsp.json"))
+    json_documents.extend((ROOT / "hotsets").glob("*.json"))
     for path in sorted(json_documents):
         document = read_json(path)
         schema_name = explicit.get(path.name)
