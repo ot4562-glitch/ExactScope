@@ -766,8 +766,7 @@ mod tests {
 
     #[test]
     fn eval_executes_non_ped_economics_operation() {
-        let (status, response) =
-            call_eval(br#"{"op":"econ.gdp.deflator100","a":["120","100"]}"#);
+        let (status, response) = call_eval(br#"{"op":"econ.gdp.deflator100","a":["120","100"]}"#);
         assert_eq!(status, Status::OK);
         assert_eq!(
             response,

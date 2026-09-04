@@ -4,12 +4,12 @@
 //! original midpoint elasticity implementation. They are executable runtime
 //! operations, not catalog-only metadata.
 
+use crate::operation::PED_MID_OPERATION;
 use crate::{
     ConstraintKind, InputDecl, Instruction, OperationDecl, RoundingMode, WorkRational,
     SEMANTIC_CURRENCY_AMOUNT, SEMANTIC_INDEX, SEMANTIC_NUMBER, SEMANTIC_QUANTITY,
     SEMANTIC_RATE_PERCENT, SEMANTIC_RATE_RATIO, SEMANTIC_TIME_PERIODS,
 };
-use crate::operation::PED_MID_OPERATION;
 
 const ZERO: WorkRational = WorkRational::ZERO;
 const NEG_HUNDRED: WorkRational = WorkRational::from_integer(-100);
@@ -84,7 +84,14 @@ pub static GDP_DEFLATOR100_OPERATION: OperationDecl = OperationDecl {
 };
 
 const CPI_INFLATION_INPUTS: [InputDecl; 2] = [
-    input("cpi1", SEMANTIC_INDEX, 1, ConstraintKind::GreaterThan, ZERO, 1),
+    input(
+        "cpi1",
+        SEMANTIC_INDEX,
+        1,
+        ConstraintKind::GreaterThan,
+        ZERO,
+        1,
+    ),
     input(
         "cpi2",
         SEMANTIC_INDEX,
@@ -446,14 +453,7 @@ const GROWTH_RATE_INPUTS: [InputDecl; 2] = [
         ZERO,
         1,
     ),
-    input(
-        "final",
-        SEMANTIC_NUMBER,
-        1,
-        ConstraintKind::None,
-        ZERO,
-        0,
-    ),
+    input("final", SEMANTIC_NUMBER, 1, ConstraintKind::None, ZERO, 0),
 ];
 const GROWTH_RATE_PROGRAM: [Instruction; 8] = [
     Instruction::new(1, 1),
@@ -610,7 +610,10 @@ mod tests {
         ];
         let result = evaluate_operation(1, &GDP_DEFLATOR100_OPERATION, &args);
         assert_eq!(result.status, Status::OK);
-        assert_eq!(result.values[0].decimal, Decimal64::parse_ascii(b"120").unwrap());
+        assert_eq!(
+            result.values[0].decimal,
+            Decimal64::parse_ascii(b"120").unwrap()
+        );
         assert_eq!(result.values[0].semantic_kind, SEMANTIC_INDEX);
     }
 
@@ -622,7 +625,10 @@ mod tests {
         ];
         let result = evaluate_operation(1, &CPI_INFLATION_PCT_OPERATION, &args);
         assert_eq!(result.status, Status::OK);
-        assert_eq!(result.values[0].decimal, Decimal64::parse_ascii(b"3.25").unwrap());
+        assert_eq!(
+            result.values[0].decimal,
+            Decimal64::parse_ascii(b"3.25").unwrap()
+        );
     }
 
     #[test]
@@ -647,7 +653,10 @@ mod tests {
         ];
         let result = evaluate_operation(1, &MPC_RATIO_OPERATION, &signed);
         assert_eq!(result.status, Status::OK);
-        assert_eq!(result.values[0].decimal, Decimal64::parse_ascii(b"0.5").unwrap());
+        assert_eq!(
+            result.values[0].decimal,
+            Decimal64::parse_ascii(b"0.5").unwrap()
+        );
 
         let zero_income = [
             scalar(b"20", SEMANTIC_CURRENCY_AMOUNT, 9),
@@ -665,7 +674,10 @@ mod tests {
         let rule72 = evaluate_operation(1, &DOUBLING_RULE72_OPERATION, &args);
         assert_eq!(rule70.status, Status::OK);
         assert_eq!(rule72.status, Status::OK);
-        assert_eq!(rule70.values[0].decimal, Decimal64::parse_ascii(b"10").unwrap());
+        assert_eq!(
+            rule70.values[0].decimal,
+            Decimal64::parse_ascii(b"10").unwrap()
+        );
         assert_eq!(
             rule72.values[0].decimal,
             Decimal64::parse_ascii(b"10.285714").unwrap()
