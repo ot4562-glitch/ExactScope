@@ -577,8 +577,8 @@ impl<'a> PackView<'a> {
                     CONSTRAINT_NE => ConstraintKind::NotEqual,
                     _ => return Err(Status::UNSUPPORTED_OPERATION),
                 };
-                let constant_index = usize::try_from(read_u32(constraint, 4)?)
-                    .map_err(|_| Status::PACK_INVALID)?;
+                let constant_index =
+                    usize::try_from(read_u32(constraint, 4)?).map_err(|_| Status::PACK_INVALID)?;
                 (
                     constraint_kind,
                     self.constant_at(constant_index)?,
