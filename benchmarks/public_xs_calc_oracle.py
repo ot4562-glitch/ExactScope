@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -156,6 +157,14 @@ def run_core(core: Path, request: dict[str, Any]) -> dict[str, Any]:
     return json.loads(completed.stdout)
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
 def candidates(dataset: str, source: Path) -> tuple[int, int, Iterable[tuple[str, str, str]]]:
     document = json.loads(source.read_text(encoding="utf-8"))
     if dataset == "finqa":
@@ -210,6 +219,7 @@ def main() -> int:
             examples.append({"id": identity, "expression": expression, "expected": str(expected), "actual": str(actual), "match": actual == expected})
     report = {
         "classification": "oracle/structural validation subset; not a model accuracy score",
+        "source": {"file": args.source.name, "file_sha256": sha256_file(args.source)},
         "dataset": args.dataset,
         "dataset_items": total,
         "arithmetic_items": arithmetic,

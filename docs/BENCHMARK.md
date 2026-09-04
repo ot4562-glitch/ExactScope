@@ -187,7 +187,7 @@ Published comparative claims must be reproducible from these records.
 
 The current mixed benchmark/evaluation selection is `hotsets/quant-core-16.json`, with focused economics/statistics hot sets retained separately. This remains useful implementation evidence for the semantic lane.
 
-The planned `xs_calc` public-benchmark path described in this document is **not implemented in the repository yet**. Development experiments and planning observations must not be represented as stable public benchmark claims until their raw artifacts, mapping logic, and aggregation are checked in or otherwise published reproducibly.
+The repository now includes the bounded `xs_calc` public oracle path in `benchmarks/public_xs_calc_oracle.py`, with pinned-source FinQA test and TAT-QA dev evidence under `benchmarks/results/`. These reports establish only a gold-derived, runtime-validated compatibility subset and deterministic ceiling; they are explicitly not model-accuracy scores. Broader comparative claims still require the raw per-arm records and aggregation rules described above.
 
 ## 9. Claim policy
 

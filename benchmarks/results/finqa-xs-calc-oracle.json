@@ -1,5 +1,13 @@
 {
   "classification": "oracle/structural validation subset; not a model accuracy score",
+  "source": {
+    "dataset": "FinQA",
+    "url": "https://github.com/czyssrs/FinQA/archive/refs/heads/main.zip",
+    "archive_sha256": "b6e8aadb9cdebe9be6574dfbdcba835a90f0a71664a417118d1d4a2671339a6f",
+    "split": "test",
+    "file": "dataset/test.json",
+    "file_sha256": "831dbfb2e785dbc227f895ce3f24046433467aec67b09db2bd6ac7692a8a30dc"
+  },
   "rules": {
     "operations": [
       "add",

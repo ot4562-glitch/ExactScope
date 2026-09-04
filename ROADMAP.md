@@ -39,17 +39,32 @@ The engine and first weak-model arithmetic surface therefore exist. The next blo
 
 ## P0.1 Freeze the first small-model arithmetic surface
 
-- [x] implement bounded `xs_calc` plan-v0.1;
-- [x] cap the plan at 8 arithmetic steps;
-- [x] restrict operations to `add`, `sub`, `mul`, `div`, `powi`, `sqrt`;
-- [x] use exact decimal-string leaves and backward-only previous-result references;
+Implemented for the `v1.0.0-rc.1` release candidate:
+
+- [x] implement `PLAN_V0_1` as one bounded model-facing `xs_calc` request;
+- [x] cap the plan at 8 arithmetic steps over `add`, `sub`, `mul`, `div`, `powi`, and `sqrt`;
+- [x] allow exact decimal-string leaves and backward-only previous-result references;
 - [x] forbid loops, arbitrary branches, variables, arbitrary functions, arbitrary expression text, and arbitrary code;
-- [x] provide deterministic failures with no plausible numeric value on error;
-- [x] reuse the shared exact numeric core rather than creating a second arithmetic implementation;
-- [x] provide schema/GBNF/tool/prompt assets for constrained generation;
-- [ ] freeze the public plan contract only after benchmark and integration evidence supports a stable promise.
+- [x] define deterministic typed failures for invalid references, arity, resource limits, domain errors, divide-by-zero, overflow, and precision failures;
+- [x] lower accepted plans to the existing shared numeric kernel rather than creating a second arithmetic semantics;
+- [x] expose the bounded plan through Tiny JSON, native C ABI, and no-import Wasm paths;
+- [x] provide checked-in JSON Schema, GBNF, tool definition, prompt guidance, and termination/validation coverage;
+- [ ] freeze a stable public compatibility promise only after broader model/integration evidence supports it.
 
 Success criterion: even a weak model can be given one small arithmetic interface that is completely bounded and mechanically constrained.
+
+### Completed public arithmetic prerequisite evidence
+
+The RC also includes the gold-derived public-oracle path needed to establish a deterministic ceiling before the new domain capability benchmark:
+
+- [x] pin exact FinQA/TAT-QA source revisions and source-file digests;
+- [x] derive compatibility only from gold program/derivation/metadata, never model outputs;
+- [x] convert supported cases to bounded plans and execute them through the actual ExactScope runtime;
+- [x] count exact explicit-answer matches separately from runtime acceptance;
+- [x] preserve unsupported items and distinguish compatible-subset evidence from official full-dataset scores;
+- [x] publish the reproducible result files under `benchmarks/results/`.
+
+This is compatibility/deterministic-ceiling evidence, not a model-accuracy claim.
 
 ## P0.2 Define the capability-slice profile
 
