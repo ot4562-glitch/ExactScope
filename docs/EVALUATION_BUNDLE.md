@@ -17,6 +17,8 @@ wasm/exactscope.wasm                # no-import portable artifact
 adapters/generated/quant-core-16/   # mixed economics/statistics tool schemas, GBNF, catalog, binding
 benchmarks/                         # corpus + four-arm benchmark runner
 examples/native_smoke.c
+examples/xs_calc.c
+examples/wasm-xs-calc.mjs
 tools/test_wasm.mjs
 tools/inspect_wasm.py
 manifest.json
@@ -52,7 +54,7 @@ No Rust toolchain is involved.
 For a Unix-style static library:
 
 ```text
-cc -std=c99 -Wall -Wextra -Werror -pedantic \
+cc -std=c11 -Wall -Wextra -Werror -pedantic \
   -Iinclude examples/native_smoke.c \
   lib/<target>/libexactscope_cabi.a \
   -o native-smoke
@@ -69,14 +71,27 @@ The example supplies the documented `xs_platform_panic_abort` host symbol requir
 
 CMake consumers may instead point `ExactScope_DIR` at `lib/cmake/ExactScope` and link `ExactScope::exactscope`.
 
+To exercise the bounded arithmetic ABI directly:
+
+```text
+cc -std=c11 -Wall -Wextra -Werror -pedantic \
+  -Iinclude examples/xs_calc.c \
+  lib/<target>/libexactscope_cabi.a \
+  -o xs-calc
+./xs-calc
+```
+
+Expected output is `16`.
+
 ## 4. Run the no-import Wasm artifact
 
 ```text
 python3 tools/inspect_wasm.py wasm/exactscope.wasm
 node tools/test_wasm.mjs wasm/exactscope.wasm
+node examples/wasm-xs-calc.mjs wasm/exactscope.wasm
 ```
 
-The first command verifies the import/export/memory contract. The second executes scalar economics, bounded Tiny JSON statistics vectors including named multi-output regression, discovery, buffer-sizing, and TinyWire conformance against the packaged artifact.
+The first command verifies the import/export/memory contract. The second executes scalar economics, bounded Tiny JSON statistics vectors including named multi-output regression, discovery, buffer-sizing, and TinyWire conformance against the packaged artifact. The public example performs one complete `xs_calc` request and verifies result `16`.
 
 ## 5. Run benchmark corpus/core self-test
 

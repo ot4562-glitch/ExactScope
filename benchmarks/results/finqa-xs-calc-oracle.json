@@ -1,0 +1,239 @@
+{
+  "classification": "oracle/structural validation subset; not a model accuracy score",
+  "rules": {
+    "operations": [
+      "add",
+      "divide",
+      "exp",
+      "multiply",
+      "subtract"
+    ],
+    "max_steps": 8,
+    "max_arguments": 2,
+    "request_bytes": 512,
+    "subset_rule": "bounded runtime-accepted gold programs whose ExactScope result equals qa.answer"
+  },
+  "metrics": {
+    "dataset": "FinQA test",
+    "dataset_items": 1147,
+    "bounded_supported_programs": 1061,
+    "runtime_accepted_programs": 1058,
+    "explicit_result_matches": 275,
+    "explicit_result_mismatches": 783,
+    "oracle_subset_match_rate_pct": 25.992
+  },
+  "matching_examples": [
+    {
+      "index": 0,
+      "program": "subtract(5829, 5735)",
+      "expected": "94",
+      "actual": "94",
+      "steps": 1
+    },
+    {
+      "index": 9,
+      "program": "subtract(1136, 1171)",
+      "expected": "-35",
+      "actual": "-35",
+      "steps": 1
+    },
+    {
+      "index": 16,
+      "program": "divide(455, const_7)",
+      "expected": "65",
+      "actual": "65",
+      "steps": 1
+    },
+    {
+      "index": 19,
+      "program": "add(25.0, 24.0), add(9.7, 10.2), add(#1, #0)",
+      "expected": "68.9",
+      "actual": "68.9",
+      "steps": 3
+    },
+    {
+      "index": 28,
+      "program": "add(0.6, 0.5), add(#0, 4.7)",
+      "expected": "5.8",
+      "actual": "5.8",
+      "steps": 2
+    },
+    {
+      "index": 34,
+      "program": "subtract(61912, 367)",
+      "expected": "61545",
+      "actual": "61545",
+      "steps": 1
+    },
+    {
+      "index": 35,
+      "program": "subtract(168, 56)",
+      "expected": "112",
+      "actual": "112",
+      "steps": 1
+    },
+    {
+      "index": 38,
+      "program": "add(4.6, 5.5), add(#0, const_2)",
+      "expected": "12.1",
+      "actual": "12.1",
+      "steps": 2
+    },
+    {
+      "index": 39,
+      "program": "add(1939734, 1937141)",
+      "expected": "3876875",
+      "actual": "3876875",
+      "steps": 1
+    },
+    {
+      "index": 40,
+      "program": "subtract(1854, 2045)",
+      "expected": "-191",
+      "actual": "-191",
+      "steps": 1
+    }
+  ],
+  "mismatch_examples": [
+    {
+      "index": 1,
+      "program": "divide(8.1, 56.0)",
+      "expected": "14",
+      "actual": "0.144642857142857143",
+      "steps": 1
+    },
+    {
+      "index": 2,
+      "program": "subtract(153.7, 139.9), divide(#0, 139.9)",
+      "expected": "9.9",
+      "actual": "0.098641887062187277",
+      "steps": 2
+    },
+    {
+      "index": 3,
+      "program": "divide(121.4, 4187.8)",
+      "expected": "2.9",
+      "actual": "0.028988967954534601",
+      "steps": 1
+    },
+    {
+      "index": 5,
+      "program": "subtract(92710000, 86842000), divide(#0, 86842000)",
+      "expected": "7",
+      "actual": "0.0675709909951406",
+      "steps": 2
+    },
+    {
+      "index": 6,
+      "program": "divide(463, 4612)",
+      "expected": "10",
+      "actual": "0.100390286209887251",
+      "steps": 1
+    },
+    {
+      "index": 7,
+      "program": "divide(301, 2575)",
+      "expected": "12",
+      "actual": "0.116893203883495146",
+      "steps": 1
+    },
+    {
+      "index": 10,
+      "program": "subtract(4711, 4926), divide(#0, 4926)",
+      "expected": "-4.4",
+      "actual": "-0.043645960211124645",
+      "steps": 2
+    },
+    {
+      "index": 11,
+      "program": "divide(817388, 3644331)",
+      "expected": "22.4",
+      "actual": "0.224290274401529389",
+      "steps": 1
+    },
+    {
+      "index": 12,
+      "program": "divide(137.4, 559.3)",
+      "expected": "24.6",
+      "actual": "0.245664223136062936",
+      "steps": 1
+    },
+    {
+      "index": 14,
+      "program": "subtract(6348, 6241), divide(#0, 6241)",
+      "expected": "1.7",
+      "actual": "0.017144688351225765",
+      "steps": 2
+    },
+    {
+      "index": 17,
+      "program": "add(703.1, 705.4), add(#0, const_2), divide(#1, const_2)",
+      "expected": "704.25",
+      "actual": "705.25",
+      "steps": 3
+    },
+    {
+      "index": 18,
+      "program": "divide(139549, const_1000), divide(15.3, #0)",
+      "expected": "11.0",
+      "actual": "0.109638908197120725",
+      "steps": 2
+    },
+    {
+      "index": 20,
+      "program": "subtract(772, 843), divide(#0, 843)",
+      "expected": "-8.4",
+      "actual": "-0.084223013048635824",
+      "steps": 2
+    },
+    {
+      "index": 21,
+      "program": "subtract(198.18, const_100), divide(#0, const_100), subtract(311.81, const_100), divide(#2, const_100), subtract(#3, #1)",
+      "expected": "113.63",
+      "actual": "1.1363",
+      "steps": 5
+    },
+    {
+      "index": 22,
+      "program": "subtract(101.88, 93.21), divide(#0, 93.21)",
+      "expected": "9.3",
+      "actual": "0.093015770840038622",
+      "steps": 2
+    },
+    {
+      "index": 23,
+      "program": "divide(230, 13208)",
+      "expected": "2",
+      "actual": "0.017413688673531193",
+      "steps": 1
+    },
+    {
+      "index": 24,
+      "program": "divide(26900, 16900)",
+      "expected": "1.6",
+      "actual": "1.591715976331360947",
+      "steps": 1
+    },
+    {
+      "index": 25,
+      "program": "divide(219000, 83000)",
+      "expected": "2.64",
+      "actual": "2.63855421686746988",
+      "steps": 1
+    },
+    {
+      "index": 26,
+      "program": "divide(6.3, 18.1)",
+      "expected": "34.8",
+      "actual": "0.348066298342541436",
+      "steps": 1
+    },
+    {
+      "index": 27,
+      "program": "subtract(139549, 201808), divide(#0, 201808)",
+      "expected": "-30.9",
+      "actual": "-0.308506104812495045",
+      "steps": 2
+    }
+  ]
+}

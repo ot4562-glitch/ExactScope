@@ -1,0 +1,49 @@
+name: Bug report
+description: Report a reproducible ExactScope defect
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for testing ExactScope. Do not include secrets or proprietary model prompts.
+  - type: input
+    id: version
+    attributes:
+      label: ExactScope version or commit
+      placeholder: v1.0.0-rc.1 or full commit SHA
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Host platform and architecture
+      placeholder: Windows 11 x86_64, Ubuntu 24.04 x86_64, etc.
+    validations:
+      required: true
+  - type: dropdown
+    id: profile
+    attributes:
+      label: Execution profile
+      options: [Native static C ABI, No-import Wasm, Rust workspace, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Include the smallest input, exact command or API calls, and artifact SHA-256.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include exact status codes and bounded log excerpts.
+    validations:
+      required: true

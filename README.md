@@ -1,313 +1,152 @@
 # ExactScope
 
-> **A tiny deterministic quantitative coprocessor for small and on-device AI.**
->
-> **Upgrade constrained on-device AI through software instead of requiring a hardware upgrade for every quantitative capability gap.**
+> ExactScope is a tiny deterministic quantitative coprocessor for small and on-device AI.
 
-**Status: experimental v0.1 runtime. The deterministic core and current `xs_eval` path exist; the vNext bounded `xs_calc` plan described below is a design target and is not implemented yet. Stable release and benchmark-backed retrofit claims do not yet exist.**
+**Status: `v1.0.0-rc.1` release candidate for developer evaluation. This is not a stable release, hardware qualification, or production certification.**
 
-ExactScope is not a calculator app, chatbot, cloud API, Python replacement, or AI model. It is a tiny capability-retrofit component intended to sit beside an existing local/on-device model.
-
-See [Retrofit product strategy](docs/RETROFIT_PRODUCT_STRATEGY.md) for the authoritative vNext direction.
-
-## The 30-second product idea
-
-A deployed device may already be limited by RAM, accelerator capability, storage, thermals, battery, latency, or qualification constraints. Replacing its 0.5B-3B local model with a much larger model may require new hardware.
-
-ExactScope asks a different question:
+ExactScope takes one bounded arithmetic plan or one reviewed semantic operation and returns a deterministic exact-decimal result. It is a local library, not a model, chatbot, hosted API, daemon, database, or general expression evaluator.
 
 ```text
-existing device
-+ existing small model
-+ tiny deterministic ExactScope software update
-= stronger quantitative capability without replacing the device
+small / on-device AI
+    -> one bounded constrained arithmetic plan
+    -> ExactScope xs_calc
+    -> deterministic exact result
+
+model
+    -> reviewed xs_eval operation
+    -> ExactScope
+    -> deterministic domain result
 ```
 
-The current implemented semantic path can already evaluate known reviewed operations directly:
+## 30-second example
+
+Send one Tiny JSON `xs_calc` plan through the native benchmark bridge or no-import Wasm adapter:
+
+```json
+{"p":[{"o":"mul","a":["12","7"]},{"o":"sub","a":["#0","4"]},{"o":"div","a":["#1","5"]}]}
+```
+
+ExactScope preserves exact rational intermediates and returns:
+
+```json
+{"s":0,"v":"16","f":0,"p":"plan-v0.1","r":1}
+```
+
+A failed step returns a typed error and no numeric value:
+
+```json
+{"s":13,"e":"DIVIDE_BY_ZERO","step":0}
+```
+
+## 5-minute local test
+
+With the pinned Rust toolchain, Node.js, and Python 3 available:
+
+```powershell
+cargo test --workspace
+cargo build --release -p exactscope-wasm --target wasm32v1-none --no-default-features --features fused,tinyjson
+python tools/inspect_wasm.py target/wasm32v1-none/release/exactscope_wasm.wasm
+node examples/javascript/wasm-xs-calc.mjs target/wasm32v1-none/release/exactscope_wasm.wasm
+```
+
+Expected final output:
+
+```json
+{"s":0,"v":"16","f":0,"p":"plan-v0.1","r":1}
+```
+
+Release assets provide prebuilt evaluation archives with a manifest and `SHA256SUMS`; when using one, download it, verify it with `tools/package_evaluation_bundle.py verify`, then follow its bundled quickstart. The source build above remains the authoritative fallback.
+
+## Two public execution paths
+
+### `xs_calc`: bounded generic arithmetic
+
+Plan v0.1 is deliberately small:
+
+- 1 to 8 steps and at most 2 arguments per step;
+- `add`, `sub`, `mul`, `div`, `powi`, and `sqrt`;
+- `powi` exponent from -32 through 32;
+- backward-only result references `#0` through `#7`;
+- 512-byte Tiny JSON request limit;
+- exact decimal/rational intermediates where possible;
+- deterministic half-even quantization at the highest representable scale from 18 down to 0;
+- fail-closed parsing and execution with no semantic repair.
+
+The contract, JSON Schema, llama.cpp grammar, and prompt assets are in [spec/PLAN_V0_1.md](spec/PLAN_V0_1.md), [spec/schemas/xs-calc-tool.schema.json](spec/schemas/xs-calc-tool.schema.json), and [adapters/xs-calc-v0.1](adapters/xs-calc-v0.1).
+
+### `xs_eval`: reviewed semantic operations
+
+`xs_eval` evaluates installed operations whose method, units, constraints, rounding, and output meaning have been reviewed. Current fused packs cover economics and bounded statistics operations. `xs_find` remains an optional cold/development discovery path; it is not required for each calculation.
+
+Example:
 
 ```json
 {"op":"econ.inflation.cpi_pct","a":["100","103.2"]}
 ```
 
-```text
-model -> xs_eval(op,args) -> ExactScope -> deterministic result
-```
+## Native static C ABI
 
-The vNext design adds one planned bounded arithmetic-plan lane for short multi-step numerical reasoning:
+The public header is [include/exactscope.h](include/exactscope.h). The typed plan ABI has fixed layouts checked in Rust, C11, and C++11:
 
 ```text
-model -> xs_calc(bounded 1-8 step plan) -> ExactScope -> deterministic result
+xs_decimal_v1       16 bytes
+xs_plan_value_v1    32 bytes
+xs_plan_step_v1     80 bytes
+xs_plan_result_v1   48 bytes
 ```
 
-`xs_eval` remains the semantic fast path for reviewed methods such as statistics/economics/domain operations. `xs_find` remains optional cold/development discovery rather than a required serving hop.
+[examples/c/xs_calc.c](examples/c/xs_calc.c) initializes a caller-owned context and evaluates `12 * 7`, `#0 - 4`, `#1 / 5` to `16`. There is no target-side Rust runtime, service, network, database, or heap requirement in the deterministic core path.
 
-## Why ExactScope exists
+## No-import WebAssembly
 
-The product does not try to make a model generally more intelligent. It targets a narrower failure class that is expensive to solve by spending scarce on-device model capacity: **deterministic quantitative execution**.
+The `wasm32v1-none` profile exposes `xs_wire_request`. [examples/javascript/wasm-xs-calc.mjs](examples/javascript/wasm-xs-calc.mjs) shows the complete dependency-free host flow: instantiate, write the request, call `xs_wire_request`, and read the response.
 
-The product hypothesis is measurable:
+The current clean local release build with `xs_calc` is 102,971 bytes, has zero imports, and declares 17 initial memory pages. The release gate is less than 128 KiB and zero imports. Artifact measurements can vary when toolchain or source changes, so release notes and manifests must record the released artifact's own bytes and SHA-256.
 
-> Can an existing constrained on-device model plus a tiny ExactScope retrofit remove enough quantitative error at sufficiently low binary, RAM, token, latency, energy, integration, and qualification cost that the existing hardware remains useful for capabilities that would otherwise push toward a larger model or newer device?
+## Model integration
 
-The flagship proof should therefore compare **small model vs small model + ExactScope**, with a larger-model reference where fair and feasible.
+Use grammar-constrained generation for plan structure, then let ExactScope validate semantics and execute. [examples/llama.cpp](examples/llama.cpp) contains the reference runner. A structurally valid but mathematically wrong model plan is a planning failure; the host and ExactScope do not repair it.
 
-Until reproducible public and real-target evidence is published, ExactScope does not claim proven hardware-life extension, accuracy, latency, token, or energy savings.
+The reference evaluation reports valid plan rate, runtime accepted plan rate, correct final answer rate, wrong numeric answer rate, generated tokens, plan steps, and latency.
 
-## 5-minute evaluation path
+## Current evidence
 
-Start with [docs/QUICKSTART.md](docs/QUICKSTART.md).
+- Workspace tests cover kernel, Tiny JSON, typed C ABI, pack, conformance, and Wasm layers.
+- C11/C++11 syntax checks assert plan structure sizes, operation/value constants, and the `xs_calc` declaration.
+- A clean local `wasm32v1-none` release build measured 102,971 bytes, imports 0, memory 17 pages, SHA-256 `8ea9729a73485041bf77d6f673eb25bd4b0219b9af27986a4cc5a9548a42ea94`.
+- The FinQA test oracle/structural analysis found 1,061 bounded programs expressible by plan v0.1; 1,058 were runtime-accepted, and 275 exactly matched the dataset's explicit answer. This is a compatible oracle subset, not a model accuracy score. Many mismatches reflect FinQA answer transformations such as implicit percentage scaling or dataset rounding that raw generic arithmetic intentionally does not guess.
+- The TAT-QA dev oracle/structural analysis found 717 bounded arithmetic derivations; all 717 were runtime-accepted and 443 exactly matched the explicit answer. This is also a compatible oracle subset, not a model accuracy score; percent scaling and dataset rounding are not inferred.
+- A five-case llama.cpp b10797 integration smoke produced correct-final/wrong-numeric rates of 60%/20% for Qwen3 0.6B Q8_0, 100%/0% for Qwen3 1.7B Q8_0, and 60%/0% for Llama 3.2 3B Instruct Q4_K_M. Rejected plans emitted no numeric answer. The checked-in per-item results are not a general model benchmark score.
+- An internal support-aligned 23-case corpus previously measured 50.93% correctness for a constrained GBNF path versus 4.97% model-only, with incorrect numeric answers reduced from 71.43% to 27.33%. This is architecture evidence only, not a general public benchmark claim.
+- A normalized 100-item GSM8K pilot exists as baseline context only; it is not an official GSM8K score and is not labeled an `xs_calc` benchmark.
 
-Release packaging is being designed so integrators do **not** need to understand or install the Rust workspace. The desired native integration is:
+## Current limitations
 
-```cmake
-find_package(ExactScope CONFIG REQUIRED)
-target_link_libraries(my_product PRIVATE ExactScope::exactscope)
-```
+- This RC has not been hardware-qualified or production-certified.
+- Real-device latency, RAM, energy, update/rollback, and platform compatibility evidence is still wanted.
+- Model planning quality varies; deterministic execution cannot make a wrong plan correct.
+- Plan v0.1 has no loops, branches, named variables, arbitrary functions, unit inference, percentage inference, or semantic repair.
+- `sqrt` of irrational values and non-terminating final rationals require bounded deterministic quantization.
+- Dynamic packs and discovery are secondary evaluation paths; the core public lanes are `xs_calc` and direct `xs_eval`.
+- Only release artifacts actually published in the GitHub pre-release are supported claims. An absent platform archive is not implied by the source tree.
 
-The desired portable integration is a no-import `.wasm` plus immutable manifest/hot-set metadata.
+## Validation wanted
 
-The current experimental OEM SDK already contains a relocatable CMake target and developer-side `exactscope_doctor.py`; stable prebuilt release artifacts remain release work.
+Trying ExactScope on an edge/on-device AI stack? Open an integration feedback issue and include your platform, CPU/SoC, RAM, model, runtime, ExactScope profile, artifact SHA-256, integration method, latency, and any issues.
 
-## Product position
+Useful external results include build/runtime outcomes, model integration behavior, latency measurements, platform compatibility reports, bugs, API feedback, and concrete use cases. GitHub stars are not validation evidence.
 
-ExactScope is best described technically as:
-
-> **a tiny deterministic quantitative coprocessor for small and on-device AI.**
-
-Its customer value is:
-
-> **Upgrade constrained on-device AI without requiring a hardware upgrade for every quantitative capability gap.**
-
-The primary targets are physically constrained or already-deployed AI devices: smart glasses/wearables, phones/tablets, embedded assistants, robots/industrial systems, automotive systems, and other constrained edge products. Desktop/local AI remains useful for evaluation but is not the center of the retrofit thesis.
-
-Offline operation is a capability, not the whole market. The important properties are tiny footprint, bounded execution, deterministic semantics, simple embedding, and qualification/update suitability.
-
-## Product priorities
-
-The roadmap is deliberately **retrofit-first**, not catalog-first.
-
-### P0 — prove the retrofit mechanism
-
-1. freeze and later implement the bounded `xs_calc` 1-8 step plan through the existing core;
-2. generate constrained JSON Schema/GBNF;
-3. gold-validate FinQA/TAT-QA compatible subsets;
-4. benchmark multiple 0.5B-3B models;
-5. measure wrong-number reduction and tool penalty;
-6. enforce binary/RAM/scratch footprint gates;
-7. preserve `xs_eval` for reviewed semantic operations.
-
-### P1 — prove it on constrained hardware
-
-1. same small model with and without ExactScope on a real target;
-2. binary/RAM/scratch/latency/energy evidence;
-3. optional larger-model reference comparison;
-4. update/rollback integration evidence.
-
-### P2 — harden OEM adoption
-
-1. stable native/no-import Wasm packages;
-2. immutable manifests/self-test/conformance;
-3. compatibility/qualification records;
-4. convenience packages only where real integrations justify them.
-
-### P3 — domain series after core proof
-
-One runtime, optional reviewed capability series: Math, Statistics, Economics, Finance, Physics, Chemistry, Engineering, then evidence-backed OEM/domain packs.
-
-See [Roadmap](ROADMAP.md).
-
-## Tiny model surface
-
-The target small-model interface is intentionally narrow:
+## Architecture and guarantees
 
 ```text
-ordinary short arithmetic
-  -> xs_calc(bounded plan)      # planned
-
-reviewed semantic method
-  -> xs_eval(op,args)           # implemented
-
-unknown semantic operation
-  -> xs_find                    # optional cold/development path
+Layer 1: bounded deterministic arithmetic plan       xs_calc
+Layer 2: reviewed semantic quantitative operations  xs_eval
+Layer 3: optional domain packs
+Cold/development fallback                            xs_find
 ```
 
-The full academic catalog should never be injected into a tiny-model prompt by default. Domain series share the same runtime rather than becoming separate calculators.
+The implementation keeps `no_std` where intended, caller-owned bounded storage at public boundaries, checked arithmetic, deterministic rounding, no mandatory network/account/daemon/database, and no arbitrary native code in data packs. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/AI_INTEGRATION.md](docs/AI_INTEGRATION.md), [docs/BENCHMARK.md](docs/BENCHMARK.md), and [SECURITY.md](SECURITY.md).
 
-See [AI integration](docs/AI_INTEGRATION.md).
+## Contributing and license
 
-## Strict core, forgiving syntax boundary
-
-ExactScope remains fail-closed for semantics. That prevents the tool layer from inventing plausible numbers when assumptions or methods are wrong.
-
-Adapters may normalize transport syntax, but must not infer meaning.
-
-Allowed examples:
-
-- outer tool-envelope translation;
-- whitespace normalization;
-- deterministic field mapping;
-- exact lexical normalization where no numeric meaning changes.
-
-Forbidden examples:
-
-- guessing that `5%` means `0.05` for an unspecified operation;
-- dropping currency/unit markers and pretending semantics are unchanged;
-- guessing missing arguments;
-- changing sample variance to population variance;
-- silently selecting an ambiguous economics method.
-
-The benchmark must report both wrong-number rate and rejected-call rate so the fail-closed tradeoff is visible rather than philosophical.
-
-## Current implementation
-
-Implemented today:
-
-- `#![no_std]` deterministic kernel with checked decimal/rational arithmetic;
-- correctly rounded deterministic square root and explicit VM rounding;
-- executable economics operations;
-- bounded statistics kernels including mean, weighted mean, variance, standard deviation, covariance, Pearson correlation, and simple linear regression;
-- stable native C ABI with caller-owned memory and zero-copy statistics vectors;
-- canonical formula/kernel `.xsp` compilation/loading for the implemented slice;
-- fused and dynamic statistics execution through the same shared kernels;
-- no-import `wasm32v1-none` path;
-- bounded Tiny JSON scalar/vector adapter with canonical multi-output names;
-- deterministic-CBOR TinyWire `find` plus scalar/vector `eval`;
-- wearable reference host and A/B update reference;
-- experimental ARM64 SDK packaging;
-- relocatable `ExactScope::exactscope` CMake package;
-- developer-side SDK doctor;
-- build-time digest-bound hot-set generator in `exactscope-packc`, including conservative OpenAI-compatible `xs_eval`, optional `xs_find`, direct-eval GBNF, source-pack/fused-registry bindings, and checked-in reproducibility fixtures;
-- focused `econ-core-8` and `statistics-core-8` hot sets plus the mixed `quant-core-16` benchmark/evaluation selection generated from fused executable registries;
-- llama.cpp OpenAI-compatible direct-eval reference runner with strict scalar/vector tool-call validation and an offline CI self-test;
-- four-arm benchmark harness with a real Tiny JSON/core bridge, stage-level metrics, a 22-case executable economics/statistics corpus/core drift self-test, and digest-bound result metadata;
-- deterministic prerelease evaluation-bundle packaging that combines a prebuilt native library, prebuilt benchmark/core executable, no-import Wasm, `quant-core-16`, benchmark assets, CMake/header integration, manifests/checksums, licenses, and smoke instructions without requiring Rust to evaluate;
-- clean-room evaluation tests that extract the release-shaped archive outside the source tree and execute the packaged core, benchmark self-test, Wasm conformance, and host-native C smoke when the archive matches the CI host;
-- CI covering design validation, C/C++ headers, Rust/MSRV, no-import Wasm, native/dynamic conformance, hot-set reproducibility, benchmark-core validation, release-shaped clean-room evaluation, adapter envelope validation, wearable reference integration, and experimental Android/Linux ARM64 SDK builds.
-
-Still missing before a stable product release:
-
-- the planned bounded `xs_calc` contract and implementation through shared core semantics;
-- gold-validated public compatible-subset converters and deterministic ceilings;
-- reproducible 0.5B-3B model-only vs ExactScope retrofit evidence;
-- explicit binary/RAM/scratch footprint gates for the vNext path;
-- permanent versioned GitHub Release assets; release-shaped CI evaluation bundles are implemented but are not yet a stable release channel;
-- complete target self-test/qualification tooling;
-- real-device latency, memory, energy, offline, and update/rollback qualification;
-- larger-model substitution evidence where fair/useful.
-
-## Primary release profiles
-
-For v0.1, product scope is intentionally narrower than the internal architecture supports.
-
-### Primary candidates
-
-1. **Native static C ABI** — smallest predictable native integration; no service, no target-side Rust runtime.
-2. **No-import WebAssembly** — portable single-file execution baseline.
-
-### Secondary/experimental
-
-- dynamic data packs;
-- additional shared-library/platform wrappers;
-- wider architecture/OS matrix;
-- dynamic discovery beyond the fused/cached hot-set path.
-
-All profiles must continue to share the same calculation semantics when they expose the same operation. However, v0.1 no longer waits for every possible execution profile and platform to become Tier 1 before the product can prove value.
-
-## Architecture constraints
-
-ExactScope keeps a deliberately narrow systems boundary:
-
-- no mandatory daemon;
-- no account or cloud dependency;
-- no database;
-- no arbitrary native code in scope packs;
-- no general expression language in the runtime;
-- no hidden model-side arithmetic inside adapters;
-- no mandatory target-side Python/Node/Java/Rust runtime;
-- fused/static path remains allocator-free;
-- vector, VM, pack, and output limits are bounded before work begins.
-
-Wrappers may translate protocols. Only the shared core calculates.
-
-## Benchmark before marketing claims
-
-See [docs/BENCHMARK.md](docs/BENCHMARK.md).
-
-After the planned bounded-plan path exists, the flagship public evidence should compare:
-
-| Arm | Path |
-|---|---|
-| A | model only |
-| B | model -> unconstrained `xs_calc` -> ExactScope |
-| C | model -> constrained `xs_calc` -> ExactScope |
-| D | gold plan -> ExactScope deterministic ceiling |
-| E | optional larger-model reference with resource cost reported separately |
-
-Semantic-operation benchmarks retain direct/constrained `xs_eval` and optional discovery measurements where relevant.
-
-Required metrics include final answer accuracy, incorrect numeric answer rate, tool penalty rate, plan/operation selection, argument extraction, invalid/rejected-call rate, successful-answer rate, inference turns, tokens, end-to-end/model/core latency, binary/resident/scratch bytes, and energy where measurable.
-
-## Scope packs
-
-The frozen catalog currently describes `math-basic`, `statistics-core`, and `econ-undergrad`, but catalog size is not the release KPI.
-
-The pack strategy is now:
-
-```text
-reviewed benchmark hot set
-    -> prove model/product value
-    -> strengthen provenance/golden corpus
-    -> expand operation coverage
-```
-
-Operations remain data-driven with stable keys, explicit methods, deterministic programs/kernel IDs, unit/semantic constraints, rounding policy, provenance, and test vectors.
-
-See [packs/README.md](packs/README.md) and [packs/CATALOG_V0_1.md](packs/CATALOG_V0_1.md).
-
-## Compatibility
-
-A target is not called supported because it compiles.
-
-Compatibility evidence includes ABI/wire conformance, golden vectors, malformed-input behavior, artifact identity, memory/size evidence, and actual runtime execution. Real-device qualification is required for claims that depend on latency, energy, thermal, update, or hardware behavior.
-
-For v0.1, native static and no-import Wasm are the primary release candidates; other profiles can remain Experimental without blocking the product proof.
-
-See [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
-
-## Commercial direction
-
-The permissively licensed core can remain OSS while commercial value, if pursued, comes from:
-
-- verified domain packs;
-- enterprise LTS/SLA;
-- OEM target qualification;
-- integration support;
-- custom deterministic domain-pack engineering.
-
-The business model should not require a cloud service or proprietary calculation fork.
-
-See [docs/COMMERCIALIZATION.md](docs/COMMERCIALIZATION.md).
-
-## Documentation
-
-- [Retrofit product strategy](docs/RETROFIT_PRODUCT_STRATEGY.md)
-- [Product direction](docs/PRODUCT_DIRECTION.md)
-- [Roadmap](ROADMAP.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [AI integration](docs/AI_INTEGRATION.md)
-- [Benchmark contract](docs/BENCHMARK.md)
-- [5-minute quickstart](docs/QUICKSTART.md)
-- [Installation](docs/INSTALLATION.md)
-- [Compatibility](docs/COMPATIBILITY.md)
-- [Commercialization direction](docs/COMMERCIALIZATION.md)
-- [Architecture decisions](docs/DECISIONS.md)
-- [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
-- [Specification index](spec/README.md)
-
-## License
-
-ExactScope is dual-licensed under [Apache-2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT), at your option. Scope-pack source data must declare compatible source/license metadata.
-
----
-
-**ExactScope:** keep the small model; add exact quantitative capability.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development and evidence requirements. ExactScope is dual-licensed under the existing [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE) terms; this release candidate does not change that licensing model. Dependency and evaluation attribution is recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

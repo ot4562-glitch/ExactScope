@@ -1,143 +1,80 @@
 # ExactScope 5-minute quickstart
 
-ExactScope is a tiny deterministic quantitative coprocessor for small and on-device AI. The normal consumer of ExactScope is an AI runtime, not a person using a calculator UI.
+ExactScope is a tiny deterministic quantitative coprocessor for small and on-device AI. This `v1.0.0-rc.1` path lets a developer evaluate bounded generic arithmetic without first understanding the Rust implementation.
 
-The fastest useful path is **direct evaluation with a known operation key**. Discovery is a cold-path fallback, not a required extra model turn.
+## Fastest source evaluation
 
-## 1. The hot path
+Requirements: the repository's pinned Rust toolchain, Python 3, and Node.js.
 
-For a product that already knows its small hot set, the model emits one call:
-
-```json
-{"op":"econ.cpi.inflation","a":["100","103.2"]}
+```powershell
+cargo test --workspace
+cargo build --release -p exactscope-wasm --target wasm32v1-none --no-default-features --features fused,tinyjson
+python tools/inspect_wasm.py target/wasm32v1-none/release/exactscope_wasm.wasm
+node examples/javascript/wasm-xs-calc.mjs target/wasm32v1-none/release/exactscope_wasm.wasm
 ```
 
-ExactScope returns a deterministic result. The model should copy or render that result; it must not recalculate it.
+The last command instantiates Wasm with `{}`, writes this request into exported memory, calls `xs_wire_request`, reads the response, and checks it:
+
+```json
+{"p":[{"o":"mul","a":["12","7"]},{"o":"sub","a":["#0","4"]},{"o":"div","a":["#1","5"]}]}
+```
+
+Expected output:
+
+```json
+{"s":0,"v":"16","f":0,"p":"plan-v0.1","r":1}
+```
+
+## Prebuilt release evaluation
+
+Download the archive matching an actually published platform from the GitHub `v1.0.0-rc.1` pre-release. Do not infer support for an absent archive.
+
+1. Verify the archive against the release `SHA256SUMS`.
+2. Extract it and inspect `manifest.json` plus its internal `SHA256SUMS`.
+3. Run the bundled native or Wasm smoke path in [EVALUATION_BUNDLE.md](EVALUATION_BUNDLE.md).
+
+The bundle includes a target-native static library, `exactscope-core`, no-import Wasm, headers/CMake metadata, examples, model-facing assets, licenses, manifest, and hashes. Rust is not required to evaluate a prebuilt bundle.
+
+## Native C ABI
+
+The public example in `examples/c/xs_calc.c` initializes caller-owned storage and calls the typed `xs_calc` ABI. With a Unix-style release library:
 
 ```text
-model
-  -> xs_eval(op,args)
-  -> ExactScope
-  -> deterministic result
+cc -std=c11 -Wall -Wextra -Werror -pedantic \
+  -Iinclude examples/c/xs_calc.c \
+  lib/<target>/libexactscope_cabi.a \
+  -o xs-calc
+./xs-calc
 ```
 
-No `xs_find` call is required when the operation key is already known or has been cached against the installed registry digest.
+Expected output is `16`. Windows SDK consumers link `exactscope_cabi.lib`. The fixed plan structure sizes and constants are compiled as C11 and C++11 CI contracts.
 
-## 2. Discovery only when needed
+## Model integration
 
-If the operation is not in the host's generated/cached hot set, use discovery once:
-
-```json
-{"q":"midpoint price elasticity","n":3}
-```
-
-A successful discovery returns canonical operation metadata such as:
-
-```json
-{"s":0,"m":[{"op":"econ.ped.mid","sig":"econ.ped.mid(p1,p2,q1,q2)","method":"midpoint"}]}
-```
-
-The host then binds that operation key to the current registry/pack digest and future calls use direct `xs_eval`.
+The intended hot path is:
 
 ```text
-cold path:
-model -> xs_find -> bind/cache -> xs_eval
-
-hot path:
-model ---------------------> xs_eval
+generic arithmetic -> constrained xs_calc plan -> ExactScope
+reviewed method     -> direct xs_eval call      -> ExactScope
+unknown method      -> optional xs_find cold path
 ```
 
-## 3. Prebuilt evaluation artifact
+Use `adapters/xs-calc-v0.1/xs-calc.gbnf` with llama.cpp and run `examples/llama.cpp/run_xs_calc.py`. Grammar validity does not imply a mathematically correct plan. ExactScope enforces backward references, bounds, arity, decimal validity, domain rules, and checked arithmetic, but it does not semantically repair a model plan.
 
-Integrators should not need to build ExactScope from Rust source just to decide whether the component is useful.
+For a reproducible local matrix, `examples/llama.cpp/benchmark_xs_calc.py` reports valid-plan, runtime-accepted, correct-final, wrong-numeric, generated-token, step, and latency metrics with per-item records.
 
-The repository now builds a release-shaped prerelease evaluation archive containing:
+## Semantic operations
 
-- a target-native static library plus `ExactScope::exactscope` CMake package;
-- a prebuilt `exactscope-core` executable for Tiny JSON and benchmark use;
-- the no-import WebAssembly module;
-- generated mixed `quant-core-16` economics/statistics OpenAI-compatible tool assets and GBNF;
-- the benchmark runner/corpus;
-- manifest, checksums, licenses, and native/Wasm smoke tests.
+Use `xs_eval` when the quantitative method itself matters, such as a reviewed economics or statistics operation:
 
-CI extracts that archive outside the source tree and executes the packaged components. See [Evaluation bundle](EVALUATION_BUNDLE.md) for the no-Rust evaluation path.
-
-Permanent versioned GitHub Release assets remain a release task. Rust, Python, Node.js, Java, a daemon, an account, or a network connection must not be required by the target runtime itself; Python/Node are only developer-side evaluation tools in the prerelease bundle.
-
-## 4. Native C/C++ integration
-
-A packaged native SDK is intended to support:
-
-```cmake
-find_package(ExactScope CONFIG REQUIRED)
-target_link_libraries(my_product PRIVATE ExactScope::exactscope)
+```json
+{"op":"econ.inflation.cpi_pct","a":["100","103.2"]}
 ```
 
-Then the host:
+The host should bind/cache reviewed operation identity and call `xs_eval` directly. `xs_find` is a development or cold discovery path, not a required extra hop for every calculation.
 
-1. initializes one ExactScope context;
-2. binds a small operation hot set;
-3. calls `xs_eval` directly for known operations;
-4. optionally exposes `xs_find` as a fallback;
-5. runs the SDK doctor on the developer workstation and the target self-test on the device.
+## Fail closed
 
-The host owns model inference, UI, storage, permissions, and updates. ExactScope owns deterministic validation and calculation.
+Adapters may normalize transport syntax, field order, and whitespace. They must not guess missing operands, units, percentages, currencies, rounding contracts, or methods. Failures contain a typed status and never a fabricated numeric `v`.
 
-## 5. Wasm integration
-
-The portable release profile is a no-import WebAssembly module. The host instantiates it with an empty import object, allocates non-overlapping caller regions in exported memory, and uses the documented wire exports.
-
-TinyWire is preferred when compact typed transport, explicit semantic/unit metadata, or larger vectors matter. Tiny JSON supports bounded model-facing scalar strings and vector arrays under the 512-byte request and 64-decimal-leaf limits.
-
-## 6. AI integration rule
-
-The recommended model-facing order is:
-
-1. preload or generate an 8-32 operation product hot set;
-2. constrain output with generated JSON Schema/GBNF where the runtime supports it;
-3. call `xs_eval` directly for known keys;
-4. use `xs_find` only for an operation not present in the bound hot set;
-5. cache successful discovery metadata by registry/pack digest;
-6. invalidate/rebind when the digest or operation revision changes.
-
-See [AI integration](AI_INTEGRATION.md) for the full contract.
-
-## 7. Fail-closed without making the model brittle
-
-The core remains strict. The adapter may normalize **syntax**, but it must not guess **meaning**.
-
-Safe adapter normalization examples:
-
-- trim transport whitespace;
-- convert an already parsed JSON numeric token to its exact decimal lexical form when the host parser preserved that exact value;
-- translate an outer tool-call envelope;
-- reorder named protocol fields into the fixed adapter layout.
-
-Unsafe semantic repair examples:
-
-- treating `5%` as `0.05` without an explicit operation contract;
-- dropping `$` or converting currencies;
-- converting centimeters to meters;
-- guessing a missing method or value;
-- changing a sample statistic to a population statistic.
-
-A failed call is preferable to a fabricated number, but benchmark reporting must measure whether constrained decoding and adapters keep the successful-answer rate high enough for real products.
-
-## 8. What to measure before adoption
-
-Do not adopt ExactScope because of an accuracy slogan. Run the benchmark harness against your model and hot set.
-
-Compare at least:
-
-- model-only;
-- ExactScope direct hot path;
-- ExactScope discovery path;
-- ExactScope direct hot path with constrained decoding.
-
-Measure final answer accuracy, operation selection, argument extraction, invalid-call rate, successful-answer rate, tokens, end-to-end latency, ExactScope compute latency, resident bytes, scratch bytes, and energy where measurable.
-
-See [Benchmark contract](BENCHMARK.md).
-
-## 9. Current status
-
-The repository is still prerelease. Native C ABI, deterministic economics/statistics execution, bounded Tiny JSON scalar/vector calls, no-import Wasm, TinyWire, CMake SDK integration, the developer-side SDK doctor, digest-bound hot-set/OpenAI/GBNF generation, focused `econ-core-8`/`statistics-core-8` selections plus mixed `quant-core-16`, a llama.cpp direct-eval reference runner, a four-arm benchmark harness with a real Tiny JSON/core bridge, and deterministic release-shaped evaluation bundles with clean-room CI are implemented. Recorded real-model benchmark evidence, permanent versioned GitHub Release assets, broader official pack coverage, and real-device qualification remain release work.
+Before adoption, measure final correctness, wrong numeric rate, rejected plans, tokens, end-to-end latency, ExactScope compute latency, resident/scratch memory, binary size, and energy on your actual device. See [BENCHMARK.md](BENCHMARK.md) and use the integration feedback issue template to report results.

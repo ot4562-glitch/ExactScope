@@ -10,6 +10,7 @@
 *.dylib
 *.dll
 *.lib
+*.obj
 *.pdb
 *.aar
 *.xcframework/

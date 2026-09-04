@@ -1,0 +1,650 @@
+{
+  "classification": "five-case reference integration smoke; not a general benchmark score",
+  "llama_cpp": "b10797",
+  "decoding": {
+    "temperature": 0,
+    "seed": 424242,
+    "max_generated_tokens": 160
+  },
+  "summaries": [
+    {
+      "model": "Qwen3-0.6B-Q8_0.gguf",
+      "cases": 5,
+      "valid_plan_rate_pct": 100.0,
+      "runtime_accepted_plan_rate_pct": 80.0,
+      "correct_final_answer_rate_pct": 60.0,
+      "wrong_numeric_answer_rate_pct": 20.0,
+      "average_generated_tokens": 39.0,
+      "average_plan_steps": 2.4,
+      "average_latency_ms": 1913.245
+    },
+    {
+      "model": "Qwen3-1.7B-Q8_0.gguf",
+      "cases": 5,
+      "valid_plan_rate_pct": 100.0,
+      "runtime_accepted_plan_rate_pct": 100.0,
+      "correct_final_answer_rate_pct": 100.0,
+      "wrong_numeric_answer_rate_pct": 0.0,
+      "average_generated_tokens": 57.2,
+      "average_plan_steps": 2.4,
+      "average_latency_ms": 3389.143
+    },
+    {
+      "model": "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+      "cases": 5,
+      "valid_plan_rate_pct": 100.0,
+      "runtime_accepted_plan_rate_pct": 60.0,
+      "correct_final_answer_rate_pct": 60.0,
+      "wrong_numeric_answer_rate_pct": 0.0,
+      "average_generated_tokens": 34.8,
+      "average_plan_steps": 2.6,
+      "average_latency_ms": 3035.461
+    }
+  ],
+  "records": [
+    {
+      "model": "Qwen3-0.6B-Q8_0.gguf",
+      "question": "Calculate (12 multiplied by 7, then minus 4), divided by 5.",
+      "valid_plan": true,
+      "runtime_accepted": true,
+      "latency_ms": 1822.476,
+      "generated_tokens": 39,
+      "plan_steps": 3,
+      "plan": {
+        "p": [
+          {
+            "o": "mul",
+            "a": [
+              "12",
+              "7"
+            ]
+          },
+          {
+            "o": "sub",
+            "a": [
+              "#0",
+              "4"
+            ]
+          },
+          {
+            "o": "div",
+            "a": [
+              "#1",
+              "5"
+            ]
+          }
+        ]
+      },
+      "runtime_response": {
+        "s": 0,
+        "v": "16",
+        "f": 0,
+        "p": "plan-v0.1",
+        "r": 1
+      },
+      "result": "16",
+      "correct_final_answer": true,
+      "case_id": "precedence-3-step",
+      "expected": "16"
+    },
+    {
+      "model": "Qwen3-0.6B-Q8_0.gguf",
+      "question": "Calculate (25.0 + 24.0) + (9.7 + 10.2).",
+      "valid_plan": true,
+      "runtime_accepted": true,
+      "latency_ms": 1867.777,
+      "generated_tokens": 49,
+      "plan_steps": 3,
+      "plan": {
+        "p": [
+          {
+            "o": "add",
+            "a": [
+              "25.0",
+              "24.0"
+            ]
+          },
+          {
+            "o": "add",
+            "a": [
+              "#0",
+              "9.7"
+            ]
+          },
+          {
+            "o": "add",
+            "a": [
+              "#1",
+              "10.2"
+            ]
+          }
+        ]
+      },
+      "runtime_response": {
+        "s": 0,
+        "v": "68.9",
+        "f": 0,
+        "p": "plan-v0.1",
+        "r": 1
+      },
+      "result": "68.9",
+      "correct_final_answer": true,
+      "case_id": "four-decimal-addends",
+      "expected": "68.9"
+    },
+    {
+      "model": "Qwen3-0.6B-Q8_0.gguf",
+      "question": "Calculate one third, then multiply that result by 3.",
+      "valid_plan": true,
+      "runtime_accepted": true,
+      "latency_ms": 1968.406,
+      "generated_tokens": 35,
+      "plan_steps": 2,
+      "plan": {
+        "p": [
+          {
+            "o": "div",
+            "a": [
+              "1",
+              "3"
+            ]
+          },
+          {
+            "o": "mul",
+            "a": [
+              "#0",
+              "1"
+            ]
+          }
+        ]
+      },
+      "runtime_response": {
+        "s": 0,
+        "v": "0.333333333333333333",
+        "f": 2,
+        "p": "plan-v0.1",
+        "r": 1
+      },
+      "result": "0.333333333333333333",
+      "correct_final_answer": false,
+      "case_id": "exact-rational-intermediate",
+      "expected": "1"
+    },
+    {
+      "model": "Qwen3-0.6B-Q8_0.gguf",
+      "question": "Calculate the square root of 81, then add 19.",
+      "valid_plan": true,
+      "runtime_accepted": true,
+      "latency_ms": 1944.983,
+      "generated_tokens": 35,
+      "plan_steps": 2,
+      "plan": {
+        "p": [
+          {
+            "o": "sqrt",
+            "a": [
+              "81"
+            ]
+          },
+          {
+            "o": "add",
+            "a": [
+              "#0",
+              "19"
+            ]
+          }
+        ]
+      },
+      "runtime_response": {
+        "s": 0,
+        "v": "28",
+        "f": 0,
+        "p": "plan-v0.1",
+        "r": 1
+      },
+      "result": "28",
+      "correct_final_answer": true,
+      "case_id": "square-root-chain",
+      "expected": "28"
+    },
+    {
+      "model": "Qwen3-0.6B-Q8_0.gguf",
+      "question": "Calculate 2 to the power 10, then divide by 4.",
+      "valid_plan": true,
+      "runtime_accepted": false,
+      "latency_ms": 1962.581,
+      "generated_tokens": 37,
+      "plan_steps": 2,
+      "plan": {
+        "p": [
+          {
+            "o": "powi",
+            "a": [
+              "2",
+              "10"
+            ]
+          },
+          {
+            "o": "div",
+            "a": [
+              "#1",
+              "4"
+            ]
+          }
+        ]
+      },
+      "runtime_response": {
+        "s": 1,
+        "e": "INVALID_REQUEST",
+        "step": 1
+      },
+      "case_id": "bounded-integer-power",
+      "expected": "256"
+    },
+    {
+      "model": "Qwen3-1.7B-Q8_0.gguf",
+      "question": "Calculate (12 multiplied by 7, then minus 4), divided by 5.",
+      "valid_plan": true,
+      "runtime_accepted": true,
+      "latency_ms": 3490.972,
+      "generated_tokens": 69,
+      "plan_steps": 3,
+      "plan": {
+        "p": [
+          {
+            "o": "mul",
+            "a": [
+              "12",
+              "7"
+            ]
+          },
+          {
+            "o": "sub",
+            "a": [
+              "#0",
+              "4"
+            ]
+          },
+          {
+            "o": "div",
+            "a": [
+              "#1",
+              "5"
+            ]
+          }
+        ]
+      },
+      "runtime_response": {
+        "s": 0,
+        "v": "16",
+        "f": 0,
+        "p": "plan-v0.1",
+        "r": 1
+      },
+      "result": "16",
+      "correct_final_answer": true,
+      "case_id": "precedence-3-step",
+      "expected": "16"
+    },
+    {
+      "model": "Qwen3-1.7B-Q8_0.gguf",
+      "question": "Calculate (25.0 + 24.0) + (9.7 + 10.2).",
+      "valid_plan": true,
+      "runtime_accepted": true,
+      "latency_ms": 3558.578,
+      "generated_tokens": 78,
+      "plan_steps": 3,
+      "plan": {
+        "p": [
+          {
+            "o": "add",
+            "a": [
+              "25.0",
+              "24.0"
+            ]
+          },
+          {
+            "o": "add",
+            "a": [
+              "9.7",
+              "10.2"
+            ]
+          },
+          {
+            "o": "add",
+            "a": [
+              "#0",
+              "#1"
+            ]
+          }
+        ]
+      },
+      "runtime_response": {
+        "s": 0,
+        "v": "68.9",
+        "f": 0,
+        "p": "plan-v0.1",
+        "r": 1
+      },
+      "result": "68.9",
+      "correct_final_answer": true,
+      "case_id": "four-decimal-addends",
+      "expected": "68.9"
+    },
+    {
+      "model": "Qwen3-1.7B-Q8_0.gguf",
+      "question": "Calculate one third, then multiply that result by 3.",
+      "valid_plan": true,
+      "runtime_accepted": true,
+      "latency_ms": 3283.692,
+      "generated_tokens": 45,
+      "plan_steps": 2,
+      "plan": {
+        "p": [
+          {
+            "o": "div",
+            "a": [
+              "1",
+              "3"
+            ]
+          },
+          {
+            "o": "mul",
+            "a": [
+              "#0",
+              "3"
+            ]
+          }
+        ]
+      },
+      "runtime_response": {
+        "s": 0,
+        "v": "1",
+        "f": 0,
+        "p": "plan-v0.1",
+        "r": 1
+      },
+      "result": "1",
+      "correct_final_answer": true,
+      "case_id": "exact-rational-intermediate",
+      "expected": "1"
+    },
+    {
+      "model": "Qwen3-1.7B-Q8_0.gguf",
+      "question": "Calculate the square root of 81, then add 19.",
+      "valid_plan": true,
+      "runtime_accepted": true,
+      "latency_ms": 3317.149,
+      "generated_tokens": 47,
+      "plan_steps": 2,
+      "plan": {
+        "p": [
+          {
+            "o": "sqrt",
+            "a": [
+              "81"
+            ]
+          },
+          {
+            "o": "add",
+            "a": [
+              "#0",
+              "19"
+            ]
+          }
+        ]
+      },
+      "runtime_response": {
+        "s": 0,
+        "v": "28",
+        "f": 0,
+        "p": "plan-v0.1",
+        "r": 1
+      },
+      "result": "28",
+      "correct_final_answer": true,
+      "case_id": "square-root-chain",
+      "expected": "28"
+    },
+    {
+      "model": "Qwen3-1.7B-Q8_0.gguf",
+      "question": "Calculate 2 to the power 10, then divide by 4.",
+      "valid_plan": true,
+      "runtime_accepted": true,
+      "latency_ms": 3295.326,
+      "generated_tokens": 47,
+      "plan_steps": 2,
+      "plan": {
+        "p": [
+          {
+            "o": "powi",
+            "a": [
+              "2",
+              "10"
+            ]
+          },
+          {
+            "o": "div",
+            "a": [
+              "#0",
+              "4"
+            ]
+          }
+        ]
+      },
+      "runtime_response": {
+        "s": 0,
+        "v": "256",
+        "f": 0,
+        "p": "plan-v0.1",
+        "r": 1
+      },
+      "result": "256",
+      "correct_final_answer": true,
+      "case_id": "bounded-integer-power",
+      "expected": "256"
+    },
+    {
+      "model": "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+      "question": "Calculate (12 multiplied by 7, then minus 4), divided by 5.",
+      "valid_plan": true,
+      "runtime_accepted": true,
+      "latency_ms": 2940.948,
+      "generated_tokens": 38,
+      "plan_steps": 3,
+      "plan": {
+        "p": [
+          {
+            "o": "mul",
+            "a": [
+              "12",
+              "7"
+            ]
+          },
+          {
+            "o": "sub",
+            "a": [
+              "#0",
+              "4"
+            ]
+          },
+          {
+            "o": "div",
+            "a": [
+              "#1",
+              "5"
+            ]
+          }
+        ]
+      },
+      "runtime_response": {
+        "s": 0,
+        "v": "16",
+        "f": 0,
+        "p": "plan-v0.1",
+        "r": 1
+      },
+      "result": "16",
+      "correct_final_answer": true,
+      "case_id": "precedence-3-step",
+      "expected": "16"
+    },
+    {
+      "model": "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+      "question": "Calculate (25.0 + 24.0) + (9.7 + 10.2).",
+      "valid_plan": true,
+      "runtime_accepted": true,
+      "latency_ms": 3198.761,
+      "generated_tokens": 46,
+      "plan_steps": 3,
+      "plan": {
+        "p": [
+          {
+            "o": "add",
+            "a": [
+              "25.0",
+              "24.0"
+            ]
+          },
+          {
+            "o": "add",
+            "a": [
+              "#0",
+              "9.7"
+            ]
+          },
+          {
+            "o": "add",
+            "a": [
+              "#1",
+              "10.2"
+            ]
+          }
+        ]
+      },
+      "runtime_response": {
+        "s": 0,
+        "v": "68.9",
+        "f": 0,
+        "p": "plan-v0.1",
+        "r": 1
+      },
+      "result": "68.9",
+      "correct_final_answer": true,
+      "case_id": "four-decimal-addends",
+      "expected": "68.9"
+    },
+    {
+      "model": "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+      "question": "Calculate one third, then multiply that result by 3.",
+      "valid_plan": true,
+      "runtime_accepted": false,
+      "latency_ms": 3152.297,
+      "generated_tokens": 39,
+      "plan_steps": 3,
+      "plan": {
+        "p": [
+          {
+            "o": "powi",
+            "a": [
+              "#0",
+              "3"
+            ]
+          },
+          {
+            "o": "div",
+            "a": [
+              "2",
+              "3"
+            ]
+          },
+          {
+            "o": "mul",
+            "a": [
+              "#1",
+              "3"
+            ]
+          }
+        ]
+      },
+      "runtime_response": {
+        "s": 1,
+        "e": "INVALID_REQUEST",
+        "step": 0
+      },
+      "case_id": "exact-rational-intermediate",
+      "expected": "1"
+    },
+    {
+      "model": "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+      "question": "Calculate the square root of 81, then add 19.",
+      "valid_plan": true,
+      "runtime_accepted": false,
+      "latency_ms": 2817.043,
+      "generated_tokens": 24,
+      "plan_steps": 2,
+      "plan": {
+        "p": [
+          {
+            "o": "sqrt",
+            "a": [
+              "81"
+            ]
+          },
+          {
+            "o": "add",
+            "a": [
+              "#1",
+              "19"
+            ]
+          }
+        ]
+      },
+      "runtime_response": {
+        "s": 1,
+        "e": "INVALID_REQUEST",
+        "step": 1
+      },
+      "case_id": "square-root-chain",
+      "expected": "28"
+    },
+    {
+      "model": "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+      "question": "Calculate 2 to the power 10, then divide by 4.",
+      "valid_plan": true,
+      "runtime_accepted": true,
+      "latency_ms": 3068.256,
+      "generated_tokens": 27,
+      "plan_steps": 2,
+      "plan": {
+        "p": [
+          {
+            "o": "powi",
+            "a": [
+              "2",
+              "10"
+            ]
+          },
+          {
+            "o": "div",
+            "a": [
+              "#0",
+              "4"
+            ]
+          }
+        ]
+      },
+      "runtime_response": {
+        "s": 0,
+        "v": "256",
+        "f": 0,
+        "p": "plan-v0.1",
+        "r": 1
+      },
+      "result": "256",
+      "correct_final_answer": true,
+      "case_id": "bounded-integer-power",
+      "expected": "256"
+    }
+  ]
+}

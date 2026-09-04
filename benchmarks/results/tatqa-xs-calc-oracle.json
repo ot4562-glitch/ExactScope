@@ -1,0 +1,264 @@
+{
+  "classification": "oracle/structural validation subset; not a model accuracy score",
+  "rules": {
+    "max_steps": 8,
+    "max_arguments": 2,
+    "request_bytes": 512,
+    "percent_literal": "explicit percent tokens are divided by 100; answer scale is not inferred",
+    "subset_rule": "bounded runtime-accepted derivations whose ExactScope result exactly equals the explicit answer"
+  },
+  "metrics": {
+    "dataset": "TAT-QA dev",
+    "dataset_questions": 1668,
+    "arithmetic_questions": 718,
+    "bounded_supported_derivations": 717,
+    "runtime_accepted_derivations": 717,
+    "explicit_result_matches": 443,
+    "explicit_result_mismatches": 274,
+    "oracle_subset_match_rate_pct": 61.785
+  },
+  "matching_examples": [
+    {
+      "uid": "eb787966-fa02-401f-bfaf-ccabf3828b23",
+      "derivation": "44.1-56.7",
+      "scale": "million",
+      "expected": "-12.6",
+      "actual": "-12.6",
+      "steps": 1
+    },
+    {
+      "uid": "b2786c1a-37de-4120-b03c-32bf5c81f157",
+      "derivation": "680-774",
+      "scale": "million",
+      "expected": "-94",
+      "actual": "-94",
+      "steps": 1
+    },
+    {
+      "uid": "5103aed0-b4e8-4fae-bf78-e2c9f4ba84cf",
+      "derivation": "4.00 - 1.90 ",
+      "scale": "percent",
+      "expected": "2.1",
+      "actual": "2.1",
+      "steps": 1
+    },
+    {
+      "uid": "a0414f81-8dc2-44b2-a441-2c9d9c805c4d",
+      "derivation": "(166+178)/2",
+      "scale": "million",
+      "expected": "172",
+      "actual": "172",
+      "steps": 2
+    },
+    {
+      "uid": "bf7abd62-d9cd-48d2-8826-1457684019a3",
+      "derivation": "(57+44)/2",
+      "scale": "million",
+      "expected": "50.5",
+      "actual": "50.5",
+      "steps": 2
+    },
+    {
+      "uid": "4d259081-6da6-44bd-8830-e4de0031744c",
+      "derivation": "[(166+178)/2] - [(57+44)/2]",
+      "scale": "million",
+      "expected": "121.5",
+      "actual": "121.5",
+      "steps": 5
+    },
+    {
+      "uid": "78fc6d55-c20c-4f71-99fe-bc40a16e61d0",
+      "derivation": "2,664 - 3,025 ",
+      "scale": "",
+      "expected": "-361",
+      "actual": "-361",
+      "steps": 1
+    },
+    {
+      "uid": "35d602ae-9131-4291-a30c-49a40f32bbe4",
+      "derivation": "592-519",
+      "scale": "thousand",
+      "expected": "73",
+      "actual": "73",
+      "steps": 1
+    },
+    {
+      "uid": "dc5e217a-a7b3-4fc9-ac0f-13d328f26b20",
+      "derivation": "(4,411+4,044)/2",
+      "scale": "million",
+      "expected": "4227.5",
+      "actual": "4227.5",
+      "steps": 2
+    },
+    {
+      "uid": "7cd3aedf-1291-4fea-bc9d-a25c65727b7b",
+      "derivation": "(4,044+3,316)/2",
+      "scale": "million",
+      "expected": "3680",
+      "actual": "3680",
+      "steps": 2
+    }
+  ],
+  "mismatch_examples": [
+    {
+      "uid": "05b670d3-5b19-438c-873f-9bf6de29c69e",
+      "derivation": "(44.1-56.7)/56.7",
+      "scale": "percent",
+      "expected": "-22.22",
+      "actual": "-0.222222222222222222",
+      "steps": 2
+    },
+    {
+      "uid": "fe11f001-3bfe-4089-8108-412676f0a780",
+      "derivation": "(680-774)/774",
+      "scale": "percent",
+      "expected": "-12.14",
+      "actual": "-0.12144702842377261",
+      "steps": 2
+    },
+    {
+      "uid": "4dc8be43-d8d9-4b08-9ffd-9c19012361ce",
+      "derivation": "(4.00 - 3.75)/3.75 ",
+      "scale": "percent",
+      "expected": "6.67",
+      "actual": "0.066666666666666667",
+      "steps": 2
+    },
+    {
+      "uid": "6c44a1a8-0785-43a0-90ab-7e21df2c57d9",
+      "derivation": "(3.40 - 3.70)/3.70 ",
+      "scale": "percent",
+      "expected": "-8.11",
+      "actual": "-0.081081081081081081",
+      "steps": 2
+    },
+    {
+      "uid": "bed1fce2-69cb-4d1e-a34a-01950a1770bd",
+      "derivation": "(73,260-57,768)/57,768",
+      "scale": "percent",
+      "expected": "26.82",
+      "actual": "0.268176152887411716",
+      "steps": 2
+    },
+    {
+      "uid": "348d031d-73ab-4b35-af46-998cfef25775",
+      "derivation": "(19,911-15,916)/15,916",
+      "scale": "percent",
+      "expected": "25.1",
+      "actual": "0.251005277707966826",
+      "steps": 2
+    },
+    {
+      "uid": "aea850af-68cb-4cc1-80b2-c9c2860b273e",
+      "derivation": "(795-772)/772",
+      "scale": "percent",
+      "expected": "2.98",
+      "actual": "0.029792746113989637",
+      "steps": 2
+    },
+    {
+      "uid": "ba6783f3-8207-419a-b407-3f688682caef",
+      "derivation": "2,664/909 ",
+      "scale": "",
+      "expected": "2.93",
+      "actual": "2.930693069306930693",
+      "steps": 1
+    },
+    {
+      "uid": "263d03ec-83d2-48df-8376-1a72167798f7",
+      "derivation": "2,641/3,025 ",
+      "scale": "",
+      "expected": "0.87",
+      "actual": "0.873057851239669421",
+      "steps": 1
+    },
+    {
+      "uid": "a4f782f1-de3b-47a3-87af-1cb33c112b39",
+      "derivation": "(592-519)/519",
+      "scale": "percent",
+      "expected": "14.07",
+      "actual": "0.140655105973025048",
+      "steps": 2
+    },
+    {
+      "uid": "cb4abf04-9551-46e2-8a32-46672e284167",
+      "derivation": "(302-148)/148",
+      "scale": "percent",
+      "expected": "104.05",
+      "actual": "1.040540540540540541",
+      "steps": 2
+    },
+    {
+      "uid": "91812b92-5e94-414f-a447-4622aa3c2d10",
+      "derivation": "(1.7%+1.5%+1.5%)/3",
+      "scale": "percent",
+      "expected": "1.57",
+      "actual": "0.015666666666666667",
+      "steps": 6
+    },
+    {
+      "uid": "29b63db7-4925-4629-b108-49bbb27fb565",
+      "derivation": "(2.7%+2.0%+1.0%)/3",
+      "scale": "percent",
+      "expected": "1.9",
+      "actual": "0.019",
+      "steps": 6
+    },
+    {
+      "uid": "a81f1322-e74f-4e3c-a6cf-4b8d25d01cf5",
+      "derivation": "(453 + 361 + 384) / 3",
+      "scale": "million",
+      "expected": "399.33",
+      "actual": "399.3333333333333333",
+      "steps": 3
+    },
+    {
+      "uid": "f7cac790-05ae-4a55-a41d-836a6b415f88",
+      "derivation": "126 / 67 - 1",
+      "scale": "percent",
+      "expected": "88.06",
+      "actual": "0.880597014925373134",
+      "steps": 2
+    },
+    {
+      "uid": "94916f79-4b6d-487f-8fa2-39f81a085760",
+      "derivation": "(0.7-0.5)/0.5",
+      "scale": "percent",
+      "expected": "40",
+      "actual": "0.4",
+      "steps": 2
+    },
+    {
+      "uid": "72325ec6-41ad-4648-9798-b22a61122cb4",
+      "derivation": "(24,513 - 24,389) / 24,389 ",
+      "scale": "percent",
+      "expected": "0.51",
+      "actual": "0.005084259297224158",
+      "steps": 2
+    },
+    {
+      "uid": "4f7c8e0a-6ae9-40ee-bd16-06db6f96eaf1",
+      "derivation": "7,155 / 10,290 ",
+      "scale": "",
+      "expected": "0.7",
+      "actual": "0.695335276967930029",
+      "steps": 1
+    },
+    {
+      "uid": "58adf6c4-41ae-4f3f-84cb-cf3469a80ce4",
+      "derivation": "($166.3-$513.3)/$513.3",
+      "scale": "percent",
+      "expected": "-67.6",
+      "actual": "-0.676017923241768946",
+      "steps": 2
+    },
+    {
+      "uid": "f49ceadf-1638-4e15-b2b4-5a201d5e50c0",
+      "derivation": "(183,191-7,081)/7,081",
+      "scale": "percent",
+      "expected": "2487.08",
+      "actual": "24.87078096314079932",
+      "steps": 2
+    }
+  ]
+}

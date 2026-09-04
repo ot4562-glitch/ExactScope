@@ -12,7 +12,7 @@ The flagship comparison is therefore **small model vs small model + ExactScope**
 
 ### 1.1 vNext generic arithmetic proof
 
-Once the planned bounded-plan path exists, public numerical-reasoning benchmarks should separate:
+Public numerical-reasoning benchmarks for the bounded-plan path separate:
 
 | Arm | Description |
 |---|---|

@@ -1,0 +1,29 @@
+name: Benchmark result
+description: Submit a reproducible ExactScope benchmark result
+title: "benchmark: "
+labels: ["benchmark"]
+body:
+  - type: input
+    id: benchmark
+    attributes: {label: Benchmark and subset, placeholder: Dataset, split, selection rules, and item count}
+    validations: {required: true}
+  - type: textarea
+    id: environment
+    attributes: {label: Environment, description: Host, CPU/SoC, RAM, OS, model, quantization, runtime, and ExactScope profile.}
+    validations: {required: true}
+  - type: input
+    id: sha256
+    attributes: {label: ExactScope artifact SHA-256}
+    validations: {required: true}
+  - type: textarea
+    id: protocol
+    attributes: {label: Protocol, description: Prompt/template, grammar, seed, decoding settings, limits, repetitions, and correctness normalization.}
+    validations: {required: true}
+  - type: textarea
+    id: metrics
+    attributes: {label: Results, description: Include valid plan, runtime accepted, correct final, wrong numeric, tokens, steps, and latency where applicable.}
+    validations: {required: true}
+  - type: textarea
+    id: artifacts
+    attributes: {label: Reproduction artifacts, description: Link or attach commands, configs, raw per-item output, and summary hashes.}
+    validations: {required: true}

@@ -52,7 +52,7 @@ The architecture now distinguishes the **current implemented semantic path** fro
 
 ### 2.1 Target `xs_calc` plan path
 
-`xs_calc` is planned as a single model turn followed by one bounded deterministic execution. The P0 target plan contains at most eight arithmetic steps and only a fixed initial vocabulary (`add`, `sub`, `mul`, `div`, `powi`, `sqrt`). Previous-result references are backward-only. Loops, arbitrary branches, variables, arbitrary functions, arbitrary expression text, and arbitrary code are forbidden.
+`xs_calc` is implemented as a single model turn followed by one bounded deterministic execution. Plan v0.1 contains at most eight arithmetic steps and only a fixed vocabulary (`add`, `sub`, `mul`, `div`, `powi`, `sqrt`). Previous-result references are backward-only. Loops, arbitrary branches, variables, arbitrary functions, arbitrary expression text, and arbitrary code are forbidden.
 
 The plan path must lower into the existing bounded VM/numeric kernel. It must not create a second arithmetic semantics.
 

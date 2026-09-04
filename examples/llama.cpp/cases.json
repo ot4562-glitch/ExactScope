@@ -1,0 +1,7 @@
+[
+  {"id":"precedence-3-step","question":"Calculate (12 multiplied by 7, then minus 4), divided by 5.","expected":"16"},
+  {"id":"four-decimal-addends","question":"Calculate (25.0 + 24.0) + (9.7 + 10.2).","expected":"68.9"},
+  {"id":"exact-rational-intermediate","question":"Calculate one third, then multiply that result by 3.","expected":"1"},
+  {"id":"square-root-chain","question":"Calculate the square root of 81, then add 19.","expected":"28"},
+  {"id":"bounded-integer-power","question":"Calculate 2 to the power 10, then divide by 4.","expected":"256"}
+]

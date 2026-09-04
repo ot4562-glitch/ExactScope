@@ -1,0 +1,50 @@
+name: Integration feedback
+description: Share a real platform, runtime, or model integration result
+title: "integration: "
+labels: ["integration-feedback"]
+body:
+  - type: input
+    id: platform
+    attributes: {label: Host platform, placeholder: OS and architecture}
+    validations: {required: true}
+  - type: input
+    id: cpu
+    attributes: {label: CPU or SoC, placeholder: Processor/SoC model}
+    validations: {required: true}
+  - type: input
+    id: ram
+    attributes: {label: RAM, placeholder: Installed and available RAM}
+    validations: {required: true}
+  - type: input
+    id: model
+    attributes: {label: Model, placeholder: Name, parameter count, and quantization}
+  - type: input
+    id: runtime
+    attributes: {label: Model/runtime host, placeholder: llama.cpp build, custom C host, browser, etc.}
+    validations: {required: true}
+  - type: dropdown
+    id: profile
+    attributes:
+      label: ExactScope profile
+      options: [Native static C ABI, No-import Wasm, Other]
+    validations: {required: true}
+  - type: input
+    id: sha256
+    attributes: {label: Artifact SHA-256, placeholder: 64 lowercase hex characters}
+    validations: {required: true}
+  - type: textarea
+    id: method
+    attributes: {label: Integration method, description: Explain how the model/host produced and submitted xs_calc or xs_eval requests.}
+    validations: {required: true}
+  - type: dropdown
+    id: outcome
+    attributes:
+      label: Outcome
+      options: [Working, Partially working, Not working]
+    validations: {required: true}
+  - type: input
+    id: latency
+    attributes: {label: Latency, placeholder: Measurement, units, sample count, and statistic}
+  - type: textarea
+    id: issues
+    attributes: {label: Issues and API feedback, description: Include reproducible failures, integration friction, and desired changes.}

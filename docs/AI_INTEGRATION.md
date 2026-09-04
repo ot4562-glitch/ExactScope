@@ -30,7 +30,7 @@ The **current implemented** model-facing path is direct `xs_eval` against a comp
 
 The target logical surface contains three roles, but a deployed product should expose only what it needs:
 
-- `xs_calc` — **planned** one-call bounded arithmetic plan for generic short numerical execution;
+- `xs_calc` — implemented one-call bounded arithmetic plan for generic short numerical execution;
 - `xs_eval` — implemented direct evaluation for reviewed semantic operations;
 - `xs_find` — optional cold/development discovery fallback.
 

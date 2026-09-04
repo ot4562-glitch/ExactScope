@@ -52,7 +52,7 @@ The **current implemented** generic model path is direct `xs_eval` against a sma
                      ExactScope shared core
 ```
 
-`xs_calc` is planned as one compact 1-8 step model-facing plan over the initial operation vocabulary `add/sub/mul/div/powi/sqrt`. It must lower into the existing bounded VM/numeric kernel rather than introducing another arithmetic implementation.
+`xs_calc` is implemented as one compact 1-8 step model-facing plan over the initial operation vocabulary `add/sub/mul/div/powi/sqrt`. It uses the existing bounded numeric kernel rather than introducing another arithmetic implementation.
 
 `xs_eval` remains the preferred path when operation identity carries reviewed semantics such as sample versus population statistics, economics methods, units, or later domain-specific rules.
 
@@ -174,7 +174,7 @@ All paths exposing the same computation must use shared calculation semantics. v
 
 ### P0 — prove the mechanism
 
-- freeze the planned bounded `xs_calc` contract;
+- keep the implemented bounded `xs_calc` contract frozen and drift-checked;
 - lower accepted plans into existing core semantics;
 - generate JSON Schema/GBNF for one compact plan surface;
 - gold-validate public FinQA/TAT-QA compatible subsets;
@@ -266,7 +266,7 @@ Already implemented:
 
 Largest product gaps now:
 
-1. the planned bounded `xs_calc` contract and implementation through shared core semantics;
+1. the bounded `xs_calc` contract and implementation through shared core semantics;
 2. gold-validated public benchmark mappings for the retrofit path;
 3. reproducible multi-model evidence on 0.5B-3B classes;
 4. explicit binary/RAM/scratch footprint gates;
