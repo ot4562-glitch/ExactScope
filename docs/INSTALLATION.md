@@ -1,235 +1,240 @@
 # Installation and embedding profiles
 
-ExactScope is installed or loaded as a component of an AI runtime, not used as a standalone human application. The project deliberately avoids a required daemon, database, account, network connection, configuration UI, or always-running installer service.
+ExactScope is loaded as a component of another AI runtime. It is not a standalone calculator application and does not require a daemon, account, database, or network service.
 
-The repository already builds experimental runtime artifacts in CI, but no stable consumer release has been declared. Release packaging must preserve the same core and ABI rather than creating a second app-specific evaluator.
+The product goal is that evaluators use **prebuilt artifacts**, not the Rust workspace.
 
-## 1. Choose the smallest profile that fits
+## 1. Five-minute principle
 
-| Profile | Files needed by host | Runtime pack parsing | Heap required | Best target |
-|---|---:|---:|---:|---|
-| Fused Wasm | one `.wasm` | no | no | user-installable AI host / wearable / portable runtime |
-| Fused native static | header + one static library | no | no | firmware/native appliance |
-| Native resident component | shared library + manifest | profile-dependent | profile-dependent | user-installable native AI host extension |
-| Static data packs | header + library + embedded `.xsp` bytes | yes at init | caller arena only | updatable host without filesystem dependency |
-| Dynamic data packs | library + `.xsp` files | yes | caller arena only | hosts that already provide persistent pack storage |
-| Platform wrapper | one host-specific bundle | profile-dependent | profile-dependent | convenience integration only |
-
-A host should not install the generic dynamic runtime when a fused pack is sufficient. A host should not embed an HTTP or MCP adapter unless it already uses that protocol. Platform wrappers are packaging conveniences, not the product definition.
-
-### 1.1 Consumer-installed resident component
-
-For hosts that expose a safe user-installable extension/runtime boundary, the preferred distribution is one small component bundle:
+A release evaluator should be able to:
 
 ```text
-exactscope-component-<version>-<target>/
-  runtime/
-    exactscope.wasm              # preferred portable form; or one native library
-  packs/                         # omitted when the selected hot set is fused
-    *.xsp
-  manifest.json
-  SHA256SUMS
-  SELFTEST.json
+download
+  -> verify
+  -> link/load
+  -> run smoke test
+  -> bind hot-set metadata
+  -> call xs_eval directly
 ```
 
-The host-specific installer or extension manager performs only registration and verification:
+No Rust/Python/Node/Java runtime is required on the target.
 
-1. verify the bundle digest/signature according to host policy;
-2. verify target architecture, ABI major, numeric profile, and declared resource budgets;
-3. copy/register immutable runtime and pack artifacts in the host's normal extension location;
-4. instantiate the component offline and execute the canonical self-test vector;
-5. expose `xs_find`/`xs_eval` only after the self-test succeeds;
-6. exit. No ExactScope installer process remains running.
+See [QUICKSTART.md](QUICKSTART.md).
 
-Updates stage a complete new component, verify/self-test it, then atomically switch the host binding. When the platform supplies durable slots, the A/B principles in the wearable reference should be reused. ExactScope does not invent a privileged updater when the host already owns software distribution.
+## 2. Primary v0.1 release profiles
 
-A device that exposes no executable extension/application/WebAssembly/native loading boundary cannot support direct user installation. In that case a paired local host may load ExactScope, but documentation must say so explicitly rather than implying that the glasses firmware itself is extensible.
+### 2.1 Native static C ABI
 
-## 2. Fused WebAssembly
-
-Planned release file:
+Preferred native bundle:
 
 ```text
-exactscope-<pack-set>-<version>-wasm32v1-none.wasm
-```
-
-Example:
-
-```text
-exactscope-econ-undergrad-0.1.0-wasm32v1-none.wasm
-```
-
-Host steps:
-
-1. load the module from application/firmware resources;
-2. reject it if the release SHA-256 does not match host update policy;
-3. instantiate with an empty import object;
-4. inspect that required exports and one memory exist;
-5. read `xs_abi_version()` and reject an unsupported major;
-6. call `xs_wasm_reserved_end()` and grow memory for nonoverlapping request/output regions;
-7. call `xs_wire_request()` using Tiny JSON or TinyWire;
-8. cache the immutable module/pack digest alongside model-tool metadata.
-
-No extraction, installer, filesystem write, background service, environment variable, or network access is required. The complete memory contract is in `spec/WASM_ABI_V0_1.md`.
-
-## 3. Native C ABI
-
-Planned static archive layout:
-
-```text
-exactscope-<version>-<target>/
+exactscope-native-<version>-<target>/
   include/
     exactscope.h
-    exactscope_wasm.h
   lib/
-    libexactscope.a        # Unix-like targets
-    exactscope.lib         # Windows MSVC
-  packs/                   # omitted for fused archives
+    libexactscope.a      # or exactscope.lib on MSVC
+    cmake/ExactScope/ExactScopeConfig.cmake
+  hotset/
+    catalog.json
+    xs-eval.tool.json
+    xs-eval.gbnf
+    registry-digest.txt
   manifest.json
   SHA256SUMS
   LICENSE-MIT
   LICENSE-APACHE
+  tools/                 # workstation-only verification helpers where useful
 ```
 
-Minimum integration:
+Desired integration:
 
-```c
-#include <exactscope.h>
+```cmake
+find_package(ExactScope CONFIG REQUIRED)
+target_link_libraries(my_product PRIVATE ExactScope::exactscope)
 ```
 
-The host owns context, optional arena/scratch, input, and output memory. The library owns no global allocator and starts no threads. The fused statistics-vector C ABI reads validated caller-owned vectors zero-copy and requires no vector-sized conversion scratch; operation-specific scratch remains explicit for future kernels that genuinely need it. Static-linking is the preferred embedded/native profile because it removes loader and deployment variation.
+The host then initializes the context, binds its product hot set, and calls `xs_eval` directly for known operations.
 
-A shared library may be published for desktop/mobile integration, but it must export only the documented `xs_*` allowlist and carry the same ABI conformance record as the static archive.
+`xs_find` is optional fallback functionality, not a required runtime hop.
 
-### 3.1 OEM integration happy path
+### 2.2 No-import WebAssembly
 
-Release engineering should optimize for a device team being able to complete the first integration without learning the Rust workspace:
+Preferred portable bundle:
 
 ```text
-unpack SDK
-  -> link one ExactScope target
-  -> provide xs_platform_panic_abort when required by the static profile
-  -> run exactscope-doctor on the developer machine
-  -> run the canonical self-test on the target
-  -> bind xs_find / xs_eval into the model tool router
+exactscope-wasm-<version>/
+  exactscope.wasm
+  hotset/
+    catalog.json
+    xs-eval.tool.json
+    xs-eval.gbnf
+    registry-digest.txt
+  manifest.json
+  SHA256SUMS
+  examples/
 ```
 
-The experimental wearable SDK now includes a relocatable CMake package at `lib/cmake/ExactScope/ExactScopeConfig.cmake`. A consumer can point `ExactScope_DIR` at that directory, call `find_package(ExactScope CONFIG REQUIRED)`, and link `ExactScope::exactscope`; CI configure-tests this imported target. Android Prefab/AAR remains the next convenience layer. Wrappers must delegate to the exact same C ABI and must not introduce calculation logic.
+Host steps:
 
-The SDK also carries the developer-only `tools/exactscope_doctor.py` plus its archive verifier. The doctor validates manifest/checksum integrity, public-header ABI, static-archive structure, ELF target architecture for the current ARM64 SDKs, runtime digest, the required `xs_platform_panic_abort` host boundary, and the relocatable CMake target. It emits `READY_FOR_TARGET_TEST` rather than a support claim for experimental bundles. Canonical smoke execution and performance/energy evidence still belong to the target-side self-test/qualification path. These Python tools are workstation conveniences and are **not** target runtime dependencies.
+1. verify artifact digest/manifest;
+2. instantiate with no imports/WASI;
+3. validate ABI/version/exports;
+4. allocate caller regions according to the Wasm ABI;
+5. run a canonical smoke vector;
+6. register direct hot-set `xs_eval` use;
+7. enable discovery only if the product needs it.
 
-For enterprise adoption, the integration criterion is intentionally simple: **add artifact -> link/load -> self-test -> expose two tool calls**. If an integration requires a resident service, cloud login, package-manager runtime, or a second evaluator, it has violated the product boundary.
+## 3. Current experimental SDK
 
-## 4. Android AAR
+The repository already produces experimental ARM64 OEM SDK bundles with:
 
-Planned AAR contents:
+- public headers;
+- native static library;
+- relocatable `ExactScope::exactscope` CMake package;
+- manifest/checksum data;
+- developer-side `exactscope_doctor.py`;
+- wearable reference integration materials.
+
+These artifacts are useful integration evidence but are not yet stable permanent release assets.
+
+The doctor is a developer-workstation tool. It is not a target runtime dependency.
+
+## 4. Hot-set installation
+
+A product should select a small 8-32 operation hot set and bind it to the installed runtime/pack registry digest.
+
+Installation or build tooling should produce:
+
+- canonical operation keys/signatures;
+- operation revisions;
+- compact argument/method hints;
+- OpenAI-compatible direct eval asset;
+- GBNF when supported;
+- registry/pack digest.
+
+The full operation catalog does not need to be injected into the model prompt.
+
+At runtime:
 
 ```text
-jni/arm64-v8a/libexactscope_jni.so
-jni/armeabi-v7a/libexactscope_jni.so       # Tier 2 after evidence
-jni/x86_64/libexactscope_jni.so            # emulator/Tier 2 after evidence
-headers/exactscope.h
-assets/exactscope/packs/*.xsp               # dynamic profile only
-META-INF/exactscope/manifest.json
+known op -> xs_eval directly
+unknown op -> xs_find -> cache/bind -> future direct xs_eval
 ```
 
-The Kotlin/Java wrapper is intentionally small:
+Any digest/revision mismatch invalidates the cached binding.
 
-- load one JNI library;
-- copy direct byte buffers into typed C ABI calls without recalculation;
-- expose `find` and `eval` to the local AI runtime;
-- preserve status, value strings, classification, pack identity, and revision;
-- never implement formulas, rounding, unit conversion, or error repair in Kotlin.
+## 5. Dynamic packs
 
-The release AAR statically links private native dependencies so an application does not have to resolve a graph of native shared libraries. ABI entries are included only after their exact artifact passes the target compatibility matrix.
+Dynamic `.xsp` loading remains supported architecture but is not the primary v0.1 product path.
 
-## 5. Apple platforms
+Use dynamic packs when a host genuinely needs pack updates independent of the runtime artifact.
 
-Planned native package:
+The host owns:
+
+- acquisition/storage;
+- authenticity/signature policy;
+- immutable pack lifetime;
+- registry lifecycle;
+- update/rollback.
+
+ExactScope validates structure, semantics, limits, and collisions. It does not download packs itself.
+
+Dynamic discovery maturity may remain Experimental without blocking a focused v0.1 release.
+
+## 6. Android
+
+Android AAR/Prefab is a P2 convenience package around the same C ABI.
+
+Target shape:
 
 ```text
-ExactScope.xcframework/
-  ios-arm64/
-  ios-arm64_x86_64-simulator/               # after Tier evidence
-  macos-arm64_x86_64/                       # per slice evidence
+AAR
+  prefab/modules/exactscope/include/exactscope.h
+  jni/arm64-v8a/<native artifact>
+  META-INF/exactscope/manifest.json
+  assets/exactscope/hotset/*
 ```
 
-Swift bindings wrap the C header. Calculations remain in the same native core. No Swift numeric reimplementation is permitted.
+The Kotlin/JNI layer may transport values/statuses but may not implement formulas, rounding, classification, unit conversion, or error repair.
 
-## 6. Scope-pack installation
+Only evidenced ABIs are included in a supported release.
 
-A dynamic `.xsp` installation is always host-controlled:
+## 7. Apple platforms
 
-1. host obtains bytes through its existing application/update path;
-2. host verifies distribution authenticity according to its own policy;
-3. host retains immutable bytes for the complete mount lifetime;
-4. `xs_pack_mount` validates all structure, CRC, IDs, programs, limits, and collisions;
-5. host freezes the registry before serving model requests when mutation is no longer needed;
-6. model-facing discovery metadata is generated from the mounted digest, not a separate stale catalog.
+Apple packaging is secondary to the first product proof. A future XCFramework/Swift wrapper forwards to the same C ABI and contains no calculation logic.
 
-ExactScope never downloads a pack itself. Deleting or replacing files does not mutate an already mounted registry; the host creates a new context and mounts a complete new set.
+## 8. Linux/Windows/macOS archives
 
-## 7. Compatibility negotiation
+Native archives should remain self-contained and package-manager independent. System package recipes may be added later as convenience only.
 
-At startup the host compares:
+The target must not require:
 
-- ABI major/minor;
-- pack format major/minor;
-- numeric profile;
-- enabled operation/features;
-- maximum frame/vector limits;
-- artifact and mounted-pack digests.
+- Python;
+- Node.js;
+- Java;
+- Rust;
+- system-wide ExactScope service;
+- administrator/root privileges merely to execute a local application-bundled library;
+- network access;
+- cloud login.
 
-Rules:
+Platform policy may still determine how a host application or extension is installed.
 
-- ABI-major mismatch: reject;
-- required ABI minor newer than core: reject;
-- unsupported pack format major: reject;
-- operation key absent: return `UNKNOWN_OPERATION` rather than substitute another operation;
-- operation revision mismatch: rediscover/rebind; never assume compatible semantics;
-- disabled discovery: direct cached keys remain usable only when bound to the same registry digest.
+## 9. User-installable devices and wearables
 
-## 8. AI tool registration
+ExactScope can be directly user-installable only when the device/host exposes a legitimate executable boundary such as:
 
-The host registers exactly two default tools:
+- application installation;
+- native plugin/extension loading;
+- WebAssembly runtime;
+- host extension API;
+- paired local compute host.
 
-```text
-xs_find(q,n)
-xs_eval(op,a)
-```
+A closed device with no such boundary cannot be made directly installable by ExactScope alone. In that case, execution may occur on the paired phone/host if that product design permits it.
 
-The schemas are checked into `spec/schemas/`. A product may preload 8–32 generated hot-set signatures tied to the installed registry digest. It must not put the entire pack catalog into a tiny model's prompt by default.
+Compatibility claims must name the actual loading boundary rather than implying generic “smart-glasses support.”
 
-For an appliance that always invokes known operations, discovery can be omitted entirely and the product can call the typed ABI directly.
+## 10. Self-test and qualification
 
-## 9. Updates and rollback
+Every stable release bundle should include enough metadata to run a canonical self-test against the exact artifact.
 
-A release package contains:
+Target evidence should record:
 
-- artifact hash;
+- artifact/core/ABI version;
+- hot-set/pack digest;
+- canonical smoke operation/result;
+- context/scratch sizes;
+- runtime status;
+- optional latency/energy evidence.
+
+A successful self-test means “ready for this target test,” not automatically “Tier 1 supported.”
+
+## 11. Updates and rollback
+
+The host stages a complete new component set, verifies it, runs smoke/conformance checks, then atomically switches the binding.
+
+Where the platform offers durable A/B slots, the existing wearable A/B principles may be reused.
+
+ExactScope does not create a privileged background updater when the host platform already owns software distribution.
+
+## 12. Release artifact rule
+
+Stable documentation and benchmark results must refer to permanent release-shaped artifacts, not expiring CI artifacts or an arbitrary local build.
+
+Each release bundle should include:
+
 - source commit;
-- Rust/compiler/linker versions;
-- ABI/pack/numeric profile versions;
-- feature list;
-- operation pack IDs, versions, revisions, and digests;
-- size and memory measurements;
-- conformance results;
-- support tier per target.
+- artifact digest;
+- ABI/core version;
+- target/profile;
+- selected hot set/packs and revisions;
+- compiler/linker metadata;
+- size/memory evidence;
+- conformance status;
+- support label.
 
-Updates are atomic at the host level: stage a complete artifact/set, verify it, initialize and run a smoke vector, then switch the AI tool binding. Keep the previous complete artifact for rollback. Do not replace individual bytes or operations inside a mounted pack.
+## 13. Installation success criterion
 
-## 10. No hidden installation requirements
+An integrator should not need to understand the ExactScope Rust implementation to evaluate the product.
 
-A Tier 1 ExactScope package must not require:
-
-- Python, Node.js, Java, Rust, or another language runtime on the target;
-- a shell;
-- administrator/root access;
-- a writable home directory;
-- network connectivity;
-- dynamic package downloads;
-- model-specific calculation prompts;
-- locale configuration;
-- background processes.
-
-Build-time tools may require Rust and Python, but those tools are not part of device installation.
+If the normal evaluation path is “clone repo, install Rust, understand workspace features, cross-compile, then write your own AI adapter,” installation is not finished.

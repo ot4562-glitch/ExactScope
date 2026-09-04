@@ -1,6 +1,6 @@
 # Rust workspace boundaries
 
-The workspace now contains a real executable runtime, not just the original vertical slice: deterministic scalar evaluation, canonical `.xsp` compilation/loading foundations, Tiny JSON, typed C ABI, no-import WebAssembly, executable economics operations, and the first fused exact statistics kernels with zero-copy C ABI vector inputs. Continue filling the existing crates in place without moving responsibilities across compatibility boundaries. The remaining v0.1 closure order is tracked in [`../ROADMAP.md`](../ROADMAP.md) and [`../docs/IMPLEMENTATION_PLAN.md`](../docs/IMPLEMENTATION_PLAN.md).
+The workspace contains a real executable runtime, not just the original vertical slice: deterministic scalar/vector evaluation, canonical `.xsp` compilation/loading for the implemented shapes, Tiny JSON/TinyWire, typed C ABI, no-import WebAssembly, executable economics operations, and exact statistics kernels with zero-copy C ABI vector inputs. Continue filling the existing crates in place without moving calculation responsibilities across compatibility boundaries. The current v0.1 priority is product proof—direct hot-set integration, AI adapters, benchmark evidence, and prebuilt evaluation—rather than expanding every runtime profile in parallel. See [`../ROADMAP.md`](../ROADMAP.md) and [`../docs/IMPLEMENTATION_PLAN.md`](../docs/IMPLEMENTATION_PLAN.md).
 
 ## Crates
 
@@ -147,9 +147,9 @@ A runtime dependency requires a written review of:
 
 Build-time and test dependencies are less restricted but must not leak into release artifacts.
 
-## First code slice
+## Historical first code slice
 
-Implementation starts with one vertical path only:
+The project originally started with one vertical path only:
 
 ```text
 Decimal64
@@ -161,4 +161,4 @@ Decimal64
   -> shared golden vectors
 ```
 
-Do not begin with a full CLI, server, MCP adapter, or entire operation catalog. The first slice is accepted only when native, dynamic/fused, and no-import WebAssembly outputs are byte-identical.
+That first slice established the one-shared-semantics rule and is now historical. It must not be read as requiring every execution profile to reach the same release tier before a focused product release. Current primary v0.1 product profiles are native static C ABI and no-import Wasm; dynamic breadth is secondary. See the current product/implementation documents for sequencing.

@@ -1,164 +1,183 @@
 # Contributing to ExactScope
 
-ExactScope is compatibility-first infrastructure for constrained AI. Contributions are evaluated primarily by deterministic semantics, footprint, portability, and failure behavior—not feature count.
+ExactScope is a tiny deterministic quantitative coprocessor for small/on-device AI. Contributions are evaluated by **product leverage, deterministic correctness, integration simplicity, footprint, portability, and evidence**—not by raw feature count.
 
-## Current repository phase
+## Current project phase
 
-The repository contains an experimental v0.1 runtime: the deterministic scalar evaluator, C ABI, no-import Wasm path, pack compiler/loader foundations, Tiny JSON scalar adapter, wearable reference integration, executable economics formulas, and initial exact statistics kernels are present. No stable runtime release has been declared. New implementation must extend the shared core and follow `docs/PRODUCT_DIRECTION.md`, `docs/FIRST_IMPLEMENTATION_SLICE.md`, `crates/README.md`, and `docs/IMPLEMENTATION_PLAN.md` rather than creating parallel evaluators or application-specific calculation code.
+The runtime foundation is already substantial. The current priority is no longer “finish every subsystem before users can evaluate it.”
 
-Before proposing a large change, read:
+Read this order first:
 
-- `docs/PRODUCT_DIRECTION.md`
-- `docs/ARCHITECTURE.md`
-- `docs/COMPATIBILITY.md`
-- `docs/INSTALLATION.md`
-- `docs/DECISIONS.md`
-- `docs/FIRST_IMPLEMENTATION_SLICE.md`
-- `spec/README.md`
-- `packs/CATALOG_V0_1.md`
-- `SECURITY.md`
+1. `docs/PRODUCT_DIRECTION.md`
+2. `docs/QUICKSTART.md`
+3. `docs/AI_INTEGRATION.md`
+4. `docs/BENCHMARK.md`
+5. `ROADMAP.md`
+6. `docs/IMPLEMENTATION_PLAN.md`
+7. `docs/ARCHITECTURE.md`
+8. `docs/COMPATIBILITY.md`
+9. `docs/DECISIONS.md`
+10. `SECURITY.md`
 
-## Core principles
+`docs/FIRST_IMPLEMENTATION_SLICE.md` is historical implementation context, not the current priority plan.
 
-A contribution must not casually weaken these properties:
+## Product-priority rule
 
-- offline operation;
-- AI-only headless interface;
-- no mandatory daemon;
-- `no_std` and no-allocation minimum profile;
-- stable C ABI and no-import WebAssembly;
-- deterministic base-10 numeric semantics;
+Before proposing a large feature, ask whether it improves one of these:
+
+- direct one-hop `xs_eval` integration;
+- hot-set/schema/GBNF generation;
+- local-AI runtime adoption;
+- benchmark evidence;
+- five-minute/prebuilt evaluation;
+- reviewed benchmark hot-set quality;
+- release/target qualification;
+- deterministic correctness/security.
+
+Broad platform support, dynamic-profile polish, and catalog expansion are secondary until the product proof exists.
+
+## Core invariants
+
+Do not casually weaken:
+
+- AI-consumed headless core;
+- offline-capable/library-first operation;
+- no mandatory daemon/account/network;
+- `no_std` allocator-free minimum kernel;
+- stable C ABI and no-import Wasm boundary;
+- deterministic checked numeric semantics;
 - data-only scope packs;
-- bounded execution and memory;
-- typed fail-closed errors;
-- two-tool default model surface;
-- conformance-based compatibility claims.
+- bounded execution/memory;
+- semantic fail-closed behavior;
+- one shared calculation semantics across profiles;
+- evidence-backed compatibility/marketing claims.
 
-## Contribution categories
+## AI integration changes
 
-### Specification changes
+The product hot path is direct `xs_eval` with a known/cached operation key. `xs_find` is fallback discovery.
 
-A specification pull request must include:
+Adapter/hot-set contributions should therefore prefer:
 
-- the exact ambiguity or defect being fixed;
-- affected ABI/pack/wire/operation versions;
-- updated schemas and examples;
-- compatibility and migration impact;
-- new or changed conformance cases;
-- an architecture-decision update when a binding decision changes.
+- 8-32 operation generated hot sets;
+- OpenAI-compatible direct eval assets;
+- GBNF;
+- llama.cpp fixtures/reference integration;
+- digest/revision-bound caching;
+- measurable prompt/invalid-call/inference-turn cost.
 
-Do not change one example while leaving the normative schema or prose inconsistent.
+Adapters may normalize syntax/transport but not semantics.
 
-### Runtime changes
+Allowed examples:
 
-A runtime pull request must include:
+- envelope translation;
+- whitespace normalization;
+- deterministic field mapping;
+- lossless decimal lexical normalization.
 
-- tests for success, invalid input, boundary, and overflow paths;
-- no-default-features/`no_std` verification where applicable;
-- size impact for core and fused Wasm;
+Forbidden examples:
+
+- guessing values;
+- percent/unit/currency conversion without explicit operation semantics;
+- choosing ambiguous methods;
+- calculating/rounding/classifying outside the core;
+- turning an error into a plausible number.
+
+## Benchmark changes
+
+Benchmark contributions should follow `docs/BENCHMARK.md` and preserve the required comparison arms:
+
+- model only;
+- direct ExactScope hot path;
+- discovery path;
+- constrained direct path.
+
+Do not publish a single blended score without stage-level failures and cost metrics.
+
+Any comparative claim must identify exact model/runtime/hardware and ExactScope/hot-set/adapter artifact digests.
+
+## Runtime changes
+
+A runtime PR should include, as applicable:
+
+- success/invalid/boundary/overflow/resource tests;
+- no-default-features/`no_std` verification;
 - allocation behavior;
-- target compatibility impact;
-- safety invariants for every unsafe block;
-- proof that adapters or platform wrappers do not own calculation semantics.
+- size impact;
+- ABI/Wasm compatibility impact;
+- malformed-input safety;
+- proof no adapter/platform calculation fork is introduced.
 
-A new runtime dependency requires the dependency review in `crates/README.md`.
+New runtime dependencies require explicit review.
 
-### Operation/pack changes
+## Operation/pack changes
 
-A new official operation requires:
+An official operation requires:
 
 - canonical key and pack-local ID;
-- revision `1` or a justified new revision;
-- short positional signature;
-- method identity and alternatives;
-- semantic kinds, units, constraints, and cross-input relations;
-- exact formula or approved kernel ID;
-- output and rounding policy;
-- classification rules when applicable;
-- source metadata;
-- golden tests;
-- reason it belongs in a small, frequently useful deterministic pack.
+- stable revision/method identity;
+- immutable argument order and semantic names;
+- units/constraints/cross-input relations;
+- exact formula or approved shared kernel ID;
+- output/rounding/classification policy;
+- provenance;
+- valid/invalid/boundary/overflow/resource/precision vectors.
+
+Before broad catalog expansion, benchmark-hot-set operations receive review priority.
 
 Do not add:
 
 - open-ended forecasts;
 - empirical coefficients presented as universal constants;
 - live-data dependencies;
-- ambiguous operations that silently choose a method;
-- duplicate aliases that make discovery nondeterministic;
+- ambiguous hidden method selection;
 - arbitrary pack code.
 
-### Adapter changes
+## Compatibility ports
 
-Adapters must share generated schemas and fixtures. They may translate envelopes but may not calculate, round, classify, coerce, or repair values independently.
+A successful compile is not support.
 
-### Compatibility ports
-
-A new platform contribution must provide evidence required by `docs/COMPATIBILITY.md`. A successful compile alone earns `experimental` or `planned`, not Tier 1/2.
+New ports require the evidence defined in `docs/COMPATIBILITY.md`. The first stable product scope prioritizes native static C ABI and no-import Wasm; additional profiles may remain Experimental without blocking v0.1.
 
 ## Pull-request checklist
 
 - [ ] The change has one clear responsibility.
-- [ ] Normative files and examples agree.
-- [ ] JSON and JSONL fixtures parse.
-- [ ] Machine-readable examples validate against their schemas.
+- [ ] Product priority is justified.
+- [ ] Normative docs/spec/examples agree.
 - [ ] Existing operation semantics are unchanged or revisioned.
-- [ ] Failure precedence remains deterministic.
-- [ ] No hidden allocation/network/platform dependency entered the minimum core.
-- [ ] Size/compatibility impact is measured or explicitly not applicable.
-- [ ] New dependencies are justified.
-- [ ] Security-sensitive parsing/ABI changes have negative tests.
-- [ ] Documentation does not claim unmeasured performance or unsupported hardware.
+- [ ] Failure behavior remains deterministic.
+- [ ] No hidden allocation/network/runtime dependency entered the minimum core.
+- [ ] No adapter/wrapper calculation or semantic repair was added.
+- [ ] Size/latency/model-turn/compatibility impact is measured where relevant.
+- [ ] Security-sensitive parser/ABI changes have negative tests.
+- [ ] Generated adapter/hot-set artifacts are reproducible where applicable.
+- [ ] Documentation makes no unmeasured accuracy/latency/energy or unsupported-hardware claim.
 
-## Style
+## Baseline verification
 
-- Use precise machine-oriented terms and stable identifiers.
-- Prefer small explicit structures over flexible generic objects.
-- Keep model-facing names short but understandable.
-- Keep developer documentation verbose enough to remove implementation ambiguity.
-- Do not use natural-language strings as program logic.
-- Avoid silent defaults; defaults must be specified and tested.
-- Comments should explain invariants and compatibility reasons, not restate code.
-
-## Current baseline checks
-
-Before runtime code exists, every change must pass:
+Typical repository verification includes:
 
 ```text
 python tools/validate_design.py
-cc -std=c99 -pedantic-errors -Wall -Wextra -Werror -Iinclude -fsyntax-only tests/abi/header_c.c
-c++ -std=c++11 -pedantic-errors -Wall -Wextra -Werror -Iinclude -fsyntax-only tests/abi/header_cpp.cpp
 cargo fmt --all -- --check
 cargo check --workspace --all-targets
-cargo check --target wasm32v1-none --no-default-features \
-  --package exactscope-kernel --package exactscope-pack --package exactscope-wasm
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
 ```
 
-The Rust commands are enforced in GitHub Actions with both the pinned primary toolchain and the declared minimum Rust version.
+Relevant changes additionally require C/C++ header checks, dynamic-pack feature checks, `wasm32v1-none` build/import inspection, wearable/integration checks, pack reproducibility, and parser malformed/fuzz coverage as applicable.
 
-## Testing expectations after code exists
+## Style
 
-Runtime changes are expected to pass:
-
-```text
-format + lint
-unit tests
-schema/example validation
-pack compiler reproducibility
-golden conformance vectors
-C and C++ ABI compile/layout tests
-wasm32v1-none build and import inspection
-fused/dynamic equivalence
-size regression checks
-parser fuzz smoke tests
-```
-
-Official pack changes additionally run the complete pack corpus and catalog semantic diff.
+- Prefer explicit bounded structures over flexible generic abstractions.
+- Keep model-facing names compact but semantically useful.
+- Document invariants and evidence boundaries.
+- Avoid silent defaults and hidden heuristics.
+- Avoid comments that merely restate code.
 
 ## Responsible disclosure
 
-Potential vulnerabilities should follow `SECURITY.md`, not a public issue containing an exploit.
+Potential vulnerabilities follow `SECURITY.md`, not public exploit reports.
 
-## Licensing contributions
+## Licensing
 
-Unless explicitly stated otherwise, contributions to ExactScope are accepted under the repository's dual Apache-2.0/MIT terms. Pack sources must declare compatible source and content licensing. Do not copy formula explanations, textbook prose, or test material without a compatible license and attribution review.
+Contributions are accepted under the repository's dual Apache-2.0/MIT terms unless explicitly stated otherwise. Pack source/provenance material must have compatible rights; do not copy textbook prose or test material without appropriate review.

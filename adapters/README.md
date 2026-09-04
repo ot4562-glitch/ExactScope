@@ -1,120 +1,163 @@
 # Adapter policy
 
-Adapters connect AI runtimes and host platforms to the same ExactScope core. They are convenience and compatibility layers, never calculation authorities.
+Adapters connect AI runtimes and host platforms to the same ExactScope core. They are convenience/compatibility layers, never calculation authorities.
 
-## Implemented integration references
+## 1. Product priority
+
+The first adapter goal is no longer “support every host.” It is:
+
+```text
+small local model
+  -> generated hot-set/direct xs_eval
+  -> ExactScope
+  -> deterministic result
+```
+
+`xs_find` remains an optional fallback for unknown operations.
+
+The adapter roadmap therefore prioritizes:
+
+1. generated hot-set metadata;
+2. OpenAI-compatible direct-eval tool assets;
+3. GBNF;
+4. llama.cpp reference integration;
+5. benchmark fixtures;
+6. platform wrappers after product proof.
+
+## 2. Implemented integration reference
 
 ### `wearable`
 
-[`wearable/`](wearable/) is the product-integration reference for AI glasses and similarly constrained edge devices. It provides a C99/C++11-consumable, allocation-free host state machine around the stable C ABI and enforces the machine-readable wearable profile: frozen-before-serve registry state, 16 KiB mutable budget, zero-byte pack-mount arena, bounded pack storage, exact lookup/eval modes, and privacy-minimized telemetry.
+[`wearable/`](wearable/) is an implemented C99/C++11-oriented reference host for constrained edge/wearable integration. It demonstrates bounded memory, frozen registry lifecycle, update/rollback patterns, and privacy-minimized telemetry.
 
-It is a vendor-neutral reference, not a claim of compatibility with unpublished platform internals or a substitute for target-device latency/energy qualification.
+It is not generic “smart-glasses support” and is not the primary proof-of-value adapter for the product. Real device support still requires the actual host loading boundary and qualification evidence.
 
-## Planned adapters
+## 3. P0 — generated hot-set assets
 
-### `llama-cpp`
+A hot-set generator should consume installed operation metadata and produce a bounded 8-32 operation product subset tied to the registry/pack digest.
 
-Deliverables:
+Expected generated outputs:
 
-- OpenAI-style definitions for `xs_find` and `xs_eval`;
-- checked-in GBNF grammars for both argument objects;
-- compact system-prompt fragment;
-- fixtures for raw JSON, OpenAI-compatible tool calls, and common tag-wrapped tool calls;
-- integration tests with selected small GGUF models;
-- catalog hot-set generator keyed by installed pack digest.
+```text
+adapters/generated/<hotset>/
+  catalog.json
+  registry-digest.txt
+  xs-eval.tool.json
+  xs-eval.gbnf
+  prompt-fragment.txt
+  optional-xs-find.tool.json
+  optional-xs-find.gbnf
+```
 
-The adapter must not require llama.cpp internals in the core repository. It may provide examples for server and in-process integrations.
+The hot set contains only selection/integration metadata. It never duplicates formulas.
 
-### `openai-tools`
+## 4. P0 — OpenAI-compatible protocol assets
 
-Deliverables:
-
-- conservative JSON Schema tool definitions;
-- response parsing examples;
-- no assumption that the remote model performs calculation itself;
-- identical Tiny JSON fixtures.
-
-This adapter demonstrates protocol compatibility; cloud use is never required by ExactScope.
-
-### `android`
+The first generic protocol adapter should demonstrate direct one-hop evaluation.
 
 Deliverables:
 
-- AAR/Prefab packaging of the C ABI;
-- optional minimal Kotlin/JNI wrapper;
-- direct byte-buffer APIs to avoid unnecessary copies;
-- asset-pack and fused-library examples;
-- no permissions, service, telemetry, or Google Play dependency.
+- conservative `xs_eval` tool definition;
+- optional `xs_find` fallback definition;
+- compact hot-set hints;
+- valid/error response fixtures;
+- exact decimal preservation;
+- no calculation logic.
 
-### `mcp`
+“OpenAI-compatible” is a protocol-envelope target, not a cloud dependency.
 
-Optional desktop bridge exposing the same two logical operations.
+## 5. P0 — llama.cpp
 
-The MCP adapter may be implemented in a convenient host language, but it must delegate every calculation and validation result to the native/Wasm core and preserve provenance/errors.
+Deliverables:
 
-## Non-negotiable rules
+- direct-eval GBNF;
+- optional discovery GBNF;
+- compact system/tool prompt fragment;
+- OpenAI-compatible, raw JSON, and common tag-wrapped fixtures;
+- one runnable in-process or server-style reference integration;
+- benchmark configuration for selected small GGUF models;
+- hot-set digest binding.
+
+The primary example must not require `xs_find` before every calculation.
+
+## 6. Secondary adapters
+
+### Android
+
+AAR/Prefab plus thin JNI/Kotlin wrapper after the product proof. Direct buffers/status transport only; no formulas or semantic repair.
+
+### MCP
+
+Optional desktop/server bridge. Useful interoperability, but not part of the minimum runtime or benchmark proof.
+
+### Apple/Swift and other wrappers
+
+Thin C ABI wrappers only, prioritized by real adoption needs.
+
+## 7. Non-negotiable rules
 
 An adapter must not:
 
 - maintain a divergent formula catalog;
 - calculate or reclassify results;
-- use binary floating point to parse exact decimal arguments;
-- guess omitted values or methods;
-- silently convert rates, currencies, units, or periods;
-- turn core errors into plausible numeric answers;
+- use binary float in a way that changes exact decimal values;
+- invent omitted values;
+- silently convert units/currencies/rates;
+- choose an ambiguous method;
+- convert core errors into numeric answers;
 - require network access for core operation;
-- expose hundreds of per-operation tools by default;
-- claim compatibility without shared fixtures.
+- put the entire operation catalog into a tiny model prompt by default;
+- claim compatibility without fixtures/evidence.
 
-An adapter may:
+## 8. Allowed normalization
 
-- translate an outer tool-call envelope;
-- validate the two model-facing schemas;
-- normalize a discovery query according to the documented profile;
-- cache immutable operation metadata by pack digest;
-- render a core result for a product after preserving the machine value;
-- add locale aliases outside the minimum runtime;
-- choose native C ABI or WebAssembly according to host support.
+An adapter may normalize syntax/transport when semantics are unchanged:
 
-## Generated artifacts
+- unwrap outer tool-call envelopes;
+- trim protocol whitespace;
+- map known field names;
+- preserve/canonicalize exact decimal lexical forms where lossless;
+- enforce request/array limits;
+- cache immutable operation metadata by digest;
+- render the returned deterministic result.
 
-The following should be generated from normative schemas/catalogs to prevent drift:
+It may not perform semantic repair.
 
-```text
-adapters/generated/xs-find.tool.json
-adapters/generated/xs-eval.tool.json
-adapters/generated/xs-find.gbnf
-adapters/generated/xs-eval.gbnf
-adapters/generated/status-codes.json
-adapters/generated/hot-catalog.<pack-digest>.json
-```
+## 9. Compatibility test matrix
 
-Generated files are checked for reproducibility. Release artifacts may include them; the repository should commit only stable fixtures and generators according to the implementation plan.
+Every shipped adapter should test:
 
-## Compatibility test matrix
-
-Every adapter runs:
-
-- valid `xs_find` and `xs_eval` fixtures;
-- unknown-field rejection;
-- exact large decimal string preservation;
-- missing and reordered argument cases;
+- direct known operation;
+- cached/bound operation;
+- optional discovery fallback;
+- unknown operation;
 - ambiguity preservation;
-- every core error family mapping;
+- missing/wrong-order arguments;
+- exact large decimal preservation;
+- invalid lexical input;
+- core domain/overflow/status mapping;
 - provenance preservation;
-- response-size limits;
-- installed-pack catalog digest matching.
+- buffer/response limits;
+- registry/hot-set digest mismatch;
+- no hidden recalculation.
 
-Model-specific tests are additional evidence, not replacements for protocol fixtures.
+## 10. Small-model prompt budget
 
-## Small-model prompt budget
+Measure adapter prompt/tool cost.
 
-The default tool definitions plus policy fragment should remain within a measured compact budget. Initial target:
+Initial design targets:
 
-- two tool definitions only;
-- no embedded full catalog;
-- policy text below 120 English tokens where the runtime permits;
-- optional hot catalog limited to 8–32 signatures;
-- discovery response limited to five matches.
+- direct `xs_eval` tool asset as primary;
+- optional `xs_find` fallback;
+- no full catalog in prompt;
+- 8-32 operation generated hot set;
+- compact prompt fragment;
+- discovery result cap where discovery is enabled.
 
-Prompt-size regressions must be measured because context consumption directly affects constrained-model compatibility.
+Prompt growth, operation-selection accuracy, invalid-call rate, and number of inference turns belong in the benchmark.
+
+## 11. Benchmark responsibility
+
+Adapters are part of the product claim and therefore must record their exact schema/grammar/hot-set digest in benchmark outputs.
+
+See [`../docs/BENCHMARK.md`](../docs/BENCHMARK.md).

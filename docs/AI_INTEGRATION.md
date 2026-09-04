@@ -1,84 +1,143 @@
 # AI integration contract
 
-ExactScope is consumed by AI runtimes, not by human users. This document defines the minimum model-facing surface.
+ExactScope is consumed by AI runtimes. This document defines the model-facing behavior that product integrations should optimize for.
 
-## 1. Two tools only
+## 1. Direct evaluation is the default hot path
 
-The default adapter exposes exactly two functions:
+The recommended steady-state interaction is one model turn followed by one deterministic call:
 
-- `xs_find` — discover a deterministic operation from a short machine query;
-- `xs_eval` — evaluate one canonical operation with exact decimal strings.
+```text
+model
+  -> xs_eval(op,args)
+  -> ExactScope result
+```
 
-Do not expose every formula as an independent tool to a constrained model. Large catalogs increase prompt size, tool confusion, schema conversion risk, and installation coupling.
+`xs_find` exists as a fallback for an unknown operation. It is **not** a mandatory first step.
 
-## 2. Tiny tool definitions
+A host should preload or generate a compact hot set and bind each key to the installed registry/pack digest. Successful discovery can also be cached against that digest.
 
-Normative model-facing definitions are generated from:
+```text
+cold path:
+model -> xs_find -> bind/cache -> xs_eval
 
-- [`spec/schemas/xs-find-tool.schema.json`](../spec/schemas/xs-find-tool.schema.json)
-- [`spec/schemas/xs-eval-tool.schema.json`](../spec/schemas/xs-eval-tool.schema.json)
+hot path:
+model ---------------------> xs_eval
+```
+
+If the registry digest or operation revision changes, the host invalidates and regenerates the binding.
+
+## 2. Model-facing surface
+
+The logical surface still contains only two generic functions:
+
+- `xs_eval` — primary direct evaluation path;
+- `xs_find` — optional discovery fallback.
+
+Do not expose hundreds of independent per-formula tools by default. Large tool catalogs increase prompt cost and selection errors.
+
+However, a product may generate a small 8-32 operation **hot-set hint/grammar** so the model can select canonical operation keys without discovery.
+
+## 3. Canonical eval request
 
 Logical form:
 
 ```json
 {
-  "name": "xs_find",
-  "description": "Find an installed deterministic quantitative operation. Use before xs_eval when the exact operation key is unknown.",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "q": {"type": "string"},
-      "n": {"type": "integer", "minimum": 1, "maximum": 5}
-    },
-    "required": ["q", "n"],
-    "additionalProperties": false
-  }
+  "op": "econ.cpi.inflation",
+  "a": ["100", "103.2"]
 }
 ```
+
+The checked-in schema is [`spec/schemas/xs-eval-tool.schema.json`](../spec/schemas/xs-eval-tool.schema.json).
+
+Decimal values are strings in the normative Tiny JSON profile so ordinary JSON parsers cannot silently round large/precise values before the core sees them.
+
+## 4. Discovery request
+
+Logical fallback:
 
 ```json
 {
-  "name": "xs_eval",
-  "description": "Evaluate one ExactScope operation. Pass decimal arguments as plain base-10 strings in signature order.",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "op": {"type": "string"},
-      "a": {
-        "type": "array",
-        "items": {"type": "string"},
-        "minItems": 0,
-        "maxItems": 12
-      }
-    },
-    "required": ["op", "a"],
-    "additionalProperties": false
-  }
+  "q": "midpoint price elasticity",
+  "n": 3
 }
 ```
 
-The schemas intentionally avoid unions, conditionals, recursive references, schema-only descriptions without types, complex regular expressions, and optional operational fields. The goal is compatibility with simple tool-call parsers and grammar-constrained local runtimes.
+The checked-in schema is [`spec/schemas/xs-find-tool.schema.json`](../spec/schemas/xs-find-tool.schema.json).
 
-## 3. Model policy
+A successful response returns canonical operation metadata. The host should cache/bind the result rather than forcing discovery on every repeated task.
 
-An adapter's system prompt should communicate the following compact policy:
+## 5. Hot-set artifact
+
+The intended generator output is conceptually:
 
 ```text
-Use ExactScope for supported quantitative calculations.
-If the operation key is unknown, call xs_find.
-Call xs_eval with arguments in the returned signature order.
-Use plain base-10 strings: no commas, units, %, NaN, or Infinity.
-Never invent an operation key.
-Never repair an ExactScope error by guessing.
-If ExactScope reports ambiguity or missing information, request that information.
-Return the ExactScope value and classification without recalculating them.
+hotset/
+  catalog.json
+  registry-digest.txt
+  xs-eval.tool.json
+  xs-eval.gbnf
+  optional-xs-find.tool.json
+  optional-xs-find.gbnf
+  prompt-fragment.txt
 ```
 
-The prompt should not enumerate the full operation catalog.
+A hot-set entry contains only compact immutable metadata needed to select and call an operation:
 
-## 4. Canonical AI-facing decimals
+- canonical key;
+- compact signature;
+- method cue when needed;
+- argument semantic names/order;
+- registry/pack digest binding;
+- operation revision.
 
-Accepted lexical examples:
+The complete pack catalog remains available to the host/tooling but should not be placed in a small-model prompt by default.
+
+## 6. Model policy
+
+A compact system/tool policy should communicate:
+
+```text
+Use ExactScope for supported deterministic quantitative calculations.
+Prefer a known operation key from the provided hot set.
+Call xs_eval directly when the operation is known.
+Use xs_find only when the required operation key is unknown.
+Pass arguments in the declared order.
+Use exact base-10 values; never invent missing values or methods.
+Do not recompute an ExactScope result.
+Preserve ExactScope errors instead of guessing a number.
+```
+
+The prompt should not enumerate the full catalog.
+
+## 7. Fail-closed and adapter normalization
+
+The core stays strict for semantics. Adapters are permitted to normalize **syntax/transport**, not meaning.
+
+### Allowed
+
+- unwrap OpenAI-compatible/tag-wrapped/raw JSON envelopes;
+- trim protocol whitespace;
+- map known outer field names to the canonical schema;
+- convert a host numeric token to an exact decimal lexical value only if the host representation preserves that exact value;
+- enforce array/field caps;
+- reorder protocol object fields without reordering operation arguments.
+
+### Forbidden
+
+- infer that `5%` should become `0.05` when the operation contract did not specify that conversion;
+- remove currency/unit symbols and continue as if semantics were unchanged;
+- invent a missing value;
+- swap arguments based on a guess;
+- choose a population method when the request implies sample data or vice versa;
+- change an ExactScope error into a plausible numeric answer;
+- calculate, round, convert, or classify independently of the core.
+
+The benchmark must measure whether constrained decoding and syntactic normalization keep core-rejected calls low enough for real use.
+
+## 8. Canonical decimal profile
+
+Accepted lexical examples include:
 
 ```text
 0
@@ -89,7 +148,7 @@ Accepted lexical examples:
 1e-6
 ```
 
-The adapter canonicalizes valid forms before calling the core. It rejects:
+Rejected unless an outer adapter has an explicit lossless lexical normalization rule:
 
 ```text
 1,000
@@ -101,186 +160,105 @@ approximately 4
 12 meters
 ```
 
-Whether scientific notation is accepted is fixed by the numeric specification. The adapter must not infer percent-versus-ratio semantics from the text value; the operation signature carries that meaning.
+Percent/rate/unit meaning belongs to the operation signature and semantic metadata, not to string guessing.
 
-## 5. Discovery response
-
-Compact success:
-
-```json
-{
-  "s": 0,
-  "m": [
-    {
-      "op": "econ.ped.mid",
-      "sig": "econ.ped.mid(p1,p2,q1,q2)",
-      "method": "midpoint"
-    }
-  ]
-}
-```
-
-Ambiguous discovery may return multiple candidates. Ranking is deterministic and not a confidence claim.
-
-No match:
-
-```json
-{"s":3,"e":"UNKNOWN_OPERATION"}
-```
-
-## 6. Evaluation response
-
-Compact success:
-
-```json
-{
-  "s": 0,
-  "v": "-1.222222",
-  "c": "elastic",
-  "p": "econ-undergrad@0.1.0",
-  "r": 1
-}
-```
-
-Fields:
-
-- `s`: stable numeric status, zero on success;
-- `v`: canonical base-10 result string;
-- `c`: optional deterministic classification key;
-- `p`: pack ID/version provenance;
-- `r`: operation revision.
-
-Adapters may offer a smaller response profile that omits provenance only when the host logs it separately. They may not replace the numeric value with natural-language prose.
-
-Typed error:
-
-```json
-{
-  "s": 7,
-  "e": "AMBIGUOUS_METHOD",
-  "need": ["method"],
-  "opts": ["econ.ped.mid", "econ.ped.point"]
-}
-```
-
-## 7. Preferred call paths
-
-### 7.1 Cached direct call
-
-The host already knows the canonical operation key from its application flow.
-
-```text
-xs_eval -> result
-```
-
-This is the lowest-token and lowest-latency path.
-
-### 7.2 Discovery then evaluation
-
-The model understands the intent but not the exact operation key.
-
-```text
-xs_find -> compact signature -> xs_eval -> result
-```
-
-### 7.3 Bounded bootstrap catalog
-
-A dedicated appliance may preload a small catalog of its most common 8–32 signatures into the model prompt. All other operations remain discoverable. The preloaded catalog is generated from the installed pack digest so it cannot drift from runtime capability.
-
-## 8. Never make operation methods implicit
-
-Different methods are separate canonical operation keys.
-
-Examples:
-
-```text
-econ.ped.mid
-econ.ped.point
-stats.var.pop
-stats.var.sample
-finance.rate.real.exact
-finance.rate.real.approx
-```
-
-The model must not pass a vague `method` string to a universal calculator endpoint. Separate keys make caching, testing, provenance, and compatibility explicit.
-
-## 9. Units and semantic names
-
-`xs_find` signatures use short semantic argument names:
-
-```text
-finance.fv.compound(principal,rate_pct,periods)
-econ.real_wage(nominal_wage,cpi_index)
-stats.zscore(value,mean,stddev)
-```
-
-Names such as `_pct`, `_ratio`, `_index`, and `_periods` are deliberate model cues. The core still validates the operation's declared semantics.
-
-If an operation requires unit identity, an extended adapter may provide parallel unit IDs through a host-owned typed call. The tiny model-facing profile avoids a general free-text unit field.
-
-## 10. Adapter responsibilities
+## 9. Adapter responsibilities
 
 An adapter must:
 
-- validate tool-call JSON before the core call;
+- validate the model/tool envelope;
 - cap request bytes and array lengths;
-- parse only the documented decimal lexical grammar;
-- resolve canonical keys through the mounted registry;
-- preserve argument order;
-- preserve core status codes and provenance;
-- avoid calculating, rounding, converting, or classifying independently;
-- avoid retries that mutate values;
-- log the core/pack digest when auditability is required.
+- preserve exact lexical values;
+- resolve/bind operation keys against the installed registry;
+- preserve operation argument order;
+- preserve core status/provenance;
+- avoid calculation and semantic repair;
+- record or expose the registry/pack digest when auditability is required.
 
 An adapter may:
 
-- map a model's native tool-call envelope to the two ExactScope functions;
-- translate field names at the outermost protocol boundary;
-- cache immutable discovery results by pack digest;
-- provide locale aliases before `xs_find`;
-- render a result after the deterministic call.
+- translate outer tool-call protocols;
+- apply allowed syntax normalization;
+- provide generated hot-set metadata;
+- cache immutable operation metadata by digest;
+- provide locale aliases before discovery;
+- render a deterministic result after the core call.
 
-## 11. llama.cpp-compatible profile
+## 10. OpenAI-compatible adapter target
 
-The planned adapter should provide:
+The first generic adapter deliverables should be:
 
-- conservative JSON tool schemas;
-- pre-generated GBNF for `xs_find` and `xs_eval`;
-- fixtures for OpenAI-style JSON calls, tag-wrapped JSON calls, and raw JSON calls;
-- a tiny system-prompt fragment;
-- tests against selected small GGUF instruct/tool models.
+- conservative OpenAI-style `xs_eval` tool definition;
+- optional `xs_find` definition;
+- hot-set generation from installed operation metadata;
+- examples for direct one-hop eval;
+- fixtures for error/status preservation;
+- no calculation logic.
 
-The GBNF must be checked into releases rather than relying exclusively on runtime JSON-Schema conversion. This reduces breakage across llama.cpp versions and allows ExactScope to test the exact grammar it recommends.
+Cloud use is not required. "OpenAI-compatible" describes a widely used tool-call envelope format.
 
-## 12. Benchmark contract
+## 11. llama.cpp target
 
-Models are evaluated on separate stages:
+The first local-runtime reference integration should provide:
 
-1. **recognition:** identify that a supported deterministic tool should be used;
-2. **discovery:** produce a useful `xs_find` query or select a cached key;
-3. **argument extraction:** copy the correct values in signature order;
-4. **tool-call validity:** produce valid constrained JSON;
-5. **result fidelity:** report the returned value/classification without alteration;
-6. **failure fidelity:** preserve ambiguity or invalid-input errors rather than hallucinating an answer.
+- generated/checked-in GBNF for direct eval;
+- optional discovery grammar;
+- a compact prompt fragment;
+- OpenAI-compatible, tag-wrapped, and raw JSON fixtures;
+- a sample runner/configuration showing direct hot-set calls;
+- benchmark integration with selected small GGUF instruct/tool models.
 
-The benchmark must compare model-only and model-plus-ExactScope paths, including token count, latency, energy where measurable, and total end-to-end accuracy. ExactScope does not claim to solve recognition or extraction errors; it minimizes the calculation and method-execution burden after a correct call.
+The grammar used for public benchmark claims must be checked in or reproducibly generated and digest-recorded.
 
-## 13. Tiny-model acceptance cases
+## 12. TinyWire and typed hosts
 
-Before an adapter is released, it must include cases covering:
+TinyWire is the compact deterministic CBOR transport for scalar/vector calls where JSON is undesirable. Typed native hosts may bypass model-facing JSON entirely and call the C ABI directly.
 
-- direct known operation;
-- discovery with one match;
-- discovery with several methods;
-- negative and decimal values;
-- percentages versus ratios;
+A product with fixed operations may omit discovery and generic JSON from the runtime path completely.
+
+## 13. Benchmark stages
+
+The adapter benchmark separates:
+
+1. recognition of a supported deterministic task;
+2. operation selection;
+3. argument extraction/order;
+4. tool-call syntax validity;
+5. core acceptance/rejection;
+6. final answer accuracy;
+7. result fidelity;
+8. failure fidelity.
+
+See [BENCHMARK.md](BENCHMARK.md).
+
+## 14. Required comparison paths
+
+Every serious evaluation should compare:
+
+- model only;
+- model + direct `xs_eval` hot path;
+- model + `xs_find -> xs_eval` cold path;
+- direct `xs_eval` with constrained decoding.
+
+This prevents the two-hop discovery cost from being hidden inside the product claim.
+
+## 15. Tiny-model acceptance cases
+
+Before an adapter is considered usable, cover at least:
+
+- known direct operation;
+- cached/bound operation after prior discovery;
+- unknown operation requiring discovery;
+- discovery ambiguity;
+- negative/decimal values;
+- percentage versus ratio semantics;
 - missing argument;
-- invalid lexical value;
 - wrong argument order;
-- operation not installed;
-- core overflow/domain error;
+- invalid lexical value;
+- unsupported operation;
+- domain/overflow error;
 - exact result copied without model recomputation.
 
-## 14. Human-facing surfaces
+## 16. Human-facing surfaces
 
-A debugging CLI may exist for developers and conformance tests. It is not a product UI and must call the same core APIs. No official roadmap item should prioritize a consumer calculator screen over AI runtime compatibility.
+A host application may render, speak, or display results. That UI is outside ExactScope core. A wrapper must not become a second calculation authority.

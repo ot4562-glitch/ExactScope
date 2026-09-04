@@ -1,28 +1,86 @@
 # Official scope packs
 
-Official packs are data, not runtime code. Pack source is compiled and validated by `exactscope-packc`; the minimum runtime never parses free-form formulas or dynamically links plugins.
+Official packs are data, not runtime code. `exactscope-packc` validates/compiles them; the minimum runtime never parses arbitrary formulas or dynamically links pack code.
 
-## Planned official packs
+## 1. Product priority: hot set before full catalog
 
-| Pack | Purpose | v0.1 target |
-|---|---|---:|
-| `math-basic` | High-frequency arithmetic, ratios, percentages, and simple equations | 16 operations |
-| `statistics-core` | Bounded descriptive statistics and common inferential helpers | 18 operations |
-| `econ-undergrad` | Formula-driven undergraduate economics calculations | 65 operations |
+The frozen v0.1 catalog remains:
 
-The exact initial catalog is in [CATALOG_V0_1.md](CATALOG_V0_1.md).
+| Pack | Frozen catalog target |
+|---|---:|
+| `math-basic` | 16 operations |
+| `statistics-core` | 18 operations |
+| `econ-undergrad` | 65 operations |
 
-## Source layout
+However, **full 99-operation completion is no longer the first product milestone**.
+
+The first pack objective is a small reviewed benchmark hot set that can prove ExactScope's value in direct one-hop model integration.
+
+Preferred sequence:
+
+```text
+reviewed cross-domain hot set
+  -> benchmark
+  -> provenance/golden strengthening
+  -> broader pack completion
+```
+
+A smaller defensible set is preferable to a large catalog with weak review or no adoption evidence.
+
+## 2. Benchmark hot-set selection
+
+The first public benchmark should select high-value operations from all three domains.
+
+Selection criteria:
+
+- common enough to matter for small-model quantitative tasks;
+- explicit deterministic method;
+- compact arguments/signature;
+- good coverage of scalar and vector execution;
+- strong valid/invalid/boundary testability;
+- no hidden empirical assumption or live-data dependency.
+
+Likely candidates include simple percentage/ratio math, mean/variance/stddev/correlation/regression statistics, and textbook economics such as CPI inflation, GDP deflator, real-rate, elasticity, and growth helpers.
+
+The exact benchmark hot set should be machine-readable and bound to pack/operation revisions.
+
+## 3. Operation acceptance
+
+An official operation requires:
+
+- one canonical key and numeric ID;
+- explicit method identity;
+- immutable argument order and semantic names;
+- semantic kinds/unit relationships;
+- all constraints;
+- exact formula or shared kernel ID;
+- output semantic/unit rule;
+- explicit scale/rounding;
+- deterministic classification where applicable;
+- provenance/source metadata;
+- successful/invalid/boundary/overflow/resource/precision vectors.
+
+Stable pack release should maintain the repository's stronger golden-vector threshold, but benchmark hot-set operations receive review priority first.
+
+## 4. No formula duplication in adapters
+
+Hot-set catalogs, OpenAI-compatible tool assets, GBNF, and product prompts may copy only **selection metadata** such as key/signature/argument cues.
+
+They may not become a second source of formulas, rounding rules, or classification logic.
+
+## 5. Source layout
+
+Target source layout:
 
 ```text
 packs/<pack>/
-  pack.xsp.json           # reviewed source definition
-  SOURCES.md              # domain/source review notes
-  CHANGELOG.md            # operation/alias additions by pack version
-  tests/                  # optional large external golden corpus
+  pack.xsp.json
+  SOURCES.md
+  CHANGELOG.md
+  tests/
 ```
 
-The compiler produces:
+Compiler/release outputs may include:
 
 ```text
 <pack>-<version>.xsp
@@ -30,55 +88,49 @@ The compiler produces:
 <pack>-<version>.catalog.json
 ```
 
-Generated binary artifacts are release outputs and are not committed unless a conformance fixture explicitly requires bytes.
+Generated binary artifacts are release outputs unless a conformance fixture explicitly requires checked-in bytes.
 
-## Operation acceptance
+## 6. Source/provenance policy
 
-An official operation is accepted only when it has:
+A source supports method/definition review; it is not fetched at runtime.
 
-- one canonical key and numeric ID;
-- immutable input order and short semantic names;
-- explicit method identity;
-- argument semantic kinds and unit relationships;
-- all scalar and cross-input constraints;
-- exact formula or core kernel ID;
-- output semantic/unit rule;
-- explicit scale and rounding;
-- deterministic classification rules where applicable;
-- source metadata;
-- successful, invalid, boundary, overflow, and rounding vectors;
-- at least 20 golden vectors before a stable pack release;
-- fused/dynamic equivalence evidence.
+Source notes must state:
 
-## Dependency policy
+- what definition/convention is supported;
+- source/license/status;
+- whether ExactScope text/vectors are independently authored;
+- convention differences resolved by the operation key.
 
-Official v0.1 packs depend only on the core numeric profile and kernel IDs. They do not depend on:
+Official packs must avoid pretending that empirical coefficients, forecasts, jurisdiction-specific live rules, or open-ended policy judgments are universal formulas.
+
+## 7. Dependency policy
+
+Official baseline packs do not depend on:
 
 - another pack being installed;
 - network data;
 - host locale;
-- current date or exchange rates;
-- model output beyond typed arguments;
-- native extension code.
+- current date/live exchange rates;
+- model reasoning after typed arguments are formed;
+- native extension code embedded in the pack.
 
-Duplicate convenience operations across packs are permitted only when they preserve a domain-friendly canonical key and compile to the same tested semantics. The catalog should prefer shared core programs without creating runtime pack dependencies.
+## 8. Compatibility policy
 
-## Source policy
-
-Sources support definition review and provenance. A source URL never authorizes runtime fetching. Official pack formulas must be standard deterministic relationships, not empirical coefficients or forecasts that vary by dataset, jurisdiction, or date.
-
-A source addition must state:
-
-- what definition or convention it supports;
-- its license/status;
-- whether ExactScope text or test vectors are independently authored;
-- any convention differences resolved by the operation key.
-
-## Compatibility policy
-
-- Operation meaning cannot change under the same key and revision.
-- Alternative methods use alternative keys.
-- Aliases may be added but canonical keys remain stable.
+- Existing operation key+revision semantics do not change.
+- Alternative methods use separate keys/revisions as appropriate.
+- Aliases may evolve without changing canonical identity.
 - Pack format/ABI requirements are explicit.
-- A pack version cannot claim target support independently of core conformance.
-- Removing an operation from an official pack requires a major pack version and migration note.
+- A pack cannot independently claim target support; support belongs to exact core+artifact+pack evidence.
+- Removing/changing operations requires migration/versioning review.
+
+## 9. Dynamic versus fused packaging
+
+Pack semantics remain independent of packaging. A fused operation and the same dynamic-pack operation must use the same shared calculation semantics when both are shipped.
+
+However, complete dynamic-pack/discovery maturity is a secondary v0.1 product priority. It does not block a focused native-static/no-import-Wasm release using a reviewed hot set.
+
+## 10. Expansion rule
+
+Add new domains only after the initial hot set and benchmark demonstrate that ExactScope's bounded resident approach provides a useful product advantage.
+
+Operation count is not a vanity KPI.

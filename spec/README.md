@@ -1,6 +1,6 @@
 # ExactScope specification index
 
-The files in this directory define the v0.1 implementation contract. Runtime code must not silently diverge from them.
+The files in this directory define the v0.1 runtime/data/wire contracts. Runtime code must not silently diverge from them. Product sequencing—direct `xs_eval` hot path, benchmark-first evidence, and native-static/no-import-Wasm primary release scope—is defined in `../docs/PRODUCT_DIRECTION.md` and does not weaken these semantic contracts.
 
 ## Normative specifications
 
@@ -48,7 +48,7 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **
 
 ## Version status
 
-`v0.1` is a design baseline, not a stable ecosystem promise. Once implementation begins:
+`v0.1` is a prerelease contract baseline, not a stable ecosystem promise. Implementation is already active; therefore:
 
 - incompatible changes to a specification require a visible specification revision;
 - fixtures and schemas must be updated in the same commit;

@@ -1,6 +1,6 @@
 # Initial official operation catalog v0.1
 
-This catalog fixes the first implementation target. All entries begin at operation revision `1`. Pack source, constraints, tests, and provenance must still satisfy the scope-pack specification before an entry is considered implemented.
+This catalog freezes the intended initial operation universe. It is **not** a requirement that all 99 entries be implemented before ExactScope can prove or ship a focused v0.1 product. Current sequencing prioritizes a small reviewed benchmark hot set, direct one-hop integration, and evidence first; broader catalog completion follows. All entries begin at operation revision `1`, and pack source, constraints, tests, and provenance must still satisfy the scope-pack specification before an entry is considered implemented or shipped.
 
 ## Notation and conventions
 

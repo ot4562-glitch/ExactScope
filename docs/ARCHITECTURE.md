@@ -1,6 +1,6 @@
 # ExactScope architecture baseline v0.1
 
-This document is normative for the first implementation unless a later architecture decision explicitly supersedes it.
+This document defines the runtime architecture. Product priority is defined in `PRODUCT_DIRECTION.md`; where an older architecture emphasis conflicts with the current product priority, the shared-core invariants remain binding while release sequencing follows the product direction.
 
 ## 1. System boundary
 
@@ -8,365 +8,314 @@ ExactScope is a deterministic quantitative execution component embedded inside a
 
 The host owns:
 
-- camera, microphone, sensor, and user interaction;
-- speech recognition and natural-language understanding;
-- extraction of values from the user request;
-- deciding when to call `xs_find` or `xs_eval`;
-- rendering or speaking the returned machine result;
-- optional pack signature/checksum policy;
-- persistent storage and updates.
+- model inference and natural-language understanding;
+- sensor/UI input and output;
+- extraction of candidate values from the request;
+- model/tool routing;
+- hot-set selection and cache binding;
+- optional discovery invocation;
+- storage, updates, authentication/signature policy, and lifecycle.
 
 ExactScope owns:
 
-- operation discovery over installed aliases;
-- exact operation identity and method selection;
-- argument count/type/constraint validation;
+- exact operation identity;
+- input count/type/semantic/constraint validation;
 - unit compatibility checks;
 - deterministic calculation;
-- explicit rounding;
-- deterministic result classification;
-- typed failure codes;
-- operation and pack provenance.
+- explicit rounding/classification;
+- stable status/error codes;
+- pack/operation provenance.
 
-ExactScope does not own natural-language generation, general symbolic reasoning, forecasting, internet data retrieval, or model inference.
+ExactScope does not own model inference, retrieval, forecasting, live market/economic data, arbitrary code execution, or general symbolic reasoning.
 
-### 1.1 Product and installation boundary
+## 2. Primary product call path
 
-ExactScope's deployable product is a **resident computation component**, not a standalone application or background service. The same core may be packaged as a fused no-import Wasm module, native library plus manifest, or a thin host-extension bundle. Packaging may be user-installable when the host platform exposes an extension/runtime boundary, but installation tooling is outside the execution core and must not remain resident as an ExactScope daemon.
+The primary steady-state path is one-hop direct evaluation:
 
-Closed devices without an application, plugin, WebAssembly, native-extension, or paired-host execution boundary are not directly user-installable targets. ExactScope must not weaken a platform's security model to create one. Compatibility is described against the actual host boundary that loads the component.
+```text
+small/local model
+    -> xs_eval(known operation,args)
+    -> ExactScope core
+    -> deterministic result
+```
 
-This packaging rule does not change calculation semantics: wrappers register, load, transport, and display; only the shared ExactScope core and validated scope packs calculate.
+`xs_find` is a cold-path discovery helper:
 
-## 2. Frozen workspace boundaries
+```text
+unknown operation
+    -> xs_find
+    -> bind/cache canonical operation against registry digest
+    -> xs_eval
+```
+
+Subsequent calls should use the cached/bound operation directly until the registry digest or operation revision changes.
+
+This architecture deliberately avoids making a second model inference turn mandatory for common operations.
+
+## 3. Hot-set architecture
+
+A product normally exposes a small generated hot set rather than the full catalog.
+
+```text
+installed packs/registry
+        |
+        v
+ hot-set generator
+        |
+        +--> compact catalog/hints
+        +--> OpenAI-compatible tool asset
+        +--> GBNF
+        +--> registry/pack digest binding
+        |
+        v
+ small model direct xs_eval
+```
+
+The hot set is host/product metadata. It is not a second formula catalog and may not change operation semantics.
+
+## 4. Strict semantic core and adapter boundary
+
+The core remains fail-closed for semantic uncertainty and invalid input.
+
+Adapters may normalize transport syntax, but may not:
+
+- calculate;
+- round/classify independently;
+- infer missing values;
+- silently convert units/rates/currencies;
+- choose ambiguous methods;
+- turn an ExactScope error into a plausible number.
+
+This separation is central to benchmark design: the project must measure whether constrained decoding/hot sets make strict validation practical for small models.
+
+## 5. Workspace boundaries
 
 ```text
 crates/
   exactscope-kernel/      # no_std numeric model, VM, validation, kernels
-  exactscope-pack/        # pack parser, registry, alias index; alloc optional
+  exactscope-pack/        # pack parser/registry; allocation optional by profile
   exactscope-cabi/        # stable C ABI wrapper
   exactscope-wasm/        # wasm32v1-none exports, no imports
-  exactscope-tinyjson/    # optional host adapter, not linked into minimum core
-  exactscope-packc/       # desktop build-time pack compiler and validator
-  exactscope-conformance/ # shared golden-vector runner
+  exactscope-tinyjson/    # bounded JSON adapter
+  exactscope-packc/       # desktop/build-time pack compiler
+  exactscope-conformance/ # shared conformance/golden runner
 adapters/
-  llama-cpp/
-  openai-tools/
-  mcp/
+  wearable/               # implemented integration reference
+  llama-cpp/              # planned P0 product adapter
+  openai-tools/           # planned P0 generated protocol assets
 packs/
-  math-basic/
-  statistics-core/
-  econ-undergrad/
 include/
-  exactscope.h
-  exactscope_wasm.h
 spec/
-  schemas/
-  registries/
-  examples/
 docs/
 ```
 
-Only `exactscope-kernel`, the minimal pack registry, and one selected pack are required for a fused deployment. Files under `spec/registries/` are the machine-readable source of truth for stable IDs and generated constants; prose tables cannot override them.
-
-## 3. Component model
-
-### 3.1 `exactscope-kernel`
+## 6. `exactscope-kernel`
 
 Required properties:
 
 - `#![no_std]`;
-- no filesystem, sockets, clocks, environment variables, process APIs, locale APIs, or random-number source;
 - no global allocator in the default feature set;
-- malformed external input follows non-panicking checked paths; no unwind crosses public boundaries, and any panic/abort is a conformance defect;
-- no binary floating-point in the baseline deterministic profile;
-- no unsafe code except in narrowly reviewed ABI/memory adapters;
+- no filesystem/sockets/clocks/environment/process APIs;
 - no mutable global state;
-- bounded instruction count, stack depth, vector length, and output size.
+- no binary floating point in the deterministic baseline;
+- bounded VM instructions/stack/vector/output sizes;
+- malformed external input follows checked non-panicking paths;
+- no unwind/exception/trap crosses a public ABI boundary.
 
 Responsibilities:
 
-- `Decimal64` parsing and canonicalization;
-- checked scalar arithmetic;
-- deterministic bounded numeric kernels;
+- Decimal64 parsing/canonicalization;
+- exact checked rational/decimal work arithmetic;
+- deterministic square root/rounding;
 - scalar formula VM;
-- input constraints and same-unit groups;
-- classification rules;
-- canonical result encoding.
+- bounded statistics/other numeric kernels;
+- input semantic constraints;
+- deterministic classification;
+- canonical result formation.
 
-The vector-kernel interface follows the same bounded-memory rule as the scalar path. External adapters may expose immutable caller-owned vectors through a read-only source abstraction; the kernel reads elements in deterministic ascending index order and does not retain or copy the full vector. This keeps the fused C ABI path zero-copy while preserving the same kernel semantics for future dynamic-pack and WebAssembly adapters.
+Caller-owned vectors are read through bounded source abstractions in deterministic index order. The C ABI fused statistics path is zero-copy and does not copy an entire vector into scratch.
 
-### 3.2 `exactscope-pack`
+## 7. `exactscope-pack`
 
-Responsibilities:
+Scope packs are data only.
 
-- validate `.xsp` headers and section bounds;
-- reject unsupported format/ABI versions;
-- reject duplicate operation IDs or keys;
-- validate VM stack behavior before registration;
-- build or reference a deterministic alias index;
-- mount packs from immutable caller-owned bytes;
-- support static/fused registries without allocation;
-- support dynamic registries through a caller-provided arena.
+The loader:
 
-The loader never dynamically links code. Pack contents are data interpreted by bounded core logic.
+- validates format/ABI/version/CRC;
+- validates offsets, counts, strings, operation identity, and resource limits;
+- rejects malformed/duplicate/unsupported entries;
+- validates formula programs/kernel declarations;
+- mounts immutable caller-owned bytes where dynamic/static registry profiles use packs.
 
-### 3.3 `exactscope-packc`
+No pack dynamically links native code.
 
-Desktop/build-time tool only. It may use `std` and normal development dependencies.
+Dynamic packs are a secondary profile for v0.1 product sequencing. Their semantics remain shared with fused/static paths, but full dynamic-discovery maturity does not block the first product proof.
 
-Responsibilities:
+## 8. `exactscope-packc`
 
-1. validate source JSON against the scope-pack schema;
-2. validate unique pack/operation identity;
-3. validate program stack and resource limits;
-4. validate aliases and canonical keys;
-5. run every golden test vector;
-6. compile source operations into canonical `.xsp` bytes;
-7. produce a manifest containing pack digest, operation count, and size;
-8. optionally generate fused Rust/C byte arrays and adapter catalogs.
+Build-time/desktop tool only. It may use `std` and ordinary development dependencies.
 
-The runtime contains no general expression parser. Source programs use a typed RPN instruction list that maps directly to validated VM bytecode.
+Responsibilities include:
 
-### 3.4 ABI and adapters
+- source/schema validation;
+- semantic/identity checks;
+- VM/resource validation;
+- golden-vector execution;
+- canonical `.xsp` serialization;
+- manifests/digests;
+- optional fused tables;
+- product hot-set/adapter metadata generation as P0 work evolves.
 
-The C ABI is the portability foundation and is frozen syntactically by `include/exactscope.h`. WebAssembly exposes the same logical operations through 32-bit offset/length exports and the memory contract in `spec/WASM_ABI_V0_1.md`. Language SDKs wrap these boundaries rather than reimplementing calculations.
+The target runtime does not contain a general expression parser.
 
-AI adapters are outside the core trust boundary. They translate model-generated Tiny JSON into typed core calls and translate typed results back into compact JSON. Adapters may not calculate results or repair invalid arguments silently.
+## 9. Stable ABI boundaries
 
-## 4. Installation profiles
+### Native C ABI
 
-The execution profiles below are internal shapes. A supported consumer host may package any conforming shape as one installable **resident component bundle** containing the runtime artifact, selected packs when applicable, an immutable manifest, checksums, and self-test metadata. The bundle registration mechanism is host-specific; the calculation ABI and pack semantics are not.
-
-A resident bundle must be inert when not called. It must not require an ExactScope-owned process, scheduler, network connection, account, or writable home directory after registration.
-
-### 4.1 Fused profile
-
-A generated artifact contains the kernel and selected pack data.
-
-Use when:
-
-- storage and RAM are severely constrained;
-- pack updates track firmware/app releases;
-- no filesystem is available;
-- the smallest binary and simplest installation are priorities.
+The public C ABI is the primary native portability boundary.
 
 Properties:
 
-- no pack parser required after build-time validation;
-- no runtime heap required;
-- direct operation table lookup;
-- one distributable artifact possible.
+- fixed-width C99 structures;
+- opaque context;
+- caller-owned buffers;
+- no required allocator;
+- stable status codes;
+- no Rust layout exposure;
+- no callback/thread/runtime requirement in the baseline.
 
-### 4.2 Static registry profile
+### No-import WebAssembly
 
-The host links the core and embeds one or more compiled `.xsp` byte arrays.
+The portable primary profile uses `wasm32v1-none`:
 
-Properties:
+- WebAssembly 1.0 baseline;
+- zero host imports/WASI;
+- exported memory and explicit caller regions;
+- TinyWire/direct typed evaluation paths;
+- no filesystem/network/clock/random dependency.
 
-- pack loader validates the embedded bytes at startup;
-- no filesystem required;
-- no runtime native plugin loading;
-- caller controls storage location;
-- evaluation remains heap-free after registration.
+## 10. Product release profiles
 
-### 4.3 Dynamic data-pack profile
+The architecture supports more than the first product needs.
 
-The host reads or downloads `.xsp` files and passes immutable bytes to ExactScope.
+### Primary v0.1 candidates
 
-Properties:
+1. native static C ABI;
+2. no-import WebAssembly.
 
-- core performs complete structural validation;
-- host provides registry/index memory;
-- official and third-party packs can be replaced independently;
-- cryptographic signature policy remains a host responsibility in v0.1;
-- malformed or unsupported packs fail closed.
+These are the release profiles that should receive first-class prebuilt artifacts, quickstart, benchmark integration, and qualification.
 
-## 5. Execution pipeline
+### Secondary/experimental profiles
 
-```text
-AI adapter request
-  -> parse flat Tiny JSON
-  -> resolve canonical operation key
-  -> locate mounted pack and operation
-  -> validate argument count and lexical form
-  -> parse canonical Decimal64 values
-  -> validate semantic constraints and unit groups
-  -> execute formula VM or built-in bounded kernel
-  -> classify using unrounded internal result
-  -> round output using operation policy
-  -> attach provenance
-  -> encode compact machine response
-```
+- dynamic data packs;
+- static embedded `.xsp` registries;
+- shared-library/mobile wrappers;
+- additional OS/architecture variants.
 
-No stage invokes a language model.
+All exposed operations must use shared semantics, but these profiles may remain Experimental without blocking focused v0.1.
 
-## 6. Numeric profiles
+## 11. Execution pipeline
 
-### 6.1 Required baseline: `decimal64-v1`
-
-Wire value:
+Direct hot path:
 
 ```text
-value = coefficient * 10^exponent
-coefficient: signed 64-bit integer
-exponent: signed integer in [-18, 18]
+model/tool request
+  -> adapter envelope/syntax validation
+  -> canonical operation binding lookup
+  -> exact decimal/vector decoding
+  -> core semantic/constraint validation
+  -> formula VM or bounded kernel
+  -> classification on unrounded internal value
+  -> output rounding
+  -> provenance/status encoding
 ```
 
-Canonical form:
-
-- zero is `(0, 0)`;
-- trailing decimal zeroes are removed when the exponent can increase;
-- negative zero is forbidden;
-- lexical inputs forbid NaN, Infinity, commas, locale separators, and implicit percentages;
-- overflow returns an error; values never saturate or wrap.
-
-Checked wider intermediates may use signed 128-bit arithmetic. If a target cannot provide the required semantics, it does not conform to `decimal64-v1`.
-
-### 6.2 Optional future profiles
-
-- `decimal128` for larger ranges;
-- exact rational arithmetic for selected packs;
-- explicitly non-bit-stable native floating point for optional scientific packs.
-
-Official v0.1 packs may only require `decimal64-v1` and deterministic kernels implemented by the baseline core.
-
-## 7. Formula VM
-
-The scalar VM is deliberately non-Turing-complete.
-
-Required v0.1 instruction families:
-
-- `ARG index`
-- `CONST index`
-- `ADD`, `SUB`, `MUL`, `DIV`
-- `NEG`, `ABS`
-- `MIN`, `MAX`
-- `POWI signed_exponent`
-- `SQRT`
-- `CMP_LT`, `CMP_LE`, `CMP_EQ`, `CMP_GE`, `CMP_GT`
-- `SELECT`
-- `ROUND scale mode`
-- `END`
-
-Rules:
-
-- no jumps, loops, calls, recursion, indirect dispatch, or memory access instructions;
-- program length at most 64 instructions by default;
-- declared maximum stack depth at most 16 by default;
-- exactly one value must remain at `END`;
-- division by zero, invalid roots, overflow, and precision failure stop evaluation;
-- `POWI` exponent bounds are pack-validated;
-- `SQRT` uses one specified fixed-point algorithm and rounding contract on every target.
-
-Operations over vectors use built-in kernel IDs rather than VM loops. Initial kernels may include sum, mean, weighted mean, population/sample variance, covariance, correlation, and simple linear regression. Every kernel has explicit vector limits and deterministic iteration order.
-
-## 8. Classification
-
-Classification is pack data, not model inference.
-
-A classification table contains ordered, mutually exclusive predicates over the unrounded internal result. The compiler rejects overlapping or uncovered tables unless the operation explicitly permits `unclassified`.
-
-Example:
+Cold discovery prepends:
 
 ```text
-abs(result) < 1  -> inelastic
-abs(result) = 1  -> unit_elastic
-abs(result) > 1  -> elastic
+query -> xs_find -> canonical key/signature -> digest-bound cache
 ```
 
-The displayed value may be rounded, but classification uses the pre-rounding value. This prevents a value such as `0.9999996` from being classified as exactly one merely because six-decimal output renders `1.000000`.
+No stage invokes a language model inside ExactScope.
 
-## 9. Unit model
+## 12. Numeric model
 
-ExactScope v0.1 performs compatibility checks, not general unit conversion.
+The deterministic baseline uses canonical base-10 Decimal64 values and exact/bounded rational intermediates. Unsupported precision/range fails rather than wrapping or silently switching to host float semantics.
 
-Each argument declares:
+Materially different methods remain separate operation keys.
 
-- semantic kind, such as `price`, `quantity`, `rate_percent`, `rate_ratio`, `time_periods`, `currency_amount`, `index`, or `count`;
-- optional unit dimension;
-- optional same-unit group.
+## 13. Formula VM
 
-The adapter may attach compact unit IDs. Zero means unspecified. Operations that require comparable units reject conflicting nonzero IDs. No currency, time-period, or physical-unit conversion occurs unless a separate deterministic operation explicitly defines it.
+The v0.1 scalar VM is deliberately non-Turing-complete and bounded. It supports the frozen instruction families required by current packs, including arithmetic, integer power, square root, comparisons, boolean/select, and explicit round.
 
-Percentage and ratio inputs are distinct semantic kinds. An operation expecting `rate_percent` interprets `5` as five percent; an operation expecting `rate_ratio` requires `0.05`. The signature exposes this distinction through names such as `rate_pct` and `rate_ratio`.
+No jumps, recursion, arbitrary memory access, or general expression execution are permitted.
 
-## 10. Discovery
+Vector work uses bounded kernel IDs rather than VM loops.
 
-The core is not a semantic-search engine.
+## 14. Installation boundary
 
-Supported paths:
+ExactScope's product is a component, not a daemon/application service.
 
-1. direct canonical operation key;
-2. exact alias match;
-3. deterministic token/prefix ranking over pre-normalized pack aliases;
-4. bounded enumeration by pack/domain.
+The intended release-shaped flow is:
 
-The baseline core uses pre-normalized UTF-8 aliases and an ASCII-oriented query normalizer. Locale-heavy normalization or embeddings belong in optional host adapters. Official packs should provide concise English aliases; locale lexicons can be separate data packs so multilingual discovery does not enlarge every fused artifact.
+```text
+prebuilt artifact
+  -> verify manifest/digest
+  -> link/load
+  -> self-test
+  -> bind generated hot set
+  -> direct xs_eval calls
+```
 
-`xs_find` returns at most the caller-specified bounded count and includes canonical operation key, compact signature, method tag, and argument semantic names.
+Target installation must not require Rust, Python, Node.js, Java, a package manager runtime, cloud login, or background process.
 
-## 11. Memory ownership
+Closed devices with no application/plugin/native/Wasm/paired-host execution boundary cannot be made directly installable by ExactScope alone.
 
-- The host owns pack bytes, request bytes, output buffers, and optional arenas.
-- The core does not retain request pointers after a call.
-- Registered dynamic pack bytes must remain immutable and alive until unmounted or context destruction.
-- Fused/static tables are immutable.
-- Output functions report required buffer size rather than allocating.
-- Evaluation scratch comes from context-owned fixed storage or a caller-provided scratch buffer.
+## 15. Compatibility philosophy
 
-## 12. Concurrency
+Compilation is not support.
 
-The kernel is stateless per evaluation. A frozen registry may be shared across threads if the host provides synchronization around context mutation. v0.1 does not require threads or atomics and the no-import WebAssembly build exposes no threading dependency.
+Primary release artifacts must pass:
 
-The simplest supported integration is one context per AI worker.
+- ABI/wire conformance;
+- shared golden vectors;
+- malformed-input tests;
+- exact artifact identity checks;
+- size/memory measurements;
+- actual runtime execution.
 
-## 13. Security boundary
+Real-device performance/energy claims require real-device evidence.
 
-Pack parsing is an untrusted-input boundary even though packs contain no native code.
+Wider fused/static/dynamic parity is valuable but no longer the first product milestone. The invariant is **one calculation semantics**, not **every profile must mature at once**.
 
-The implementation must:
+## 16. Security/privacy boundary
 
-- validate every offset and length before dereference;
-- avoid unaligned native reads;
-- cap counts before multiplication or allocation;
-- reject integer overflow in section calculations;
-- validate string encoding and termination rules;
-- validate VM programs before registration;
-- enforce runtime resource limits independently of pack claims;
-- never panic or trap on malformed pack data;
-- fuzz pack loading and TinyWire decoding.
+The core does not need:
 
-See [SECURITY.md](../SECURITY.md).
+- user identity;
+- prompt history;
+- raw camera/audio/OCR input;
+- location;
+- telemetry transport;
+- accounts/network.
 
-## 14. Engineering budgets
+It receives only the typed operation request needed for deterministic execution and returns typed result/provenance/status data.
 
-Normative v0.1 defaults:
+## 17. Engineering budgets
 
-| Resource | Default limit |
-|---|---:|
-| Mounted packs | 8 |
-| Operations per pack | 4096 |
-| Scalar args | 12 |
-| Vector args | 4 |
-| Vector length | 256 |
-| VM instructions | 64 |
-| VM stack | 16 values |
-| Alias query bytes | 96 |
-| Discovery matches | 5 |
-| Tiny JSON request bytes | 512 hard maximum |
-| TinyWire frame bytes | 4096 hard maximum |
-| Evaluation scratch | 2048 bytes target |
+Budgets remain implementation gates rather than marketing claims. Fused/static paths must remain suitable for very small resident footprints, bounded scratch, and no required heap.
 
-A pack may request lower limits. Raising global limits requires an architecture decision and footprint measurements.
+Any budget increase requires measurement and an explicit design decision.
 
-## 15. Non-negotiable invariants
+## 18. Product-proof architecture rule
 
-1. The minimum core remains usable with no OS and no network.
-2. Official packs never contain native executable code.
-3. Baseline results never depend on locale, clock, random state, thread scheduling, or host floating-point mode.
-4. Invalid or ambiguous requests never receive guessed numeric answers.
-5. Language-specific adapters never become calculation authorities.
-6. A new platform is not marked supported until it passes the same conformance corpus.
-7. Operation semantics cannot change under an existing operation revision.
-8. The smallest installation remains a fused artifact with no daemon and no heap requirement.
+New architecture work should first answer one of these needs:
+
+- make direct model integration easier;
+- reduce invalid/rejected calls without semantic guessing;
+- improve benchmark evidence;
+- improve release/installation simplicity;
+- improve deterministic correctness/security;
+- improve target qualification.
+
+Work that only broadens internal elegance or platform count is secondary until the product proof exists.

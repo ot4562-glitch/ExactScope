@@ -1,393 +1,370 @@
 # Implementation plan
 
-This plan is ordered to preserve compatibility and deterministic semantics. Later phases must not be used to bypass incomplete earlier contracts.
+This plan is ordered by product proof and adoption leverage. Core correctness invariants stay strict, but v0.1 implementation is no longer organized around making every internal profile equally mature before anyone can evaluate the product.
 
-## 0. Repository rules
+## 0. Non-negotiable repository rules
 
-Before runtime code is accepted:
+- `exactscope-kernel` remains `no_std` and allocator-free by default.
+- adapters and wrappers never reimplement formulas, rounding, unit conversion, or classification.
+- scope packs remain data-only.
+- malformed/ambiguous semantic input fails closed in the core.
+- the same operation semantics are shared by every profile that exposes that operation.
+- support and performance claims require evidence from exact release artifacts.
+- target devices do not require Rust/Python/Node/Java runtimes, a daemon, account, or network.
 
-- core behavior must trace to a normative specification;
-- every public operation must have golden vectors;
-- baseline crates must build without network/runtime service dependencies;
-- default kernel features must remain `no_std` and allocator-free;
-- adapters may not reimplement calculation logic;
-- compatibility claims require the matrix in `docs/COMPATIBILITY.md`.
+Rust remains the implementation language. C ABI and wire/data formats remain the portability authority.
 
-Selected implementation language: Rust for the core, pack loader/compiler, ABI wrapper, and WebAssembly build. The checked-in workspace and toolchain policy are now frozen. The portability authority remains the C ABI and data formats, not the Rust API.
+## 1. Current checkpoint
 
-### Current implementation checkpoint
+The repository already implements enough runtime foundation for product proof:
 
-The repository has moved beyond the original scaffold milestones. Deterministic scalar economics execution works through the shared kernel, C ABI, dynamic packs, no-import Wasm, and Tiny JSON. The bounded statistics slice now includes ordered sum, arithmetic/weighted mean, population/sample variance and standard deviation, population/sample covariance, Pearson correlation, and simple linear regression. Canonical `.xsp` kernel/vector packs execute through the same shared statistics kernel as the fused registry, native vectors are zero-copy, and fused↔dynamic success/failure parity is conformance-tested. Correctly rounded square root and explicit VM round are implemented. The no-import Wasm artifact exposes typed zero-copy statistics-vector evaluation plus deterministic-CBOR TinyWire `find` and scalar/vector `eval`; runtime tests cover canonical encoding, ambiguity preservation, buffer sizing, and zero imports.
+- deterministic decimal/rational numeric kernel;
+- deterministic square root and explicit rounding;
+- bounded scalar VM;
+- executable economics operations;
+- bounded statistics kernels;
+- native C ABI with zero-copy vectors;
+- current canonical formula/kernel `.xsp` path;
+- fused/dynamic shared statistics semantics;
+- no-import WebAssembly;
+- Tiny JSON and TinyWire;
+- experimental wearable/ARM64 integration;
+- relocatable CMake SDK target;
+- developer-side SDK doctor;
+- CI across the implemented paths.
 
-The release-closing critical path is therefore:
+Therefore new work is sequenced as follows:
 
-1. finish the reviewed official `math-basic`, `statistics-core`, and `econ-undergrad` hot sets plus malformed/golden corpora required by the release gate;
-2. finish OEM convenience packaging around the same evaluator: Android Prefab/AAR, target-side canonical self-test/qualification evidence, and immutable release manifests; the relocatable CMake target and developer-side integrity/ABI/ELF doctor are already present;
-3. publish permanent reproducible artifacts and measure the exact release bytes, latency, energy, offline behavior, and power-loss/update evidence on constrained real hardware.
+```text
+one-hop AI integration
+    -> benchmark evidence
+    -> five-minute/prebuilt evaluation
+    -> reviewed hot-set content
+    -> stable primary packages
+    -> broader packs/platforms/profiles
+```
 
-No release path may gain a separate evaluator to close these gaps. A feature is complete only when its shared semantics and conformance evidence reach every release path that claims it.
+## 2. Phase A — hot-set/direct AI integration (P0)
 
-## 1. Frozen crates and dependency policy
+### A1. Hot-set metadata generator
 
-| Crate | Runtime class | Default allocation | Dependency policy |
-|---|---|---:|---|
-| `exactscope-kernel` | required | none | ideally zero external dependencies |
-| `exactscope-pack` | required except fully fused build | none | zero or narrowly audited no_std dependencies |
-| `exactscope-cabi` | native wrapper | none | kernel/pack only |
-| `exactscope-wasm` | portable wrapper | none | kernel/pack only |
-| `exactscope-tinyjson` | optional adapter | caller buffer | small no_std-capable parser or project-owned bounded parser |
-| `exactscope-packc` | build-time desktop tool | allowed | `serde`, JSON Schema validation, hashing, CLI dependencies allowed |
-| `exactscope-conformance` | test/dev | allowed | test-only dependencies allowed |
+Implement a build/dev tool that selects 8-32 installed operations and emits deterministic metadata bound to:
 
-Default features must never pull `std`, logging frameworks, async runtimes, HTTP stacks, TLS, Unicode databases, or general serialization frameworks into the fused kernel.
+- core ABI version;
+- registry/pack digest;
+- operation key/revision;
+- compact signature and method cue;
+- argument names/order/semantic kinds.
 
-## 2. Milestone M0 — specifications and fixtures
-
-Deliverables:
-
-- numeric model specification;
-- status/error code specification;
-- scope-pack source schema;
-- binary pack format specification;
-- Tiny JSON tool schemas;
-- TinyWire CBOR/framing specification;
-- one complete economics operation example;
-- malformed pack and request fixture descriptions;
-- compatibility matrix and engineering budgets.
-
-Exit criteria:
-
-- every JSON document validates;
-- examples agree across README and specs;
-- no unresolved semantic choice remains for the first example operation;
-- operation identity/versioning rules are frozen for ABI major 1.
-
-M0 is complete at the design/scaffold level. `python tools/validate_design.py` is the authoritative local check for schema, registry, example, VM-shape, CRC-contract, and public-header alignment. M0 completion does not imply that any runtime calculation is implemented.
-
-## 3. Milestone M1 — deterministic numeric kernel
-
-Implement in order:
-
-1. `Decimal64` lexical parser;
-2. canonicalization;
-3. checked add/subtract/multiply/divide;
-4. comparison and absolute value;
-5. integer power;
-6. explicit rounding modes;
-7. deterministic fixed-point square root;
-8. canonical decimal formatter;
-9. semantic/unit metadata representation;
-10. result/provenance structure.
-
-Required tests:
-
-- zero and negative zero;
-- minimum/maximum coefficient;
-- exponent alignment;
-- every overflow path;
-- division tie cases;
-- all rounding modes;
-- scientific notation boundaries;
-- invalid lexical forms;
-- cross-check against a high-precision reference implementation;
-- byte-identical output on native and WebAssembly targets.
+Required outputs should include a machine-readable hot catalog and enough metadata for adapter/grammar generation.
 
 Exit criteria:
 
-- no panics under property tests;
-- no allocation in the default kernel;
-- all numeric conformance vectors pass;
-- footprint recorded for `wasm32v1-none` and one native target.
+- byte-reproducible generation;
+- digest/revision binding;
+- invalidation test when registry digest changes;
+- no full-catalog prompt required.
 
-## 4. Milestone M2 — formula VM and kernels
+### A2. OpenAI-compatible tool assets
 
-Implement scalar VM:
+Generate conservative tool-call definitions for:
 
-- validated RPN program representation;
-- static stack analysis;
-- instruction limit enforcement;
-- runtime checked stack;
-- all v0.1 opcodes;
-- classification table evaluation over the unrounded result.
+- primary `xs_eval` direct path;
+- optional `xs_find` fallback.
 
-Implement initial bounded vector kernels:
-
-- sum;
-- arithmetic mean;
-- weighted mean;
-- population variance;
-- sample variance;
-- covariance;
-- correlation;
-- simple linear regression.
-
-All vector algorithms must define iteration order, intermediate precision, denominator behavior, and output rounding.
+The direct path should be the first example and benchmark path.
 
 Exit criteria:
 
-- malformed programs are rejected before registration;
-- runtime cannot jump or loop based on pack bytecode;
-- vector length caps are enforced before work begins;
-- formula and kernel golden vectors pass on all available targets.
+- fixture validation;
+- exact decimal preservation;
+- status/provenance preservation;
+- no adapter calculation.
 
-## 5. Milestone M3 — pack compiler and loader
+### A3. GBNF
 
-### Compiler
+Generate/check in reproducible grammar for:
 
-Implement:
-
-- JSON Schema validation;
-- source semantic validation;
-- stable operation-key and ID checks;
-- alias normalization and deterministic index generation;
-- VM stack/resource analysis;
-- golden-vector execution;
-- canonical `.xsp` serialization;
-- CRC and manifest generation;
-- fused-table generation.
-
-### Loader
-
-Implement:
-
-- header/version validation;
-- safe section decoding without struct casts;
-- CRC verification;
-- count/offset/length overflow checks;
-- UTF-8 and string-table checks;
-- operation/program validation;
-- static and caller-arena registration;
-- immutable registry freeze.
+- direct eval requests;
+- optional discovery requests;
+- selected hot-set operation key constraints where practical.
 
 Exit criteria:
 
-- compiler output is byte-reproducible;
-- load-then-reserialize tests are unnecessary because runtime never rewrites packs;
-- truncation at every input byte fails safely;
-- fuzzing finds no panic, out-of-bounds access, or uncontrolled allocation;
-- fused and dynamic execution produce identical canonical results.
+- llama.cpp-compatible fixture parsing;
+- grammar digest captured by benchmark records;
+- invalid tool-call rate measurable.
 
-## 6. Milestone M4 — C ABI and WebAssembly
+### A4. llama.cpp reference integration
 
-### C ABI
+Add one minimal reference that demonstrates:
 
-Implement the logical surface already frozen in `include/exactscope.h`, keep it aligned with `spec/CORE_ABI_V0_1.md`, and add:
+```text
+local model -> generated hot-set/direct eval -> ExactScope -> result
+```
 
-- generated Rust constants/layouts checked against canonical registries and the header;
-- C99 compile test;
-- C++11 compile test;
-- struct size/offset assertions on 32- and 64-bit targets;
-- buffer-sizing tests;
-- invalid pointer/length/overlap contract tests where safely testable;
-- non-panicking malformed-input paths and proof that no unwind crosses `extern "C"`;
-- optional desktop `catch_unwind` containment only where the build uses unwind semantics.
-
-### WebAssembly
-
-Implement `wasm32v1-none` exports exactly as frozen in `include/exactscope_wasm.h` and `spec/WASM_ABI_V0_1.md`, including:
-
-- no imports or WASI;
-- one exported 32-bit memory;
-- exported module-reserved boundary and required alignment;
-- caller-owned nonoverlapping request/output/meta regions;
-- allocator-free one-call Tiny JSON helper;
-- abort-only panic policy with malformed-input no-trap tests;
-- the same status codes and canonical result bytes as native;
-- import/feature/export inspection in CI.
+No custom calculation code is allowed in the adapter.
 
 Exit criteria:
 
-- C and Wasm conformance suites pass;
-- stripped no-pack Wasm core meets the size budget or a measured design review is opened;
-- WAMR or another WebAssembly 1.0 embedded runtime executes the conformance sample;
-- no host-specific calculation path exists.
+- runnable against at least one selected GGUF model/runtime configuration;
+- direct hot path works without `xs_find`;
+- cold discovery remains optional fallback.
 
-## 7. Milestone M5 — Tiny JSON and TinyWire
+## 3. Phase B — benchmark (P0)
 
-Implement Tiny JSON first because it is the direct model-facing boundary.
+Implement the harness in `docs/BENCHMARK.md` before expanding the catalog for its own sake.
 
-Requirements:
+Required comparison arms:
 
-- bounded flat-object parser;
-- exact decimal strings;
-- two operations only: find and eval;
-- stable compact responses;
-- no generic JSON DOM requirement in the minimum adapter;
-- pre-generated GBNF fixtures.
+1. model only;
+2. model + direct `xs_eval` hot path;
+3. model + `xs_find -> xs_eval` cold path;
+4. direct path with constrained decoding/GBNF.
 
-Then implement TinyWire:
+Required model classes:
 
-- deterministic CBOR subset;
-- decimal tag 4;
-- integer map keys;
-- stream framing and CRC;
-- in-process payload mode without framing;
-- golden byte fixtures.
+- sub-1B;
+- 1B-2B;
+- about 3B;
+- optional routing-specialized model.
 
-Exit criteria:
+Required metrics:
 
-- all fixture bytes match the specification;
-- malformed input never reaches evaluation;
-- adapter overhead is measured separately from core size;
-- model-generated requests round-trip without numeric precision loss.
-
-## 8. Milestone M6 — first official packs
-
-### `math-basic`
-
-Initial target operations:
-
-- add/subtract/multiply/divide;
-- percent of;
-- percent change;
-- successive percentage changes;
-- ratio and proportion;
-- weighted mean;
-- linear equation with one unknown;
-- integer powers and roots within baseline support;
-- common rounding operations.
-
-### `statistics-core`
-
-Initial target operations:
-
-- sum/count/mean;
-- weighted mean;
-- population/sample variance;
-- standard deviation;
-- z-score;
-- covariance;
-- correlation;
-- simple linear regression;
-- standard error and basic confidence intervals only where assumptions are explicit.
-
-### `econ-undergrad`
-
-Initial target: the 65 operations frozen in `packs/CATALOG_V0_1.md` across microeconomics, macroeconomics, labor, international economics, and growth. Each alternative method must be a separate operation key; compound finance operations remain deferred until deterministic integer-power kernels are specified.
-
-Pack acceptance:
-
-- at least 20 golden vectors per operation before stable release;
-- at least one invalid-input vector per constraint;
-- source citation metadata;
-- no unsupported forecasting or empirical coefficient claims;
-- pack size recorded in source and compiled form.
-
-## 9. Milestone M7 — AI adapters
-
-Implement in this order:
-
-1. generic OpenAI-style tool definitions;
-2. llama.cpp JSON and checked-in GBNF fixtures;
-3. Android/Kotlin convenience wrapper;
-4. optional MCP adapter;
-5. additional runtime integrations based on real adoption.
-
-Adapters are thin translations. They must share generated schemas and fixture tests.
+- recognition;
+- operation selection;
+- argument extraction/order;
+- syntax validity;
+- core acceptance/rejection;
+- final answer accuracy;
+- result/failure fidelity;
+- successful-answer rate;
+- wrong-number rate;
+- model inference turns;
+- prompt/completion tokens;
+- end-to-end latency;
+- ExactScope compute latency;
+- resident/scratch bytes;
+- energy where measurable.
 
 Exit criteria:
 
-- no calculation code in adapters;
-- no catalog drift between installed packs and generated tool hints;
-- at least three small local models produce valid direct/discovery calls under constrained decoding;
-- failures are reported, not repaired with hidden model reasoning.
+- machine-readable per-item output;
+- reproducible aggregate report;
+- explicit fail-closed tradeoff analysis;
+- no unsupported marketing claim.
 
-## 10. Milestone M8 — packaging
+## 4. Phase C — five-minute evaluation and prebuilt artifacts (P0)
+
+The evaluator should not need to build the Rust workspace.
+
+### C1. Native evaluation bundle
+
+Produce a release-shaped native archive with:
+
+- public headers;
+- static library;
+- `ExactScopeConfig.cmake`;
+- manifest/checksums/licenses;
+- small benchmark hot-set metadata;
+- workstation doctor;
+- smoke instructions.
+
+### C2. No-import Wasm evaluation bundle
 
 Produce:
 
-- no-import fused economics Wasm;
-- generic core Wasm plus `.xsp` packs;
-- native Linux AArch64/x86-64 archives;
-- Windows x86-64 archive;
-- Android AAR with selected ABIs;
-- macOS static library, then XCFramework when iOS is ready;
-- SHA-256 checksums;
-- compatibility manifest;
-- SBOM for release tooling and adapters.
+- `.wasm`;
+- manifest/checksum;
+- hot-set metadata;
+- TinyWire/Tiny JSON examples;
+- smoke test.
 
-Installation tests must start from release artifacts, not the development tree.
+### C3. Clean-room quickstart test
 
-## 11. Milestone M9 — benchmark
+CI should test the documentation path from staged release-shaped artifacts rather than importing files from the development tree accidentally.
 
-Benchmark model-only versus model-plus-ExactScope using fixed prompts and exact expected outputs.
+Exit criteria:
 
-Models should include at least:
+- non-Rust evaluator can run a known operation quickly;
+- direct hot path is the default example;
+- no target daemon/runtime dependency.
 
-- one sub-1B local model capable of constrained JSON;
-- one 1B–2B model;
-- one 3B model;
-- one routing-specialized tiny model if available.
+## 5. Phase D — benchmark hot sets (P1)
 
-Metrics:
+Select a small reviewed cross-domain set before requiring the entire frozen catalog.
 
-- decision to call the tool;
-- operation selection;
-- argument extraction/order;
-- tool-call syntax validity;
-- final numeric accuracy;
-- classification accuracy;
-- ambiguity/error fidelity;
-- prompt and completion tokens;
-- wall-clock latency;
-- memory and energy where measurable.
+Suggested initial shape:
 
-Do not report a single blended accuracy score without exposing the stage-level failure breakdown.
+- a handful of high-frequency math operations;
+- implemented statistics mean/variance/stddev/correlation/regression operations;
+- high-value deterministic economics operations such as CPI inflation, GDP deflator, real-rate, elasticity/growth helpers.
 
-## 12. Initial operation-key allocation
+Every shipped benchmark operation requires:
 
-Official key prefixes:
+- canonical method/key;
+- input semantics/order;
+- deterministic formula/kernel;
+- constraints/unit policy;
+- rounding policy;
+- provenance;
+- valid/invalid/boundary/overflow/precision vectors.
 
-```text
-math.*
-stats.*
-econ.*
-finance.*
-```
+Exit criteria:
 
-Numeric IDs are pack-local unsigned 32-bit values. Suggested official source ranges:
+- enough quality to support public benchmark claims;
+- small enough to keep prompt/hot-set size measured.
 
-```text
-math-basic:       1–999
-statistics-core:  1–999
-econ-undergrad:   1–1999
-```
+## 6. Phase E — stable primary release profiles (P2)
 
-Numeric IDs are never used without a pack slot/digest context. Canonical string keys are the durable cross-pack identity visible to adapters.
+### E1. Native static C ABI
 
-## 13. Pull-request gates after implementation begins
+Primary native profile requirements:
 
-Every runtime PR must run:
+- no required allocator in fused/static evaluation;
+- C99/C++11 header conformance;
+- exact release artifact manifest/digest;
+- native conformance/golden/malformed-input suite;
+- relocatable CMake package;
+- target smoke/self-test.
 
-- formatting and lint;
-- unit tests;
-- pack/compiler schema tests;
-- conformance vectors;
-- native C ABI tests;
-- `wasm32v1-none` build and import inspection;
-- no-default-features/no-allocator build;
-- size regression check;
-- dependency-policy check;
-- fuzz smoke tests for parsers where available.
+### E2. No-import WebAssembly
 
-Every official pack PR must run:
+Primary portable profile requirements:
 
-- source schema validation;
-- duplicate identity/alias checks;
-- complete golden vectors;
+- zero imports/WASI;
+- WebAssembly 1.0 baseline contract;
+- TinyWire/direct eval path;
+- artifact inspection;
+- runtime conformance against the exact release bytes;
+- size budget measurement.
+
+The v0.1 product can ship focused support when these profiles and the benchmark are strong. Dynamic-pack and universal platform maturity are not prerequisites.
+
+## 7. Phase F — reviewed official pack expansion (P1/P3)
+
+After the benchmark hot set proves value:
+
+1. complete `math-basic` 16 operations;
+2. complete `statistics-core` 18 operations;
+3. complete `econ-undergrad` 65 operations;
+4. expand golden/provenance coverage;
+5. add additional domains only from demonstrated demand.
+
+Full catalog count is not a success metric by itself.
+
+## 8. Phase G — platform convenience packages (P2)
+
+Implement only after primary evaluation paths are usable:
+
+- Android AAR/Prefab for evidenced ABI(s);
+- Linux archives;
+- Windows archive;
+- Apple Silicon/macOS package;
+- iOS/XCFramework only when a real host-app path justifies it.
+
+Wrappers remain calculation-free.
+
+## 9. Phase H — real target qualification (P2)
+
+For at least one constrained target record:
+
+- exact artifact digest;
+- stripped/runtime bytes;
+- context/scratch/vector transport memory;
+- latency distribution;
+- energy where measurable;
+- offline/radio-free execution;
+- malformed-input behavior;
+- update/rollback evidence where applicable.
+
+A compile-only target remains Experimental.
+
+## 10. Phase I — dynamic profile maturity (P3)
+
+Dynamic packs are maintained as useful architecture, but no longer lead the release plan.
+
+Future work:
+
+- every intended `.xsp` operation shape;
+- stronger malformed corpus/fuzzing;
+- dynamic alias-index discovery parity;
+- release manifest integration;
+- adoption-driven update workflows.
+
+Shared evaluator semantics remain mandatory wherever an operation is exposed.
+
+## 11. Numeric/core maintenance
+
+Core correctness remains release-critical even though product priorities changed.
+
+Every runtime PR should preserve:
+
+- deterministic numeric conformance;
+- no-panic malformed input paths;
+- bounded resource use;
+- ABI/wire compatibility;
+- no hidden allocation regressions;
+- no adapter calculation fork.
+
+## 12. Fail-closed usability work
+
+Do not weaken semantic validation to improve call success.
+
+Instead implement/measure:
+
+- grammar-constrained output;
+- compact signatures/argument names;
+- allowed lexical/transport normalization;
+- operation hot sets;
+- exact error/status feedback;
+- successful-answer rate versus wrong-number rate.
+
+This is how the project decides whether fail-closed is a practical UX advantage rather than only a correctness principle.
+
+## 13. Pull-request gates
+
+Runtime/core changes:
+
+- format/lint/check/test;
+- no_std/default-feature checks;
+- C ABI tests;
+- Wasm build/import inspection when affected;
+- conformance/golden vectors;
+- size/dependency regression where relevant;
+- malformed/fuzz smoke where available.
+
+Adapter/hot-set changes:
+
+- generated-artifact reproducibility;
+- schema/GBNF fixtures;
+- exact decimal preservation;
+- digest binding;
+- no-calculation review;
+- benchmark fixture compatibility.
+
+Official pack changes:
+
+- source schema/semantic validation;
+- identity/alias checks;
+- provenance;
+- golden/negative vectors;
 - compiler reproducibility;
-- fused/dynamic equivalence;
-- operation catalog diff requiring explicit review for semantic changes.
+- shared-semantic conformance for every shipped profile that exposes the operation.
 
-## 14. Definition of v0.1 complete
+## 14. Definition of focused v0.1 complete
 
-v0.1 is complete only when:
+A focused v0.1 can be complete without universal catalog/platform parity when:
 
-- all M1–M8 exit criteria pass;
-- `math-basic`, `statistics-core`, and `econ-undergrad` are installable;
-- one fused no-import economics Wasm artifact exists;
-- one Android AAR and one Linux native archive pass installation tests;
-- the public C ABI is documented and tested;
-- every official operation has provenance and golden vectors;
-- the compatibility manifest contains no fabricated support claim;
-- benchmark tooling exists, even if broad model results are released later.
+1. direct hot-set `xs_eval` integration is runnable;
+2. generated OpenAI-compatible/GBNF assets exist;
+3. at least one local-runtime reference integration exists;
+4. reproducible benchmark evidence exists and exposes failure/cost breakdowns;
+5. a reviewed benchmark hot set exists;
+6. a stable prebuilt native static and/or no-import Wasm artifact can be evaluated without Rust;
+7. exact release artifacts pass conformance and malformed-input tests;
+8. at least one constrained target has real resource/latency measurements;
+9. documentation states the exact shipped operation/profile scope;
+10. no unsupported performance/accuracy/support claim is made.
+
+Full 99-operation completion, dynamic discovery, Android/iOS packaging, or every architecture reaching Tier 1 may follow after this proof.

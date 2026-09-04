@@ -1,174 +1,191 @@
 # ExactScope roadmap
 
-No dates are promised. Compatibility, deterministic semantics, and measured footprint take priority over feature count.
+No dates are promised. This roadmap is ordered by **adoption leverage and evidence**, not by internal subsystem elegance or raw operation count.
 
-The product direction is a **tiny resident academic-computation micro-runtime for local AI**, not a standalone application. See [`docs/PRODUCT_DIRECTION.md`](docs/PRODUCT_DIRECTION.md).
+ExactScope v0.1 should prove that a tiny deterministic quantitative coprocessor can improve real small-model quantitative workflows before the project spends heavily on catalog breadth or universal platform parity.
 
-## Design baseline — current
+## Current baseline
 
-- [x] Define AI-only/offline system boundary.
-- [x] Choose library-first fused/static/dynamic execution profiles.
-- [x] Define the user-installable resident-component packaging goal for hosts that expose an extension/runtime boundary.
-- [x] Define `no_std` allocator-free kernel requirements.
-- [x] Define stable logical C ABI.
-- [x] Choose no-import `wasm32v1-none` portability baseline.
-- [x] Define `decimal64-v1` and deterministic error model.
-- [x] Define bounded formula VM and kernel boundary.
-- [x] Define data-only source and binary scope-pack formats.
-- [x] Define Tiny JSON `xs_find`/`xs_eval` interface.
-- [x] Define deterministic CBOR TinyWire and stream frame.
-- [x] Define compatibility tiers and release manifest.
-- [x] Freeze the first math/statistics/economics catalog.
-- [x] Add the first complete economics source-pack fixture.
-- [x] Create the Rust workspace and pin the primary/MSRV toolchains.
-- [x] Freeze C99/C++11 ABI headers and the no-import WebAssembly memory contract.
-- [x] Move stable IDs into machine-readable registries with cross-file validation.
-- [x] Add design/schema/VM/header validation and GitHub contract CI.
-- [x] Freeze the exact first implementation slice and acceptance sequence.
+Implemented today:
 
-The repository is no longer a design-only scaffold. The first scalar execution path works; remaining unchecked items below are implementation, coverage, packaging, measurement, or qualification work.
+- deterministic `no_std` numeric kernel;
+- checked decimal/rational arithmetic, deterministic sqrt, explicit round;
+- executable economics operations;
+- bounded statistics kernels;
+- stable C ABI and zero-copy native vectors;
+- current formula/kernel `.xsp` compile/load path;
+- fused/dynamic shared statistics execution;
+- no-import Wasm;
+- Tiny JSON and TinyWire;
+- wearable reference integration and A/B update reference;
+- experimental Android/Linux ARM64 SDK packaging;
+- relocatable CMake package;
+- SDK doctor;
+- CI covering the implemented paths.
 
-### Release-closing priority order
+This is enough engine to stop treating engine completeness as the primary blocker.
 
-For the current v0.1 completion sprint, work is ordered by adoption leverage rather than raw operation count:
+# P0 — prove the product
 
-1. **semantic parity:** fused/static/dynamic/Wasm must share one evaluator and return identical canonical results;
-2. **vector completion:** finish `.xsp` kernel/vector compilation/loading, dynamic C ABI evaluation, and portable conformance;
-3. **numeric closure:** deterministic square root, standard deviation/correlation, explicit round, and required malformed/boundary coverage;
-4. **OEM integration:** CMake imported target, Android Prefab/AAR convenience packaging, doctor/self-test/qualification helpers, no target-side toolchain dependency;
-5. **release evidence:** immutable manifests, checksums, SBOM, reproducible archives, support-tier records, and permanent release assets;
-6. **catalog depth:** finish the reviewed official hot set and only then expand breadth toward the full 99-operation catalog;
-7. **real hardware:** publish measured footprint, latency, energy, offline behavior, and update/rollback evidence before Tier 1 claims.
+## P0.1 Direct one-hop hot path
 
-A smaller fully qualified hot set is preferred to a large catalog with weak installation or compatibility evidence.
+- [x] `xs_eval` can execute known canonical operations directly.
+- [x] Document `xs_find` as optional fallback rather than mandatory first hop.
+- [x] Bind cached operation metadata to registry/pack digest and revision in the integration contract.
+- [ ] Add a generated hot-set manifest format for 8-32 operations.
+- [ ] Add direct hot-set fixtures that never require discovery.
+- [ ] Add cache invalidation tests for digest/revision changes.
 
-## v0.1 implementation
+Success criterion: common product calls require one model inference turn, not `find -> model -> eval`.
 
-### Vertical slice
+## P0.2 AI runtime adapters
 
-- [x] Establish runtime modules inside the frozen Rust workspace without adding unreviewed runtime dependencies.
-- [x] Implement `Decimal64` parsing, canonicalization, checked arithmetic support, and formatting.
-- [x] Implement the VM subset required by `econ.ped.mid`.
-- [x] Implement the minimal fused registry and typed evaluation path.
-- [x] Implement `econ.ped.mid` source compilation and golden tests.
-- [x] Implement the C ABI context/evaluation path.
-- [x] Implement the no-import WebAssembly evaluation path.
-- [x] Implement the Tiny JSON scalar `xs_eval` path.
-- [x] Exercise the canonical first-slice flow across native/dynamic/Wasm conformance paths in CI.
-- [ ] Record release-grade size, scratch, latency, and energy measurements on real target hardware.
+- [ ] Generate conservative OpenAI-compatible `xs_eval` tool assets.
+- [ ] Generate optional `xs_find` fallback assets.
+- [ ] Generate checked-in/reproducible GBNF for the direct hot path.
+- [ ] Generate compact hot-set hints/catalogs from installed metadata.
+- [ ] Add llama.cpp reference integration fixtures.
+- [ ] Add one runnable local-model example from a prebuilt ExactScope artifact.
+- [ ] Keep every adapter calculation-free.
 
-### Numeric and VM completion
+Success criterion: a local-AI developer does not write custom ExactScope glue from scratch.
 
-- [x] Implement exact ordered statistics sum and arithmetic mean kernels.
-- [x] Implement exact weighted mean.
-- [x] Implement deterministic two-pass population/sample variance.
-- [x] Implement population/sample covariance.
-- [x] Implement exact simple linear-regression slope/intercept kernel.
-- [x] Wire the first fused statistics vector operations through the public C ABI with zero-copy caller-owned inputs.
-- [x] Wire bounded statistics vector/kernel operations through canonical `.xsp` compilation/loading and dynamic evaluation using the shared kernel.
-- [x] Implement exact VM integer power, negation, min/max, full comparisons, boolean composition, and numeric select.
-- [x] Implement deterministic square root with the normative rounding/inexact contract.
-- [x] Implement population/sample standard deviation and Pearson correlation through the shared deterministic square root.
-- [x] Implement explicit VM `round` while preserving the active scale/rounding contract.
-- [x] Complete portable vector transport for the fused no-import Wasm path: typed statistics evaluation plus deterministic-CBOR TinyWire `find`/scalar/vector `eval`, canonical-encoding rejection, ambiguity preservation, and buffer-sizing conformance.
+## P0.3 Benchmark and claim evidence
 
-### Pack and discovery foundation
+- [ ] Build the reproducible benchmark harness defined in `docs/BENCHMARK.md`.
+- [ ] Compare model-only vs direct `xs_eval` hot path.
+- [ ] Measure `xs_find -> xs_eval` cold-path overhead separately.
+- [ ] Measure direct hot path with constrained decoding/GBNF.
+- [ ] Test at least sub-1B, 1B-2B, and about-3B model classes.
+- [ ] Report stage-level failures: recognition, operation, extraction, syntax, core rejection, result fidelity.
+- [ ] Report successful-answer rate and wrong-number rate separately.
+- [ ] Report tokens, inference turns, end-to-end latency, ExactScope compute latency, resident bytes, scratch bytes, and energy where measurable.
+- [ ] Publish no accuracy/latency/energy improvement claim before evidence exists.
 
-- [ ] Complete the full `.xsp` compiler and safe loader for every v0.1 operation shape.
-- [x] Establish deterministic fused discovery/lookup and `xs_find` foundations.
-- [x] Implement caller-owned dynamic-pack registration/mounting foundations.
-- [ ] Complete dynamic discovery only when its alias index has the same deterministic contract as fused discovery.
-- [ ] Implement the shared malformed-pack corpus and fuzz targets.
-- [x] Establish reproducible compiler output checks for the implemented slice.
-- [ ] Complete release manifests for every supported artifact/profile.
+Success criterion: ExactScope has a reproducible answer to “how much does this help?”
 
-### Official academic packs
+## P0.4 Five-minute evaluation and prebuilt artifacts
+
+- [x] Add `docs/QUICKSTART.md`.
+- [x] Provide relocatable `ExactScope::exactscope` CMake target in the experimental SDK.
+- [x] Provide developer-side SDK doctor.
+- [ ] Publish permanent prebuilt native evaluation archive.
+- [ ] Publish permanent no-import Wasm evaluation artifact.
+- [ ] Include manifest, checksums, hot-set metadata, licenses, and smoke-test instructions.
+- [ ] Add a clean-room quickstart CI test using only downloaded/release-shaped artifacts.
+
+Success criterion: a non-Rust integrator can evaluate ExactScope without building the workspace.
+
+# P1 — make the initial domain content defensible
+
+## P1.1 Benchmark hot sets
+
+- [ ] Choose the smallest reviewed `math-basic` benchmark hot set.
+- [ ] Choose the smallest reviewed `statistics-core` benchmark hot set.
+- [ ] Choose the smallest reviewed `econ-undergrad` benchmark hot set.
+- [ ] Ensure each benchmark operation has explicit method/semantics/provenance.
+- [ ] Ensure valid, invalid, boundary, overflow/resource, and precision vectors.
+
+A useful 8-16 operation proof is preferred to a weakly reviewed 99-operation release.
+
+## P1.2 Broader official pack completion
 
 - [ ] Complete `math-basic` 16-operation source pack.
 - [ ] Complete `statistics-core` 18-operation source pack.
 - [ ] Complete `econ-undergrad` 65-operation source pack.
-- [ ] Reach at least 20 golden vectors per stable operation.
-- [ ] Complete independent formula/source review and provenance metadata.
-- [ ] Add another academic pack only after the first three prove the resident-runtime size/accuracy advantage.
+- [ ] Reach the stable-release golden-vector threshold per shipped operation.
+- [ ] Complete independent source/method review.
 
-Operation count is not the primary success metric. A smaller reviewed hot set is preferable to a broad catalog that increases resident size or hides ambiguous academic methods.
+These tasks are important but do not precede the P0 product proof.
 
-### Consumer-installable resident component
+# P2 — broaden distribution
 
-- [ ] Define one canonical component manifest that binds ABI, core version, pack digests, operations, size budgets, and conformance evidence.
-- [ ] Package a fused no-import Wasm component as the most portable single-file install target.
-- [ ] Package a native resident component (`shared library + manifest + selected packs`) for hosts with a native extension ABI.
-- [ ] Add a tiny install/register/self-test tool that exits after installation and never becomes a daemon.
-- [ ] Add atomic component update/rollback using the existing A/B principles where the host permits it.
-- [x] Add a developer-side SDK doctor for manifest/checksum integrity, public-header ABI, runtime digest/archive format and ARM64 ELF architecture, required host panic boundary, and relocatable CMake target checks.
-- [ ] Extend the target self-test with canonical on-device smoke-vector execution and qualification evidence capture.
-- [ ] Publish permanent release assets rather than relying only on expiring CI artifacts.
+## P2.1 Primary v0.1 release profiles
 
-A closed device with no extension, plugin, application, WebAssembly, or paired-host execution boundary cannot be made directly user-installable by ExactScope alone. Compatibility claims must describe the actual host boundary.
+- [ ] Stable native static C ABI release package.
+- [ ] Stable no-import Wasm release package.
+- [ ] Immutable release manifests and checksums.
+- [ ] Exact release-artifact conformance.
+- [ ] Target self-test/smoke execution.
 
-### Compatibility and packaging
+Native static and no-import Wasm are the primary v0.1 release candidates.
 
-- [ ] Tier 1 no-import WebAssembly artifact.
-- [ ] Tier 1 Linux x86-64 and AArch64 resident/native archives.
-- [ ] Tier 1 Windows x86-64 resident/native archive.
-- [ ] Tier 1 Android `arm64-v8a` component/wrapper where the host exposes a supported loading path.
-- [ ] Tier 2 Android emulator/secondary ABI entries only after evidence.
-- [ ] Tier 1 Apple Silicon macOS artifact.
-- [ ] Tier 2 iOS/XCFramework wrapper where a host application is required by platform policy.
-- [x] Cross-build experimental Android AArch64 and Linux AArch64 wearable SDK artifacts in CI.
-- [ ] Execute conformance in an embedded WebAssembly runtime.
-- [ ] Execute conformance on one real constrained target before claiming embedded support.
-- [ ] Publish compatibility manifest, checksums, SBOM, and immutable release artifact digests.
+## P2.2 Platform convenience packages
 
-### AI adapters and benchmark
+- [ ] Android AAR/Prefab for evidenced ABI(s).
+- [ ] Linux x86-64/AArch64 release archives as demand/evidence requires.
+- [ ] Windows x86-64 archive.
+- [ ] Apple Silicon macOS package.
+- [ ] iOS/XCFramework only when a host-app path is justified.
 
-- [ ] Generate conservative OpenAI-style tool schemas from installed operation metadata.
-- [ ] Generate and test checked-in GBNF grammars.
-- [ ] Add llama.cpp integration fixtures.
-- [ ] Keep Android/Kotlin, Swift, MCP, and other wrappers optional and calculation-free.
-- [ ] Build the model-only versus model-plus-ExactScope benchmark harness.
-- [ ] Test sub-1B, 1B–2B, and 3B local models.
-- [ ] Measure final numeric accuracy, tool-selection accuracy, model tokens, latency, resident bytes, scratch bytes, and energy.
-- [ ] Publish comparative claims only after reproducible measurement.
+A platform wrapper must not duplicate calculation logic.
 
-## After v0.1
+## P2.3 Real target qualification
 
-Candidates, not commitments:
+- [ ] Record real target artifact size/resident memory/scratch.
+- [ ] Record latency distributions.
+- [ ] Record energy where measurable.
+- [ ] Record offline/radio-free behavior.
+- [ ] Run target malformed-input smoke tests.
+- [ ] Run update/rollback evidence where the platform owns durable slots.
 
-- exact-rational public profile;
-- wider decimal profile;
-- deterministic finance kernels after integer-power and time-value semantics are conformed;
-- `finance-basic` pack;
-- compact locale lexicon packs;
-- additional embedded targets;
-- signed pack/component metadata profile;
-- operation hot-set learning performed by the host, not the core;
-- additional academic packs where deterministic formulas and bounded procedures are genuinely appropriate.
+# P3 — breadth after proof
 
-## Explicit non-roadmap items
+## P3.1 Dynamic-pack maturity
 
-- human calculator UI;
+- [ ] Complete every v0.1 `.xsp` operation shape.
+- [ ] Complete dynamic discovery alias-index parity.
+- [ ] Expand malformed-pack corpus/fuzzing.
+- [ ] Promote dynamic profile only after real adoption needs it.
+
+Dynamic mode remains valuable architecture, but it is not allowed to delay the first product proof.
+
+## P3.2 Wider execution/profile parity
+
+- [ ] Promote additional profiles/architectures only with immutable artifact evidence.
+- [ ] Keep one shared evaluator/semantics.
+- [ ] Do not require every internal profile to be Tier 1 before v0.1 proves value.
+
+## P3.3 Additional domains
+
+- [ ] Add finance or scientific packs only after the initial three domains demonstrate the resident-runtime advantage.
+- [ ] Reject domains that require hidden judgment, live data, or unbounded computation.
+
+# Product/market work
+
+- [x] Document broader market beyond offline wearables.
+- [x] Document benchmark-before-claim policy.
+- [x] Document OSS + verified packs/LTS/qualification/custom-pack commercialization direction.
+- [ ] Publish an adoption-oriented comparison against model-only reasoning and general Python/sandbox approaches using measured evidence.
+- [ ] Publish at least one case study or reproducible target integration before making enterprise optimization claims.
+
+# Explicit non-goals
+
+- human calculator UI as a core product;
 - general chatbot;
-- mandatory companion application;
-- cloud account/service requirement;
-- ExactScope-owned background daemon;
-- live market/economic data inside the core;
-- arbitrary native code plugins inside scope packs;
-- arbitrary expression language;
+- mandatory companion app;
+- mandatory cloud service/account;
+- ExactScope-owned daemon;
+- arbitrary code execution inside packs;
 - general symbolic algebra;
+- hidden semantic repair in adapters;
 - universal policy forecasting;
-- bypassing a device platform's security model to obtain installation access;
-- feature growth that removes scalar fallback or no-allocation fused mode.
+- bypassing device security models;
+- expanding platform/catalog breadth merely to appear complete.
 
-## v0.1 release gate
+# v0.1 product gate
 
-v0.1 is not released until:
+ExactScope v0.1 should not be called a stable product release until all of the following are true:
 
-1. the initial math/statistics/economics pack set required for v0.1 is installable and source-reviewed;
-2. every shipped official operation has the required golden, invalid, boundary, overflow, and precision vectors;
-3. C ABI and no-import Wasm conformance pass for the exact release artifacts;
-4. at least one consumer-installable resident-component package passes clean-install, offline-start, self-test, update, and rollback tests;
-5. fused/static/dynamic results are identical wherever the same operation/profile is exposed;
-6. memory, artifact size, latency, and energy budgets are measured and published for at least one constrained real target;
-7. all support labels are backed by compatibility manifests and immutable artifact digests;
-8. no manual model arithmetic or hidden adapter calculation is required inside the deterministic calculation path.
+1. a direct one-hop `xs_eval` hot-set integration is documented and reproducibly runnable;
+2. OpenAI-compatible/GBNF assets and at least one local-runtime reference integration exist;
+3. a reproducible benchmark compares model-only, direct hot path, discovery path, and constrained direct path;
+4. benchmark results expose successful-answer rate, wrong-number rate, invalid/rejected-call rate, turns/tokens/latency, and resource cost;
+5. at least one small reviewed cross-domain hot set has strong provenance and golden/negative coverage;
+6. stable prebuilt native static and/or no-import Wasm artifact(s) can be evaluated without a Rust toolchain;
+7. shipped release artifacts pass exact ABI/wire/golden/malformed-input conformance;
+8. at least one constrained real target has measured size/memory/latency evidence, and energy is reported where measurable;
+9. support labels are backed by immutable artifact evidence;
+10. no adapter or wrapper performs hidden calculation or semantic guessing.
+
+Full 99-operation catalog completion, dynamic discovery maturity, and universal platform Tier 1 parity are **not** prerequisites for proving and shipping a focused v0.1 product if the shipped scope is clearly documented.

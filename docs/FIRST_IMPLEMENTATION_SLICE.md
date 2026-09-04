@@ -1,5 +1,7 @@
 # First implementation slice: `econ.ped.mid`
 
+> **Historical implementation record.** This document describes the original vertical slice that established the shared evaluator/ABI/Wasm semantics. That slice is complete and is no longer the current product-priority plan. For current sequencing use [`PRODUCT_DIRECTION.md`](PRODUCT_DIRECTION.md), [`QUICKSTART.md`](QUICKSTART.md), [`BENCHMARK.md`](BENCHMARK.md), and [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md). Statements below such as “no later milestone begins” apply to the historical first-slice acceptance process, not to the current v0.1 release order.
+
 This document is the executable coding plan for the first ExactScope runtime commit. It deliberately implements one complete operation across every portability boundary before expanding the catalog.
 
 The goal is not “some Rust code that calculates elasticity.” The goal is one semantic implementation that produces the same status, canonical value, classification, flags, and provenance through:
