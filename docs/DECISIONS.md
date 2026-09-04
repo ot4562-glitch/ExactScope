@@ -36,6 +36,14 @@ These decisions are binding for v0.1 unless a later decision explicitly supersed
 | D-030 | **Offline is a product capability, not the market definition.** | Bounded/auditable execution is also useful in networked products. | Positioning includes wearables, mobile, industrial, private local AI, edge/cloud agents, and certifiable systems. |
 | D-031 | **The OSS core is the adoption wedge; commercialization may center on assurance and domain support.** | Permissive licensing does not prevent enterprise value from qualification/LTS/verified packs. | No mandatory proprietary cloud calculation path is introduced. |
 | D-032 | **A smaller benchmark-proven hot set is preferred to catalog breadth before product proof.** | Operation count does not demonstrate adoption value. | Pack expansion follows benchmark/integration evidence. |
+| D-033 | **The primary product thesis is on-device AI capability retrofit.** | Physically constrained or deployed devices may be unable to absorb a larger model without new hardware, while software can still be updated. | Product, benchmark, packaging, and commercial priorities optimize for strengthening an existing small model at tiny incremental cost. |
+| D-034 | **A bounded `xs_calc` plan is the vNext target generic arithmetic path.** | Current tiny-model tests indicate that model-side selection across semantic operations can dominate failure, while one constrained plan can express short multi-step arithmetic. | `xs_calc` is planned as one compact 1-8 step tool; this decision does not claim it is implemented yet. |
+| D-035 | **The first `xs_calc` plan is limited to 8 steps over add/sub/mul/div/powi/sqrt.** | Public FinQA/TAT-QA planning analysis showed short gold computations while boundedness preserves footprint and qualification simplicity. | Loops, arbitrary branches, variables, arbitrary functions, arbitrary expressions, and arbitrary code remain forbidden. |
+| D-036 | **`xs_eval` remains a first-class semantic fast path.** | Method identity, units, sample/population choices, and reviewed domain contracts should not be flattened into generic arithmetic when semantic validation matters. | The product has a generic plan lane plus reviewed semantic-operation lane sharing one calculation core. |
+| D-037 | **`xs_find` is cold/development infrastructure, not the main tiny-model serving path.** | Discovery can add selection error, prompt cost, latency, and turns. | Keep discovery for setup/exploration/binding, but ordinary retrofit use must not depend on it. |
+| D-038 | **Footprint is a release KPI equal in importance to accuracy.** | The product loses its retrofit advantage if the support runtime grows toward the cost of a model/hardware upgrade. | Record binary/RAM/scratch growth; target no-import Wasm near <=128 KiB when practical, require explanation beyond 192 KiB, and explicit design review beyond 256 KiB. |
+| D-039 | **Domain series share one runtime.** | Separate calculators/runtimes would multiply footprint, semantics, qualification, and integration cost. | Math/Statistics/Economics/Finance/Physics/Chemistry/Engineering are reviewed capability packs/series over the same core and ABI. |
+| D-040 | **The flagship benchmark tests the hardware-upgrade alternative.** | The customer decision is often not calculator-vs-model but existing small model vs small model + retrofit vs larger model/new hardware. | Public evidence prioritizes 0.5B-3B model-only vs ExactScope, with larger-model reference arms and resource cost where fair/feasible. |
 
 ## Superseded or narrowed earlier decisions
 
@@ -49,6 +57,17 @@ The two generic logical functions remain valid, but D-024/D-025 narrow the inten
 - a fixed appliance may omit discovery entirely from its serving path.
 
 Therefore D-008 must not be interpreted as requiring `xs_find -> xs_eval` for every calculation.
+
+### D-024/D-025 — “direct xs_eval is the primary model hot path / products expose a small generated hot set”
+
+These decisions remain correct for the **implemented semantic-operation lane**, but D-034/D-036/D-037 narrow their product-wide interpretation:
+
+- generic short arithmetic is now targeted at one bounded `xs_calc` plan surface;
+- `xs_eval` remains primary for reviewed semantic operations;
+- semantic hot sets remain compact and useful, but ordinary arithmetic should not require selecting among a semantic catalog;
+- `xs_find` remains cold/development infrastructure rather than a common serving step.
+
+Until `xs_calc` is implemented, the current runtime continues to use `xs_eval`/hot-set integration. The design change must not be documented as an implemented ABI feature.
 
 ### D-012 — “fused deployment is first-class; fused and dynamic results are identical”
 

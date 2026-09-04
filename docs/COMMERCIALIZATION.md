@@ -71,27 +71,31 @@ Avoid commercial pressure that would damage the technical wedge:
 
 The product should remain attractive precisely because it can be embedded, audited, and operated offline.
 
-## 4. Enterprise adoption funnel
+## 4. Enterprise/OEM adoption funnel
 
 The desired funnel is:
 
 ```text
-public benchmark + prebuilt artifact
+public retrofit benchmark + prebuilt tiny artifact
         -> 5-minute local proof
-        -> customer's own benchmark
-        -> target integration
-        -> qualification/LTS/support if needed
+        -> customer's existing small-model benchmark
+        -> existing-device integration
+        -> OTA/update/rollback proof
+        -> target qualification
+        -> LTS/support if needed
 ```
 
 The project should not require a sales conversation before a technical evaluator can measure value.
 
+The strongest commercial wedge may be **already-designed or already-deployed devices** where replacing the SoC, memory configuration, thermal design, or model-size class is expensive or impossible but software can still be updated.
+
 ## 5. Market positioning
 
-ExactScope should not define its market as only "devices with no network." Offline capability is a feature, not the entire niche.
+ExactScope should not define its market as only "devices with no network." Offline capability is a feature, not the market definition.
 
-The broader target is:
+The primary target is:
 
-> AI products that need bounded, auditable, deterministic quantitative execution without embedding Python/scientific runtimes or relying on model arithmetic.
+> **Physically constrained or deployed on-device AI products that want to gain deterministic quantitative capability through a tiny software retrofit instead of requiring a hardware/model-size upgrade for every capability gap.**
 
 Representative environments:
 
@@ -100,34 +104,51 @@ Representative environments:
 - embedded assistants;
 - robots and industrial systems;
 - automotive systems;
-- private/local desktop AI;
-- small cloud/edge agents that still value deterministic bounded execution;
-- regulated or certifiable product paths where arbitrary-code sandboxes are undesirable.
+- other constrained edge products;
+- later regulated or certifiable product paths where arbitrary-code sandboxes are undesirable.
+
+Desktop/server environments remain useful for evaluation and integration, but they are not the center of the product thesis.
 
 ## 6. Competitive framing
 
-ExactScope should not compete with Python, MCP calculators, or large symbolic systems on breadth.
+ExactScope should not compete with Python, MCP calculators, or large symbolic systems on breadth, and it should not claim to invent external computation for language models.
 
 The differentiator is the combination of:
 
+- **retrofit/OTA suitability as a primary design objective**;
 - tiny resident footprint;
 - no required service/runtime environment;
-- bounded operation surface;
-- deterministic semantics;
-- no arbitrary code execution in packs;
+- one bounded arithmetic-plan surface for common short numerical work once implemented;
+- reviewed semantic operations for method-specific work;
+- deterministic exact decimal/rational semantics;
+- no arbitrary model-generated code execution;
+- fail-closed validation;
 - stable operation revision/provenance;
-- hot-set packaging;
-- target qualification potential.
+- native static C ABI and no-import Wasm;
+- model-independent target qualification potential.
 
-For a product where a Python sandbox is already cheap, acceptable, and easy to certify, ExactScope may provide little advantage. That is an acceptable non-target.
+The core competitive comparison should often be:
+
+```text
+existing small model
+vs
+existing small model + ExactScope
+vs
+larger model / next hardware generation
+```
+
+For a product where a larger model or trusted Python sandbox is already cheap, acceptable, and easy to deploy/qualify, ExactScope may provide little advantage. That is an acceptable non-target.
 
 ## 7. Commercial proof gate
 
-Commercial effort should follow evidence. Before presenting ExactScope as an enterprise optimization product, publish at least:
+Commercial effort should follow evidence. Before presenting ExactScope as an OEM retrofit/optimization product, publish at least:
 
-1. a reproducible benchmark showing a material advantage for one constrained-model scenario;
-2. a prebuilt artifact that a non-Rust integrator can run quickly;
-3. one documented hot-set integration with a common local-AI runtime;
-4. one target qualification record with real size/latency/memory data.
+1. a reproducible public benchmark showing a material advantage across multiple constrained model classes;
+2. incorrect-numeric-answer reduction and tool-penalty measurements, not only aggregate accuracy;
+3. a prebuilt tiny artifact that a non-Rust integrator can run quickly;
+4. one documented `xs_calc`/`xs_eval` integration with a common local-AI runtime after the vNext plan path exists;
+5. one real-target qualification record with measured binary size, resident/scratch memory, and latency, plus energy where measurable;
+6. an update/rollback integration note showing how an existing product could add/remove the component safely;
+7. where practical, a small-model + ExactScope versus larger-model comparison with resource cost reported separately.
 
-Until then, commercialization remains a direction rather than a revenue claim.
+Until then, commercialization and hardware-life-extension language remain product hypotheses rather than proven customer savings claims.

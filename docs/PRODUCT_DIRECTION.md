@@ -6,9 +6,17 @@ This document defines what ExactScope is optimizing for. It supersedes any earli
 
 ExactScope is a **tiny deterministic quantitative coprocessor for small and on-device AI**.
 
-It moves bounded formula-driven work out of the model and executes it with explicit methods, checked base-10/rational semantics, bounded memory, stable errors, and reproducible provenance.
+Its primary customer value is:
 
-ExactScope is not primarily a wearable product. Wearables are one strong use case. The broader market is AI products that want deterministic quantitative execution without depending on model arithmetic or embedding a general Python/scientific runtime.
+> **Upgrade constrained on-device AI through software instead of requiring a hardware upgrade for every quantitative capability gap.**
+
+ExactScope is designed as a **capability retrofit layer** for products whose deployed model size and inference cost are bounded by RAM, bandwidth, storage, accelerator capability, thermals, battery, latency, or qualification constraints.
+
+It moves bounded deterministic quantitative work out of the model and executes it with checked base-10/rational semantics, bounded memory, stable errors, and reproducible provenance. It does not claim to make a model generally more intelligent or to eliminate the need for future hardware upgrades.
+
+Smart glasses and wearables are strong use cases, but the product thesis applies more broadly to phones, robots, industrial systems, automotive systems, embedded assistants, and other constrained local-AI products.
+
+The detailed target direction is defined in [`RETROFIT_PRODUCT_STRATEGY.md`](RETROFIT_PRODUCT_STRATEGY.md).
 
 ## 2. Product hypothesis
 
@@ -16,51 +24,59 @@ The product hypothesis is not assumed true merely because deterministic arithmet
 
 It must be measured:
 
-> For constrained models, does ExactScope improve the successful quantitative-task rate enough to justify its integration cost while reducing or preserving model turns, tokens, latency, memory, and energy?
+> For an existing constrained on-device model, can a tiny ExactScope software addition remove enough quantitative error at sufficiently low binary, RAM, token, latency, energy, integration, and qualification cost that the existing hardware remains useful for capabilities that would otherwise push toward a larger model or newer device?
 
-The first public proof therefore matters more than the first 99 operations.
+The flagship proof should therefore compare not only model-only reasoning with ExactScope, but also — where deployment is feasible — **small model + ExactScope versus a larger model**.
+
+The first public proof matters more than catalog breadth.
 
 ## 3. Primary interaction model
 
-The primary product path is **one-hop direct evaluation**.
+The **current implemented** generic model path is direct `xs_eval` against a small generated hot set. The **vNext target** adds one generic bounded arithmetic-plan path without replacing reviewed semantic operations.
 
 ```text
-model
-  -> xs_eval(known_op,args)
-  -> ExactScope
-  -> deterministic result
+                         small/local model
+                                |
+                 +--------------+--------------+
+                 |                             |
+                 v                             v
+        generic short arithmetic       known semantic method
+                 |                             |
+                 v                             v
+        xs_calc(bounded plan)            xs_eval(op,args)
+          TARGET / PLANNED                 IMPLEMENTED
+                 |                             |
+                 +--------------+--------------+
+                                |
+                                v
+                     ExactScope shared core
 ```
 
-`xs_find` is a cold-path fallback for an unknown operation, not a mandatory first hop.
+`xs_calc` is planned as one compact 1-8 step model-facing plan over the initial operation vocabulary `add/sub/mul/div/powi/sqrt`. It must lower into the existing bounded VM/numeric kernel rather than introducing another arithmetic implementation.
 
-```text
-cold path:
-model -> xs_find -> bind/cache -> xs_eval
+`xs_eval` remains the preferred path when operation identity carries reviewed semantics such as sample versus population statistics, economics methods, units, or later domain-specific rules.
 
-future hot calls:
-model ---------------------> xs_eval
-```
+`xs_find` remains a cold/development fallback for unknown semantic operations. It is not a required serving hop for ordinary on-device quantitative requests.
 
-Hosts bind cached operation metadata to the current registry/pack digest and operation revision. Digest/revision changes invalidate the binding.
+## 4. Tiny model surface first
 
-This preserves a tiny model surface without forcing an extra model inference turn on common operations.
+The small-model surface should be minimized according to task type:
 
-## 4. Hot-set first
+- ordinary short arithmetic: one `xs_calc` plan schema/grammar once implemented;
+- reviewed domain methods: a generated **8-32 operation hot set** for `xs_eval` when needed;
+- unknown semantic operations: optional `xs_find` outside the common hot path.
 
-Products should normally expose a generated **8-32 operation hot set** appropriate to the device/use case.
+Generated artifacts may include:
 
-Generated hot-set artifacts may include:
-
-- canonical operation keys/signatures;
+- the bounded-plan JSON schema/GBNF after `xs_calc` is implemented;
+- canonical semantic operation keys/signatures;
 - compact model hints;
-- OpenAI-compatible JSON tool assets;
+- OpenAI-compatible tool assets;
 - checked-in/generated GBNF;
 - registry/pack digest binding;
 - optional direct numeric operation IDs for typed hosts.
 
-The full catalog should not be embedded in a tiny model prompt by default.
-
-The catalog remains a source of available deterministic operations. The hot set is the actual product-facing subset.
+The full catalog should not be embedded in a tiny model prompt by default. Domain breadth must not force every constrained model to choose among hundreds of tools.
 
 ## 5. Strict core, syntax-tolerant boundary
 
@@ -98,19 +114,24 @@ ExactScope does not compete with large vendors on model FLOPS or with Python/sci
 
 It competes on a narrower systems combination:
 
+- **retrofit/OTA suitability for constrained or deployed AI devices**;
 - small resident footprint;
 - deterministic bounded execution;
+- one compact bounded arithmetic-plan surface once implemented;
+- reviewed semantic operations when method identity matters;
 - no required service or target-side language runtime;
+- no arbitrary model-generated code execution;
 - fixed auditable operation surface;
 - data-only packs rather than arbitrary native plugins;
 - stable operation revisions and provenance;
 - model-independent qualification;
-- hot-set packaging;
 - portability through C ABI and no-import Wasm.
 
 A product that already has a cheap, trusted, certifiable Python sandbox may not need ExactScope. That is an acceptable non-target.
 
 ## 7. Market definition
+
+The primary market is **physically constrained or already-deployed on-device AI** where increasing model size has meaningful hardware/product cost.
 
 Representative targets:
 
@@ -119,22 +140,25 @@ Representative targets:
 - embedded assistants;
 - robots and industrial systems;
 - automotive systems;
-- private/local desktop AI;
-- constrained edge services;
-- regulated/certifiable systems where arbitrary code execution is undesirable.
+- other constrained edge products;
+- later regulated/certifiable systems where arbitrary code execution is undesirable.
 
-Offline is a capability, not the whole market. Network-connected systems can still value a small deterministic coprocessor.
+Private/local desktop AI remains useful for development and validation, but it is not the center of the retrofit thesis.
+
+Offline is a capability, not the whole market. A network-connected device can still benefit from keeping supported quantitative work local, tiny, predictable, and independently qualifiable.
+
+The strongest early adoption wedge may be **existing devices** whose hardware cannot be changed but whose AI software stack can still receive an update.
 
 ## 8. Release scope
 
-The internal architecture may support multiple execution profiles, but v0.1 product scope is intentionally narrower.
+The internal architecture may support multiple execution profiles, but v0.1 product scope is intentionally narrow.
 
 ### Primary v0.1 candidates
 
 1. **Native static C ABI**
 2. **No-import WebAssembly**
 
-These are sufficient to prove the product across native and portable-host integration.
+Both profiles must preserve the tiny, embed-and-update retrofit model.
 
 ### Secondary/experimental
 
@@ -142,60 +166,62 @@ These are sufficient to prove the product across native and portable-host integr
 - dynamic discovery;
 - additional shared-library/platform wrappers;
 - broad OS/architecture parity;
-- additional academic domains.
+- domain-series breadth beyond the first evidence-backed packs.
 
-All paths that expose the same operation must use the same shared calculation semantics. But v0.1 no longer waits for every path to become Tier 1.
+All paths exposing the same computation must use shared calculation semantics. v0.1 does not wait for universal platform parity.
 
-## 9. Adoption-first roadmap
+## 9. Retrofit-first roadmap
 
-### P0 — prove value
+### P0 — prove the mechanism
 
-- direct `xs_eval` hot path documented and exercised;
-- hot-set generator;
-- OpenAI-compatible schema assets;
-- GBNF generator/fixtures;
-- llama.cpp reference integration;
-- model-only vs ExactScope benchmark;
-- 5-minute quickstart;
-- prebuilt evaluation artifacts.
+- freeze the planned bounded `xs_calc` contract;
+- lower accepted plans into existing core semantics;
+- generate JSON Schema/GBNF for one compact plan surface;
+- gold-validate public FinQA/TAT-QA compatible subsets;
+- benchmark multiple 0.5B-3B models;
+- report wrong-number reduction and tool penalty;
+- enforce binary/RAM/scratch footprint gates;
+- preserve `xs_eval` as the reviewed semantic fast path.
 
-### P1 — make the initial content defensible
+### P1 — prove it on constrained hardware
 
-- reviewed math/statistics/economics hot sets;
-- strong provenance;
-- golden/invalid/boundary/precision corpus;
-- benchmark coverage tied to those hot sets.
+- measure the same small model with and without ExactScope on a real target;
+- compare against a larger-model reference where useful;
+- record binary, resident RAM, scratch, latency, tokens, and energy where measurable;
+- document update/rollback and integration cost.
 
-### P2 — broaden distribution
+### P2 — harden OEM adoption
 
-- stable CMake/native packages;
-- stable no-import Wasm component;
-- Android AAR/Prefab;
-- additional platform packages when evidence justifies them.
+- stable C ABI/no-import Wasm artifacts;
+- immutable manifests and self-test;
+- compatibility/qualification records;
+- update-safe integration guidance;
+- convenience platform packages only when validated by real consumers.
 
-### P3 — breadth
+### P3 — domain series
 
-- dynamic discovery maturity;
-- wider Tier 1 parity;
-- larger catalog coverage;
-- additional domain packs;
-- more constrained hardware targets.
+- one shared core;
+- Math, Statistics, Economics, Finance, Physics, Chemistry, Engineering, then evidence-backed OEM/domain packs;
+- every series adds reviewed contracts/provenance/tests, not another runtime.
+
+See [`../ROADMAP.md`](../ROADMAP.md) for the detailed gates.
 
 ## 10. Installation target
 
-The target integration experience is:
+The target retrofit experience is:
 
 ```text
-download prebuilt artifact
+download/receive software update
   -> verify manifest/digest
-  -> link/load
+  -> link/load tiny native or Wasm artifact
   -> run self-test
-  -> bind hot-set schema/GBNF
-  -> xs_eval direct calls
+  -> bind xs_calc schema/grammar and selected semantic ops
+  -> route supported deterministic work through ExactScope
 ```
 
 The target must not require:
 
+- replacing or retraining the model;
 - Rust;
 - Python/Node/Java;
 - a package-manager runtime;
@@ -240,16 +266,20 @@ Already implemented:
 
 Largest product gaps now:
 
-1. real AI runtime adapters/hot-set generation;
-2. benchmark evidence;
-3. prebuilt public evaluation artifacts;
-4. reviewed initial hot sets and corpora;
-5. target qualification/self-test and real-device measurements.
+1. the planned bounded `xs_calc` contract and implementation through shared core semantics;
+2. gold-validated public benchmark mappings for the retrofit path;
+3. reproducible multi-model evidence on 0.5B-3B classes;
+4. explicit binary/RAM/scratch footprint gates;
+5. prebuilt public evaluation artifacts for the vNext path;
+6. target qualification and real-device measurements;
+7. larger-model substitution evidence where useful.
 
 ## 14. Decision test
 
 Before adding a feature, ask:
 
-> Does this improve one-hop model integration, measured successful quantitative-task quality, deployment simplicity, deterministic trust, or target qualification?
+> Does this help an existing physically constrained model gain a useful deterministic quantitative capability without forcing a hardware/model-size jump, while preserving the tiny bounded auditable runtime profile?
 
-If not, it is probably lower priority than the current product proof.
+Then ask whether the value can be measured reproducibly and whether the feature reuses the shared core semantics.
+
+If not, it is probably lower priority than the retrofit product proof.

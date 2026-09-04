@@ -1,58 +1,57 @@
 # ExactScope
 
-> **Deterministic quantitative coprocessor for small and on-device AI.**
+> **A tiny deterministic quantitative coprocessor for small and on-device AI.**
 >
-> Move bounded math, statistics, economics, and other formula-driven work out of the model and into a tiny reproducible runtime.
+> **Upgrade constrained on-device AI through software instead of requiring a hardware upgrade for every quantitative capability gap.**
 
-**Status: experimental v0.1 runtime. Core execution exists; stable public release and benchmark-backed product claims do not yet exist.**
+**Status: experimental v0.1 runtime. The deterministic core and current `xs_eval` path exist; the vNext bounded `xs_calc` plan described below is a design target and is not implemented yet. Stable release and benchmark-backed retrofit claims do not yet exist.**
 
-ExactScope is not a calculator app, chatbot, cloud API, or Python replacement. It is a small system component loaded by another AI runtime.
+ExactScope is not a calculator app, chatbot, cloud API, Python replacement, or AI model. It is a tiny capability-retrofit component intended to sit beside an existing local/on-device model.
 
-## The 30-second example
+See [Retrofit product strategy](docs/RETROFIT_PRODUCT_STRATEGY.md) for the authoritative vNext direction.
 
-User asks:
+## The 30-second product idea
+
+A deployed device may already be limited by RAM, accelerator capability, storage, thermals, battery, latency, or qualification constraints. Replacing its 0.5B-3B local model with a much larger model may require new hardware.
+
+ExactScope asks a different question:
 
 ```text
-CPI went from 100 to 103.2. What is inflation?
+existing device
++ existing small model
++ tiny deterministic ExactScope software update
+= stronger quantitative capability without replacing the device
 ```
 
-A small model should not spend tokens performing arithmetic. With a known operation key, it emits one compact call:
+The current implemented semantic path can already evaluate known reviewed operations directly:
 
 ```json
-{"op":"econ.cpi.inflation","a":["100","103.2"]}
+{"op":"econ.inflation.cpi_pct","a":["100","103.2"]}
 ```
-
-ExactScope validates the method and inputs, performs deterministic base-10/rational computation, and returns the canonical result.
 
 ```text
-model
-  -> xs_eval(op,args)
-  -> ExactScope
-  -> deterministic result
+model -> xs_eval(op,args) -> ExactScope -> deterministic result
 ```
 
-**`xs_find` is not required on the hot path.** Discovery exists only when the operation key is unknown. Hosts bind/cache discovered operation metadata to the installed registry/pack digest and reuse direct `xs_eval` afterward.
+The vNext design adds one planned bounded arithmetic-plan lane for short multi-step numerical reasoning:
 
 ```text
-cold path: model -> xs_find -> bind/cache -> xs_eval
-hot path:  model ------------------------> xs_eval
+model -> xs_calc(bounded 1-8 step plan) -> ExactScope -> deterministic result
 ```
+
+`xs_eval` remains the semantic fast path for reviewed methods such as statistics/economics/domain operations. `xs_find` remains optional cold/development discovery rather than a required serving hop.
 
 ## Why ExactScope exists
 
-Small models have three different failure classes on quantitative tasks:
+The product does not try to make a model generally more intelligent. It targets a narrower failure class that is expensive to solve by spending scarce on-device model capacity: **deterministic quantitative execution**.
 
-1. choosing the wrong formula/method;
-2. extracting or formatting the wrong arguments;
-3. performing the arithmetic incorrectly.
+The product hypothesis is measurable:
 
-ExactScope only claims authority over the deterministic part after a valid call. It does **not** pretend that a strict calculator core solves model recognition or extraction errors.
+> Can an existing constrained on-device model plus a tiny ExactScope retrofit remove enough quantitative error at sufficiently low binary, RAM, token, latency, energy, integration, and qualification cost that the existing hardware remains useful for capabilities that would otherwise push toward a larger model or newer device?
 
-The product hypothesis is therefore measurable:
+The flagship proof should therefore compare **small model vs small model + ExactScope**, with a larger-model reference where fair and feasible.
 
-> Can a small/on-device model plus a tiny deterministic hot-path runtime produce more correct quantitative answers, with acceptable invalid-call rate, latency, memory, and energy cost, than model-only reasoning?
-
-Until the benchmark is published, ExactScope does not claim a measured accuracy, latency, token, or energy improvement.
+Until reproducible public and real-target evidence is published, ExactScope does not claim proven hardware-life extension, accuracy, latency, token, or energy savings.
 
 ## 5-minute evaluation path
 
@@ -71,77 +70,68 @@ The current experimental OEM SDK already contains a relocatable CMake target and
 
 ## Product position
 
-ExactScope is best described as:
+ExactScope is best described technically as:
 
-> **a tiny, bounded, auditable quantitative execution component for AI products that do not want model arithmetic or a general Python/scientific sandbox in the critical path.**
+> **a tiny deterministic quantitative coprocessor for small and on-device AI.**
 
-Target environments include:
+Its customer value is:
 
-- smart glasses and wearables;
-- phones and tablets;
-- embedded assistants;
-- robots and industrial systems;
-- automotive systems;
-- private/local desktop AI;
-- constrained edge services;
-- regulated/certifiable products where arbitrary-code sandboxes are undesirable.
+> **Upgrade constrained on-device AI without requiring a hardware upgrade for every quantitative capability gap.**
 
-Offline operation is a capability, not the only market. A network-connected product can still value a small fixed execution surface, predictable memory, stable operation revisions, and independent qualification.
+The primary targets are physically constrained or already-deployed AI devices: smart glasses/wearables, phones/tablets, embedded assistants, robots/industrial systems, automotive systems, and other constrained edge products. Desktop/local AI remains useful for evaluation but is not the center of the retrofit thesis.
+
+Offline operation is a capability, not the whole market. The important properties are tiny footprint, bounded execution, deterministic semantics, simple embedding, and qualification/update suitability.
 
 ## Product priorities
 
-The roadmap is deliberately **adoption-first**, not catalog-first.
+The roadmap is deliberately **retrofit-first**, not catalog-first.
 
-### P0 — prove the product
+### P0 — prove the retrofit mechanism
 
-1. direct one-hop `xs_eval` hot path;
-2. generated 8-32 operation hot sets;
-3. OpenAI-compatible tool assets and checked-in/generated GBNF;
-4. llama.cpp reference integration;
-5. reproducible model-only vs ExactScope benchmark;
-6. 5-minute quickstart and prebuilt evaluation artifacts.
+1. freeze and later implement the bounded `xs_calc` 1-8 step plan through the existing core;
+2. generate constrained JSON Schema/GBNF;
+3. gold-validate FinQA/TAT-QA compatible subsets;
+4. benchmark multiple 0.5B-3B models;
+5. measure wrong-number reduction and tool penalty;
+6. enforce binary/RAM/scratch footprint gates;
+7. preserve `xs_eval` for reviewed semantic operations.
 
-### P1 — make the first domain set worth adopting
+### P1 — prove it on constrained hardware
 
-1. reviewed `math-basic` hot set;
-2. reviewed `statistics-core` hot set;
-3. reviewed `econ-undergrad` hot set;
-4. provenance and strong golden/negative corpora.
+1. same small model with and without ExactScope on a real target;
+2. binary/RAM/scratch/latency/energy evidence;
+3. optional larger-model reference comparison;
+4. update/rollback integration evidence.
 
-### P2 — broaden distribution
+### P2 — harden OEM adoption
 
-1. CMake/native release package;
-2. no-import Wasm component;
-3. Android AAR/Prefab;
-4. additional host packages based on evidence.
+1. stable native/no-import Wasm packages;
+2. immutable manifests/self-test/conformance;
+3. compatibility/qualification records;
+4. convenience packages only where real integrations justify them.
 
-### P3 — breadth after proof
+### P3 — domain series after core proof
 
-1. dynamic discovery maturity;
-2. broader execution-profile Tier 1 parity;
-3. additional academic/domain packs;
-4. additional constrained hardware targets.
+One runtime, optional reviewed capability series: Math, Statistics, Economics, Finance, Physics, Chemistry, Engineering, then evidence-backed OEM/domain packs.
 
-A smaller hot set with strong benchmark and integration evidence is more valuable than 99 operations that nobody can evaluate quickly.
+See [Roadmap](ROADMAP.md).
 
-## Hot-set first AI integration
+## Tiny model surface
 
-The default small-model product profile should preload or generate a compact hot set tied to the installed registry digest.
-
-Example conceptual hot set:
+The target small-model interface is intentionally narrow:
 
 ```text
-econ.cpi.inflation(old_cpi,new_cpi)
-econ.gdp.deflator(nominal_gdp,real_gdp)
-econ.real_rate.exact(nominal_rate_pct,inflation_pct)
-stats.mean(values)
-stats.var.sample(values)
-...
+ordinary short arithmetic
+  -> xs_calc(bounded plan)      # planned
+
+reviewed semantic method
+  -> xs_eval(op,args)           # implemented
+
+unknown semantic operation
+  -> xs_find                    # optional cold/development path
 ```
 
-The model emits `xs_eval` directly for these known operations. `xs_find` remains available only as a cold fallback.
-
-This avoids forcing an additional model inference turn for common operations while also avoiding hundreds of independent tool schemas.
+The full academic catalog should never be injected into a tiny-model prompt by default. Domain series share the same runtime rather than becoming separate calculators.
 
 See [AI integration](docs/AI_INTEGRATION.md).
 
@@ -196,11 +186,14 @@ Implemented today:
 
 Still missing before a stable product release:
 
-- recorded real-model llama.cpp runs and model-only vs ExactScope benchmark evidence across the target model classes;
+- the planned bounded `xs_calc` contract and implementation through shared core semantics;
+- gold-validated public compatible-subset converters and deterministic ceilings;
+- reproducible 0.5B-3B model-only vs ExactScope retrofit evidence;
+- explicit binary/RAM/scratch footprint gates for the vNext path;
 - permanent versioned GitHub Release assets; release-shaped CI evaluation bundles are implemented but are not yet a stable release channel;
-- reviewed official hot-set/domain pack coverage and large golden corpora;
 - complete target self-test/qualification tooling;
-- real-device latency, memory, energy, offline, and update/rollback qualification.
+- real-device latency, memory, energy, offline, and update/rollback qualification;
+- larger-model substitution evidence where fair/useful.
 
 ## Primary release profiles
 
@@ -240,16 +233,19 @@ Wrappers may translate protocols. Only the shared core calculates.
 
 See [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
-The first public evidence must compare:
+After the planned bounded-plan path exists, the flagship public evidence should compare:
 
 | Arm | Path |
 |---|---|
 | A | model only |
-| B | model + direct `xs_eval` hot path |
-| C | model + `xs_find -> xs_eval` discovery path |
-| D | direct `xs_eval` with constrained decoding/GBNF |
+| B | model -> unconstrained `xs_calc` -> ExactScope |
+| C | model -> constrained `xs_calc` -> ExactScope |
+| D | gold plan -> ExactScope deterministic ceiling |
+| E | optional larger-model reference with resource cost reported separately |
 
-Required metrics include final answer accuracy, operation selection, argument extraction, invalid-call rate, core-rejected rate, successful-answer rate, inference turns, tokens, end-to-end latency, ExactScope compute latency, resident bytes, scratch bytes, and energy where measurable.
+Semantic-operation benchmarks retain direct/constrained `xs_eval` and optional discovery measurements where relevant.
+
+Required metrics include final answer accuracy, incorrect numeric answer rate, tool penalty rate, plan/operation selection, argument extraction, invalid/rejected-call rate, successful-answer rate, inference turns, tokens, end-to-end/model/core latency, binary/resident/scratch bytes, and energy where measurable.
 
 ## Scope packs
 
@@ -294,17 +290,18 @@ See [docs/COMMERCIALIZATION.md](docs/COMMERCIALIZATION.md).
 
 ## Documentation
 
-- [5-minute quickstart](docs/QUICKSTART.md)
+- [Retrofit product strategy](docs/RETROFIT_PRODUCT_STRATEGY.md)
 - [Product direction](docs/PRODUCT_DIRECTION.md)
+- [Roadmap](ROADMAP.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [AI integration](docs/AI_INTEGRATION.md)
 - [Benchmark contract](docs/BENCHMARK.md)
+- [5-minute quickstart](docs/QUICKSTART.md)
 - [Installation](docs/INSTALLATION.md)
 - [Compatibility](docs/COMPATIBILITY.md)
 - [Commercialization direction](docs/COMMERCIALIZATION.md)
 - [Architecture decisions](docs/DECISIONS.md)
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
-- [Roadmap](ROADMAP.md)
 - [Specification index](spec/README.md)
 
 ## License
@@ -313,4 +310,4 @@ ExactScope is dual-licensed under [Apache-2.0](LICENSE-APACHE) or [MIT](LICENSE-
 
 ---
 
-**ExactScope:** let the model decide *what* to calculate; let deterministic code calculate it.
+**ExactScope:** keep the small model; add exact quantitative capability.

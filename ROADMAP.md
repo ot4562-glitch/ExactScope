@@ -1,8 +1,12 @@
 # ExactScope roadmap
 
-No dates are promised. This roadmap is ordered by **adoption leverage and evidence**, not by internal subsystem elegance or raw operation count.
+No dates are promised. This roadmap is ordered by **retrofit leverage and evidence**, not by raw operation count or internal subsystem completeness.
 
-ExactScope v0.1 should prove that a tiny deterministic quantitative coprocessor can improve real small-model quantitative workflows before the project spends heavily on catalog breadth or universal platform parity.
+ExactScope should prove one product proposition first:
+
+> **Can a tiny deterministic software addition materially strengthen an existing 0.5B-3B on-device model without requiring a model-size or hardware upgrade?**
+
+The detailed strategy is defined in [`docs/RETROFIT_PRODUCT_STRATEGY.md`](docs/RETROFIT_PRODUCT_STRATEGY.md).
 
 ## Current baseline
 
@@ -10,183 +14,276 @@ Implemented today:
 
 - deterministic `no_std` numeric kernel;
 - checked decimal/rational arithmetic, deterministic sqrt, explicit round;
+- bounded non-Turing-complete scalar VM;
 - executable economics operations;
 - bounded statistics kernels;
 - stable C ABI and zero-copy native vectors;
 - current formula/kernel `.xsp` compile/load path;
-- fused/dynamic shared statistics execution;
 - no-import Wasm;
 - Tiny JSON and TinyWire;
+- generated semantic hot sets and GBNF/OpenAI-compatible assets;
+- llama.cpp reference integration;
+- four-arm semantic benchmark harness;
 - wearable reference integration and A/B update reference;
 - experimental Android/Linux ARM64 SDK packaging;
 - relocatable CMake package;
-- SDK doctor;
-- CI covering the implemented paths.
+- SDK doctor and CI around implemented paths.
 
-This is enough engine to stop treating engine completeness as the primary blocker.
+Current development measurements have also demonstrated that the primary artifacts can remain in a very small size class. Those observations are development evidence, not stable release guarantees.
 
-# P0 — prove the product
+The engine is therefore not the main blocker. The next blocker is proving the **retrofit mechanism** on public workloads.
 
-## P0.1 Direct one-hop hot path
+# P0 — prove the retrofit mechanism
 
-- [x] `xs_eval` can execute known canonical operations directly.
-- [x] Document `xs_find` as optional fallback rather than mandatory first hop.
-- [x] Bind cached operation metadata to registry/pack digest and revision in the integration contract.
-- [x] Add a bounded generated hot-set manifest format (1-32 operations; production target 8-32, with smaller smoke fixtures allowed).
-- [x] Add direct hot-set fixtures that never require discovery.
-- [x] Add cache invalidation tests for digest/revision changes.
+## P0.1 Freeze the vNext plan contract
 
-Success criterion: common product calls require one model inference turn, not `find -> model -> eval`.
+Design only until implementation begins:
 
-## P0.2 AI runtime adapters
+- [ ] freeze `PLAN_V0_1`;
+- [ ] define one planned model-facing `xs_calc` request;
+- [ ] cap the first plan at 8 arithmetic steps;
+- [ ] initial operations: `add`, `sub`, `mul`, `div`, `powi`, `sqrt`;
+- [ ] allow exact decimal-string leaves and backward-only previous-result references;
+- [ ] forbid loops, arbitrary branches, variables, arbitrary functions, arbitrary expression text, and arbitrary code;
+- [ ] define stable errors for invalid reference, arity, resource limit, domain, divide-by-zero, overflow, and precision failures;
+- [ ] specify canonical lowering to the existing bounded VM/numeric kernel;
+- [ ] require that the plan path introduces no second arithmetic semantics.
 
-- [x] Generate conservative OpenAI-compatible `xs_eval` tool assets.
-- [x] Generate optional `xs_find` fallback assets.
-- [x] Generate checked-in/reproducible GBNF for the direct hot path.
-- [x] Generate compact digest-bound hot-set hints/catalogs from canonical pack metadata.
-- [x] Add llama.cpp reference integration fixtures and an offline envelope self-test.
-- [ ] Add one runnable local-model example from a prebuilt ExactScope artifact and record a real model result.
-- [x] Keep every adapter calculation-free.
+Success criterion: the target model surface is small enough to explain completely and validate mechanically.
 
-Success criterion: a local-AI developer does not write custom ExactScope glue from scratch.
+## P0.2 Implement the bounded plan using the existing core
 
-## P0.3 Benchmark and claim evidence
+**Not started in this design-only revision.**
 
-- [x] Build the reproducible benchmark harness defined in `docs/BENCHMARK.md`, including a real Tiny JSON/core bridge and corpus/core drift self-test.
-- [ ] Compare model-only vs direct `xs_eval` hot path on recorded real models.
-- [ ] Measure `xs_find -> xs_eval` cold-path overhead on recorded real models.
-- [ ] Measure direct hot path with constrained decoding/GBNF on recorded real models.
-- [ ] Test at least sub-1B, 1B-2B, and about-3B model classes.
-- [x] Report stage-level fields for recognition, operation, extraction, syntax/tool validity, core rejection/status, and result fidelity.
-- [x] Report successful-answer/fidelity and incorrect-numeric-answer rates separately.
-- [ ] Complete evidence capture for tokens, inference turns, end-to-end latency, ExactScope compute latency, resident bytes, scratch bytes, and energy; the harness already records model tokens/turns/latencies/core latency when supplied by the runtime.
-- [x] Keep accuracy/latency/energy improvement claims blocked until recorded evidence exists.
+Future implementation sequence:
 
-Success criterion: ExactScope has a reproducible answer to “how much does this help?”
+- [ ] add bounded plan representation/validator;
+- [ ] lower each accepted plan to shared VM/kernel semantics;
+- [ ] expose native and no-import Wasm plan evaluation without duplicating calculation logic;
+- [ ] add Tiny JSON or equivalent bounded model-facing plan decoding;
+- [ ] add malformed/reference/resource/domain conformance tests;
+- [ ] prove no heap/network/filesystem/daemon/runtime dependency is introduced into the minimum profile.
 
-## P0.4 Five-minute evaluation and prebuilt artifacts
+Success criterion: `xs_calc` is a thin bounded front end to the existing deterministic engine, not a new language runtime.
 
-- [x] Add `docs/QUICKSTART.md`.
-- [x] Provide relocatable `ExactScope::exactscope` CMake target in the experimental SDK.
-- [x] Provide developer-side SDK doctor.
-- [x] Build release-shaped native + benchmark-core + no-import Wasm evaluation archives in CI without requiring Rust for evaluation.
-- [ ] Publish permanent versioned native evaluation archives as GitHub Release assets.
-- [ ] Publish permanent versioned no-import Wasm evaluation artifacts as GitHub Release assets.
-- [x] Include manifest, checksums, hot-set metadata, licenses, and smoke-test instructions.
-- [x] Add a clean-room quickstart CI test using only the extracted release-shaped artifact; Linux CI also compiles/runs the bundled C smoke against the bundled static library.
+## P0.3 Generate tiny-model constrained assets
 
-Success criterion: a non-Rust integrator can evaluate ExactScope without building the workspace.
+- [ ] one conservative JSON Schema for `xs_calc`;
+- [ ] one generated/checked-in GBNF for the same plan contract;
+- [ ] whitespace/output-token termination tests;
+- [ ] llama.cpp reference example;
+- [ ] raw JSON and OpenAI-compatible envelope fixtures;
+- [ ] immutable schema/grammar digests in benchmark metadata;
+- [ ] preserve existing semantic `xs_eval` hot-set assets;
+- [ ] keep `xs_find` as optional cold/development discovery.
 
-# P1 — make the initial domain content defensible
+Success criterion: a small model normally chooses between **one arithmetic-plan tool** and a small set of reviewed semantic operations, not a catalog of hundreds of tools.
 
-## P1.1 Benchmark hot sets
+## P0.4 Gold-validated public benchmark mapping
 
-- [ ] Choose the smallest reviewed `math-basic` benchmark hot set.
-- [ ] Choose the smallest reviewed `statistics-core` benchmark hot set.
-- [x] Choose the first bounded `econ-undergrad` benchmark hot set (`econ-core-8`) directly from the fused executable registry.
-- [ ] Ensure each benchmark operation has explicit method/semantics/provenance.
-- [ ] Ensure valid, invalid, boundary, overflow/resource, and precision vectors.
+Priority:
 
-A useful 8-16 operation proof is preferred to a weakly reviewed 99-operation release.
+1. FinQA;
+2. TAT-QA arithmetic;
+3. additional reproducibly mappable numerical reasoning sets;
+4. MathQA only after annotation/mapping reliability is explicitly validated.
 
-## P1.2 Broader official pack completion
+For each public dataset:
 
-- [ ] Complete `math-basic` 16-operation source pack.
-- [ ] Complete `statistics-core` 18-operation source pack.
-- [ ] Complete `econ-undergrad` 65-operation source pack.
-- [ ] Reach the stable-release golden-vector threshold per shipped operation.
-- [ ] Complete independent source/method review.
+- [ ] pin exact source/revision;
+- [ ] derive ExactScope compatibility from gold program/derivation/metadata only;
+- [ ] convert to a bounded plan without consulting model outputs;
+- [ ] execute every candidate plan through ExactScope;
+- [ ] admit an item only when execution matches the dataset gold result;
+- [ ] publish full-split coverage percentage;
+- [ ] keep full model-only score separate from `ExactScope-compatible subset` score;
+- [ ] preserve unsupported items rather than silently dropping them from official-dataset reporting.
 
-These tasks are important but do not precede the P0 product proof.
+Success criterion: the deterministic ceiling is trustworthy before a model is allowed into the experiment.
 
-# P2 — broaden distribution
+## P0.5 Retrofit benchmark
 
-## P2.1 Primary v0.1 release profiles
+Primary model classes:
 
-- [ ] Stable native static C ABI release package.
-- [ ] Stable no-import Wasm release package.
-- [ ] Immutable release manifests and checksums.
-- [ ] Exact release-artifact conformance.
-- [ ] Target self-test/smoke execution.
+- [ ] approximately 0.5B-0.8B;
+- [ ] approximately 1B;
+- [ ] approximately 1.5B-2B;
+- [ ] approximately 3B;
+- [ ] stress models below the main range where useful;
+- [ ] optional larger-model reference arm.
 
-Native static and no-import Wasm are the primary v0.1 release candidates.
+Required generic arithmetic arms after `xs_calc` exists:
 
-## P2.2 Platform convenience packages
+- [ ] A: model only;
+- [ ] B: model -> unconstrained `xs_calc` -> ExactScope;
+- [ ] C: model -> constrained `xs_calc` -> ExactScope;
+- [ ] D: gold plan -> ExactScope deterministic ceiling;
+- [ ] E: optional larger-model reference with separately reported deployment cost.
 
-- [ ] Android AAR/Prefab for evidenced ABI(s).
-- [ ] Linux x86-64/AArch64 release archives as demand/evidence requires.
-- [ ] Windows x86-64 archive.
-- [ ] Apple Silicon macOS package.
-- [ ] iOS/XCFramework only when a host-app path is justified.
+Required metrics:
 
-A platform wrapper must not duplicate calculation logic.
+- [ ] final accuracy;
+- [ ] incorrect numeric answer rate;
+- [ ] tool penalty rate;
+- [ ] recognition;
+- [ ] extraction;
+- [ ] plan syntax/semantic validity;
+- [ ] core acceptance/rejection;
+- [ ] result/failure fidelity;
+- [ ] turns/tokens;
+- [ ] model latency and ExactScope latency separately;
+- [ ] binary/resident/scratch memory;
+- [ ] energy where measurable.
 
-## P2.3 Real target qualification
+Internal go/no-go target for the first public slice:
 
-- [ ] Record real target artifact size/resident memory/scratch.
-- [ ] Record latency distributions.
-- [ ] Record energy where measurable.
-- [ ] Record offline/radio-free behavior.
-- [ ] Run target malformed-input smoke tests.
-- [ ] Run update/rollback evidence where the platform owns durable slots.
+- material supported-subset improvement on multiple constrained models, with +10 percentage points as a useful initial threshold unless another effect size is better justified;
+- at least 30% relative reduction in incorrect numeric answers;
+- acceptable tool-penalty and rejection rates;
+- no semantic repair;
+- tiny footprint retained.
 
-# P3 — breadth after proof
+These are product design gates, not current public claims.
 
-## P3.1 Dynamic-pack maturity
+## P0.6 Footprint gate
 
-- [ ] Complete every v0.1 `.xsp` operation shape.
-- [ ] Complete dynamic discovery alias-index parity.
-- [ ] Expand malformed-pack corpus/fuzzing.
-- [ ] Promote dynamic profile only after real adoption needs it.
+- [ ] record Wasm/native size before and after bounded-plan support;
+- [ ] target primary no-import Wasm near or below 128 KiB when practical;
+- [ ] require recorded justification beyond 192 KiB;
+- [ ] require explicit design review beyond 256 KiB;
+- [ ] report resident RAM and scratch separately from binary size;
+- [ ] reject convenience features that materially damage retrofit suitability without measured benefit.
 
-Dynamic mode remains valuable architecture, but it is not allowed to delay the first product proof.
+Success criterion: ExactScope remains much cheaper to add than the model/hardware capability jump it is meant to offset.
 
-## P3.2 Wider execution/profile parity
+## P0.7 Five-minute OEM/developer proof
 
-- [ ] Promote additional profiles/architectures only with immutable artifact evidence.
-- [ ] Keep one shared evaluator/semantics.
-- [ ] Do not require every internal profile to be Tier 1 before v0.1 proves value.
+- [x] existing native/CMake and no-import Wasm evaluation shapes exist experimentally;
+- [ ] update quickstart for the bounded-plan path after implementation;
+- [ ] provide prebuilt artifact + manifest + self-test;
+- [ ] show integration without Rust/Python/Node/Java as target dependencies;
+- [ ] provide one before/after small-model demonstration;
+- [ ] provide exact artifact/schema/grammar/model/dataset digests.
 
-## P3.3 Additional domains
+Success criterion: an evaluator can reproduce the retrofit effect without learning the internal Rust workspace.
 
-- [ ] Add finance or scientific packs only after the initial three domains demonstrate the resident-runtime advantage.
-- [ ] Reject domains that require hidden judgment, live data, or unbounded computation.
+# P1 — prove the hardware-retrofit proposition on a real target
 
-# Product/market work
+## P1.1 Real constrained device
 
-- [x] Document broader market beyond offline wearables.
-- [x] Document benchmark-before-claim policy.
-- [x] Document OSS + verified packs/LTS/qualification/custom-pack commercialization direction.
-- [ ] Publish an adoption-oriented comparison against model-only reasoning and general Python/sandbox approaches using measured evidence.
-- [ ] Publish at least one case study or reproducible target integration before making enterprise optimization claims.
+- [ ] choose one representative smartphone/embedded/edge target;
+- [ ] run the same small model with and without ExactScope;
+- [ ] measure binary, resident RAM, scratch, latency distribution, and energy where possible;
+- [ ] test malformed input and fail-closed behavior;
+- [ ] document installation/update/rollback constraints;
+- [ ] keep desktop measurements labeled `desktop_validation`.
+
+Success criterion: at least one real device demonstrates that the integration cost is small enough for the retrofit thesis.
+
+## P1.2 Larger-model substitution comparison
+
+Where benchmark hardware permits:
+
+- [ ] compare small model;
+- [ ] compare small model + ExactScope;
+- [ ] compare a larger model representing an upgrade path;
+- [ ] record model file/VRAM/RAM/load/latency/token cost separately from ExactScope cost;
+- [ ] avoid claiming device deployability for a larger model that does not fit the target.
+
+Success criterion: quantify how much capability ExactScope recovers per byte/millisecond/joule of added software cost.
+
+# P2 — harden the retrofit product
+
+## P2.1 Primary release profiles
+
+- [ ] stable native static C ABI package;
+- [ ] stable no-import Wasm package;
+- [ ] immutable manifests/checksums;
+- [ ] exact release-artifact conformance;
+- [ ] target self-test;
+- [ ] stable bounded-plan schema/ABI after evidence supports freezing it.
+
+## P2.2 OEM integration and update safety
+
+- [ ] minimal integration guide for existing local-model stacks;
+- [ ] documented schema/grammar version negotiation;
+- [ ] deterministic rollback-compatible artifact identity;
+- [ ] offline/no-account/no-daemon guarantee for the primary profile;
+- [ ] compatibility records for selected target toolchains/architectures;
+- [ ] malformed-input/security review;
+- [ ] supply-chain/reproducibility evidence.
+
+## P2.3 Convenience packages only after evidence
+
+- [ ] Android AAR/Prefab when a validated consumer path exists;
+- [ ] Windows/Linux/macOS packages as demand requires;
+- [ ] iOS/XCFramework only when a real host path justifies it;
+- [ ] no wrapper may duplicate calculation semantics.
+
+# P3 — domain series after core proof
+
+ExactScope series are **one runtime plus reviewed capability packs**, not separate calculators.
+
+Proposed evidence-driven order:
+
+1. Math;
+2. Statistics;
+3. Economics;
+4. Finance;
+5. Physics;
+6. Chemistry;
+7. Engineering;
+8. later OEM/domain-specific packs.
+
+For every series:
+
+- [ ] reuse the same core/ABI;
+- [ ] define explicit semantic/unit/method contracts;
+- [ ] provide provenance and revision history;
+- [ ] provide golden/negative/boundary vectors;
+- [ ] map at least one public or reproducible benchmark where possible;
+- [ ] publish compatibility/qualification evidence appropriate to the domain;
+- [ ] do not put every domain operation into every tiny-model prompt.
+
+Domain breadth must not delay or weaken the core retrofit proof.
+
+# Commercial/product work
+
+- [x] keep the OSS core as the adoption wedge;
+- [ ] document ExactScope explicitly as an **AI capability retrofit** rather than a calculator product;
+- [ ] publish the small-model + ExactScope vs larger-model cost/quality comparison after evidence exists;
+- [ ] create an OEM one-page integration/value brief after the benchmark is reproducible;
+- [ ] publish at least one real-target case study before claiming useful hardware-life extension;
+- [ ] develop verified packs/LTS/OEM qualification/custom-pack offerings only after technical pull exists.
 
 # Explicit non-goals
 
-- human calculator UI as a core product;
+- human calculator UI as the core product;
 - general chatbot;
-- mandatory companion app;
-- mandatory cloud service/account;
-- ExactScope-owned daemon;
-- arbitrary code execution inside packs;
+- general Python/scientific runtime;
+- arbitrary model-generated code execution;
 - general symbolic algebra;
-- hidden semantic repair in adapters;
-- universal policy forecasting;
-- bypassing device security models;
-- expanding platform/catalog breadth merely to appear complete.
+- mandatory cloud/account/telemetry;
+- ExactScope-owned daemon;
+- hidden semantic repair;
+- solving recognition/world-knowledge/perception limitations by pretending they are arithmetic failures;
+- universal platform parity before product proof;
+- catalog breadth for its own sake;
+- claiming that ExactScope can replace every hardware or model upgrade.
 
 # v0.1 product gate
 
-ExactScope v0.1 should not be called a stable product release until all of the following are true:
+ExactScope should not be called a stable v0.1 product until all of the following are true:
 
-1. a direct one-hop `xs_eval` hot-set integration is documented and reproducibly runnable;
-2. OpenAI-compatible/GBNF assets and at least one local-runtime reference integration exist;
-3. a reproducible benchmark compares model-only, direct hot path, discovery path, and constrained direct path;
-4. benchmark results expose successful-answer rate, wrong-number rate, invalid/rejected-call rate, turns/tokens/latency, and resource cost;
-5. at least one small reviewed cross-domain hot set has strong provenance and golden/negative coverage;
-6. stable prebuilt native static and/or no-import Wasm artifact(s) can be evaluated without a Rust toolchain;
-7. shipped release artifacts pass exact ABI/wire/golden/malformed-input conformance;
-8. at least one constrained real target has measured size/memory/latency evidence, and energy is reported where measurable;
-9. support labels are backed by immutable artifact evidence;
-10. no adapter or wrapper performs hidden calculation or semantic guessing.
+1. the bounded `xs_calc` contract is frozen and implemented through shared core semantics;
+2. constrained schema/GBNF assets are reproducible and digest-bound;
+3. public compatible-subset generation is gold-derived and deterministic-ceiling validated;
+4. multiple 0.5B-3B models have reproducible model-only vs ExactScope results;
+5. wrong-number reduction, tool penalty, rejection, turns/tokens/latency, and resource cost are reported;
+6. semantic `xs_eval` remains available for reviewed method-specific operations without semantic forks;
+7. stable native static and/or no-import Wasm evaluation artifacts require no Rust toolchain for adopters;
+8. release artifacts pass ABI/wire/golden/malformed-input conformance;
+9. at least one real constrained target has measured binary/RAM/latency evidence and energy where measurable;
+10. product claims remain narrower than the evidence.
 
-Full 99-operation catalog completion, dynamic discovery maturity, and universal platform Tier 1 parity are **not** prerequisites for proving and shipping a focused v0.1 product if the shipped scope is clearly documented.
+Full academic catalog completion, dynamic discovery maturity, every domain series, and universal platform Tier 1 parity are **not** prerequisites for the first focused product proof.

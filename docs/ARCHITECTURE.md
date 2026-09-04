@@ -28,50 +28,58 @@ ExactScope owns:
 
 ExactScope does not own model inference, retrieval, forecasting, live market/economic data, arbitrary code execution, or general symbolic reasoning.
 
-## 2. Primary product call path
+## 2. Product call paths
 
-The primary steady-state path is one-hop direct evaluation:
-
-```text
-small/local model
-    -> xs_eval(known operation,args)
-    -> ExactScope core
-    -> deterministic result
-```
-
-`xs_find` is a cold-path discovery helper:
+The architecture now distinguishes the **current implemented semantic path** from the **vNext target generic arithmetic path**.
 
 ```text
-unknown operation
-    -> xs_find
-    -> bind/cache canonical operation against registry digest
-    -> xs_eval
+                         small/local model
+                                |
+                 +--------------+--------------+
+                 |                             |
+                 v                             v
+        generic short arithmetic       known semantic method
+                 |                             |
+                 v                             v
+        xs_calc(bounded plan)            xs_eval(op,args)
+          TARGET / PLANNED                 IMPLEMENTED
+                 |                             |
+                 +--------------+--------------+
+                                |
+                                v
+                     ExactScope shared core
 ```
 
-Subsequent calls should use the cached/bound operation directly until the registry digest or operation revision changes.
+### 2.1 Target `xs_calc` plan path
 
-This architecture deliberately avoids making a second model inference turn mandatory for common operations.
+`xs_calc` is planned as a single model turn followed by one bounded deterministic execution. The P0 target plan contains at most eight arithmetic steps and only a fixed initial vocabulary (`add`, `sub`, `mul`, `div`, `powi`, `sqrt`). Previous-result references are backward-only. Loops, arbitrary branches, variables, arbitrary functions, arbitrary expression text, and arbitrary code are forbidden.
 
-## 3. Hot-set architecture
+The plan path must lower into the existing bounded VM/numeric kernel. It must not create a second arithmetic semantics.
 
-A product normally exposes a small generated hot set rather than the full catalog.
+### 2.2 Existing `xs_eval` semantic path
+
+`xs_eval` remains a first-class hot path for reviewed operations whose identity carries method or domain semantics. Examples include sample versus population statistics and economics operations. A fixed product may bind these operations ahead of time.
+
+### 2.3 `xs_find` cold/development path
+
+`xs_find` remains a discovery helper for unknown semantic operations and developer/setup workflows. It is no longer treated as a primary tiny-model serving path. Successful discovery may still be cached against registry/pack digest and operation revision.
+
+## 3. Model-surface architecture
+
+A constrained product should expose the smallest useful surface rather than the full catalog.
 
 ```text
-installed packs/registry
-        |
-        v
- hot-set generator
-        |
-        +--> compact catalog/hints
-        +--> OpenAI-compatible tool asset
-        +--> GBNF
-        +--> registry/pack digest binding
-        |
-        v
- small model direct xs_eval
+ordinary short arithmetic
+        -> one bounded xs_calc schema/grammar (target)
+
+reviewed domain methods
+        -> compact xs_eval hot set
+
+unknown semantic operation
+        -> optional xs_find cold/development path
 ```
 
-The hot set is host/product metadata. It is not a second formula catalog and may not change operation semantics.
+A semantic hot set may still generate compact catalog/hints, OpenAI-compatible tool assets, GBNF, digest bindings, and typed operation IDs. The full catalog remains host/tooling metadata and should not be injected into a tiny-model prompt by default.
 
 ## 4. Strict semantic core and adapter boundary
 
@@ -214,12 +222,27 @@ These are the release profiles that should receive first-class prebuilt artifact
 
 All exposed operations must use shared semantics, but these profiles may remain Experimental without blocking focused v0.1.
 
-## 11. Execution pipeline
+## 11. Execution pipelines
 
-Direct hot path:
+### 11.1 Target bounded-plan path
 
 ```text
-model/tool request
+model/host xs_calc request
+  -> adapter envelope/syntax validation
+  -> bounded plan decode
+  -> step/reference/arity/resource validation
+  -> exact decimal decoding
+  -> canonical lowering to shared VM/kernel semantics
+  -> deterministic execution
+  -> output rounding/status encoding
+```
+
+The plan decoder/compiler is not allowed to evaluate arbitrary expression text or introduce another arithmetic implementation.
+
+### 11.2 Existing semantic-operation path
+
+```text
+model/host xs_eval request
   -> adapter envelope/syntax validation
   -> canonical operation binding lookup
   -> exact decimal/vector decoding
@@ -230,7 +253,7 @@ model/tool request
   -> provenance/status encoding
 ```
 
-Cold discovery prepends:
+Optional cold discovery prepends:
 
 ```text
 query -> xs_find -> canonical key/signature -> digest-bound cache
@@ -254,20 +277,22 @@ Vector work uses bounded kernel IDs rather than VM loops.
 
 ## 14. Installation boundary
 
-ExactScope's product is a component, not a daemon/application service.
+ExactScope's product is a component, not a daemon/application service. The primary deployment story is a **small software retrofit** into an existing AI stack.
 
-The intended release-shaped flow is:
+The intended vNext release-shaped flow is:
 
 ```text
-prebuilt artifact
+prebuilt artifact / product software update
   -> verify manifest/digest
   -> link/load
   -> self-test
-  -> bind generated hot set
-  -> direct xs_eval calls
+  -> bind xs_calc schema/grammar and selected semantic ops
+  -> route supported deterministic work through ExactScope
 ```
 
-Target installation must not require Rust, Python, Node.js, Java, a package manager runtime, cloud login, or background process.
+Target installation must not require replacing/retraining the model, Rust, Python, Node.js, Java, a package-manager runtime, cloud login, or background process.
+
+Update/rollback compatibility and artifact identity are first-class concerns because an important target is already-designed or already-deployed hardware.
 
 Closed devices with no application/plugin/native/Wasm/paired-host execution boundary cannot be made directly installable by ExactScope alone.
 

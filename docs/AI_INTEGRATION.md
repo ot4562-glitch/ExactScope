@@ -2,40 +2,43 @@
 
 ExactScope is consumed by AI runtimes. This document defines the model-facing behavior that product integrations should optimize for.
 
-## 1. Direct evaluation is the default hot path
+## 1. Target interaction model
 
-The recommended steady-state interaction is one model turn followed by one deterministic call:
-
-```text
-model
-  -> xs_eval(op,args)
-  -> ExactScope result
-```
-
-`xs_find` exists as a fallback for an unknown operation. It is **not** a mandatory first step.
-
-A host should preload or generate a compact hot set and bind each key to the installed registry/pack digest. Successful discovery can also be cached against that digest.
+The **current implemented** model-facing path is direct `xs_eval` against a compact semantic hot set. The **vNext target** adds a generic bounded plan path for short arithmetic without requiring the model to select from a large catalog.
 
 ```text
-cold path:
-model -> xs_find -> bind/cache -> xs_eval
-
-hot path:
-model ---------------------> xs_eval
+                         model
+                           |
+               +-----------+-----------+
+               |                       |
+               v                       v
+      short arithmetic plan     known semantic method
+               |                       |
+               v                       v
+        xs_calc(plan)              xs_eval(op,args)
+       TARGET / PLANNED              IMPLEMENTED
+               |                       |
+               +-----------+-----------+
+                           |
+                           v
+                    ExactScope result
 ```
 
-If the registry digest or operation revision changes, the host invalidates and regenerates the binding.
+`xs_find` remains an optional discovery/setup path for unknown semantic operations. It is not a mandatory first step and should not be required for ordinary arithmetic retrofit use.
 
 ## 2. Model-facing surface
 
-The logical surface still contains only two generic functions:
+The target logical surface contains three roles, but a deployed product should expose only what it needs:
 
-- `xs_eval` — primary direct evaluation path;
-- `xs_find` — optional discovery fallback.
+- `xs_calc` — **planned** one-call bounded arithmetic plan for generic short numerical execution;
+- `xs_eval` — implemented direct evaluation for reviewed semantic operations;
+- `xs_find` — optional cold/development discovery fallback.
 
-Do not expose hundreds of independent per-formula tools by default. Large tool catalogs increase prompt cost and selection errors.
+For ordinary arithmetic, the design goal is **one compact plan tool**, not six independent arithmetic tools and not hundreds of per-formula tools.
 
-However, a product may generate a small 8-32 operation **hot-set hint/grammar** so the model can select canonical operation keys without discovery.
+For semantic methods, a product may still generate a small 8-32 operation hot-set hint/grammar so the model can select canonical operation keys without discovery.
+
+The target `xs_calc` P0 plan is limited to at most eight steps over `add/sub/mul/div/powi/sqrt`, exact decimal-string leaves, and backward-only prior-result references. Loops, arbitrary branches, variables, arbitrary functions, and arbitrary code are forbidden. The plan layer must lower to the shared bounded core semantics.
 
 ## 3. Canonical eval request
 
@@ -199,65 +202,76 @@ Cloud use is not required. "OpenAI-compatible" describes a widely used tool-call
 
 ## 11. llama.cpp target
 
-The first local-runtime reference integration should provide:
+The current local-runtime reference supports direct semantic `xs_eval`. The vNext target should add:
 
-- generated/checked-in GBNF for direct eval;
-- optional discovery grammar;
-- a compact prompt fragment;
-- OpenAI-compatible, tag-wrapped, and raw JSON fixtures;
-- a sample runner/configuration showing direct hot-set calls;
+- generated/checked-in GBNF for the bounded `xs_calc` plan;
+- matching JSON Schema/tool asset;
+- strict whitespace/output-tail termination tests;
+- compact prompt policy;
+- OpenAI-compatible and raw JSON fixtures;
+- a sample runner/configuration showing one-turn bounded-plan use;
+- preserved direct semantic `xs_eval` examples;
 - benchmark integration with selected small GGUF instruct/tool models.
 
-The grammar used for public benchmark claims must be checked in or reproducibly generated and digest-recorded.
+Any grammar/schema used for public benchmark claims must be checked in or reproducibly generated and digest-recorded.
 
 ## 12. TinyWire and typed hosts
 
 TinyWire is the compact deterministic CBOR transport for scalar/vector calls where JSON is undesirable. Typed native hosts may bypass model-facing JSON entirely and call the C ABI directly.
 
-A product with fixed operations may omit discovery and generic JSON from the runtime path completely.
+A product with fixed operations may omit discovery and generic JSON from the runtime path completely. A fixed appliance may also construct a bounded plan through typed host structures rather than model-generated JSON.
 
 ## 13. Benchmark stages
 
-The adapter benchmark separates:
+The vNext adapter benchmark separates:
 
 1. recognition of a supported deterministic task;
-2. operation selection;
-3. argument extraction/order;
-4. tool-call syntax validity;
-5. core acceptance/rejection;
-6. final answer accuracy;
-7. result fidelity;
-8. failure fidelity.
+2. plan/semantic-operation selection;
+3. argument extraction and prior-result reference formation;
+4. tool/plan syntax validity;
+5. plan semantic/resource validity;
+6. core acceptance/rejection;
+7. final answer accuracy;
+8. incorrect numeric answer rate;
+9. tool penalty rate;
+10. result fidelity;
+11. failure fidelity.
 
 See [BENCHMARK.md](BENCHMARK.md).
 
 ## 14. Required comparison paths
 
-Every serious evaluation should compare:
+For the planned generic arithmetic lane, serious evaluation should compare:
 
 - model only;
-- model + direct `xs_eval` hot path;
-- model + `xs_find -> xs_eval` cold path;
-- direct `xs_eval` with constrained decoding.
+- model -> unconstrained `xs_calc` -> ExactScope;
+- model -> constrained `xs_calc` -> ExactScope;
+- gold plan -> ExactScope deterministic ceiling;
+- optional larger-model reference with separately reported resource cost.
 
-This prevents the two-hop discovery cost from being hidden inside the product claim.
+For semantic-operation workloads, retain direct/constrained `xs_eval` comparison and optional `xs_find -> xs_eval` cold-path measurement.
+
+This keeps discovery overhead visible without making discovery the headline product path.
 
 ## 15. Tiny-model acceptance cases
 
-Before an adapter is considered usable, cover at least:
+Before the vNext model-facing path is considered usable, cover at least:
 
-- known direct operation;
-- cached/bound operation after prior discovery;
-- unknown operation requiring discovery;
-- discovery ambiguity;
+- one-step plan;
+- maximum-length valid plan;
+- multi-step backward references;
+- invalid forward reference;
+- invalid/missing argument;
 - negative/decimal values;
-- percentage versus ratio semantics;
-- missing argument;
-- wrong argument order;
-- invalid lexical value;
-- unsupported operation;
-- domain/overflow error;
-- exact result copied without model recomputation.
+- division by zero;
+- invalid power/domain case;
+- overflow/precision/resource failure;
+- malformed JSON/envelope;
+- grammar whitespace/output-tail termination;
+- exact result copied without model recomputation;
+- model-only-correct task regressed by tool use;
+- reviewed semantic `xs_eval` operation;
+- optional discovery ambiguity for `xs_find` tooling.
 
 ## 16. Human-facing surfaces
 
