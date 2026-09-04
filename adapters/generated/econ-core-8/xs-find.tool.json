@@ -1,0 +1,25 @@
+{
+  "function": {
+    "description": "Find an installed deterministic ExactScope operation when the canonical operation key is not already known.",
+    "name": "xs_find",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "n": {
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "q": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "q",
+        "n"
+      ],
+      "type": "object"
+    }
+  },
+  "type": "function"
+}

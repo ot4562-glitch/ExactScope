@@ -63,9 +63,10 @@ fn run_hotset(mut args: impl Iterator<Item = OsString>) -> Result<(), Box<dyn st
         .iter()
         .map(|(label, source)| exactscope_packc::HotsetSource { label, source })
         .collect::<Vec<_>>();
-    let bundle = exactscope_packc::generate_hotset(
+    let bundle = exactscope_packc::generate_hotset_with_fused(
         &manifest.name,
         &sources,
+        &manifest.fused_packs,
         &manifest.operation_keys,
         manifest.include_find,
     )?;

@@ -1,0 +1,38 @@
+{
+  "function": {
+    "description": "Evaluate one deterministic ExactScope operation from the bound hot set. Pass exact base-10 decimal arguments as strings in the declared signature order.",
+    "name": "xs_eval",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "a": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 12,
+          "minItems": 0,
+          "type": "array"
+        },
+        "op": {
+          "enum": [
+            "econ.ped.mid",
+            "econ.gdp.deflator100",
+            "econ.inflation.cpi_pct",
+            "econ.money.velocity",
+            "econ.rate.real.exact_pct",
+            "econ.rate.real.approx_pct",
+            "econ.output_gap_pct",
+            "econ.growth.rate_pct"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "a"
+      ],
+      "type": "object"
+    }
+  },
+  "type": "function"
+}

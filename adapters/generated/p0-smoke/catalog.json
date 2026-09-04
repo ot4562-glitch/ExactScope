@@ -1,6 +1,6 @@
 {
   "abi": "1.0",
-  "binding_sha256": "546b35b103e88217c28b61092f9f7daa8722e913747684dc530dbd832d3914c1",
+  "binding_sha256": "f55e8c3305bb722742cee0f0312bc89424296148e729659b2b730e6c70c5a90a",
   "format": "exactscope.hotset",
   "format_version": "0.1",
   "name": "p0-smoke",
@@ -30,8 +30,8 @@
       ],
       "method": "midpoint",
       "op": "econ.ped.mid",
+      "pack_binding_sha256": "7f320f78f2bf3fcbc4180e9d1c88684136e1be4262bcae7a03c06205afb7c85b",
       "pack_id": "org.exactscope.econ-undergrad",
-      "pack_sha256": "7f320f78f2bf3fcbc4180e9d1c88684136e1be4262bcae7a03c06205afb7c85b",
       "pack_version": "0.1.0",
       "revision": 1,
       "sig": "econ.ped.mid(p1,p2,q1,q2)"
@@ -39,8 +39,9 @@
   ],
   "packs": [
     {
+      "binding_kind": "compiled_xsp_sha256",
+      "binding_sha256": "7f320f78f2bf3fcbc4180e9d1c88684136e1be4262bcae7a03c06205afb7c85b",
       "id": "org.exactscope.econ-undergrad",
-      "sha256": "7f320f78f2bf3fcbc4180e9d1c88684136e1be4262bcae7a03c06205afb7c85b",
       "source": "../spec/examples/econ-undergrad-minimal.xsp.json",
       "version": "0.1.0"
     }

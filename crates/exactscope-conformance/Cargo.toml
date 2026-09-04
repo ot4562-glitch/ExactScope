@@ -13,6 +13,7 @@ publish = false
 [dependencies]
 exactscope-kernel = { path = "../exactscope-kernel", default-features = false }
 exactscope-pack = { path = "../exactscope-pack", default-features = false }
+exactscope-tinyjson = { path = "../exactscope-tinyjson", default-features = false }
 
 [dev-dependencies]
 exactscope-packc = { path = "../exactscope-packc" }

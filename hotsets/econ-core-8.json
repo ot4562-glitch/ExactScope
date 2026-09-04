@@ -1,0 +1,21 @@
+{
+  "$schema": "../spec/schemas/hotset-source.schema.json",
+  "format": "exactscope.hotset.source",
+  "format_version": "0.1",
+  "name": "econ-core-8",
+  "sources": [],
+  "fused_packs": [
+    "econ-undergrad"
+  ],
+  "operations": [
+    "econ.ped.mid",
+    "econ.gdp.deflator100",
+    "econ.inflation.cpi_pct",
+    "econ.money.velocity",
+    "econ.rate.real.exact_pct",
+    "econ.rate.real.approx_pct",
+    "econ.output_gap_pct",
+    "econ.growth.rate_pct"
+  ],
+  "include_find": true
+}

@@ -1,0 +1,196 @@
+{
+  "abi": "1.0",
+  "binding_sha256": "0059dbf913a7c34966d77f16db7e3ed101d1b1506f2f985af0dad08bf7ff03a1",
+  "format": "exactscope.hotset",
+  "format_version": "0.1",
+  "name": "econ-core-8",
+  "operations": [
+    {
+      "args": [
+        {
+          "name": "p1",
+          "semantic": "price",
+          "shape": "scalar"
+        },
+        {
+          "name": "p2",
+          "semantic": "price",
+          "shape": "scalar"
+        },
+        {
+          "name": "q1",
+          "semantic": "quantity",
+          "shape": "scalar"
+        },
+        {
+          "name": "q2",
+          "semantic": "quantity",
+          "shape": "scalar"
+        }
+      ],
+      "method": "midpoint",
+      "op": "econ.ped.mid",
+      "pack_binding_sha256": "6989a22d38b7107a3d0146a5f8a931032454b4be7d7d0ae1a9f341d90bef4979",
+      "pack_id": "org.exactscope.econ-undergrad",
+      "pack_version": "0.1.0",
+      "revision": 1,
+      "sig": "econ.ped.mid(p1,p2,q1,q2)"
+    },
+    {
+      "args": [
+        {
+          "name": "nominal_gdp",
+          "semantic": "currency_amount",
+          "shape": "scalar"
+        },
+        {
+          "name": "real_gdp",
+          "semantic": "currency_amount",
+          "shape": "scalar"
+        }
+      ],
+      "method": "deflator100",
+      "op": "econ.gdp.deflator100",
+      "pack_binding_sha256": "6989a22d38b7107a3d0146a5f8a931032454b4be7d7d0ae1a9f341d90bef4979",
+      "pack_id": "org.exactscope.econ-undergrad",
+      "pack_version": "0.1.0",
+      "revision": 1,
+      "sig": "econ.gdp.deflator100(nominal_gdp,real_gdp)"
+    },
+    {
+      "args": [
+        {
+          "name": "cpi1",
+          "semantic": "index",
+          "shape": "scalar"
+        },
+        {
+          "name": "cpi2",
+          "semantic": "index",
+          "shape": "scalar"
+        }
+      ],
+      "method": "cpi",
+      "op": "econ.inflation.cpi_pct",
+      "pack_binding_sha256": "6989a22d38b7107a3d0146a5f8a931032454b4be7d7d0ae1a9f341d90bef4979",
+      "pack_id": "org.exactscope.econ-undergrad",
+      "pack_version": "0.1.0",
+      "revision": 1,
+      "sig": "econ.inflation.cpi_pct(cpi1,cpi2)"
+    },
+    {
+      "args": [
+        {
+          "name": "nominal_gdp",
+          "semantic": "currency_amount",
+          "shape": "scalar"
+        },
+        {
+          "name": "money_supply",
+          "semantic": "currency_amount",
+          "shape": "scalar"
+        }
+      ],
+      "method": "quantity_equation",
+      "op": "econ.money.velocity",
+      "pack_binding_sha256": "6989a22d38b7107a3d0146a5f8a931032454b4be7d7d0ae1a9f341d90bef4979",
+      "pack_id": "org.exactscope.econ-undergrad",
+      "pack_version": "0.1.0",
+      "revision": 1,
+      "sig": "econ.money.velocity(nominal_gdp,money_supply)"
+    },
+    {
+      "args": [
+        {
+          "name": "nominal_pct",
+          "semantic": "rate_percent",
+          "shape": "scalar"
+        },
+        {
+          "name": "inflation_pct",
+          "semantic": "rate_percent",
+          "shape": "scalar"
+        }
+      ],
+      "method": "fisher_exact",
+      "op": "econ.rate.real.exact_pct",
+      "pack_binding_sha256": "6989a22d38b7107a3d0146a5f8a931032454b4be7d7d0ae1a9f341d90bef4979",
+      "pack_id": "org.exactscope.econ-undergrad",
+      "pack_version": "0.1.0",
+      "revision": 1,
+      "sig": "econ.rate.real.exact_pct(nominal_pct,inflation_pct)"
+    },
+    {
+      "args": [
+        {
+          "name": "nominal_pct",
+          "semantic": "rate_percent",
+          "shape": "scalar"
+        },
+        {
+          "name": "inflation_pct",
+          "semantic": "rate_percent",
+          "shape": "scalar"
+        }
+      ],
+      "method": "fisher_approx",
+      "op": "econ.rate.real.approx_pct",
+      "pack_binding_sha256": "6989a22d38b7107a3d0146a5f8a931032454b4be7d7d0ae1a9f341d90bef4979",
+      "pack_id": "org.exactscope.econ-undergrad",
+      "pack_version": "0.1.0",
+      "revision": 1,
+      "sig": "econ.rate.real.approx_pct(nominal_pct,inflation_pct)"
+    },
+    {
+      "args": [
+        {
+          "name": "actual_output",
+          "semantic": "number",
+          "shape": "scalar"
+        },
+        {
+          "name": "potential_output",
+          "semantic": "number",
+          "shape": "scalar"
+        }
+      ],
+      "method": "potential_output_gap",
+      "op": "econ.output_gap_pct",
+      "pack_binding_sha256": "6989a22d38b7107a3d0146a5f8a931032454b4be7d7d0ae1a9f341d90bef4979",
+      "pack_id": "org.exactscope.econ-undergrad",
+      "pack_version": "0.1.0",
+      "revision": 1,
+      "sig": "econ.output_gap_pct(actual_output,potential_output)"
+    },
+    {
+      "args": [
+        {
+          "name": "initial",
+          "semantic": "number",
+          "shape": "scalar"
+        },
+        {
+          "name": "final",
+          "semantic": "number",
+          "shape": "scalar"
+        }
+      ],
+      "method": "level_change",
+      "op": "econ.growth.rate_pct",
+      "pack_binding_sha256": "6989a22d38b7107a3d0146a5f8a931032454b4be7d7d0ae1a9f341d90bef4979",
+      "pack_id": "org.exactscope.econ-undergrad",
+      "pack_version": "0.1.0",
+      "revision": 1,
+      "sig": "econ.growth.rate_pct(initial,final)"
+    }
+  ],
+  "packs": [
+    {
+      "binding_kind": "fused_registry_sha256",
+      "binding_sha256": "6989a22d38b7107a3d0146a5f8a931032454b4be7d7d0ae1a9f341d90bef4979",
+      "id": "org.exactscope.econ-undergrad",
+      "source": "fused:econ-undergrad",
+      "version": "0.1.0"
+    }
+  ]
+}

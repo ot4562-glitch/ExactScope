@@ -86,6 +86,13 @@ jobs:
         shell: bash
         run: cargo "+$RUST_TOOLCHAIN" test --workspace
 
+      - name: Validate benchmark corpus against real Tiny JSON core
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          cargo "+$RUST_TOOLCHAIN" build --package exactscope-conformance --bin exactscope-core
+          python3 benchmarks/run_benchmark.py --self-test --core target/debug/exactscope-core
+
       - name: Lint dynamic-pack C ABI feature
         shell: bash
         run: cargo "+$RUST_TOOLCHAIN" clippy --package exactscope-cabi --features dynamic-packs --all-targets -- -D warnings
@@ -105,13 +112,15 @@ jobs:
           sha256sum target/conformance/econ-undergrad-minimal.xsp > target/conformance/econ-undergrad-minimal.xsp.sha256
           rm target/conformance/econ-undergrad-minimal.second.xsp
 
-      - name: Verify generated P0 hot-set assets
+      - name: Verify generated hot-set assets
         if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
-          rm -rf target/hotset-check
-          cargo "+$RUST_TOOLCHAIN" run --quiet --package exactscope-packc -- hotset hotsets/p0-smoke.json target/hotset-check
-          diff -ru adapters/generated/p0-smoke target/hotset-check
+          rm -rf target/hotset-check-p0 target/hotset-check-econ8
+          cargo "+$RUST_TOOLCHAIN" run --quiet --package exactscope-packc -- hotset hotsets/p0-smoke.json target/hotset-check-p0
+          cargo "+$RUST_TOOLCHAIN" run --quiet --package exactscope-packc -- hotset hotsets/econ-core-8.json target/hotset-check-econ8
+          diff -ru adapters/generated/p0-smoke target/hotset-check-p0
+          diff -ru adapters/generated/econ-core-8 target/hotset-check-econ8
 
       - name: Upload canonical scope-pack artifact
         if: matrix.os == 'ubuntu-latest'

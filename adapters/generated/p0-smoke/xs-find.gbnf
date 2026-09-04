@@ -1,0 +1,3 @@
+root ::= ws "{" ws "\"q\"" ws ":" ws query ws "," ws "\"n\"" ws ":" ws [1-5] ws "}" ws
+query ::= "\"" [A-Za-z0-9 _./:+-]* "\""
+ws ::= [ \t\n\r]*

@@ -6,8 +6,9 @@
   "sources": [
     "../spec/examples/econ-undergrad-minimal.xsp.json"
   ],
+  "fused_packs": [],
   "operations": [
     "econ.ped.mid"
   ],
-  "include_find": false
+  "include_find": true
 }

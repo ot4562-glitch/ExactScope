@@ -2,6 +2,12 @@
 
 use std::{collections::BTreeMap, error::Error, fmt};
 
+use exactscope_kernel::{
+    OperationDecl, OFFICIAL_ECON_OPERATIONS, SEMANTIC_COUNT, SEMANTIC_CURRENCY_AMOUNT,
+    SEMANTIC_ELASTICITY, SEMANTIC_INDEX, SEMANTIC_NUMBER, SEMANTIC_PRICE, SEMANTIC_PROBABILITY,
+    SEMANTIC_QUANTITY, SEMANTIC_RATE_PERCENT, SEMANTIC_RATE_RATIO, SEMANTIC_TIME_PERIODS,
+};
+use exactscope_pack::{ECON_UNDERGRAD_PACK_ID, ECON_UNDERGRAD_VERSION};
 use serde_json::{json, Map, Value};
 
 use crate::{compile_source, CompileError};
@@ -27,6 +33,8 @@ pub struct HotsetManifest {
     pub name: String,
     /// Scope-pack source paths, interpreted by the CLI relative to the manifest file.
     pub source_paths: Vec<String>,
+    /// Built-in fused pack identifiers made available to the generator.
+    pub fused_packs: Vec<String>,
     /// Canonical operation keys in the desired hot-set order.
     pub operation_keys: Vec<String>,
     /// Whether the generated bundle includes the optional discovery tool and grammar.
@@ -92,7 +100,8 @@ struct PackBinding {
     label: String,
     id: String,
     version: String,
-    sha256: String,
+    binding_kind: String,
+    binding_sha256: String,
 }
 
 #[derive(Clone, Debug)]
@@ -103,7 +112,7 @@ struct OperationBinding {
     method: String,
     pack_id: String,
     pack_version: String,
-    pack_sha256: String,
+    pack_binding_sha256: String,
     inputs: Vec<InputBinding>,
 }
 
@@ -135,14 +144,23 @@ pub fn parse_hotset_manifest(source: &str) -> Result<HotsetManifest, HotsetError
 
     let name = required_string(object, "name")?.to_owned();
     validate_name(&name)?;
-    let source_paths = string_array(object, "sources")?;
+    let source_paths = optional_string_array(object, "sources")?;
+    let fused_packs = optional_string_array(object, "fused_packs")?;
     let operation_keys = string_array(object, "operations")?;
-    if source_paths.is_empty() {
+    if source_paths.is_empty() && fused_packs.is_empty() {
         return Err(HotsetError::Invalid(
-            "at least one scope-pack source is required".to_owned(),
+            "at least one scope-pack source or fused pack is required".to_owned(),
         ));
     }
     ensure_unique(&source_paths, "scope-pack source path")?;
+    ensure_unique(&fused_packs, "fused pack")?;
+    for fused_pack in &fused_packs {
+        if fused_pack != "econ-undergrad" {
+            return Err(HotsetError::Invalid(format!(
+                "unsupported fused pack {fused_pack}; v0.1 model-facing hot sets currently support econ-undergrad"
+            )));
+        }
+    }
     validate_operation_keys(&operation_keys)?;
 
     let include_find = object.get("include_find").map_or(Ok(false), |value| {
@@ -154,6 +172,7 @@ pub fn parse_hotset_manifest(source: &str) -> Result<HotsetManifest, HotsetError
     Ok(HotsetManifest {
         name,
         source_paths,
+        fused_packs,
         operation_keys,
         include_find,
     })
@@ -171,22 +190,38 @@ pub fn parse_hotset_manifest(source: &str) -> Result<HotsetManifest, HotsetError
 /// Returns [`HotsetError`] if a source pack does not compile, a selected key is
 /// missing/ambiguous, metadata is malformed, or a selected operation is not
 /// compatible with the scalar Tiny JSON direct-eval profile.
-#[allow(clippy::too_many_lines)]
 pub fn generate_hotset(
     name: &str,
     sources: &[HotsetSource<'_>],
     operation_keys: &[String],
     include_find: bool,
 ) -> Result<HotsetBundle, HotsetError> {
+    generate_hotset_with_fused(name, sources, &[], operation_keys, include_find)
+}
+
+/// Generates a hot set from reviewed scope-pack sources and/or supported fused registries.
+///
+/// # Errors
+///
+/// Returns [`HotsetError`] when any input registry/source is invalid, ambiguous,
+/// or incompatible with the scalar model-facing adapter profile.
+#[allow(clippy::too_many_lines)]
+pub fn generate_hotset_with_fused(
+    name: &str,
+    sources: &[HotsetSource<'_>],
+    fused_packs: &[String],
+    operation_keys: &[String],
+    include_find: bool,
+) -> Result<HotsetBundle, HotsetError> {
     validate_name(name)?;
     validate_operation_keys(operation_keys)?;
-    if sources.is_empty() {
+    if sources.is_empty() && fused_packs.is_empty() {
         return Err(HotsetError::Invalid(
-            "at least one scope-pack source is required".to_owned(),
+            "at least one scope-pack source or fused pack is required".to_owned(),
         ));
     }
 
-    let mut pack_bindings = Vec::with_capacity(sources.len());
+    let mut pack_bindings = Vec::with_capacity(sources.len() + fused_packs.len());
     let mut operation_map = BTreeMap::<String, OperationBinding>::new();
 
     for source in sources {
@@ -209,12 +244,13 @@ pub fn generate_hotset(
         let pack_id = required_string(pack, "id")?.to_owned();
         let pack_version = required_string(pack, "version")?.to_owned();
         let compiled = compile_source(source.source)?;
-        let pack_sha256 = sha256_hex(&compiled);
+        let pack_binding_sha256 = sha256_hex(&compiled);
         pack_bindings.push(PackBinding {
             label: source.label.to_owned(),
             id: pack_id.clone(),
             version: pack_version.clone(),
-            sha256: pack_sha256.clone(),
+            binding_kind: "compiled_xsp_sha256".to_owned(),
+            binding_sha256: pack_binding_sha256.clone(),
         });
 
         let operations = required_array(root_object, "operations")?;
@@ -244,12 +280,37 @@ pub fn generate_hotset(
                 method,
                 pack_id: pack_id.clone(),
                 pack_version: pack_version.clone(),
-                pack_sha256: pack_sha256.clone(),
+                pack_binding_sha256: pack_binding_sha256.clone(),
                 inputs,
             };
             if operation_map.insert(key.clone(), binding).is_some() {
                 return Err(HotsetError::Invalid(format!(
                     "operation key {key} is ambiguous across supplied sources"
+                )));
+            }
+        }
+    }
+
+    for fused_pack in fused_packs {
+        if fused_pack != "econ-undergrad" {
+            return Err(HotsetError::Invalid(format!(
+                "unsupported fused pack {fused_pack}"
+            )));
+        }
+        let pack_binding_sha256 = fused_econ_digest()?;
+        pack_bindings.push(PackBinding {
+            label: "fused:econ-undergrad".to_owned(),
+            id: ECON_UNDERGRAD_PACK_ID.to_owned(),
+            version: ECON_UNDERGRAD_VERSION.to_owned(),
+            binding_kind: "fused_registry_sha256".to_owned(),
+            binding_sha256: pack_binding_sha256.clone(),
+        });
+        for operation in OFFICIAL_ECON_OPERATIONS {
+            let binding = fused_operation_binding(operation, &pack_binding_sha256)?;
+            let key = binding.key.clone();
+            if operation_map.insert(key.clone(), binding).is_some() {
+                return Err(HotsetError::Invalid(format!(
+                    "operation key {key} is ambiguous across supplied sources/fused packs"
                 )));
             }
         }
@@ -282,7 +343,8 @@ pub fn generate_hotset(
             json!({
                 "id": pack.id,
                 "version": pack.version,
-                "sha256": pack.sha256,
+                "binding_kind": pack.binding_kind,
+                "binding_sha256": pack.binding_sha256,
                 "source": pack.label,
             })
         })
@@ -331,6 +393,85 @@ fn parse_input_binding(value: &Value) -> Result<InputBinding, HotsetError> {
     })
 }
 
+fn fused_operation_binding(
+    operation: &'static OperationDecl,
+    pack_binding_sha256: &str,
+) -> Result<OperationBinding, HotsetError> {
+    let inputs = operation
+        .inputs
+        .iter()
+        .map(|input| {
+            Ok(InputBinding {
+                name: input.name.to_owned(),
+                shape: "scalar".to_owned(),
+                semantic: semantic_name(input.semantic_kind)?.to_owned(),
+            })
+        })
+        .collect::<Result<Vec<_>, HotsetError>>()?;
+    Ok(OperationBinding {
+        key: operation.key.to_owned(),
+        revision: u64::from(operation.revision),
+        signature: operation.signature.to_owned(),
+        method: operation.method.to_owned(),
+        pack_id: ECON_UNDERGRAD_PACK_ID.to_owned(),
+        pack_version: ECON_UNDERGRAD_VERSION.to_owned(),
+        pack_binding_sha256: pack_binding_sha256.to_owned(),
+        inputs,
+    })
+}
+
+fn fused_econ_digest() -> Result<String, HotsetError> {
+    let operations = OFFICIAL_ECON_OPERATIONS
+        .iter()
+        .map(|operation| {
+            let inputs = operation
+                .inputs
+                .iter()
+                .map(|input| {
+                    Ok(json!({
+                        "name": input.name,
+                        "shape": "scalar",
+                        "semantic": semantic_name(input.semantic_kind)?,
+                    }))
+                })
+                .collect::<Result<Vec<_>, HotsetError>>()?;
+            Ok(json!({
+                "op": operation.key,
+                "revision": operation.revision,
+                "sig": operation.signature,
+                "method": operation.method,
+                "args": inputs,
+            }))
+        })
+        .collect::<Result<Vec<_>, HotsetError>>()?;
+    let payload = json!({
+        "abi": "1.0",
+        "pack_id": ECON_UNDERGRAD_PACK_ID,
+        "version": ECON_UNDERGRAD_VERSION,
+        "operations": operations,
+    });
+    Ok(sha256_hex(&serde_json::to_vec(&payload)?))
+}
+
+fn semantic_name(kind: u8) -> Result<&'static str, HotsetError> {
+    match kind {
+        SEMANTIC_NUMBER => Ok("number"),
+        SEMANTIC_COUNT => Ok("count"),
+        SEMANTIC_CURRENCY_AMOUNT => Ok("currency_amount"),
+        SEMANTIC_PRICE => Ok("price"),
+        SEMANTIC_QUANTITY => Ok("quantity"),
+        SEMANTIC_RATE_PERCENT => Ok("rate_percent"),
+        SEMANTIC_RATE_RATIO => Ok("rate_ratio"),
+        SEMANTIC_INDEX => Ok("index"),
+        SEMANTIC_TIME_PERIODS => Ok("time_periods"),
+        SEMANTIC_PROBABILITY => Ok("probability"),
+        SEMANTIC_ELASTICITY => Ok("elasticity"),
+        other => Err(HotsetError::Invalid(format!(
+            "unknown semantic kind {other} in fused registry"
+        ))),
+    }
+}
+
 fn operation_json(operation: &OperationBinding) -> Value {
     let args = operation
         .inputs
@@ -350,7 +491,7 @@ fn operation_json(operation: &OperationBinding) -> Value {
         "method": operation.method,
         "pack_id": operation.pack_id,
         "pack_version": operation.pack_version,
-        "pack_sha256": operation.pack_sha256,
+        "pack_binding_sha256": operation.pack_binding_sha256,
         "args": args,
     })
 }
@@ -730,9 +871,32 @@ fn string_array(object: &Map<String, Value>, key: &str) -> Result<Vec<String>, H
         .collect()
 }
 
+fn optional_string_array(
+    object: &Map<String, Value>,
+    key: &str,
+) -> Result<Vec<String>, HotsetError> {
+    match object.get(key) {
+        None => Ok(Vec::new()),
+        Some(value) => value
+            .as_array()
+            .ok_or_else(|| HotsetError::Invalid(format!("{key} must be an array")))?
+            .iter()
+            .map(|entry| {
+                entry
+                    .as_str()
+                    .map(str::to_owned)
+                    .ok_or_else(|| HotsetError::Invalid(format!("{key} entries must be strings")))
+            })
+            .collect(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{generate_hotset, parse_hotset_manifest, sha256_hex, HotsetSource};
+    use super::{
+        generate_hotset, generate_hotset_with_fused, parse_hotset_manifest, sha256_hex,
+        HotsetSource,
+    };
 
     const ECON: &str = include_str!("../../../spec/examples/econ-undergrad-minimal.xsp.json");
     const STATS: &str = include_str!("../../../packs/statistics-core.xsp.json");
@@ -762,6 +926,54 @@ mod tests {
     }
 
     #[test]
+    fn fused_manifest_and_eight_operation_hotset_are_reproducible() {
+        let text = r#"{
+          "format":"exactscope.hotset.source",
+          "format_version":"0.1",
+          "name":"econ-core-8",
+          "fused_packs":["econ-undergrad"],
+          "operations":[
+            "econ.ped.mid",
+            "econ.gdp.deflator100",
+            "econ.inflation.cpi_pct",
+            "econ.money.velocity",
+            "econ.rate.real.exact_pct",
+            "econ.rate.real.approx_pct",
+            "econ.output_gap_pct",
+            "econ.growth.rate_pct"
+          ],
+          "include_find":true
+        }"#;
+        let manifest = parse_hotset_manifest(text).expect("parse fused manifest");
+        assert!(manifest.source_paths.is_empty());
+        assert_eq!(manifest.fused_packs, ["econ-undergrad"]);
+
+        let first = generate_hotset_with_fused(
+            &manifest.name,
+            &[],
+            &manifest.fused_packs,
+            &manifest.operation_keys,
+            manifest.include_find,
+        )
+        .expect("generate fused hot set");
+        let second = generate_hotset_with_fused(
+            &manifest.name,
+            &[],
+            &manifest.fused_packs,
+            &manifest.operation_keys,
+            manifest.include_find,
+        )
+        .expect("generate fused hot set again");
+        assert_eq!(first, second);
+        let catalog: serde_json::Value =
+            serde_json::from_str(&first.catalog_json).expect("catalog json");
+        assert_eq!(catalog["operations"].as_array().unwrap().len(), 8);
+        assert_eq!(catalog["packs"][0]["source"], "fused:econ-undergrad");
+        assert!(first.xs_find_tool_json.is_some());
+        assert!(first.xs_eval_gbnf.contains("econ.gdp.deflator100"));
+    }
+
+    #[test]
     fn direct_eval_bundle_is_reproducible_and_digest_bound() {
         let sources = [HotsetSource {
             label: "../spec/examples/econ-undergrad-minimal.xsp.json",
@@ -788,9 +1000,9 @@ mod tests {
             64
         );
         assert_eq!(
-            catalog["packs"][0]["sha256"]
+            catalog["packs"][0]["binding_sha256"]
                 .as_str()
-                .expect("pack digest")
+                .expect("pack binding digest")
                 .len(),
             64
         );
@@ -828,8 +1040,8 @@ mod tests {
             changed_catalog["binding_sha256"]
         );
         assert_ne!(
-            original_catalog["packs"][0]["sha256"],
-            changed_catalog["packs"][0]["sha256"]
+            original_catalog["packs"][0]["binding_sha256"],
+            changed_catalog["packs"][0]["binding_sha256"]
         );
     }
 

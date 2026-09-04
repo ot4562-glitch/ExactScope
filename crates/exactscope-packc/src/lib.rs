@@ -10,7 +10,8 @@
 mod hotset;
 
 pub use hotset::{
-    generate_hotset, parse_hotset_manifest, HotsetBundle, HotsetError, HotsetManifest, HotsetSource,
+    generate_hotset, generate_hotset_with_fused, parse_hotset_manifest, HotsetBundle, HotsetError,
+    HotsetManifest, HotsetSource,
 };
 
 use std::{

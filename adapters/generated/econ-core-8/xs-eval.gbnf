@@ -1,0 +1,11 @@
+root ::= ws (op_0 | op_1 | op_2 | op_3 | op_4 | op_5 | op_6 | op_7) ws
+op_0 ::= "{" ws "\"op\"" ws ":" ws "\"econ.ped.mid\"" ws "," ws "\"a\"" ws ":" ws "[" ws decimal_string ws "," ws decimal_string ws "," ws decimal_string ws "," ws decimal_string ws "]" ws "}"
+op_1 ::= "{" ws "\"op\"" ws ":" ws "\"econ.gdp.deflator100\"" ws "," ws "\"a\"" ws ":" ws "[" ws decimal_string ws "," ws decimal_string ws "]" ws "}"
+op_2 ::= "{" ws "\"op\"" ws ":" ws "\"econ.inflation.cpi_pct\"" ws "," ws "\"a\"" ws ":" ws "[" ws decimal_string ws "," ws decimal_string ws "]" ws "}"
+op_3 ::= "{" ws "\"op\"" ws ":" ws "\"econ.money.velocity\"" ws "," ws "\"a\"" ws ":" ws "[" ws decimal_string ws "," ws decimal_string ws "]" ws "}"
+op_4 ::= "{" ws "\"op\"" ws ":" ws "\"econ.rate.real.exact_pct\"" ws "," ws "\"a\"" ws ":" ws "[" ws decimal_string ws "," ws decimal_string ws "]" ws "}"
+op_5 ::= "{" ws "\"op\"" ws ":" ws "\"econ.rate.real.approx_pct\"" ws "," ws "\"a\"" ws ":" ws "[" ws decimal_string ws "," ws decimal_string ws "]" ws "}"
+op_6 ::= "{" ws "\"op\"" ws ":" ws "\"econ.output_gap_pct\"" ws "," ws "\"a\"" ws ":" ws "[" ws decimal_string ws "," ws decimal_string ws "]" ws "}"
+op_7 ::= "{" ws "\"op\"" ws ":" ws "\"econ.growth.rate_pct\"" ws "," ws "\"a\"" ws ":" ws "[" ws decimal_string ws "," ws decimal_string ws "]" ws "}"
+decimal_string ::= "\"" "-"? ("0" | [1-9] [0-9]*) ("." [0-9]+)? ([eE] [+-]? [0-9]+)? "\""
+ws ::= [ \t\n\r]*

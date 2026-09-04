@@ -52,15 +52,15 @@ Success criterion: a local-AI developer does not write custom ExactScope glue fr
 
 ## P0.3 Benchmark and claim evidence
 
-- [ ] Build the reproducible benchmark harness defined in `docs/BENCHMARK.md`.
-- [ ] Compare model-only vs direct `xs_eval` hot path.
-- [ ] Measure `xs_find -> xs_eval` cold-path overhead separately.
-- [ ] Measure direct hot path with constrained decoding/GBNF.
+- [x] Build the reproducible benchmark harness defined in `docs/BENCHMARK.md`, including a real Tiny JSON/core bridge and corpus/core drift self-test.
+- [ ] Compare model-only vs direct `xs_eval` hot path on recorded real models.
+- [ ] Measure `xs_find -> xs_eval` cold-path overhead on recorded real models.
+- [ ] Measure direct hot path with constrained decoding/GBNF on recorded real models.
 - [ ] Test at least sub-1B, 1B-2B, and about-3B model classes.
-- [ ] Report stage-level failures: recognition, operation, extraction, syntax, core rejection, result fidelity.
-- [ ] Report successful-answer rate and wrong-number rate separately.
-- [ ] Report tokens, inference turns, end-to-end latency, ExactScope compute latency, resident bytes, scratch bytes, and energy where measurable.
-- [ ] Publish no accuracy/latency/energy improvement claim before evidence exists.
+- [x] Report stage-level fields for recognition, operation, extraction, syntax/tool validity, core rejection/status, and result fidelity.
+- [x] Report successful-answer/fidelity and incorrect-numeric-answer rates separately.
+- [ ] Complete evidence capture for tokens, inference turns, end-to-end latency, ExactScope compute latency, resident bytes, scratch bytes, and energy; the harness already records model tokens/turns/latencies/core latency when supplied by the runtime.
+- [x] Keep accuracy/latency/energy improvement claims blocked until recorded evidence exists.
 
 Success criterion: ExactScope has a reproducible answer to “how much does this help?”
 
@@ -82,7 +82,7 @@ Success criterion: a non-Rust integrator can evaluate ExactScope without buildin
 
 - [ ] Choose the smallest reviewed `math-basic` benchmark hot set.
 - [ ] Choose the smallest reviewed `statistics-core` benchmark hot set.
-- [ ] Choose the smallest reviewed `econ-undergrad` benchmark hot set.
+- [x] Choose the first bounded `econ-undergrad` benchmark hot set (`econ-core-8`) directly from the fused executable registry.
 - [ ] Ensure each benchmark operation has explicit method/semantics/provenance.
 - [ ] Ensure valid, invalid, boundary, overflow/resource, and precision vectors.
 

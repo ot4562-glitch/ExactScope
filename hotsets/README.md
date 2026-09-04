@@ -11,11 +11,12 @@ cargo run --package exactscope-packc -- hotset hotsets/p0-smoke.json adapters/ge
 A hot-set source manifest contains:
 
 - a stable name;
-- one or more reviewed `.xsp.json` source-pack paths;
+- explicit `sources` and `fused_packs` arrays;
+- reviewed `.xsp.json` source-pack paths and/or a supported built-in fused registry such as `econ-undergrad`;
 - 1-32 canonical operation keys in product order;
 - whether the optional `xs_find` fallback assets should also be emitted.
 
-Before emitting any adapter asset, the generator compiles every referenced source with the canonical pack compiler and hashes the resulting `.xsp` bytes. The generated catalog binds pack SHA-256, pack version, operation revision, compact signature, argument metadata, and a composite binding SHA-256.
+For source packs, the generator compiles the source with the canonical pack compiler and records a binding for the resulting `.xsp` bytes. For fused registries, it records a binding over canonical operation identity, revision, signature, method, and argument metadata. The catalog also carries a composite binding for the selected hot set.
 
 Current Tiny JSON model calls accept scalar decimal-string arguments. The generator therefore rejects vector operations for `xs-eval.tool.json`/GBNF instead of publishing a schema the runtime cannot honor. Vector operations continue to use typed/TinyWire host paths until a dedicated model-facing vector contract is implemented.
 
@@ -36,4 +37,4 @@ xs-find.tool.json
 xs-find.gbnf
 ```
 
-`adapters/generated/p0-smoke/` is the first reproducibility fixture. CI regenerates it and fails on any byte drift.
+`adapters/generated/p0-smoke/` is the minimal reproducibility fixture. `adapters/generated/econ-core-8/` is the first production-size economics hot set. CI regenerates both and fails on any byte drift.
