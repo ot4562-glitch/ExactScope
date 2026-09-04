@@ -92,6 +92,8 @@ pub const INPUT_FLAGS_V1: u16 = INPUT_FLAG_UNIT_REQUIRED;
 pub const CONSTRAINT_GT: u8 = 1;
 /// Constraint kind: greater than or equal to constant.
 pub const CONSTRAINT_GE: u8 = 2;
+/// Constraint kind: not exactly equal to constant.
+pub const CONSTRAINT_NE: u8 = 6;
 
 /// CRC-32/ISO-HDLC over canonical pack bytes after the fixed header.
 #[must_use]

@@ -10,7 +10,7 @@ use exactscope_kernel::{
 
 use crate::format::{
     crc32_iso_hdlc, read_i64, read_u16, read_u32, read_u8, ALIAS_RECORD_SIZE,
-    CLASSIFICATION_RECORD_SIZE, CONSTANT_RECORD_SIZE, CONSTRAINT_GE, CONSTRAINT_GT,
+    CLASSIFICATION_RECORD_SIZE, CONSTANT_RECORD_SIZE, CONSTRAINT_GE, CONSTRAINT_GT, CONSTRAINT_NE,
     CONSTRAINT_RECORD_SIZE, FORMAT_MAJOR, FORMAT_MINOR, HEADER_SIZE, INPUT_FLAGS_V1,
     INPUT_FLAG_UNIT_REQUIRED, INPUT_RECORD_SIZE, INSTRUCTION_RECORD_SIZE, MAGIC, MAX_SECTION_KIND,
     META_RECORD_SIZE, NUMERIC_PROFILE_DECIMAL64_V1, OPERATION_KIND_FORMULA, OPERATION_RECORD_SIZE,
@@ -550,7 +550,7 @@ impl<'a> PackView<'a> {
                 || read_u16(input, 22)? != 0
                 || read_u32(input, 24)? != 0
                 || read_u32(input, 28)? != 0
-                || constraint_count != 1
+                || constraint_count > 1
             {
                 return Err(Status::PACK_INVALID);
             }
@@ -561,21 +561,30 @@ impl<'a> PackView<'a> {
                 self.string_at(group_offset)?;
             }
 
-            let constraint = self.constraint_record(first_constraint)?;
-            if read_u8(constraint, 1)? != 0
-                || read_u32(constraint, 8)? != 0
-                || read_u32(constraint, 12)? != 0
-            {
-                return Err(Status::PACK_INVALID);
-            }
-            let constraint_kind = match read_u8(constraint, 0)? {
-                CONSTRAINT_GT => ConstraintKind::GreaterThan,
-                CONSTRAINT_GE => ConstraintKind::GreaterOrEqual,
-                _ => return Err(Status::UNSUPPORTED_OPERATION),
+            let (constraint_kind, constraint_value, detail_id) = if constraint_count == 0 {
+                (ConstraintKind::None, WorkRational::ZERO, 0)
+            } else {
+                let constraint = self.constraint_record(first_constraint)?;
+                if read_u8(constraint, 1)? != 0
+                    || read_u32(constraint, 8)? != 0
+                    || read_u32(constraint, 12)? != 0
+                {
+                    return Err(Status::PACK_INVALID);
+                }
+                let constraint_kind = match read_u8(constraint, 0)? {
+                    CONSTRAINT_GT => ConstraintKind::GreaterThan,
+                    CONSTRAINT_GE => ConstraintKind::GreaterOrEqual,
+                    CONSTRAINT_NE => ConstraintKind::NotEqual,
+                    _ => return Err(Status::UNSUPPORTED_OPERATION),
+                };
+                let constant_index = usize::try_from(read_u32(constraint, 4)?)
+                    .map_err(|_| Status::PACK_INVALID)?;
+                (
+                    constraint_kind,
+                    self.constant_at(constant_index)?,
+                    read_u16(constraint, 2)?,
+                )
             };
-            let constant_index =
-                usize::try_from(read_u32(constraint, 4)?).map_err(|_| Status::PACK_INVALID)?;
-            let constraint_value = self.constant_at(constant_index)?;
 
             let same_unit_group = if group_offset == ABSENT_STRING {
                 0
@@ -598,7 +607,7 @@ impl<'a> PackView<'a> {
                 unit_required: flags & INPUT_FLAG_UNIT_REQUIRED != 0,
                 constraint: constraint_kind,
                 constraint_value,
-                detail_id: read_u16(constraint, 2)?,
+                detail_id,
             };
         }
         Ok(count)

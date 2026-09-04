@@ -20,7 +20,8 @@ use exactscope_kernel::{
 use exactscope_pack::{
     format::{
         crc32_iso_hdlc, ALIAS_RECORD_SIZE, CLASSIFICATION_RECORD_SIZE, CONSTANT_RECORD_SIZE,
-        CONSTRAINT_GE, CONSTRAINT_GT, CONSTRAINT_RECORD_SIZE, FORMAT_MAJOR, FORMAT_MINOR,
+        CONSTRAINT_GE, CONSTRAINT_GT, CONSTRAINT_NE, CONSTRAINT_RECORD_SIZE, FORMAT_MAJOR,
+        FORMAT_MINOR,
         HEADER_SIZE, INPUT_FLAG_UNIT_REQUIRED, INPUT_RECORD_SIZE, INSTRUCTION_RECORD_SIZE,
         META_RECORD_SIZE, NUMERIC_PROFILE_DECIMAL64_V1, OPERATION_KIND_FORMULA,
         OPERATION_RECORD_SIZE, OP_FLAG_CLASSIFICATION_REQUIRED, OP_FLAG_ROUNDING_OVERRIDE,
@@ -137,8 +138,8 @@ struct InputSource {
     unit_namespace: Option<String>,
     same_unit_group: Option<String>,
     unit_required: bool,
-    constraint_kind: u8,
-    constraint_constant: usize,
+    constraint_kind: Option<u8>,
+    constraint_constant: Option<usize>,
     detail_id: u16,
 }
 
@@ -295,23 +296,39 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
         let name = string(input, "name")?.to_owned();
         input_names.push(name.clone());
         let constraints = array(required(input, "constraints")?)?;
-        if constraints.len() != 1 {
+        if constraints.len() > 1 {
             return Err(CompileError::Unsupported(
-                "first compiler slice requires one scalar constraint per input",
+                "compiler currently supports at most one scalar constraint per input",
             ));
         }
-        let constraint = object(&constraints[0])?;
-        let constraint_kind = match string(constraint, "kind")? {
-            "gt" => CONSTRAINT_GT,
-            "ge" => CONSTRAINT_GE,
-            _ => {
-                return Err(CompileError::Unsupported(
-                    "first compiler slice supports gt/ge constraints only",
-                ))
-            }
-        };
-        let constraint_decimal = parse_decimal(string(constraint, "value")?)?;
-        let constraint_constant = intern_constant(&mut constants, constraint_decimal);
+        let (constraint_kind, constraint_constant, detail_id) =
+            if let Some(value) = constraints.first() {
+                let constraint = object(value)?;
+                let kind = string(constraint, "kind")?;
+                let encoded_kind = match kind {
+                    "gt" => CONSTRAINT_GT,
+                    "ge" => CONSTRAINT_GE,
+                    "ne" | "nonzero" => CONSTRAINT_NE,
+                    _ => {
+                        return Err(CompileError::Unsupported(
+                            "compiler currently supports gt/ge/ne scalar constraints",
+                        ))
+                    }
+                };
+                let constraint_text = if kind == "nonzero" {
+                    "0"
+                } else {
+                    string(constraint, "value")?
+                };
+                let constraint_decimal = parse_decimal(constraint_text)?;
+                (
+                    Some(encoded_kind),
+                    Some(intern_constant(&mut constants, constraint_decimal)),
+                    to_u16(integer(constraint, "detail_id")?)?,
+                )
+            } else {
+                (None, None, 0)
+            };
         inputs.push(InputSource {
             name,
             semantic: semantic_id(string(input, "semantic")?)?,
@@ -320,7 +337,7 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
             unit_required: optional_bool(input, "unit_required")?.unwrap_or(false),
             constraint_kind,
             constraint_constant,
-            detail_id: to_u16(integer(constraint, "detail_id")?)?,
+            detail_id,
         });
     }
 
@@ -635,7 +652,13 @@ fn emit_pack(source: &PackSource) -> Result<Vec<u8>, CompileError> {
     });
     sections.push(SectionData {
         kind: u16::try_from(SECTION_CONSTRAINTS).expect("section kind fits u16"),
-        count: to_u32_usize(operation.inputs.len())?,
+        count: to_u32_usize(
+            operation
+                .inputs
+                .iter()
+                .filter(|input| input.constraint_kind.is_some())
+                .count(),
+        )?,
         bytes: emit_constraints(operation)?,
     });
     sections.push(SectionData {
@@ -744,6 +767,7 @@ fn emit_inputs(
     strings: &BTreeMap<String, u32>,
 ) -> Result<Vec<u8>, CompileError> {
     let mut bytes = vec![0u8; operation.inputs.len() * INPUT_RECORD_SIZE];
+    let mut constraint_index = 0usize;
     for (index, input) in operation.inputs.iter().enumerate() {
         let base = index * INPUT_RECORD_SIZE;
         put_u32(&mut bytes, base, string_offset(strings, &input.name)?)?;
@@ -768,9 +792,11 @@ fn emit_inputs(
             base + 12,
             optional_offset(strings, input.same_unit_group.as_deref())?,
         )?;
-        put_u32(&mut bytes, base + 16, to_u32_usize(index)?)?;
-        put_u16(&mut bytes, base + 20, 1)?;
+        put_u32(&mut bytes, base + 16, to_u32_usize(constraint_index)?)?;
+        let constraint_count = u16::from(input.constraint_kind.is_some());
+        put_u16(&mut bytes, base + 20, constraint_count)?;
         put_u16(&mut bytes, base + 22, 0)?;
+        constraint_index += usize::from(constraint_count);
     }
     Ok(bytes)
 }
@@ -801,17 +827,26 @@ fn emit_output(
 }
 
 fn emit_constraints(operation: &OperationSource) -> Result<Vec<u8>, CompileError> {
-    let mut bytes = vec![0u8; operation.inputs.len() * CONSTRAINT_RECORD_SIZE];
-    for (index, input) in operation.inputs.iter().enumerate() {
-        let base = index * CONSTRAINT_RECORD_SIZE;
-        bytes[base] = input.constraint_kind;
+    let count = operation
+        .inputs
+        .iter()
+        .filter(|input| input.constraint_kind.is_some())
+        .count();
+    let mut bytes = vec![0u8; count * CONSTRAINT_RECORD_SIZE];
+    let mut record_index = 0usize;
+    for input in &operation.inputs {
+        let Some(constraint_kind) = input.constraint_kind else {
+            continue;
+        };
+        let constraint_constant = input
+            .constraint_constant
+            .ok_or(CompileError::Invalid("constraint constant is missing"))?;
+        let base = record_index * CONSTRAINT_RECORD_SIZE;
+        bytes[base] = constraint_kind;
         bytes[base + 1] = 0;
         put_u16(&mut bytes, base + 2, input.detail_id)?;
-        put_u32(
-            &mut bytes,
-            base + 4,
-            to_u32_usize(input.constraint_constant)?,
-        )?;
+        put_u32(&mut bytes, base + 4, to_u32_usize(constraint_constant)?)?;
+        record_index += 1;
     }
     Ok(bytes)
 }
@@ -1369,6 +1404,33 @@ mod tests {
             pack.classification_key(operation, result.classification_id),
             Ok("elastic")
         );
+    }
+
+    #[test]
+    fn sparse_and_not_equal_constraints_round_trip() {
+        let mut source: serde_json::Value = serde_json::from_str(SOURCE).expect("source json");
+        let inputs = source["operations"][0]["inputs"]
+            .as_array_mut()
+            .expect("inputs");
+        inputs[2]["constraints"] = serde_json::json!([]);
+        inputs[3]["constraints"] = serde_json::json!([
+            {"kind": "ne", "value": "0", "detail_id": 4}
+        ]);
+
+        let text = serde_json::to_string(&source).expect("serialize source");
+        let bytes = compile_source(&text).expect("compile sparse constraints");
+        let pack = PackView::parse(&bytes).expect("parse sparse constraints");
+        let operation = pack.operation_by_key(b"econ.ped.mid").expect("lookup");
+        let arguments = [
+            scalar(b"10", SEMANTIC_PRICE),
+            scalar(b"20", SEMANTIC_PRICE),
+            scalar(b"20", SEMANTIC_QUANTITY),
+            scalar(b"0", SEMANTIC_QUANTITY),
+        ];
+        let result = pack.evaluate(7, operation, &arguments).expect("evaluate");
+        assert_eq!(result.status, Status::CONSTRAINT_VIOLATION);
+        assert_eq!(result.argument_index, 3);
+        assert_eq!(result.detail_code, 4);
     }
 
     #[test]
