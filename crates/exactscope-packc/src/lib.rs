@@ -2,10 +2,10 @@
 #![allow(clippy::alloc_instead_of_core, clippy::std_instead_of_core)]
 #![doc = "`ExactScope` build-time canonical pack compiler."]
 
-//! The compiler is desktop/build-time only. The first implementation slice
-//! supports one formula operation per source pack, emits canonical `.xsp`
-//! bytes, reparses them with the same allocation-free runtime loader, and runs
-//! the source golden vectors before returning the artifact.
+//! The compiler is desktop/build-time only. It accepts bounded scalar formula
+//! operations, emits one canonical multi-operation `.xsp` artifact, reparses it
+//! with the same allocation-free runtime loader, and runs every source golden
+//! vector before returning the artifact.
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -98,7 +98,7 @@ struct PackSource {
     description: String,
     locale: String,
     limits: Limits,
-    operation: OperationSource,
+    operations: Vec<OperationSource>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -228,13 +228,22 @@ fn parse_source(root: &Value) -> Result<PackSource, CompileError> {
         ));
     }
 
-    let operations = array(required(root, "operations")?)?;
-    if operations.len() != 1 {
-        return Err(CompileError::Unsupported(
-            "first compiler slice requires exactly one operation",
+    let operation_values = array(required(root, "operations")?)?;
+    if operation_values.is_empty() || operation_values.len() > 256 {
+        return Err(CompileError::Invalid(
+            "operation count must be between 1 and 256",
         ));
     }
-    let operation = parse_operation(&operations[0], limits)?;
+    let mut operations = Vec::with_capacity(operation_values.len());
+    let mut operation_ids = BTreeSet::new();
+    let mut operation_keys = BTreeSet::new();
+    for value in operation_values {
+        let operation = parse_operation(value, limits)?;
+        if !operation_ids.insert(operation.id) || !operation_keys.insert(operation.key.clone()) {
+            return Err(CompileError::Invalid("duplicate operation id or key"));
+        }
+        operations.push(operation);
+    }
 
     Ok(PackSource {
         id: string(pack, "id")?.to_owned(),
@@ -244,7 +253,7 @@ fn parse_source(root: &Value) -> Result<PackSource, CompileError> {
         description: string(pack, "description")?.to_owned(),
         locale: string(pack, "default_locale")?.to_owned(),
         limits,
-        operation,
+        operations,
     })
 }
 
@@ -574,10 +583,71 @@ fn parse_tests(values: &[Value]) -> Result<Vec<TestSource>, CompileError> {
     Ok(tests)
 }
 
-#[allow(clippy::too_many_lines)]
+#[derive(Debug, Default)]
+struct EmittedTables {
+    operations: Vec<u8>,
+    inputs: Vec<u8>,
+    outputs: Vec<u8>,
+    constraints: Vec<u8>,
+    constants: Vec<u8>,
+    programs: Vec<Instruction>,
+    classifications: Vec<u8>,
+    aliases: Vec<u8>,
+}
+
 fn emit_pack(source: &PackSource) -> Result<Vec<u8>, CompileError> {
-    let operation = &source.operation;
-    let mut strings = BTreeSet::<String>::new();
+    let strings = collect_pack_strings(source);
+    let (string_bytes, string_offsets) = build_strings(strings)?;
+    let tables = emit_tables(source, &string_offsets)?;
+    let sections = vec![
+        section(SECTION_META, 1, emit_meta(source, &string_offsets)?)?,
+        section(SECTION_STRINGS, string_offsets.len(), string_bytes)?,
+        section(
+            SECTION_OPERATIONS,
+            source.operations.len(),
+            tables.operations,
+        )?,
+        section(
+            SECTION_INPUTS,
+            tables.inputs.len() / INPUT_RECORD_SIZE,
+            tables.inputs,
+        )?,
+        section(
+            SECTION_OUTPUTS,
+            tables.outputs.len() / OUTPUT_RECORD_SIZE,
+            tables.outputs,
+        )?,
+        section(
+            SECTION_CONSTRAINTS,
+            tables.constraints.len() / CONSTRAINT_RECORD_SIZE,
+            tables.constraints,
+        )?,
+        section(
+            SECTION_CONSTANTS,
+            tables.constants.len() / CONSTANT_RECORD_SIZE,
+            tables.constants,
+        )?,
+        section(
+            SECTION_PROGRAMS,
+            tables.programs.len(),
+            emit_programs(&tables.programs)?,
+        )?,
+        section(
+            SECTION_CLASSIFICATIONS,
+            tables.classifications.len() / CLASSIFICATION_RECORD_SIZE,
+            tables.classifications,
+        )?,
+        section(
+            SECTION_ALIASES,
+            tables.aliases.len() / ALIAS_RECORD_SIZE,
+            tables.aliases,
+        )?,
+    ];
+    assemble_sections(&sections)
+}
+
+fn collect_pack_strings(source: &PackSource) -> BTreeSet<String> {
+    let mut strings = BTreeSet::new();
     strings.insert(String::new());
     for value in [
         &source.id,
@@ -585,105 +655,133 @@ fn emit_pack(source: &PackSource) -> Result<Vec<u8>, CompileError> {
         &source.license,
         &source.description,
         &source.locale,
-        &operation.key,
-        &operation.name,
-        &operation.method,
-        &operation.signature,
-        &operation.output.name,
     ] {
         strings.insert(value.clone());
     }
-    for input in &operation.inputs {
-        strings.insert(input.name.clone());
-        if let Some(value) = &input.unit_namespace {
+    for operation in &source.operations {
+        for value in [
+            &operation.key,
+            &operation.name,
+            &operation.method,
+            &operation.signature,
+            &operation.output.name,
+        ] {
             strings.insert(value.clone());
         }
-        if let Some(value) = &input.same_unit_group {
-            strings.insert(value.clone());
+        for input in &operation.inputs {
+            strings.insert(input.name.clone());
+            if let Some(value) = &input.unit_namespace {
+                strings.insert(value.clone());
+            }
+            if let Some(value) = &input.same_unit_group {
+                strings.insert(value.clone());
+            }
+        }
+        for classification in &operation.classifications {
+            strings.insert(classification.key.clone());
+        }
+        for alias in &operation.aliases {
+            strings.insert(alias.clone());
         }
     }
-    for classification in &operation.classifications {
-        strings.insert(classification.key.clone());
+    strings
+}
+
+#[allow(clippy::too_many_lines)]
+fn emit_tables(
+    source: &PackSource,
+    strings: &BTreeMap<String, u32>,
+) -> Result<EmittedTables, CompileError> {
+    let mut tables = EmittedTables::default();
+    for (operation_index, operation) in source.operations.iter().enumerate() {
+        let input_base = tables.inputs.len() / INPUT_RECORD_SIZE;
+        let output_base = tables.outputs.len() / OUTPUT_RECORD_SIZE;
+        let constraint_base = tables.constraints.len() / CONSTRAINT_RECORD_SIZE;
+        let constant_base = tables.constants.len() / CONSTANT_RECORD_SIZE;
+        let classification_base = tables.classifications.len() / CLASSIFICATION_RECORD_SIZE;
+        let alias_base = tables.aliases.len() / ALIAS_RECORD_SIZE;
+
+        let formula_start = to_u32_usize(tables.programs.len())?;
+        let formula = rebase_program(&operation.formula, constant_base)?;
+        let formula_count = to_u16_usize(formula.len())?;
+        tables.programs.extend_from_slice(&formula);
+
+        let mut class_program_ranges = Vec::with_capacity(operation.classifications.len());
+        for classification in &operation.classifications {
+            let start = to_u32_usize(tables.programs.len())?;
+            let program = rebase_program(&classification.program, constant_base)?;
+            let count = to_u16_usize(program.len())?;
+            tables.programs.extend_from_slice(&program);
+            class_program_ranges.push((start, count));
+        }
+
+        tables.operations.extend_from_slice(&emit_operation(
+            operation,
+            strings,
+            input_base,
+            output_base,
+            formula_start,
+            formula_count,
+            classification_base,
+            alias_base,
+        )?);
+        tables.inputs.extend_from_slice(&emit_inputs(
+            operation,
+            strings,
+            constraint_base,
+        )?);
+        tables.outputs.extend_from_slice(&emit_output(
+            operation,
+            strings,
+            formula_start,
+            formula_count,
+        )?);
+        tables
+            .constraints
+            .extend_from_slice(&emit_constraints(operation, constant_base)?);
+        tables.constants.extend_from_slice(&emit_constants(operation));
+        tables.classifications.extend_from_slice(&emit_classifications(
+            operation,
+            strings,
+            &class_program_ranges,
+        )?);
+        tables.aliases.extend_from_slice(&emit_aliases(
+            operation,
+            strings,
+            operation_index,
+        )?);
     }
-    for alias in &operation.aliases {
-        strings.insert(alias.clone());
+    Ok(tables)
+}
+
+fn rebase_program(
+    program: &[Instruction],
+    constant_base: usize,
+) -> Result<Vec<Instruction>, CompileError> {
+    let mut rebased = Vec::with_capacity(program.len());
+    for instruction in program {
+        let operand = if instruction.opcode == 2 {
+            let local = usize::try_from(instruction.operand)
+                .map_err(|_| CompileError::Invalid("constant index must be nonnegative"))?;
+            let global = local
+                .checked_add(constant_base)
+                .ok_or(CompileError::Invalid("constant index overflow"))?;
+            i32::try_from(global)
+                .map_err(|_| CompileError::Invalid("constant index exceeds i32"))?
+        } else {
+            instruction.operand
+        };
+        rebased.push(Instruction::new(instruction.opcode, operand));
     }
+    Ok(rebased)
+}
 
-    let (string_bytes, string_offsets) = build_strings(strings)?;
-    let mut sections = Vec::<SectionData>::new();
-
-    sections.push(SectionData {
-        kind: u16::try_from(SECTION_META).expect("section kind fits u16"),
-        count: 1,
-        bytes: emit_meta(source, &string_offsets)?,
-    });
-    sections.push(SectionData {
-        kind: u16::try_from(SECTION_STRINGS).expect("section kind fits u16"),
-        count: u32::try_from(string_offsets.len())
-            .map_err(|_| CompileError::Invalid("too many strings"))?,
-        bytes: string_bytes,
-    });
-
-    let mut programs = operation.formula.clone();
-    let formula_start = 0u32;
-    let formula_count = to_u16_usize(operation.formula.len())?;
-    let mut class_program_ranges = Vec::with_capacity(operation.classifications.len());
-    for classification in &operation.classifications {
-        let start = u32::try_from(programs.len())
-            .map_err(|_| CompileError::Invalid("program index exceeds u32"))?;
-        let count = to_u16_usize(classification.program.len())?;
-        programs.extend_from_slice(&classification.program);
-        class_program_ranges.push((start, count));
-    }
-
-    sections.push(SectionData {
-        kind: u16::try_from(SECTION_OPERATIONS).expect("section kind fits u16"),
-        count: 1,
-        bytes: emit_operation(source, &string_offsets, formula_start, formula_count)?,
-    });
-    sections.push(SectionData {
-        kind: u16::try_from(SECTION_INPUTS).expect("section kind fits u16"),
-        count: to_u32_usize(operation.inputs.len())?,
-        bytes: emit_inputs(operation, &string_offsets)?,
-    });
-    sections.push(SectionData {
-        kind: u16::try_from(SECTION_OUTPUTS).expect("section kind fits u16"),
-        count: 1,
-        bytes: emit_output(operation, &string_offsets, formula_start, formula_count)?,
-    });
-    sections.push(SectionData {
-        kind: u16::try_from(SECTION_CONSTRAINTS).expect("section kind fits u16"),
-        count: to_u32_usize(
-            operation
-                .inputs
-                .iter()
-                .filter(|input| input.constraint_kind.is_some())
-                .count(),
-        )?,
-        bytes: emit_constraints(operation)?,
-    });
-    sections.push(SectionData {
-        kind: u16::try_from(SECTION_CONSTANTS).expect("section kind fits u16"),
-        count: to_u32_usize(operation.constants.len())?,
-        bytes: emit_constants(operation),
-    });
-    sections.push(SectionData {
-        kind: u16::try_from(SECTION_PROGRAMS).expect("section kind fits u16"),
-        count: to_u32_usize(programs.len())?,
-        bytes: emit_programs(&programs)?,
-    });
-    sections.push(SectionData {
-        kind: u16::try_from(SECTION_CLASSIFICATIONS).expect("section kind fits u16"),
-        count: to_u32_usize(operation.classifications.len())?,
-        bytes: emit_classifications(operation, &string_offsets, &class_program_ranges)?,
-    });
-    sections.push(SectionData {
-        kind: u16::try_from(SECTION_ALIASES).expect("section kind fits u16"),
-        count: to_u32_usize(operation.aliases.len())?,
-        bytes: emit_aliases(operation, &string_offsets)?,
-    });
-
-    assemble_sections(&sections)
+fn section(kind: usize, count: usize, bytes: Vec<u8>) -> Result<SectionData, CompileError> {
+    Ok(SectionData {
+        kind: u16::try_from(kind).map_err(|_| CompileError::Invalid("section kind exceeds u16"))?,
+        count: to_u32_usize(count)?,
+        bytes,
+    })
 }
 
 fn emit_meta(
@@ -702,20 +800,24 @@ fn emit_meta(
     put_u32(&mut bytes, 24, ABI_V1_0)?;
     put_u32(&mut bytes, 28, ABI_V1_0)?;
     put_u32(&mut bytes, 32, string_offset(strings, &source.locale)?)?;
-    put_u32(&mut bytes, 36, 1)?;
+    put_u32(&mut bytes, 36, to_u32_usize(source.operations.len())?)?;
     put_u16(&mut bytes, 40, source.limits.vector_len)?;
     put_u16(&mut bytes, 42, source.limits.vm_steps)?;
     put_u16(&mut bytes, 44, source.limits.stack)?;
     Ok(bytes)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn emit_operation(
-    source: &PackSource,
+    operation: &OperationSource,
     strings: &BTreeMap<String, u32>,
+    first_input: usize,
+    first_output: usize,
     formula_start: u32,
     formula_count: u16,
+    first_classification: usize,
+    first_alias: usize,
 ) -> Result<Vec<u8>, CompileError> {
-    let operation = &source.operation;
     let mut bytes = vec![0u8; OPERATION_RECORD_SIZE];
     put_u32(&mut bytes, 0, operation.id)?;
     put_u16(&mut bytes, 4, operation.revision)?;
@@ -739,16 +841,16 @@ fn emit_operation(
             string_offset(strings, &operation.method)?
         },
     )?;
-    put_u32(&mut bytes, 24, 0)?;
+    put_u32(&mut bytes, 24, to_u32_usize(first_input)?)?;
     put_u16(&mut bytes, 28, to_u16_usize(operation.inputs.len())?)?;
     bytes[30] = 1;
     bytes[31] = u8::try_from(operation.formula_max_stack)
         .map_err(|_| CompileError::Invalid("formula max stack exceeds u8"))?;
-    put_u32(&mut bytes, 32, 0)?;
+    put_u32(&mut bytes, 32, to_u32_usize(first_output)?)?;
     put_u32(&mut bytes, 36, formula_start)?;
     put_u16(&mut bytes, 40, formula_count)?;
     put_u16(&mut bytes, 42, 0)?;
-    put_u32(&mut bytes, 44, 0)?;
+    put_u32(&mut bytes, 44, to_u32_usize(first_classification)?)?;
     put_u16(
         &mut bytes,
         48,
@@ -756,7 +858,7 @@ fn emit_operation(
     )?;
     bytes[50] = operation.scale;
     bytes[51] = operation.rounding.id();
-    put_u32(&mut bytes, 52, 0)?;
+    put_u32(&mut bytes, 52, to_u32_usize(first_alias)?)?;
     put_u16(&mut bytes, 56, to_u16_usize(operation.aliases.len())?)?;
     put_u16(&mut bytes, 58, 0)?;
     put_u32(&mut bytes, 60, 0)?;
@@ -766,9 +868,10 @@ fn emit_operation(
 fn emit_inputs(
     operation: &OperationSource,
     strings: &BTreeMap<String, u32>,
+    first_constraint: usize,
 ) -> Result<Vec<u8>, CompileError> {
     let mut bytes = vec![0u8; operation.inputs.len() * INPUT_RECORD_SIZE];
-    let mut constraint_index = 0usize;
+    let mut constraint_index = first_constraint;
     for (index, input) in operation.inputs.iter().enumerate() {
         let base = index * INPUT_RECORD_SIZE;
         put_u32(&mut bytes, base, string_offset(strings, &input.name)?)?;
@@ -827,7 +930,10 @@ fn emit_output(
     Ok(bytes)
 }
 
-fn emit_constraints(operation: &OperationSource) -> Result<Vec<u8>, CompileError> {
+fn emit_constraints(
+    operation: &OperationSource,
+    constant_base: usize,
+) -> Result<Vec<u8>, CompileError> {
     let count = operation
         .inputs
         .iter()
@@ -846,7 +952,15 @@ fn emit_constraints(operation: &OperationSource) -> Result<Vec<u8>, CompileError
         bytes[base] = constraint_kind;
         bytes[base + 1] = 0;
         put_u16(&mut bytes, base + 2, input.detail_id)?;
-        put_u32(&mut bytes, base + 4, to_u32_usize(constraint_constant)?)?;
+        put_u32(
+            &mut bytes,
+            base + 4,
+            to_u32_usize(
+                constraint_constant
+                    .checked_add(constant_base)
+                    .ok_or(CompileError::Invalid("constraint constant index overflow"))?,
+            )?,
+        )?;
         record_index += 1;
     }
     Ok(bytes)
@@ -903,12 +1017,13 @@ fn emit_classifications(
 fn emit_aliases(
     operation: &OperationSource,
     strings: &BTreeMap<String, u32>,
+    operation_index: usize,
 ) -> Result<Vec<u8>, CompileError> {
     let mut bytes = vec![0u8; operation.aliases.len() * ALIAS_RECORD_SIZE];
     for (index, alias) in operation.aliases.iter().enumerate() {
         let base = index * ALIAS_RECORD_SIZE;
         put_u32(&mut bytes, base, string_offset(strings, alias)?)?;
-        put_u32(&mut bytes, base + 4, 0)?;
+        put_u32(&mut bytes, base + 4, to_u32_usize(operation_index)?)?;
         put_u16(&mut bytes, base + 8, 100)?;
         put_u16(&mut bytes, base + 10, 0)?;
     }
@@ -976,15 +1091,25 @@ fn validate_compiled(bytes: &[u8], source: &PackSource) -> Result<(), CompileErr
     let pack = PackView::parse(bytes)?;
     if pack.pack_id()? != source.id
         || pack.version()? != source.version
-        || pack.operation_count() != 1
+        || pack.operation_count() != source.operations.len()
     {
         return Err(CompileError::Invalid(
             "compiled pack metadata drifted from source",
         ));
     }
-    let operation = pack.operation_by_key(source.operation.key.as_bytes())?;
-    for test in &source.operation.tests {
-        if test.args.len() != source.operation.inputs.len() {
+    for operation in &source.operations {
+        validate_operation_golden(&pack, operation)?;
+    }
+    Ok(())
+}
+
+fn validate_operation_golden(
+    pack: &PackView<'_>,
+    source: &OperationSource,
+) -> Result<(), CompileError> {
+    let operation = pack.operation_by_key(source.key.as_bytes())?;
+    for test in &source.tests {
+        if test.args.len() != source.inputs.len() {
             return Err(CompileError::Invalid(
                 "golden test argument count differs from operation signature",
             ));
@@ -993,70 +1118,79 @@ fn validate_compiled(bytes: &[u8], source: &PackSource) -> Result<(), CompileErr
         for (index, text) in test.args.iter().enumerate() {
             arguments.push(ScalarValue::new(
                 parse_decimal(text)?,
-                source.operation.inputs[index].semantic,
+                source.inputs[index].semantic,
                 0,
             ));
         }
         let result = pack.evaluate(1, operation, &arguments)?;
-        let expected_status = status_from_key(&test.status)?;
-        if result.status != expected_status {
-            return Err(CompileError::Invalid(
-                "compiled golden-test status mismatch",
-            ));
-        }
-        if let Some(argument_index) = test.argument_index {
-            if result.argument_index != argument_index {
-                return Err(CompileError::Invalid(
-                    "compiled golden-test argument index mismatch",
-                ));
-            }
-        }
-        if let Some(detail_id) = test.detail_id {
-            if result.detail_code != detail_id {
-                return Err(CompileError::Invalid(
-                    "compiled golden-test detail id mismatch",
-                ));
-            }
-        }
-        if expected_status.is_ok() {
-            let expected_value_count = u16::try_from(test.values.len())
-                .map_err(|_| CompileError::Invalid("golden-test value count exceeds u16"))?;
-            if result.value_count != expected_value_count {
-                return Err(CompileError::Invalid(
-                    "compiled golden-test value-count mismatch",
-                ));
-            }
-            for (index, expected) in test.values.iter().enumerate() {
-                let mut buffer = [0u8; 64];
-                let written = result.values[index].decimal.write_canonical(&mut buffer)?;
-                let actual = std::str::from_utf8(&buffer[..written])
-                    .map_err(|_| CompileError::Invalid("non-UTF8 canonical decimal"))?;
-                if actual != expected {
-                    return Err(CompileError::Invalid("compiled golden-test value mismatch"));
-                }
-            }
-            if let Some(expected_class) = &test.classification {
-                if pack.classification_key(operation, result.classification_id)? != expected_class {
-                    return Err(CompileError::Invalid(
-                        "compiled golden-test classification mismatch",
-                    ));
-                }
-            }
-            if let Some(expected_rounded) = test.rounded {
-                let rounded = result.values[0].flags & VALUE_FLAG_ROUNDED != 0;
-                if rounded != expected_rounded {
-                    return Err(CompileError::Invalid(
-                        "compiled golden-test rounded flag mismatch",
-                    ));
-                }
-            }
-        } else if result.value_count != 0 {
+        validate_golden_result(pack, operation, test, &result)?;
+    }
+    Ok(())
+}
+
+fn validate_golden_result(
+    pack: &PackView<'_>,
+    operation: exactscope_pack::DynamicOperation<'_>,
+    test: &TestSource,
+    result: &exactscope_kernel::EvaluationResult,
+) -> Result<(), CompileError> {
+    let expected_status = status_from_key(&test.status)?;
+    if result.status != expected_status {
+        return Err(CompileError::Invalid(
+            "compiled golden-test status mismatch",
+        ));
+    }
+    if test.argument_index.is_some_and(|value| result.argument_index != value) {
+        return Err(CompileError::Invalid(
+            "compiled golden-test argument index mismatch",
+        ));
+    }
+    if test.detail_id.is_some_and(|value| result.detail_code != value) {
+        return Err(CompileError::Invalid(
+            "compiled golden-test detail id mismatch",
+        ));
+    }
+    if !expected_status.is_ok() {
+        if result.value_count != 0 {
             return Err(CompileError::Invalid(
                 "failed golden test exposed a numeric result",
             ));
         }
-        let _ = &test.name;
+        return Ok(());
     }
+
+    let expected_value_count = u16::try_from(test.values.len())
+        .map_err(|_| CompileError::Invalid("golden-test value count exceeds u16"))?;
+    if result.value_count != expected_value_count {
+        return Err(CompileError::Invalid(
+            "compiled golden-test value-count mismatch",
+        ));
+    }
+    for (index, expected) in test.values.iter().enumerate() {
+        let mut buffer = [0u8; 64];
+        let written = result.values[index].decimal.write_canonical(&mut buffer)?;
+        let actual = std::str::from_utf8(&buffer[..written])
+            .map_err(|_| CompileError::Invalid("non-UTF8 canonical decimal"))?;
+        if actual != expected {
+            return Err(CompileError::Invalid("compiled golden-test value mismatch"));
+        }
+    }
+    if let Some(expected_class) = &test.classification {
+        if pack.classification_key(operation, result.classification_id)? != expected_class {
+            return Err(CompileError::Invalid(
+                "compiled golden-test classification mismatch",
+            ));
+        }
+    }
+    if let Some(expected_rounded) = test.rounded {
+        let rounded = result.values[0].flags & VALUE_FLAG_ROUNDED != 0;
+        if rounded != expected_rounded {
+            return Err(CompileError::Invalid(
+                "compiled golden-test rounded flag mismatch",
+            ));
+        }
+    }
+    let _ = &test.name;
     Ok(())
 }
 
@@ -1365,7 +1499,10 @@ fn put_u32(bytes: &mut [u8], offset: usize, value: u32) -> Result<(), CompileErr
 #[cfg(test)]
 mod tests {
     use super::compile_source;
-    use exactscope_kernel::{Decimal64, ScalarValue, Status, SEMANTIC_PRICE, SEMANTIC_QUANTITY};
+    use exactscope_kernel::{
+        Decimal64, ScalarValue, Status, SEMANTIC_CURRENCY_AMOUNT, SEMANTIC_PRICE,
+        SEMANTIC_QUANTITY,
+    };
     use exactscope_pack::PackView;
 
     const SOURCE: &str = include_str!("../../../spec/examples/econ-undergrad-minimal.xsp.json");
@@ -1405,6 +1542,133 @@ mod tests {
             pack.classification_key(operation, result.classification_id),
             Ok("elastic")
         );
+    }
+
+    #[test]
+    fn multi_operation_pack_rebases_all_runtime_tables() {
+        let mut source: serde_json::Value = serde_json::from_str(SOURCE).expect("source json");
+        source["operations"]
+            .as_array_mut()
+            .expect("operations")
+            .push(serde_json::json!({
+                "id": 401,
+                "key": "econ.gdp.deflator100",
+                "revision": 1,
+                "name": "GDP deflator — base 100",
+                "description": "Nominal GDP divided by real GDP, multiplied by 100.",
+                "method": "deflator100",
+                "aliases": ["gdp deflator"],
+                "kind": "formula",
+                "inputs": [
+                    {
+                        "name": "nominal_gdp",
+                        "shape": "scalar",
+                        "semantic": "currency_amount",
+                        "same_unit_group": "gdp",
+                        "unit_required": false,
+                        "constraints": []
+                    },
+                    {
+                        "name": "real_gdp",
+                        "shape": "scalar",
+                        "semantic": "currency_amount",
+                        "same_unit_group": "gdp",
+                        "unit_required": false,
+                        "constraints": [
+                            {"kind": "gt", "value": "0", "detail_id": 2}
+                        ]
+                    }
+                ],
+                "relations": [],
+                "outputs": [
+                    {
+                        "name": "deflator",
+                        "semantic": "index",
+                        "unit_rule": "dimensionless"
+                    }
+                ],
+                "output_policy": {
+                    "scale": 6,
+                    "rounding": "half_even",
+                    "allow_scale_override": false,
+                    "allow_rounding_override": false,
+                    "classification_required": false
+                },
+                "constants": ["100"],
+                "programs": [
+                    {
+                        "output": "deflator",
+                        "instructions": [
+                            ["arg", 0],
+                            ["arg", 1],
+                            ["div"],
+                            ["const", 0],
+                            ["mul"],
+                            ["end"]
+                        ]
+                    }
+                ],
+                "classifications": [],
+                "sources": [],
+                "tests": [
+                    {
+                        "name": "base-120",
+                        "args": ["120", "100"],
+                        "expect": {
+                            "status": "OK",
+                            "values": ["120"],
+                            "rounded": false
+                        }
+                    }
+                ]
+            }));
+
+        let text = serde_json::to_string(&source).expect("serialize source");
+        let bytes = compile_source(&text).expect("compile multi-operation pack");
+        let pack = PackView::parse(&bytes).expect("parse multi-operation pack");
+        assert_eq!(pack.operation_count(), 2);
+
+        let ped = pack.operation_by_key(b"econ.ped.mid").expect("lookup ped");
+        let ped_args = [
+            scalar(b"10000", SEMANTIC_PRICE),
+            scalar(b"12000", SEMANTIC_PRICE),
+            scalar(b"100", SEMANTIC_QUANTITY),
+            scalar(b"80", SEMANTIC_QUANTITY),
+        ];
+        let ped_result = pack.evaluate(7, ped, &ped_args).expect("evaluate ped");
+        assert_eq!(ped_result.status, Status::OK);
+        assert_eq!(ped_result.operation_id, 301);
+        assert_eq!(ped_result.classification_id, 3);
+
+        let deflator = pack
+            .operation_by_key(b"econ.gdp.deflator100")
+            .expect("lookup deflator");
+        let deflator_args = [
+            scalar(b"120", SEMANTIC_CURRENCY_AMOUNT),
+            scalar(b"100", SEMANTIC_CURRENCY_AMOUNT),
+        ];
+        let deflator_result = pack
+            .evaluate(7, deflator, &deflator_args)
+            .expect("evaluate deflator");
+        assert_eq!(deflator_result.status, Status::OK);
+        assert_eq!(deflator_result.operation_id, 401);
+        assert_eq!(deflator_result.classification_id, 0);
+        assert_eq!(
+            deflator_result.values[0].decimal,
+            Decimal64::parse_ascii(b"120").unwrap()
+        );
+    }
+
+    #[test]
+    fn duplicate_operation_identity_is_rejected() {
+        let mut source: serde_json::Value = serde_json::from_str(SOURCE).expect("source json");
+        let duplicate = source["operations"][0].clone();
+        source["operations"]
+            .as_array_mut()
+            .expect("operations")
+            .push(duplicate);
+        let text = serde_json::to_string(&source).expect("serialize source");
+        assert!(compile_source(&text).is_err());
     }
 
     #[test]
