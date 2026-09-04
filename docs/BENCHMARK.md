@@ -4,15 +4,27 @@ ExactScope must earn adoption with measured evidence, not with the claim that de
 
 The core product question is:
 
-> **For an existing constrained on-device model, can a tiny ExactScope software addition remove enough quantitative error at sufficiently low binary, RAM, token, latency, energy, integration, and qualification cost that the existing hardware remains useful for capabilities that would otherwise push toward a larger model or newer device?**
+> **For an existing constrained on-device model, can a tiny ExactScope capability slice recover enough useful narrow-domain ability at sufficiently low binary, RAM, token, latency, energy, integration, and qualification cost that keeping the current model/hardware becomes the better engineering choice?**
 
-The flagship comparison is therefore **small model vs small model + ExactScope**, with a larger-model reference arm added when that larger model can be run fairly on the benchmark hardware. The larger-model arm is not required to fit the target device; it represents the capability pressure that an OEM might otherwise answer with new hardware.
+The strategic comparison is therefore often:
 
-## 1. Required comparison arms
+```text
+existing small model
+vs
+existing small model + ExactScope capability slice
+vs
+larger model / newer hardware reference
+```
 
-### 1.1 vNext generic arithmetic proof
+The larger-model reference does not need to fit the original target device; it represents capability pressure that a product team might otherwise answer with a model/hardware generation jump. Its deployment cost must be reported separately.
 
-Public numerical-reasoning benchmarks for the bounded-plan path separate:
+See [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) for the product-unit design and [`STATISTICS_CAPABILITY_SLICE.md`](STATISTICS_CAPABILITY_SLICE.md) for the first flagship domain proof.
+
+## 1. Required comparison shapes
+
+### 1.1 Current generic arithmetic proof
+
+For bounded `xs_calc` numerical reasoning, retain a reproducible arithmetic-specific comparison:
 
 | Arm | Description |
 |---|---|
@@ -22,122 +34,189 @@ Public numerical-reasoning benchmarks for the bounded-plan path separate:
 | D | gold plan -> ExactScope deterministic ceiling |
 | E | optional larger-model reference under separately reported deployment cost |
 
-Arm C is the target retrofit path for ordinary short arithmetic. Arm D is not a model score; it verifies that the supported dataset slice can be represented and executed correctly by ExactScope. Arm E answers the product question "how much of a model/hardware upgrade can this tiny software addition avoid?"
+Arm C is the intended constrained generic arithmetic path. Arm D is not a model score; it verifies whether a gold-derived dataset slice can be represented and executed by ExactScope.
 
-### 1.2 Semantic-operation proof
+### 1.2 Flagship capability-slice proof
 
-For reviewed semantic operations, retain the existing comparison shapes when appropriate:
+For a domain capability product, the required comparison changes because the key question is whether reviewed semantic operations add value beyond generic exact arithmetic.
 
-- model only;
-- direct `xs_eval` hot path;
-- constrained direct `xs_eval`;
-- optional `xs_find -> xs_eval` cold-path measurement.
+The first Statistics proof uses:
 
-Discovery is measured as a fallback cost, not promoted as the main tiny-model product path.
+| Arm | Surface | Purpose |
+|---|---|---|
+| A | small model only | baseline capability and wrong-number behavior |
+| B | small model + `xs_calc` only | isolates generic exact-arithmetic value |
+| C | small model + Statistics semantic slice only | isolates reviewed domain-method value |
+| D | small model + `xs_calc` + Statistics semantic slice | target combined capability profile |
+| E | larger-model reference | measures the capability gap that might otherwise motivate a model/hardware upgrade |
+
+Arm E is included only where the reference model meaningfully outperforms Arm A and can be evaluated fairly. A narrow-domain result must never be generalized into overall model equivalence.
+
+### 1.3 Discovery is an ablation, not a product arm
+
+`xs_find -> xs_eval` may be measured when discovery cost matters, but it is a cold/development fallback and should not replace the normal one-turn capability arms above.
 
 ## 2. Model classes
 
-The first public retrofit evidence set should include:
+The first public capability evidence should include multiple constrained model classes rather than one unusually tool-capable model:
 
 - at least one approximately 0.5B-0.8B local model;
 - at least one approximately 1B model;
 - at least one approximately 1.5B-2B model;
 - at least one roughly 3B-class local model;
-- stress models below the main target range when useful;
-- an optional larger-model reference where hardware permits.
+- optional stress models below the main range;
+- at least one larger-model reference where fair and useful for the flagship comparison.
 
-The core product claim should be supported across multiple model families rather than one unusually tool-capable model.
+For every run record:
 
-Model name, exact revision, quantization, context size, inference runtime, hardware, thread count, prompt, schema/grammar, sampling configuration, reasoning mode, and generation-token budget must be recorded.
+- model name and exact revision;
+- quantization;
+- tokenizer identity;
+- context size;
+- inference runtime and exact revision;
+- hardware;
+- thread/device configuration;
+- prompt/system policy;
+- tool schema/grammar/profile identities;
+- sampling/reasoning configuration;
+- generation-token budget.
 
 ## 3. Workload classes
 
-The vNext proof has two distinct workload classes.
+The product proof has two distinct workload classes.
 
 ### 3.1 Public bounded-plan numerical reasoning
 
-Use public datasets with gold programs, derivations, or metadata that permit deterministic compatibility selection without consulting model outputs. Priority candidates include FinQA and TAT-QA, followed by other reproducibly mappable numerical reasoning sets.
+Use public datasets with gold programs, derivations, or metadata that permit deterministic compatibility selection without consulting model outputs.
 
-For every published ExactScope-compatible subset:
+For every published `ExactScope-compatible subset`:
 
 - selection must come from gold program/derivation/metadata, never model answers;
+- exact source revision and source-file digest must be pinned;
 - a converter must produce a bounded ExactScope plan;
-- that plan must execute to the dataset gold result before the item is admitted;
-- coverage percentage against the full published split must be reported;
-- unsupported items remain in the full model-only benchmark and are not silently removed from the dataset's official score;
-- a subset score must be labeled as an `ExactScope-compatible subset`, never as the full official dataset score.
+- each candidate plan must execute through the actual ExactScope artifact;
+- runtime acceptance and exact explicit-answer match must be reported separately;
+- coverage against the full published split must be reported;
+- unsupported items remain visible in full-dataset reporting and are not silently discarded;
+- compatible-subset evidence must never be labeled as the official full-dataset model score.
 
-### 3.2 Reviewed semantic-operation workloads
+Current repository evidence:
 
-Retain focused `math-basic`, `statistics-core`, `econ-undergrad`, and later domain-pack corpora for method-selection and semantic validation.
+- FinQA test: 1,061 bounded programs were identified, 1,058 were runtime-accepted, and 275 exactly matched the explicit dataset answer under the conservative no-semantic-repair interpretation;
+- TAT-QA dev: 717 bounded arithmetic derivations were runtime-accepted and 443 exactly matched the explicit answer.
 
-Each semantic item must contain:
+These are gold-derived compatibility/deterministic-ceiling measurements, **not model accuracy scores**. Dataset transformations such as implicit percentage scaling or dataset-specific rounding are intentionally not guessed by generic arithmetic.
 
-- the user-facing prompt;
-- the expected operation key/method;
-- expected argument values and order;
-- the deterministic expected result;
-- whether the item should fail because information is missing or ambiguous;
-- domain/method metadata.
+### 3.2 Reviewed domain capability workloads
 
-## 4. Stage-level metrics
+A domain benchmark is organized around **task families**, not operation count.
+
+For the first Statistics flagship slice, use the task families defined in [`STATISTICS_CAPABILITY_SLICE.md`](STATISTICS_CAPABILITY_SLICE.md):
+
+- descriptive aggregation;
+- weighted mean;
+- sample/population variance distinction;
+- sample/population standard-deviation distinction;
+- Pearson correlation;
+- semantic ambiguity/failure preservation.
+
+Each benchmark item must contain machine-readable gold data independent of model output:
+
+- task-family ID;
+- user-facing prompt;
+- expected supported/ambiguous state;
+- expected operation/method when applicable;
+- exact argument values/order;
+- deterministic expected result or expected typed failure;
+- source/template/revision/seed identity.
+
+Every supported gold call must execute through the actual ExactScope artifact before the item is admitted to a capability benchmark.
+
+## 4. Stage-level quality metrics
 
 Do not publish one blended accuracy score without the failure breakdown.
 
 Measure separately:
 
-1. **tool-use recognition** — did the model recognize a supported deterministic calculation?
-2. **plan/operation selection** — did it choose the right bounded arithmetic structure or reviewed semantic method?
-3. **argument extraction** — were the correct values captured with correct identity/order/reference relationships?
-4. **tool/plan syntax validity** — was the request syntactically valid for the adapter/schema/grammar?
-5. **plan semantic validity** — were step references, arity, operation limits, and resource bounds valid?
+1. **tool-use recognition** — did the model recognize a supported deterministic task?
+2. **plan/operation selection** — did it choose the correct bounded plan or reviewed semantic method?
+3. **argument extraction** — were correct values captured with correct identity/order/reference relationships?
+4. **tool/plan syntax validity** — was the request structurally valid for the schema/grammar?
+5. **plan/semantic validity** — were references, arity, method, and resource bounds valid?
 6. **core acceptance** — did strict validation accept the request?
-7. **final answer accuracy** — was the final reported result correct?
-8. **result fidelity** — did the model preserve the returned value/classification instead of recomputing it?
-9. **failure fidelity** — did ambiguity/invalid input remain an error instead of becoming a fabricated number?
-10. **successful-answer rate** — fraction of tasks that produce a correct usable answer, not merely a refusal/error.
-11. **incorrect numeric answer rate** — fraction that returns a plausible but wrong number.
-12. **tool penalty rate** — fraction where model-only was correct but the ExactScope path became incorrect because recognition, extraction, plan formation, or tool use regressed the answer.
+7. **correct usable answer rate** — did the task end with the correct useful result?
+8. **result fidelity** — did the model preserve the ExactScope result rather than recompute it?
+9. **failure fidelity** — did ambiguity/invalid input remain an error/clarification state rather than become a fabricated number?
+10. **incorrect numeric answer rate** — did the path return a plausible but wrong number?
+11. **tool penalty rate** — was model-only correct while the ExactScope path became incorrect because recognition, extraction, plan formation, or tool use regressed it?
+12. **ambiguity-preservation rate** — for designated negative cases, did the path avoid silently selecting an unjustified semantic method?
 
-This split is required to test the central tradeoff of the fail-closed design: whether fewer wrong numbers outweigh any increase in rejected calls, and whether the tool layer introduces regressions on tasks the model already solved correctly.
+This split is required to test the fail-closed tradeoff: fewer wrong numbers must not be achieved only by turning useful answers into opaque failures.
 
-## 5. Cost metrics
+## 5. Model-difficulty budget and measurements
 
-Measure:
+A capability slice can be tiny in binary size and still be too difficult for a weak model to call. Model-interface cost is therefore a first-class budget.
 
-- prompt tokens;
-- completion/tool-call tokens;
-- number of model inference turns;
-- end-to-end latency;
-- ExactScope compute latency separately;
-- cold discovery latency separately;
-- resident artifact bytes;
+For every benchmarked profile record:
+
+- number of model-visible top-level tools;
+- number of visible semantic operations;
+- prompt-fragment bytes;
+- prompt-fragment tokens for the exact model tokenizer;
+- tool/JSON-Schema bytes;
+- grammar bytes;
+- maximum and actual generated request/tool-call tokens;
+- normal and actual inference turns;
+- `xs_calc` plan-step count where applicable;
+- structurally valid-call rate;
+- core-accepted-call rate;
+- correct plan/operation-selection rate;
+- argument-extraction rate;
+- result/failure-fidelity rate.
+
+The draft profile fields live in [`../spec/CAPABILITY_PROFILE_V0_1.md`](../spec/CAPABILITY_PROFILE_V0_1.md). Static ceilings are not substitutes for measured weak-model results.
+
+## 6. Device/resource cost metrics
+
+Measure the incremental systems cost of the exact capability profile:
+
+- final artifact bytes;
+- marginal bytes versus the comparison profile, for example `xs_calc`-only versus `xs_calc + Statistics`;
+- resident memory;
 - context bytes;
-- evaluation scratch bytes;
-- vector transport scratch/copy bytes;
+- ExactScope scratch/evaluation bytes;
+- vector transport scratch/copy bytes where relevant;
 - peak host memory where measurable;
-- energy per successful task where measurable.
+- prompt and completion/tool-call tokens;
+- model inference turns;
+- end-to-end latency;
+- model latency separately;
+- ExactScope compute latency separately;
+- cold discovery latency separately when discovery is benchmarked;
+- energy per successful task where measurable;
+- Wasm imports and memory pages for the no-import profile.
 
-The direct hot path must be reported separately from the two-hop discovery path because the latter can add a full model turn.
+Desktop measurements remain desktop validation. Real-device latency/RAM/energy claims require a named physical target.
 
-## 6. Fail-closed experiment
+## 7. Fail-closed experiment
 
-A dedicated benchmark subset must test malformed but recoverable-looking model outputs.
+A dedicated subset must test malformed or semantically ambiguous requests that look recoverable.
 
-Measure at least:
+Cover at least:
 
-- extra whitespace;
-- outer envelope variations;
+- extra whitespace/outer-envelope variations;
 - JSON number versus exact decimal string where exact lexical preservation is possible;
 - missing arguments;
 - swapped arguments;
+- invalid/forward plan references;
 - percent-versus-ratio ambiguity;
 - unit-bearing values;
-- wrong operation method;
-- unsupported operation;
+- sample-versus-population ambiguity;
+- missing weights or mismatched vectors;
+- wrong/unsupported operation;
 - zero denominator/domain failures.
 
-Adapters may repair syntax only according to the AI integration contract. Semantic repair is forbidden.
+Adapters may normalize syntax only according to the AI integration contract. Semantic repair is forbidden.
 
 Report:
 
@@ -145,73 +224,145 @@ Report:
 invalid call rate
 adapter-normalized rate
 core-rejected rate
-correct answer rate
+correct usable answer rate
 incorrect numeric answer rate
+ambiguity-preservation rate
 ```
 
-The benchmark must make visible whether ExactScope merely moves errors from arithmetic to tool-call formation.
+## 8. Model-surface experiment
 
-## 7. Model-surface experiment
-
-The vNext design should compare the cost of different model-facing surfaces rather than assuming a catalog is always best.
+The benchmark should test whether the selected model surface is actually appropriate for weak models.
 
 For generic arithmetic, compare where useful:
 
 - model-only reasoning;
 - one unconstrained `xs_calc` plan schema;
-- one constrained `xs_calc` plan grammar;
-- equivalent multi-tool/per-operation exposure only as an ablation if needed.
+- one constrained `xs_calc` grammar;
+- equivalent multi-tool/per-operation exposure only as an ablation.
 
-For semantic methods, compare compact 8/16/32-operation `xs_eval` hot sets and optional discovery fallback.
+For semantic methods, do **not** assume that 8/16/32 operations are inherently good product tiers. Instead compare the smallest task-family-complete candidate slice against wider ablations when useful.
 
-Measure prompt growth, plan/operation-selection accuracy, invalid-call rate, output-token tails, and latency. The full academic catalog must not be embedded in a tiny-model prompt by default.
+Measure how every added operation affects:
 
-## 8. Reproducibility
+- prompt/schema/grammar size;
+- operation-selection accuracy;
+- structural validity;
+- argument extraction;
+- tool penalty;
+- latency/tokens;
+- final capability gain.
+
+The broad academic/domain source catalog must never be injected into a tiny-model prompt merely because it exists.
+
+## 9. Capability density
+
+ExactScope should publish capability gain together with the incremental cost required to obtain it.
+
+Useful ratios include:
+
+```text
+successful-answer uplift / 100 KiB added artifact
+wrong-number reduction / 100 KiB added artifact
+successful-answer uplift / added resident-memory KiB
+successful-answer uplift / added prompt token
+successful-answer uplift / added millisecond
+successful-answer uplift / joule        # only where measured
+```
+
+Always publish the raw numerator and denominator beside each ratio. A high ratio from a trivial absolute gain is not a compelling product result.
+
+## 10. Capability Recovery Ratio (CRR)
+
+When a larger-model reference meaningfully outperforms the small-model baseline on the declared task family, report:
+
+```text
+CRR = (small_model_plus_exactscope - small_model)
+      ------------------------------------------------
+      (larger_model_reference - small_model)
+```
+
+For the flagship five-arm benchmark this normally becomes:
+
+```text
+CRR = (Arm D - Arm A) / (Arm E - Arm A)
+```
+
+Interpretation on that exact benchmark slice:
+
+- `0.0`: none of the measured larger-model advantage was recovered;
+- `0.5`: half of the measured gap was recovered;
+- `1.0`: the ExactScope profile matched the larger-model reference on the declared primary metric;
+- `>1.0`: possible on narrow deterministic tasks, but never evidence of general model superiority.
+
+CRR is not useful when Arm E does not beat Arm A. Do not force a denominator or hide that case.
+
+Every CRR report must include:
+
+- A/D/E raw scores;
+- exact task-family/corpus scope;
+- ExactScope binary/RAM/token/latency/energy cost;
+- larger-model storage/RAM/latency/energy cost where measurable;
+- exact model/runtime/artifact identities.
+
+## 11. Reproducibility
 
 A public benchmark result must identify:
 
 - ExactScope source commit and release artifact digest;
 - core/ABI version;
-- pack ID/version/digest and operation revisions;
-- adapter schema/GBNF digest;
-- benchmark dataset revision;
-- model/runtime/hardware configuration;
-- raw per-item results or an equivalent machine-readable artifact;
-- aggregation script/version.
+- capability-profile ID/revision and digest;
+- source catalog/pack/hot-set identity and selected operation revisions;
+- tool/JSON-Schema/GBNF/prompt digests;
+- benchmark dataset/corpus and mapping revision/digest;
+- model/runtime/tokenizer/quantization/hardware configuration;
+- raw per-item results or equivalent machine-readable artifact;
+- aggregation script/version;
+- support/evidence label.
 
 Published comparative claims must be reproducible from these records.
 
-### Current harness state
+### Current repository evidence state
 
-`benchmarks/run_benchmark.py` currently implements the **existing semantic-operation** four-arm shapes and writes per-item JSONL plus a digest-bound summary. `crates/exactscope-conformance/src/bin/exactscope-core.rs` bridges benchmark calls into the real bounded Tiny JSON adapter instead of duplicating calculation logic. The offline self-test covers executable economics/statistics cases through the current core bridge.
+`benchmarks/run_benchmark.py` currently implements the existing semantic-operation four-arm harness and writes per-item JSONL plus a digest-bound summary. `crates/exactscope-conformance/src/bin/exactscope-core.rs` bridges benchmark calls into the real bounded Tiny JSON adapter rather than duplicating calculation logic.
 
-The current mixed benchmark/evaluation selection is `hotsets/quant-core-16.json`, with focused economics/statistics hot sets retained separately. This remains useful implementation evidence for the semantic lane.
+`hotsets/quant-core-16.json` remains the mixed economics/statistics prerelease evaluation selection, with focused domain hot sets retained separately. It is implementation/evaluation infrastructure, not the final capability-product profile.
 
-The repository now includes the bounded `xs_calc` public oracle path in `benchmarks/public_xs_calc_oracle.py`, with pinned-source FinQA test and TAT-QA dev evidence under `benchmarks/results/`. These reports establish only a gold-derived, runtime-validated compatibility subset and deterministic ceiling; they are explicitly not model-accuracy scores. Broader comparative claims still require the raw per-arm records and aggregation rules described above.
+`benchmarks/public_xs_calc_oracle.py` provides the pinned-source FinQA test and TAT-QA dev arithmetic compatibility path described above. Its checked-in reports are deterministic-ceiling evidence, not model accuracy.
 
-## 9. Claim policy
+`examples/llama.cpp/benchmark_xs_calc.py` and checked-in/reference results provide a five-case three-model integration smoke. The current recorded smoke is:
+
+- Qwen3 0.6B Q8_0: 60% correct final / 20% wrong numeric;
+- Qwen3 1.7B Q8_0: 100% / 0%;
+- Llama 3.2 3B Instruct Q4_K_M: 60% / 0%.
+
+This smoke validates the one-turn integration path and failure behavior on a tiny fixed set. It is not the flagship multi-model capability benchmark.
+
+The next benchmark implementation target is the Statistics capability profile/corpus in [`STATISTICS_CAPABILITY_SLICE.md`](STATISTICS_CAPABILITY_SLICE.md), including the five required arms, model-difficulty measurements, capability density, and CRR where meaningful.
+
+## 12. Claim policy
 
 Public documentation may say:
 
 - ExactScope already performs bounded deterministic quantitative operations outside the model;
-- the vNext architecture targets a tiny on-device capability retrofit using one bounded arithmetic plan plus reviewed semantic operations;
-- native static C ABI and no-import Wasm are the intended primary deployment shapes;
-- the product is designed to make a small-model quantitative capability upgrade cheaper than a model/hardware jump.
+- bounded `xs_calc` and reviewed semantic `xs_eval` are implemented experimental model-facing lanes;
+- the repository includes reproducible generic-arithmetic compatibility/oracle evidence and a small llama.cpp integration smoke;
+- native static C ABI and no-import Wasm are primary RC/evaluation deployment shapes;
+- the product is designed to make a narrow small-model capability upgrade much cheaper than a model/hardware jump.
 
-It must **not** claim proven hardware-life extension, accuracy improvement, latency savings, token savings, energy savings, or larger-model equivalence without corresponding reproducible evidence.
+It must **not** claim proven hardware-life extension, end-to-end accuracy improvement, latency/token/energy savings, Statistics capability uplift, larger-model substitution, or general model equivalence without the corresponding reproducible comparison evidence.
 
-Development-only results may guide architecture but must be clearly labeled and excluded from public headline claims until reproducibility requirements are met.
+Development/design thresholds may guide architecture but must be labeled as such and excluded from headline product claims.
 
-## 10. Product decision rule
+## 13. Product decision rule
 
-The first product milestone is not 99 implemented operations or a large academic catalog. It is a convincing **retrofit proof**.
+The next product milestone is not more operation count. It is a convincing **capability-slice proof**.
 
-A useful v0.1 proof should answer:
+The flagship Statistics result should answer:
 
-> On multiple constrained 0.5B-3B models, does the bounded ExactScope path materially reduce quantitative error while adding so little binary/RAM/latency/energy cost that keeping the existing model/hardware becomes a credible product option?
+1. can multiple constrained 0.5B-3B models reliably invoke the selected capability slice?
+2. does reviewed Statistics semantics add useful value beyond `xs_calc` alone?
+3. does wrong-number reduction outweigh any tool penalty/rejection cost?
+4. what binary/RAM/token/latency/energy cost buys the measured gain?
+5. where a larger-model reference is meaningful, what fraction of its measured advantage is recovered?
 
-Where feasible, also ask:
-
-> How does small model + ExactScope compare with a larger-model reference, and what capability is recovered per byte/millisecond/joule of added cost?
-
-If the answer is no, domain/catalog/platform breadth should not be expanded merely to make the project look complete.
+If those answers are weak, ExactScope should improve the interface, slice, or evidence before expanding domain/catalog/platform breadth.
