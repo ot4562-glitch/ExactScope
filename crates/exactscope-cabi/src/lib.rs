@@ -2250,6 +2250,7 @@ mod tests {
         (status, slot, required_arena)
     }
 
+    #[cfg(feature = "dynamic-packs")]
     fn vector_ref(values: &[XsDecimalV1]) -> XsValueRefV1 {
         XsValueRefV1 {
             struct_size: size_u32::<XsValueRefV1>(),
