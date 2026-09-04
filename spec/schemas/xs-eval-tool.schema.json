@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:exactscope:schema:xs-eval-tool:1",
   "title": "ExactScope xs_eval arguments",
-  "description": "Conservative model-facing schema. Decimal arguments are strings so JSON number parsing cannot lose precision.",
+  "description": "Conservative model-facing schema. Scalar decimals are strings and vectors are arrays of decimal strings so JSON number parsing cannot lose precision.",
   "type": "object",
   "properties": {
     "op": {
@@ -13,13 +13,27 @@
     },
     "a": {
       "type": "array",
-      "description": "Plain base-10 decimal strings in the operation signature order.",
+      "description": "Scalar decimal strings or arrays of decimal strings in the operation signature order.",
       "minItems": 0,
       "maxItems": 12,
       "items": {
-        "type": "string",
-        "minLength": 1,
-        "maxLength": 96
+        "oneOf": [
+          {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96
+          },
+          {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 64,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96
+            }
+          }
+        ]
       }
     }
   },

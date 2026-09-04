@@ -180,17 +180,17 @@ Implemented today:
 - canonical formula/kernel `.xsp` compilation/loading for the implemented slice;
 - fused and dynamic statistics execution through the same shared kernels;
 - no-import `wasm32v1-none` path;
-- Tiny JSON scalar adapter;
+- bounded Tiny JSON scalar/vector adapter with canonical multi-output names;
 - deterministic-CBOR TinyWire `find` plus scalar/vector `eval`;
 - wearable reference host and A/B update reference;
 - experimental ARM64 SDK packaging;
 - relocatable `ExactScope::exactscope` CMake package;
 - developer-side SDK doctor;
 - build-time digest-bound hot-set generator in `exactscope-packc`, including conservative OpenAI-compatible `xs_eval`, optional `xs_find`, direct-eval GBNF, source-pack/fused-registry bindings, and checked-in reproducibility fixtures;
-- production-size `econ-core-8` hot set generated directly from the fused executable economics registry;
-- llama.cpp OpenAI-compatible direct-eval reference runner with strict tool-call validation and an offline CI self-test;
-- four-arm benchmark harness with a real Tiny JSON/core bridge, stage-level metrics, corpus/core drift self-test, and digest-bound result metadata;
-- deterministic prerelease evaluation-bundle packaging that combines a prebuilt native library, prebuilt benchmark/core executable, no-import Wasm, `econ-core-8`, benchmark assets, CMake/header integration, manifests/checksums, licenses, and smoke instructions without requiring Rust to evaluate;
+- focused `econ-core-8` and `statistics-core-8` hot sets plus the mixed `quant-core-16` benchmark/evaluation selection generated from fused executable registries;
+- llama.cpp OpenAI-compatible direct-eval reference runner with strict scalar/vector tool-call validation and an offline CI self-test;
+- four-arm benchmark harness with a real Tiny JSON/core bridge, stage-level metrics, a 22-case executable economics/statistics corpus/core drift self-test, and digest-bound result metadata;
+- deterministic prerelease evaluation-bundle packaging that combines a prebuilt native library, prebuilt benchmark/core executable, no-import Wasm, `quant-core-16`, benchmark assets, CMake/header integration, manifests/checksums, licenses, and smoke instructions without requiring Rust to evaluate;
 - clean-room evaluation tests that extract the release-shaped archive outside the source tree and execute the packaged core, benchmark self-test, Wasm conformance, and host-native C smoke when the archive matches the CI host;
 - CI covering design validation, C/C++ headers, Rust/MSRV, no-import Wasm, native/dynamic conformance, hot-set reproducibility, benchmark-core validation, release-shaped clean-room evaluation, adapter envelope validation, wearable reference integration, and experimental Android/Linux ARM64 SDK builds.
 

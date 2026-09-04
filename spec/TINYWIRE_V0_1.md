@@ -14,7 +14,7 @@ Tiny JSON optimizes tool-call reliability. TinyWire optimizes transport size and
 - no duplicate object keys;
 - maximum request size 512 bytes;
 - no comments or trailing commas;
-- decimal arguments are JSON strings, never JSON numbers;
+- scalar decimal arguments and vector decimal leaves are JSON strings, never JSON numbers;
 - responses use canonical field order when serialized by ExactScope;
 - adapters reject unknown fields in model-generated requests;
 - whitespace is accepted by a development parser but canonical output contains none outside strings.
@@ -57,9 +57,9 @@ Fields:
 | Field | Type | Rule |
 |---|---|---|
 | `op` | string | exact canonical operation key, 1–96 ASCII bytes |
-| `a` | string array | positional decimal arguments, 0–12 entries |
+| `a` | argument array | 0–12 positional arguments; each argument is either one exact decimal string or an array of exact decimal strings |
 
-The Tiny JSON v0.1 model profile handles scalar decimal arguments only. Operations requiring vectors or explicit unit IDs use a cached application-specific wrapper, typed C ABI, or TinyWire call. A later flat vector profile may be added without changing the core.
+Tiny JSON v0.1 supports bounded scalar and vector model arguments. A scalar argument is one canonical base-10 decimal string. A vector argument is a JSON array of canonical base-10 decimal strings. Across the complete `a` array, the total number of scalar/vector decimal leaf values is at most 64, in addition to the 512-byte request cap. Nested vectors, JSON numeric values, and explicit unit IDs are not supported. Operations requiring explicit unit IDs use a cached application-specific wrapper, the typed C ABI, or TinyWire.
 
 Canonical success response:
 
@@ -123,18 +123,19 @@ Optional fields are omitted rather than set to null. Stable field meanings:
 
 ## 5. Tool-schema compatibility profile
 
-The two request schemas use only:
+The two request schemas use only a deliberately small compatibility subset:
 
 - object;
 - string;
 - integer;
-- array of strings;
+- arrays;
+- one bounded `oneOf` union for an `xs_eval` positional argument (`string` or `array` of strings);
 - minimum/maximum;
 - minItems/maxItems;
 - required;
 - additionalProperties false.
 
-They deliberately avoid schema unions, references, conditionals, typeless nodes, and regex patterns. Checked-in GBNF must be generated and tested separately for runtimes that support grammar-constrained decoding.
+They deliberately avoid references, conditionals, typeless nodes, and regex patterns. The only schema union in v0.1 is the scalar/vector `xs_eval` argument union above. Checked-in GBNF is generated and tested separately for runtimes that support grammar-constrained decoding; per-operation grammar fixes the exact scalar/vector shape and positional arity even though the portable tool schema stays generic across a mixed hot set.
 
 ## 6. TinyWire payload
 

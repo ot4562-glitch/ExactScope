@@ -31,7 +31,22 @@
         },
         "op": {
           "enum": [
-            "econ.ped.mid"
+            "econ.ped.mid",
+            "econ.gdp.deflator100",
+            "econ.inflation.cpi_pct",
+            "econ.money.velocity",
+            "econ.rate.real.exact_pct",
+            "econ.rate.real.approx_pct",
+            "econ.output_gap_pct",
+            "econ.growth.rate_pct",
+            "stats.sum",
+            "stats.mean",
+            "stats.mean.weighted",
+            "stats.var.pop",
+            "stats.var.sample",
+            "stats.sd.pop",
+            "stats.sd.sample",
+            "stats.corr.pearson"
           ],
           "type": "string"
         }

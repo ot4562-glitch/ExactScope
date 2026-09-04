@@ -116,11 +116,15 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
-          rm -rf target/hotset-check-p0 target/hotset-check-econ8
+          rm -rf target/hotset-check-p0 target/hotset-check-econ8 target/hotset-check-stats8 target/hotset-check-quant16
           cargo "+$RUST_TOOLCHAIN" run --quiet --package exactscope-packc -- hotset hotsets/p0-smoke.json target/hotset-check-p0
           cargo "+$RUST_TOOLCHAIN" run --quiet --package exactscope-packc -- hotset hotsets/econ-core-8.json target/hotset-check-econ8
+          cargo "+$RUST_TOOLCHAIN" run --quiet --package exactscope-packc -- hotset hotsets/statistics-core-8.json target/hotset-check-stats8
+          cargo "+$RUST_TOOLCHAIN" run --quiet --package exactscope-packc -- hotset hotsets/quant-core-16.json target/hotset-check-quant16
           diff -ru adapters/generated/p0-smoke target/hotset-check-p0
           diff -ru adapters/generated/econ-core-8 target/hotset-check-econ8
+          diff -ru adapters/generated/statistics-core-8 target/hotset-check-stats8
+          diff -ru adapters/generated/quant-core-16 target/hotset-check-quant16
 
       - name: Upload canonical scope-pack artifact
         if: matrix.os == 'ubuntu-latest'

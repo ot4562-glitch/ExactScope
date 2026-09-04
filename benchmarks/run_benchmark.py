@@ -18,7 +18,7 @@ from typing import Any, Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CORPUS = ROOT / "benchmarks" / "corpus-v0.1.jsonl"
-DEFAULT_HOTSET = ROOT / "adapters" / "generated" / "econ-core-8"
+DEFAULT_HOTSET = ROOT / "adapters" / "generated" / "quant-core-16"
 ARMS = ("model_only", "direct", "discovery", "constrained")
 
 
@@ -211,14 +211,52 @@ def require_string(item: dict[str, Any], key: str, line_number: int) -> str:
     return value
 
 
+def valid_eval_argument(value: Any) -> bool:
+    if isinstance(value, str):
+        return True
+    return (
+        isinstance(value, list)
+        and len(value) <= 64
+        and all(isinstance(element, str) for element in value)
+    )
+
+
+def eval_decimal_leaf_count(arguments: list[Any]) -> int:
+    return sum(len(argument) if isinstance(argument, list) else 1 for argument in arguments)
+
+
 def valid_eval_call_shape(value: Any) -> bool:
     return (
         isinstance(value, dict)
         and set(value) == {"op", "a"}
         and isinstance(value.get("op"), str)
         and isinstance(value.get("a"), list)
-        and all(isinstance(argument, str) for argument in value["a"])
+        and len(value["a"]) <= 12
+        and all(valid_eval_argument(argument) for argument in value["a"])
+        and eval_decimal_leaf_count(value["a"]) <= 64
     )
+
+
+def valid_eval_call_for_catalog(value: Any, by_key: dict[str, dict[str, Any]]) -> bool:
+    if not valid_eval_call_shape(value):
+        return False
+    operation = by_key.get(value["op"])
+    if not isinstance(operation, dict):
+        return False
+    metadata = operation.get("args")
+    if not isinstance(metadata, list) or len(value["a"]) != len(metadata):
+        return False
+    for argument, expected in zip(value["a"], metadata, strict=True):
+        if not isinstance(expected, dict):
+            return False
+        shape = expected.get("shape")
+        if (shape == "scalar" and not isinstance(argument, str)) or (
+            shape == "vector" and not isinstance(argument, list)
+        ):
+            return False
+        if shape not in {"scalar", "vector"}:
+            return False
+    return True
 
 
 def valid_find_call_shape(value: Any) -> bool:
@@ -648,15 +686,17 @@ def benchmark_metadata(args: argparse.Namespace, catalog: dict[str, Any]) -> dic
 
 def self_test(cases: list[Case], core: CoreBridge, hotset: Path) -> None:
     catalog = load_json(hotset / "catalog.json")
-    allowed = {operation["op"] for operation in catalog["operations"]}
-    if not allowed:
+    by_key = {operation["op"]: operation for operation in catalog["operations"]}
+    if not by_key:
         raise BenchmarkFailure("hot set contains no operations")
     checked = 0
     for case in cases:
         if case.expected_call is None:
             continue
-        if case.expected_call["op"] not in allowed:
-            raise BenchmarkFailure(f"{case.identifier}: expected operation not in hot set")
+        if not valid_eval_call_for_catalog(case.expected_call, by_key):
+            raise BenchmarkFailure(
+                f"{case.identifier}: expected call does not match generated hot-set metadata"
+            )
         response, _elapsed = core.eval(case.expected_call)
         normalized = normalize_core(response)
         if not core_matches(case, normalized):
@@ -672,7 +712,14 @@ def self_test(cases: list[Case], core: CoreBridge, hotset: Path) -> None:
     if find_response.get("s") != 0 or not isinstance(matches, list) or not matches:
         raise BenchmarkFailure("xs_find self-test failed")
     if matches[0].get("op") != "econ.ped.mid":
-        raise BenchmarkFailure("xs_find self-test returned unexpected operation")
+        raise BenchmarkFailure("xs_find self-test returned unexpected economics operation")
+
+    stats_find, _elapsed = core.find({"q": "sample variance", "n": 3})
+    stats_matches = stats_find.get("m")
+    if stats_find.get("s") != 0 or not isinstance(stats_matches, list) or not stats_matches:
+        raise BenchmarkFailure("statistics xs_find self-test failed")
+    if stats_matches[0].get("op") != "stats.var.sample":
+        raise BenchmarkFailure("xs_find self-test returned unexpected statistics operation")
     print(
         f"ExactScope benchmark self-test: PASS cases={checked} "
         f"binding={catalog['binding_sha256']}"

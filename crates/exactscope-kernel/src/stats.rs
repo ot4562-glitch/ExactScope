@@ -117,6 +117,27 @@ pub const fn statistics_kernel_contract(kernel_id: u16) -> Option<StatisticsKern
     })
 }
 
+/// Returns canonical output names for one stable statistics kernel ID.
+///
+/// These names are kernel semantics rather than pack-owned presentation text,
+/// so fused model-facing adapters and generated bindings can share the same
+/// deterministic result ordering without affecting dynamic numeric evaluation.
+#[must_use]
+pub const fn statistics_kernel_output_names(kernel_id: u16) -> &'static [&'static str] {
+    match kernel_id {
+        STATS_KERNEL_SUM => &["sum"],
+        STATS_KERNEL_MEAN | STATS_KERNEL_WEIGHTED_MEAN => &["mean"],
+        STATS_KERNEL_VARIANCE_POPULATION | STATS_KERNEL_VARIANCE_SAMPLE => &["variance"],
+        STATS_KERNEL_STANDARD_DEVIATION_POPULATION | STATS_KERNEL_STANDARD_DEVIATION_SAMPLE => {
+            &["standard_deviation"]
+        }
+        STATS_KERNEL_COVARIANCE_POPULATION | STATS_KERNEL_COVARIANCE_SAMPLE => &["covariance"],
+        STATS_KERNEL_CORRELATION => &["correlation"],
+        STATS_KERNEL_LINEAR_REGRESSION => &["slope", "intercept"],
+        _ => &[],
+    }
+}
+
 /// Immutable fused statistics operation declaration.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StatisticsOperationDecl {

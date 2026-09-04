@@ -53,7 +53,7 @@ int main(void) {
     config.max_find_matches = 5u;
     config.max_vector_len = 256u;
     config.flags = XS_CONFIG_ENABLE_DISCOVERY_V1;
-    config.max_tinywire_frame = 8192u;
+    config.max_tinywire_frame = 4096u;
 
     if (xs_abi_version() != XS_ABI_VERSION_V1) {
         fprintf(stderr, "unexpected ABI version\n");

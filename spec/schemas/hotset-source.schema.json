@@ -35,7 +35,7 @@
       "maxItems": 4,
       "uniqueItems": true,
       "items": {
-        "enum": ["econ-undergrad"]
+        "enum": ["econ-undergrad", "statistics-core"]
       }
     },
     "operations": {

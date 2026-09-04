@@ -13,19 +13,28 @@ pub use exactscope_kernel::{DESIGN_ABI_MAJOR, DESIGN_ABI_MINOR};
 extern crate std;
 
 use exactscope_kernel::{
-    classification_key, evaluate_operation, Decimal64, EvaluationResult, ScalarValue, Status,
+    classification_key, evaluate_operation, evaluate_statistics_operation,
+    statistics_kernel_output_names, Decimal64, EvaluationResult, ScalarValue, Status,
     ARGUMENT_INDEX_NONE,
 };
-use exactscope_pack::{empty_matches, FusedRegistry, Match};
+use exactscope_pack::{
+    empty_matches, empty_statistics_matches, FusedRegistry, Match, StatisticsMatch,
+    StatisticsRegistry,
+};
 
 /// Hard v0.1 request-size cap.
 pub const MAX_TINY_JSON_REQUEST_BYTES: usize = 512;
-/// Hard v0.1 scalar argument cap.
+/// Hard v0.1 top-level argument cap.
 pub const MAX_TINY_JSON_ARGUMENTS: usize = 12;
+/// Hard cap on the total number of decimal values carried by scalar/vector
+/// model-facing arguments in one Tiny JSON request.
+pub const MAX_TINY_JSON_VECTOR_VALUES: usize = 64;
 /// Internal bounded response staging capacity for the first slice.
 pub const MAX_TINY_JSON_RESPONSE_BYTES: usize = 512;
 
 const EMPTY_SCALAR: ScalarValue = ScalarValue::new(Decimal64::ZERO, 0, 0);
+const ARGUMENT_SCALAR: u8 = 0;
+const ARGUMENT_VECTOR: u8 = 1;
 
 /// Result of one bounded Tiny JSON adapter call.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -58,7 +67,7 @@ pub struct AdapterResult {
 #[must_use]
 pub fn eval(input: &[u8], output: &mut [u8]) -> AdapterResult {
     let response = match parse_eval_request(input) {
-        Ok(request) => evaluate_request(input, request),
+        Ok(request) => evaluate_request(input, &request),
         Err(status) => Response::Error(ErrorResponse::new(status)),
     };
     write_response(&response, output)
@@ -86,7 +95,7 @@ pub fn find(input: &[u8], output: &mut [u8]) -> AdapterResult {
 #[must_use]
 pub fn request(input: &[u8], output: &mut [u8]) -> AdapterResult {
     let response = match parse_eval_request(input) {
-        Ok(request) => evaluate_request(input, request),
+        Ok(request) => evaluate_request(input, &request),
         Err(eval_status) => match parse_find_request(input) {
             Ok(request) => find_request(input, request),
             Err(find_status) => Response::Error(ErrorResponse::new(select_parse_status(
@@ -125,8 +134,25 @@ impl ByteSpan {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct EvalRequest {
     operation: ByteSpan,
-    arguments: [ByteSpan; MAX_TINY_JSON_ARGUMENTS],
+    arguments: [ArgumentSpan; MAX_TINY_JSON_ARGUMENTS],
+    values: [ByteSpan; MAX_TINY_JSON_VECTOR_VALUES],
     argument_count: usize,
+    value_count: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct ArgumentSpan {
+    value_kind: u8,
+    first_value: usize,
+    value_count: usize,
+}
+
+impl ArgumentSpan {
+    const EMPTY: Self = Self {
+        value_kind: ARGUMENT_SCALAR,
+        first_value: 0,
+        value_count: 0,
+    };
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -158,6 +184,14 @@ impl ErrorResponse {
             detail_code: result.detail_code,
         }
     }
+
+    fn for_argument(status: Status, argument_index: usize) -> Self {
+        Self {
+            status,
+            argument_index: u16::try_from(argument_index).unwrap_or(ARGUMENT_INDEX_NONE),
+            detail_code: 0,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -165,6 +199,7 @@ struct EvalSuccess {
     result: EvaluationResult,
     provenance: &'static str,
     classification: Option<&'static str>,
+    output_names: &'static [&'static str],
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -174,19 +209,36 @@ struct FindSuccess {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct StatisticsFindSuccess {
+    matches: [StatisticsMatch; exactscope_pack::MAX_FIND_MATCHES],
+    count: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Response {
     Error(ErrorResponse),
     EvalSuccess(EvalSuccess),
     FindSuccess(FindSuccess),
+    StatisticsFindSuccess(StatisticsFindSuccess),
 }
 
-fn evaluate_request(input: &[u8], request: EvalRequest) -> Response {
-    let registry = FusedRegistry::new();
-    let operation = match registry.lookup(request.operation.resolve(input)) {
-        Ok(operation) => operation,
-        Err(status) => return Response::Error(ErrorResponse::new(status)),
-    };
+fn evaluate_request(input: &[u8], request: &EvalRequest) -> Response {
+    let operation_key = request.operation.resolve(input);
+    match FusedRegistry::new().lookup(operation_key) {
+        Ok(operation) => evaluate_scalar_request(input, request, operation),
+        Err(Status::UNKNOWN_OPERATION) => match StatisticsRegistry::new().lookup(operation_key) {
+            Ok(operation) => evaluate_statistics_request(input, request, operation),
+            Err(status) => Response::Error(ErrorResponse::new(status)),
+        },
+        Err(status) => Response::Error(ErrorResponse::new(status)),
+    }
+}
 
+fn evaluate_scalar_request(
+    input: &[u8],
+    request: &EvalRequest,
+    operation: exactscope_pack::OperationRef,
+) -> Response {
     if request.argument_count != operation.operation.inputs.len() {
         return Response::Error(ErrorResponse::from_evaluation(EvaluationResult::failure(
             Status::ARGUMENT_COUNT,
@@ -198,10 +250,14 @@ fn evaluate_request(input: &[u8], request: EvalRequest) -> Response {
     }
 
     let mut arguments = [EMPTY_SCALAR; MAX_TINY_JSON_ARGUMENTS];
-    for (index, span) in request.arguments[..request.argument_count]
+    for (index, argument) in request.arguments[..request.argument_count]
         .iter()
         .enumerate()
     {
+        if argument.value_kind != ARGUMENT_SCALAR || argument.value_count != 1 {
+            return Response::Error(ErrorResponse::for_argument(Status::ARGUMENT_TYPE, index));
+        }
+        let span = request.values[argument.first_value];
         let decimal = match Decimal64::parse_ascii(span.resolve(input)) {
             Ok(decimal) => decimal,
             Err(status) => {
@@ -232,14 +288,85 @@ fn evaluate_request(input: &[u8], request: EvalRequest) -> Response {
         result,
         provenance: operation.provenance,
         classification,
+        output_names: &[],
+    })
+}
+
+fn evaluate_statistics_request(
+    input: &[u8],
+    request: &EvalRequest,
+    operation: exactscope_pack::StatisticsOperationRef,
+) -> Response {
+    if request.argument_count != usize::from(operation.operation.input_count) {
+        return Response::Error(ErrorResponse::new(Status::ARGUMENT_COUNT));
+    }
+
+    let mut decimals = [Decimal64::ZERO; MAX_TINY_JSON_VECTOR_VALUES];
+    for (argument_index, argument) in request.arguments[..request.argument_count]
+        .iter()
+        .enumerate()
+    {
+        if argument.value_kind != ARGUMENT_VECTOR {
+            return Response::Error(ErrorResponse::for_argument(
+                Status::ARGUMENT_TYPE,
+                argument_index,
+            ));
+        }
+        let end = match argument.first_value.checked_add(argument.value_count) {
+            Some(end) if end <= request.value_count => end,
+            _ => return Response::Error(ErrorResponse::new(Status::INTERNAL_ERROR)),
+        };
+        for (value_index, span) in request.values[argument.first_value..end].iter().enumerate() {
+            let decimal = match Decimal64::parse_ascii(span.resolve(input)) {
+                Ok(decimal) => decimal,
+                Err(status) => {
+                    return Response::Error(ErrorResponse::for_argument(status, argument_index));
+                }
+            };
+            decimals[argument.first_value + value_index] = decimal;
+        }
+    }
+
+    let mut vector_refs: [&[Decimal64]; MAX_TINY_JSON_ARGUMENTS] = [&[]; MAX_TINY_JSON_ARGUMENTS];
+    for (index, argument) in request.arguments[..request.argument_count]
+        .iter()
+        .enumerate()
+    {
+        let end = argument.first_value + argument.value_count;
+        vector_refs[index] = &decimals[argument.first_value..end];
+    }
+    let result = evaluate_statistics_operation(
+        operation.pack_slot,
+        operation.operation,
+        &vector_refs[..request.argument_count],
+    );
+    if !result.status.is_ok() {
+        return Response::Error(ErrorResponse::from_evaluation(result));
+    }
+
+    Response::EvalSuccess(EvalSuccess {
+        result,
+        provenance: operation.provenance,
+        classification: None,
+        output_names: statistics_kernel_output_names(operation.operation.kernel_id),
     })
 }
 
 fn find_request(input: &[u8], request: FindRequest) -> Response {
-    let registry = FusedRegistry::new();
+    let query = request.query.resolve(input);
     let mut matches = empty_matches();
-    match registry.find(request.query.resolve(input), &mut matches[..request.limit]) {
+    match FusedRegistry::new().find(query, &mut matches[..request.limit]) {
         Ok(count) => Response::FindSuccess(FindSuccess { matches, count }),
+        Err(Status::UNKNOWN_OPERATION) => {
+            let mut statistics_matches = empty_statistics_matches();
+            match StatisticsRegistry::new().find(query, &mut statistics_matches[..request.limit]) {
+                Ok(count) => Response::StatisticsFindSuccess(StatisticsFindSuccess {
+                    matches: statistics_matches,
+                    count,
+                }),
+                Err(status) => Response::Error(ErrorResponse::new(status)),
+            }
+        }
         Err(status) => Response::Error(ErrorResponse::new(status)),
     }
 }
@@ -258,8 +385,10 @@ fn parse_eval_request(input: &[u8]) -> Result<EvalRequest, Status> {
     parser.expect_byte(b'{')?;
 
     let mut operation = ByteSpan::EMPTY;
-    let mut arguments = [ByteSpan::EMPTY; MAX_TINY_JSON_ARGUMENTS];
+    let mut arguments = [ArgumentSpan::EMPTY; MAX_TINY_JSON_ARGUMENTS];
+    let mut values = [ByteSpan::EMPTY; MAX_TINY_JSON_VECTOR_VALUES];
     let mut argument_count = 0usize;
+    let mut value_count = 0usize;
     let mut seen_operation = false;
     let mut seen_arguments = false;
 
@@ -282,7 +411,8 @@ fn parse_eval_request(input: &[u8]) -> Result<EvalRequest, Status> {
                 seen_operation = true;
             }
             b"a" if !seen_arguments => {
-                argument_count = parser.parse_string_array(&mut arguments)?;
+                (argument_count, value_count) =
+                    parser.parse_argument_array(&mut arguments, &mut values)?;
                 seen_arguments = true;
             }
             _ => return Err(Status::INVALID_REQUEST),
@@ -307,7 +437,9 @@ fn parse_eval_request(input: &[u8]) -> Result<EvalRequest, Status> {
     Ok(EvalRequest {
         operation,
         arguments,
+        values,
         argument_count,
+        value_count,
     })
 }
 
@@ -434,29 +566,71 @@ impl<'a> Parser<'a> {
         Err(Status::INVALID_REQUEST)
     }
 
-    fn parse_string_array(
+    fn parse_argument_array(
         &mut self,
-        output: &mut [ByteSpan; MAX_TINY_JSON_ARGUMENTS],
-    ) -> Result<usize, Status> {
+        arguments: &mut [ArgumentSpan; MAX_TINY_JSON_ARGUMENTS],
+        values: &mut [ByteSpan; MAX_TINY_JSON_VECTOR_VALUES],
+    ) -> Result<(usize, usize), Status> {
         self.expect_byte(b'[')?;
         self.skip_whitespace();
         if self.consume_byte(b']') {
-            return Ok(0);
+            return Ok((0, 0));
         }
 
-        let mut count = 0usize;
+        let mut argument_count = 0usize;
+        let mut value_count = 0usize;
         loop {
-            if count == output.len() {
+            if argument_count == arguments.len() {
                 return Err(Status::RESOURCE_LIMIT);
             }
-            output[count] = self.parse_plain_string()?;
-            count += 1;
+            self.skip_whitespace();
+            match self.input.get(self.index) {
+                Some(b'"') => {
+                    if value_count == values.len() {
+                        return Err(Status::RESOURCE_LIMIT);
+                    }
+                    values[value_count] = self.parse_plain_string()?;
+                    arguments[argument_count] = ArgumentSpan {
+                        value_kind: ARGUMENT_SCALAR,
+                        first_value: value_count,
+                        value_count: 1,
+                    };
+                    value_count += 1;
+                }
+                Some(b'[') => {
+                    let first_value = value_count;
+                    self.expect_byte(b'[')?;
+                    self.skip_whitespace();
+                    if !self.consume_byte(b']') {
+                        loop {
+                            if value_count == values.len() {
+                                return Err(Status::RESOURCE_LIMIT);
+                            }
+                            values[value_count] = self.parse_plain_string()?;
+                            value_count += 1;
+                            self.skip_whitespace();
+                            if self.consume_byte(b',') {
+                                continue;
+                            }
+                            self.expect_byte(b']')?;
+                            break;
+                        }
+                    }
+                    arguments[argument_count] = ArgumentSpan {
+                        value_kind: ARGUMENT_VECTOR,
+                        first_value,
+                        value_count: value_count - first_value,
+                    };
+                }
+                _ => return Err(Status::INVALID_REQUEST),
+            }
+            argument_count += 1;
             self.skip_whitespace();
             if self.consume_byte(b',') {
                 continue;
             }
             self.expect_byte(b']')?;
-            return Ok(count);
+            return Ok((argument_count, value_count));
         }
     }
 
@@ -522,6 +696,12 @@ fn write_response(response: &Response, output: &mut [u8]) -> AdapterResult {
             }
             Status::OK
         }
+        Response::StatisticsFindSuccess(success) => {
+            if write_statistics_find_success(&mut writer, success).is_err() {
+                return internal_adapter_failure(output);
+            }
+            Status::OK
+        }
     };
 
     let required = writer.len();
@@ -578,14 +758,36 @@ fn write_error(writer: &mut Writer<'_>, error: ErrorResponse) -> Result<(), Stat
 
 fn write_eval_success(writer: &mut Writer<'_>, success: &EvalSuccess) -> Result<(), Status> {
     let result = success.result;
-    if result.value_count != 1 {
+    let value_count = usize::from(result.value_count);
+    if value_count == 0 || value_count > result.values.len() {
         return Err(Status::INTERNAL_ERROR);
     }
-    writer.bytes(b"{\"s\":0,\"v\":\"")?;
-    let mut decimal = [0u8; 64];
-    let decimal_len = result.values[0].decimal.write_canonical(&mut decimal)?;
-    writer.bytes(&decimal[..decimal_len])?;
-    writer.byte(b'"')?;
+    writer.bytes(b"{\"s\":0,\"v\":")?;
+    if value_count == 1 {
+        write_decimal_string(writer, result.values[0].decimal)?;
+    } else {
+        if success.output_names.len() != value_count {
+            return Err(Status::INTERNAL_ERROR);
+        }
+        writer.byte(b'[')?;
+        for (index, value) in result.values[..value_count].iter().enumerate() {
+            if index != 0 {
+                writer.byte(b',')?;
+            }
+            write_decimal_string(writer, value.decimal)?;
+        }
+        writer.byte(b']')?;
+        writer.bytes(b",\"names\":[")?;
+        for (index, name) in success.output_names.iter().enumerate() {
+            if index != 0 {
+                writer.byte(b',')?;
+            }
+            writer.byte(b'"')?;
+            writer.bytes(name.as_bytes())?;
+            writer.byte(b'"')?;
+        }
+        writer.byte(b']')?;
+    }
     if let Some(classification) = success.classification {
         writer.bytes(b",\"c\":\"")?;
         writer.bytes(classification.as_bytes())?;
@@ -598,6 +800,14 @@ fn write_eval_success(writer: &mut Writer<'_>, success: &EvalSuccess) -> Result<
     writer.byte(b'}')
 }
 
+fn write_decimal_string(writer: &mut Writer<'_>, decimal: Decimal64) -> Result<(), Status> {
+    writer.byte(b'"')?;
+    let mut encoded = [0u8; 64];
+    let encoded_len = decimal.write_canonical(&mut encoded)?;
+    writer.bytes(&encoded[..encoded_len])?;
+    writer.byte(b'"')
+}
+
 fn write_find_success(writer: &mut Writer<'_>, success: &FindSuccess) -> Result<(), Status> {
     writer.bytes(b"{\"s\":0,\"m\":[")?;
     for index in 0..success.count {
@@ -605,15 +815,39 @@ fn write_find_success(writer: &mut Writer<'_>, success: &FindSuccess) -> Result<
             writer.byte(b',')?;
         }
         let operation = success.matches[index].operation.operation;
-        writer.bytes(b"{\"op\":\"")?;
-        writer.bytes(operation.key.as_bytes())?;
-        writer.bytes(b"\",\"sig\":\"")?;
-        writer.bytes(operation.signature.as_bytes())?;
-        writer.bytes(b"\",\"method\":\"")?;
-        writer.bytes(operation.method.as_bytes())?;
-        writer.bytes(b"\"}")?;
+        write_find_operation(writer, operation.key, operation.signature, operation.method)?;
     }
     writer.bytes(b"]}")
+}
+
+fn write_statistics_find_success(
+    writer: &mut Writer<'_>,
+    success: &StatisticsFindSuccess,
+) -> Result<(), Status> {
+    writer.bytes(b"{\"s\":0,\"m\":[")?;
+    for index in 0..success.count {
+        if index != 0 {
+            writer.byte(b',')?;
+        }
+        let operation = success.matches[index].operation.operation;
+        write_find_operation(writer, operation.key, operation.signature, operation.method)?;
+    }
+    writer.bytes(b"]}")
+}
+
+fn write_find_operation(
+    writer: &mut Writer<'_>,
+    key: &str,
+    signature: &str,
+    method: &str,
+) -> Result<(), Status> {
+    writer.bytes(b"{\"op\":\"")?;
+    writer.bytes(key.as_bytes())?;
+    writer.bytes(b"\",\"sig\":\"")?;
+    writer.bytes(signature.as_bytes())?;
+    writer.bytes(b"\",\"method\":\"")?;
+    writer.bytes(method.as_bytes())?;
+    writer.bytes(b"\"}")
 }
 
 fn status_key(status: Status) -> &'static str {
@@ -775,6 +1009,49 @@ mod tests {
     }
 
     #[test]
+    fn eval_executes_statistics_vectors_and_multi_output_regression() {
+        let (status, response) = call_eval(br#"{"op":"stats.mean","a":[["1","2","3"]]}"#);
+        assert_eq!(status, Status::OK);
+        assert_eq!(
+            response,
+            r#"{"s":0,"v":"2","p":"statistics-core@0.1.0","r":1}"#
+        );
+
+        let (status, response) =
+            call_eval(br#"{"op":"stats.corr.pearson","a":[["1","2","3"],["1","2","4"]]}"#);
+        assert_eq!(status, Status::OK);
+        assert!(response.contains("\"v\":\"0.981981\""));
+
+        let (status, response) =
+            call_eval(br#"{"op":"stats.regression.linear","a":[["1","2","3"],["3","5","7"]]}"#);
+        assert_eq!(status, Status::OK);
+        assert_eq!(
+            response,
+            r#"{"s":0,"v":["2","1"],"names":["slope","intercept"],"p":"statistics-core@0.1.0","r":1}"#
+        );
+    }
+
+    #[test]
+    fn eval_statistics_shape_and_domain_failures_remain_typed() {
+        let (status, response) = call_eval(br#"{"op":"stats.mean","a":["1"]}"#);
+        assert_eq!(status, Status::ARGUMENT_TYPE);
+        assert_eq!(response, r#"{"s":6,"e":"ARGUMENT_TYPE","i":0}"#);
+
+        let (status, response) =
+            call_eval(br#"{"op":"econ.gdp.deflator100","a":[["120"],["100"]]}"#);
+        assert_eq!(status, Status::ARGUMENT_TYPE);
+        assert_eq!(response, r#"{"s":6,"e":"ARGUMENT_TYPE","i":0}"#);
+
+        let (status, response) = call_eval(br#"{"op":"stats.mean","a":[[]]}"#);
+        assert_eq!(status, Status::INSUFFICIENT_DATA);
+        assert_eq!(response, r#"{"s":16,"e":"INSUFFICIENT_DATA"}"#);
+
+        let (status, response) = call_eval(br#"{"op":"stats.mean","a":[["1","bad","3"]]}"#);
+        assert_eq!(status, Status::INVALID_DECIMAL);
+        assert_eq!(response, r#"{"s":9,"e":"INVALID_DECIMAL","i":0}"#);
+    }
+
+    #[test]
     fn eval_accepts_field_order_and_json_whitespace() {
         let (status, response) = call_eval(
             b" { \"a\" : [ \"10\", \"20\", \"20\", \"10\" ], \"op\" : \"econ.ped.mid\" } ",
@@ -820,6 +1097,83 @@ mod tests {
     }
 
     #[test]
+    fn eval_vector_parser_bounds_and_malformed_inputs_fail_closed() {
+        let sixty_four = std::format!(
+            r#"{{"op":"stats.sum","a":[[{}]]}}"#,
+            std::vec![r#""0""#; 64].join(",")
+        );
+        let (status, response) = call_eval(sixty_four.as_bytes());
+        assert_eq!(status, Status::OK);
+        assert_eq!(
+            response,
+            r#"{"s":0,"v":"0","p":"statistics-core@0.1.0","r":1}"#
+        );
+
+        let sixty_five = std::format!(
+            r#"{{"op":"stats.sum","a":[[{}]]}}"#,
+            std::vec![r#""0""#; 65].join(",")
+        );
+        assert_eq!(call_eval(sixty_five.as_bytes()).0, Status::RESOURCE_LIMIT);
+
+        let thirteen_arguments = std::format!(
+            r#"{{"op":"stats.sum","a":[{}]}}"#,
+            std::vec![r#""0""#; 13].join(",")
+        );
+        assert_eq!(
+            call_eval(thirteen_arguments.as_bytes()).0,
+            Status::RESOURCE_LIMIT
+        );
+
+        let overlong_decimal =
+            std::format!(r#"{{"op":"stats.mean","a":[["{}"]]}}"#, "1".repeat(97));
+        assert_eq!(
+            call_eval(overlong_decimal.as_bytes()).0,
+            Status::RESOURCE_LIMIT
+        );
+
+        for malformed in [
+            br#"{"op":"stats.mean","a":[[["1"]]]}"#.as_slice(),
+            br#"{"op":"stats.mean","a":[[1]]}"#,
+            br#"{"op":"stats.mean","a":[{}]}"#,
+            br#"{"op":"stats.mean","a":[["1",]]}"#,
+            br#"{"op":"stats.mean","a":[["1"]],}"#,
+            br#"{"op":"stats.mean","a":[["1]]}"#,
+            br#"{"op":"stats.mean","a":[["1"]],"a":[["1"]]}"#,
+            br#"{"op":"stats.mean","a":[["1"]],"unknown":[]}"#,
+            br#"{"op":"stats.mean","a":[["\u0031"]]}"#,
+        ] {
+            let (status, response) = call_eval(malformed);
+            assert_eq!(status, Status::INVALID_REQUEST, "{malformed:?}");
+            assert!(!response.contains("\"v\":"), "{malformed:?}");
+        }
+
+        for invalid_decimal in [
+            br#"{"op":"stats.mean","a":[["NaN"]]}"#.as_slice(),
+            br#"{"op":"stats.mean","a":[["Infinity"]]}"#,
+        ] {
+            assert_eq!(call_eval(invalid_decimal).0, Status::INVALID_DECIMAL);
+        }
+
+        let (status, response) =
+            call_eval(br#"{"op":"stats.mean.weighted","a":[["1","2"],["1"]]}"#);
+        assert_eq!(status, Status::ARGUMENT_TYPE);
+        assert!(!response.contains("\"v\":"));
+
+        let exponent_extreme =
+            call_eval(br#"{"op":"stats.mean","a":[["1e999999999999999999999"]]}"#);
+        assert!(matches!(
+            exponent_extreme.0,
+            Status::INVALID_DECIMAL | Status::OVERFLOW | Status::RESOURCE_LIMIT
+        ));
+
+        let invalid_utf8 = [
+            b'{', b'"', b'o', b'p', b'"', b':', b'"', 0xff, b'"', b',', b'"', b'a', b'"', b':',
+            b'[', b']', b'}',
+        ];
+        assert_eq!(call_eval(&invalid_utf8).0, Status::INVALID_REQUEST);
+    }
+
+    #[test]
     fn find_returns_compact_signature() {
         let (status, response) = call_find(br#"{"q":"midpoint price elasticity","n":3}"#);
         assert_eq!(status, Status::OK);
@@ -842,6 +1196,20 @@ mod tests {
         assert_eq!(status, Status::OK);
         assert!(response.contains("\"op\":\"econ.rate.real.exact_pct\""));
         assert!(response.contains("\"op\":\"econ.rate.real.approx_pct\""));
+    }
+
+    #[test]
+    fn find_discovers_statistics_operations_after_economics_miss() {
+        let (status, response) = call_find(br#"{"q":"sample variance","n":3}"#);
+        assert_eq!(status, Status::OK);
+        assert_eq!(
+            response,
+            r#"{"s":0,"m":[{"op":"stats.var.sample","sig":"stats.var.sample(values)","method":"two_pass_sample"}]}"#
+        );
+
+        let (status, response) = call_find(br#"{"q":"pearson correlation","n":3}"#);
+        assert_eq!(status, Status::OK);
+        assert!(response.contains("\"op\":\"stats.corr.pearson\""));
     }
 
     #[test]

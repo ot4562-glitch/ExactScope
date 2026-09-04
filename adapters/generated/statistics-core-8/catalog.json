@@ -1,0 +1,156 @@
+{
+  "abi": "1.0",
+  "binding_sha256": "62a3872d6f6031695206e146108c7592590ce224c97be093092db409e62f6360",
+  "format": "exactscope.hotset",
+  "format_version": "0.1",
+  "name": "statistics-core-8",
+  "operations": [
+    {
+      "args": [
+        {
+          "name": "values",
+          "semantic": "number",
+          "shape": "vector"
+        }
+      ],
+      "method": "exact_ordered",
+      "op": "stats.sum",
+      "pack_binding_sha256": "253eb467b42c5a734e800693d0519fdd34235887e6a698f259946f22483a133a",
+      "pack_id": "org.exactscope.statistics-core",
+      "pack_version": "0.1.0",
+      "revision": 1,
+      "sig": "stats.sum(values)"
+    },
+    {
+      "args": [
+        {
+          "name": "values",
+          "semantic": "number",
+          "shape": "vector"
+        }
+      ],
+      "method": "arithmetic",
+      "op": "stats.mean",
+      "pack_binding_sha256": "253eb467b42c5a734e800693d0519fdd34235887e6a698f259946f22483a133a",
+      "pack_id": "org.exactscope.statistics-core",
+      "pack_version": "0.1.0",
+      "revision": 1,
+      "sig": "stats.mean(values)"
+    },
+    {
+      "args": [
+        {
+          "name": "values",
+          "semantic": "number",
+          "shape": "vector"
+        },
+        {
+          "name": "weights",
+          "semantic": "number",
+          "shape": "vector"
+        }
+      ],
+      "method": "weighted_arithmetic",
+      "op": "stats.mean.weighted",
+      "pack_binding_sha256": "253eb467b42c5a734e800693d0519fdd34235887e6a698f259946f22483a133a",
+      "pack_id": "org.exactscope.statistics-core",
+      "pack_version": "0.1.0",
+      "revision": 1,
+      "sig": "stats.mean.weighted(values,weights)"
+    },
+    {
+      "args": [
+        {
+          "name": "values",
+          "semantic": "number",
+          "shape": "vector"
+        }
+      ],
+      "method": "two_pass_population",
+      "op": "stats.var.pop",
+      "pack_binding_sha256": "253eb467b42c5a734e800693d0519fdd34235887e6a698f259946f22483a133a",
+      "pack_id": "org.exactscope.statistics-core",
+      "pack_version": "0.1.0",
+      "revision": 1,
+      "sig": "stats.var.pop(values)"
+    },
+    {
+      "args": [
+        {
+          "name": "values",
+          "semantic": "number",
+          "shape": "vector"
+        }
+      ],
+      "method": "two_pass_sample",
+      "op": "stats.var.sample",
+      "pack_binding_sha256": "253eb467b42c5a734e800693d0519fdd34235887e6a698f259946f22483a133a",
+      "pack_id": "org.exactscope.statistics-core",
+      "pack_version": "0.1.0",
+      "revision": 1,
+      "sig": "stats.var.sample(values)"
+    },
+    {
+      "args": [
+        {
+          "name": "values",
+          "semantic": "number",
+          "shape": "vector"
+        }
+      ],
+      "method": "population",
+      "op": "stats.sd.pop",
+      "pack_binding_sha256": "253eb467b42c5a734e800693d0519fdd34235887e6a698f259946f22483a133a",
+      "pack_id": "org.exactscope.statistics-core",
+      "pack_version": "0.1.0",
+      "revision": 1,
+      "sig": "stats.sd.pop(values)"
+    },
+    {
+      "args": [
+        {
+          "name": "values",
+          "semantic": "number",
+          "shape": "vector"
+        }
+      ],
+      "method": "sample",
+      "op": "stats.sd.sample",
+      "pack_binding_sha256": "253eb467b42c5a734e800693d0519fdd34235887e6a698f259946f22483a133a",
+      "pack_id": "org.exactscope.statistics-core",
+      "pack_version": "0.1.0",
+      "revision": 1,
+      "sig": "stats.sd.sample(values)"
+    },
+    {
+      "args": [
+        {
+          "name": "x",
+          "semantic": "number",
+          "shape": "vector"
+        },
+        {
+          "name": "y",
+          "semantic": "number",
+          "shape": "vector"
+        }
+      ],
+      "method": "pearson",
+      "op": "stats.corr.pearson",
+      "pack_binding_sha256": "253eb467b42c5a734e800693d0519fdd34235887e6a698f259946f22483a133a",
+      "pack_id": "org.exactscope.statistics-core",
+      "pack_version": "0.1.0",
+      "revision": 1,
+      "sig": "stats.corr.pearson(x,y)"
+    }
+  ],
+  "packs": [
+    {
+      "binding_kind": "fused_registry_sha256",
+      "binding_sha256": "253eb467b42c5a734e800693d0519fdd34235887e6a698f259946f22483a133a",
+      "id": "org.exactscope.statistics-core",
+      "source": "fused:statistics-core",
+      "version": "0.1.0"
+    }
+  ]
+}

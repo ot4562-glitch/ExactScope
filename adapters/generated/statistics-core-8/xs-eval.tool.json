@@ -31,7 +31,14 @@
         },
         "op": {
           "enum": [
-            "econ.ped.mid"
+            "stats.sum",
+            "stats.mean",
+            "stats.mean.weighted",
+            "stats.var.pop",
+            "stats.var.sample",
+            "stats.sd.pop",
+            "stats.sd.sample",
+            "stats.corr.pearson"
           ],
           "type": "string"
         }

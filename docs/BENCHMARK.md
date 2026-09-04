@@ -146,9 +146,9 @@ Published comparative claims must be reproducible from these records.
 
 ### Current harness state
 
-`benchmarks/run_benchmark.py` implements all four arm shapes and writes per-item JSONL plus a digest-bound summary. `crates/exactscope-conformance/src/bin/exactscope-core.rs` bridges benchmark calls into the real bounded Tiny JSON adapter instead of duplicating calculation logic. The offline self-test executes every corpus item that has an expected call through that core bridge and also verifies actual `xs_find` discovery.
+`benchmarks/run_benchmark.py` implements all four arm shapes and writes per-item JSONL plus a digest-bound summary. `crates/exactscope-conformance/src/bin/exactscope-core.rs` bridges benchmark calls into the real bounded Tiny JSON adapter instead of duplicating calculation logic. The offline self-test currently executes 22 expected-call cases across economics and statistics through that core bridge and verifies actual `xs_find` discovery in both fused registries.
 
-The first production-size benchmark selection is `hotsets/econ-core-8.json`, generated directly from the fused executable economics registry. This is implementation evidence only; no real-model accuracy/latency improvement claim exists until recorded model runs are added.
+The current mixed benchmark/evaluation selection is `hotsets/quant-core-16.json`: eight economics operations plus eight statistics operations, with focused `econ-core-8` and `statistics-core-8` hot sets retained separately. This is implementation evidence only; no real-model accuracy/latency improvement claim exists until recorded model runs are added.
 
 ## 9. Claim policy
 

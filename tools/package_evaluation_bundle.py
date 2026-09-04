@@ -47,6 +47,7 @@ PUBLIC_FILES: tuple[tuple[str, str], ...] = (
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 TARGET_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
+HOTSET_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 
 
 class PackagingError(Exception):
@@ -151,22 +152,26 @@ def stage_bundle(
     wasm_rel = "wasm/exactscope.wasm"
     copy_file(wasm, bundle_root / wasm_rel)
 
-    for name in HOTSET_FILES:
-        source = hotset_dir / name
-        if not source.is_file():
-            raise PackagingError(f"hot set is missing required generated file: {name}")
-        copy_file(source, bundle_root / "adapters" / "generated" / "econ-core-8" / name)
-
     catalog_path = hotset_dir / "catalog.json"
     try:
         catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise PackagingError(f"cannot parse hot-set catalog: {exc}") from exc
-    binding = catalog.get("binding_sha256") if isinstance(catalog, dict) else None
+    if not isinstance(catalog, dict):
+        raise PackagingError("hot-set catalog root must be an object")
+    binding = catalog.get("binding_sha256")
     if not isinstance(binding, str) or not HEX64_RE.fullmatch(binding):
         raise PackagingError("hot-set catalog has no valid binding_sha256")
-    if catalog.get("name") != "econ-core-8":
-        raise PackagingError("evaluation bundle currently requires the econ-core-8 hot set")
+    hotset_name = catalog.get("name")
+    if not isinstance(hotset_name, str) or not HOTSET_NAME_RE.fullmatch(hotset_name):
+        raise PackagingError("hot-set catalog has no valid canonical name")
+
+    hotset_destination = bundle_root / "adapters" / "generated" / hotset_name
+    for name in HOTSET_FILES:
+        source = hotset_dir / name
+        if not source.is_file():
+            raise PackagingError(f"hot set is missing required generated file: {name}")
+        copy_file(source, hotset_destination / name)
 
     payload_files = sorted(path for path in bundle_root.rglob("*") if path.is_file())
     records = [file_record(bundle_root, path) for path in payload_files]
@@ -185,9 +190,9 @@ def stage_bundle(
             "wasm": by_path[wasm_rel],
         },
         "hotset": {
-            "name": "econ-core-8",
+            "name": hotset_name,
             "binding_sha256": binding,
-            "catalog_path": "adapters/generated/econ-core-8/catalog.json",
+            "catalog_path": f"adapters/generated/{hotset_name}/catalog.json",
         },
         "integration": {
             "cmake_target": "ExactScope::exactscope",
@@ -341,7 +346,7 @@ def parse_args() -> argparse.Namespace:
     build.add_argument(
         "--hotset-dir",
         type=Path,
-        default=ROOT / "adapters" / "generated" / "econ-core-8",
+        default=ROOT / "adapters" / "generated" / "quant-core-16",
     )
     build.add_argument("--source-commit", required=True)
     build.add_argument("--toolchain", required=True)

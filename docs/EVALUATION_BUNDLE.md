@@ -14,7 +14,7 @@ lib/<target>/libexactscope_cabi.a   # or exactscope_cabi.lib on Windows
 lib/cmake/ExactScope/ExactScopeConfig.cmake
 include/exactscope*.h
 wasm/exactscope.wasm                # no-import portable artifact
-adapters/generated/econ-core-8/     # generated tool schemas, GBNF, catalog, binding
+adapters/generated/quant-core-16/   # mixed economics/statistics tool schemas, GBNF, catalog, binding
 benchmarks/                         # corpus + four-arm benchmark runner
 examples/native_smoke.c
 tools/test_wasm.mjs
@@ -76,7 +76,7 @@ python3 tools/inspect_wasm.py wasm/exactscope.wasm
 node tools/test_wasm.mjs wasm/exactscope.wasm
 ```
 
-The first command verifies the import/export/memory contract. The second executes scalar economics, statistics, discovery, buffer-sizing, and TinyWire/Tiny JSON conformance against the packaged artifact.
+The first command verifies the import/export/memory contract. The second executes scalar economics, bounded Tiny JSON statistics vectors including named multi-output regression, discovery, buffer-sizing, and TinyWire conformance against the packaged artifact.
 
 ## 5. Run benchmark corpus/core self-test
 
@@ -86,7 +86,7 @@ python3 benchmarks/run_benchmark.py \
   --core ./bin/exactscope-core
 ```
 
-This executes the corpus cases that contain expected calls through the packaged core and checks actual discovery behavior. It is a packaging/conformance check, not a model-quality benchmark.
+This executes the 22 corpus cases that contain expected calls through the packaged core across economics and statistics and checks actual discovery behavior in both registries. It is a packaging/conformance check, not a model-quality benchmark.
 
 ## 6. Run a real llama.cpp benchmark
 
@@ -100,7 +100,7 @@ python3 benchmarks/run_benchmark.py \
   --output-dir results/<model-id>
 ```
 
-The bundle already contains `econ-core-8` OpenAI-compatible tool schemas, direct GBNF, the benchmark corpus, and the four comparison arms. A real published claim still requires immutable model revision/quantization/runtime/hardware metadata and the raw generated result files.
+The bundle already contains `quant-core-16` OpenAI-compatible scalar/vector tool schemas, direct per-operation GBNF, the economics/statistics benchmark corpus, and the four comparison arms. A real published claim still requires immutable model revision/quantization/runtime/hardware metadata and the raw generated result files.
 
 ## 7. What remains before stable release
 

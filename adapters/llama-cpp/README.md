@@ -57,7 +57,7 @@ The runner validates:
 - function name is `xs_eval`;
 - only `op` and `a` are present;
 - the operation belongs to the bound generated hot set;
-- every argument is an exact decimal string;
+- every scalar argument is an exact decimal string and every vector argument is an array of exact decimal strings;
 - argument count matches generated operation metadata.
 
 It then prints the validated call. **It does not execute the arithmetic.** A host integration forwards that validated call to the native C ABI, no-import Wasm, or another conforming ExactScope execution profile.
@@ -68,4 +68,4 @@ Tool-template behavior varies by model and llama.cpp version. The smoke prompt s
 
 ## GBNF
 
-The same hot-set generator writes `xs-eval.gbnf`. It is useful for raw/constrained-generation benchmark paths and pins the exact operation key and scalar argument count. The OpenAI-compatible server tool path uses the generated JSON tool asset; the checked-in GBNF is kept as a separate reproducible artifact rather than depending on runtime JSON-Schema conversion behavior.
+The same hot-set generator writes `xs-eval.gbnf`. It is useful for raw/constrained-generation benchmark paths and pins each operation's exact key, positional arity, and scalar/vector argument shape. The OpenAI-compatible server tool path uses the generated JSON tool asset; the checked-in GBNF is kept as a separate reproducible artifact rather than depending on runtime JSON-Schema conversion behavior.

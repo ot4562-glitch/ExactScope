@@ -1,4 +1,5 @@
-root ::= ws (op_0) ws
-op_0 ::= "{" ws "\"op\"" ws ":" ws "\"econ.ped.mid\"" ws "," ws "\"a\"" ws ":" ws "[" ws decimal_string ws "," ws decimal_string ws "," ws decimal_string ws "," ws decimal_string ws "]" ws "}"
-decimal_string ::= "\"" "-"? ("0" | [1-9] [0-9]*) ("." [0-9]+)? ([eE] [+-]? [0-9]+)? "\""
+root ::= ws (op-0) ws
+op-0 ::= "{" ws "\"op\"" ws ":" ws "\"econ.ped.mid\"" ws "," ws "\"a\"" ws ":" ws "[" ws decimal-string ws "," ws decimal-string ws "," ws decimal-string ws "," ws decimal-string ws "]" ws "}"
+decimal-vector ::= "[" ws (decimal-string (ws "," ws decimal-string)*)? ws "]"
+decimal-string ::= "\"" "-"? ("0" | [1-9] [0-9]*) ("." [0-9]+)? ([eE] [+-]? [0-9]+)? "\""
 ws ::= [ \t\n\r]*

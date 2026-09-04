@@ -33,6 +33,8 @@ pub const STATISTICS_CORE_PACK_SLOT: u16 = 2;
 pub const STATISTICS_CORE_PACK_ID: &str = "org.exactscope.statistics-core";
 /// Compact statistics provenance used by host adapters.
 pub const STATISTICS_CORE_PROVENANCE: &str = "statistics-core@0.1.0";
+/// Source statistics pack semantic version.
+pub const STATISTICS_CORE_VERSION: &str = "0.1.0";
 /// Maximum discovery matches in the v0.1 tiny profile.
 pub const MAX_FIND_MATCHES: usize = 5;
 

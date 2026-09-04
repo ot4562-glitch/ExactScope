@@ -17,7 +17,7 @@ from typing import Any
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-DEFAULT_HOTSET = ROOT / "adapters" / "generated" / "p0-smoke"
+DEFAULT_HOTSET = ROOT / "adapters" / "generated" / "quant-core-16"
 DEFAULT_PROMPT = (
     "Using the provided ExactScope tool, calculate signed midpoint price elasticity "
     "when price changes from 10000 to 12000 and quantity changes from 100 to 80."
@@ -99,14 +99,36 @@ def validate_tool_call(response: dict[str, Any], hotset: Path) -> dict[str, Any]
     if not isinstance(operation_key, str) or operation_key not in by_key:
         raise SmokeFailure(f"operation {operation_key!r} is not in the bound hot set")
     values = arguments["a"]
-    if not isinstance(values, list) or not all(isinstance(value, str) for value in values):
-        raise SmokeFailure("xs_eval a must be an array of exact decimal strings")
+    if not isinstance(values, list):
+        raise SmokeFailure("xs_eval a must be an array")
 
-    expected_count = len(by_key[operation_key]["args"])
+    expected_args = by_key[operation_key]["args"]
+    expected_count = len(expected_args)
     if len(values) != expected_count:
         raise SmokeFailure(
             f"operation {operation_key} requires {expected_count} arguments, got {len(values)}"
         )
+    decimal_leaves = 0
+    for index, (value, metadata) in enumerate(zip(values, expected_args, strict=True)):
+        shape = metadata.get("shape")
+        if shape == "scalar":
+            if not isinstance(value, str):
+                raise SmokeFailure(f"argument {index} for {operation_key} must be an exact decimal string")
+            decimal_leaves += 1
+        elif shape == "vector":
+            if (
+                not isinstance(value, list)
+                or len(value) > 64
+                or not all(isinstance(element, str) for element in value)
+            ):
+                raise SmokeFailure(
+                    f"argument {index} for {operation_key} must be an array of at most 64 exact decimal strings"
+                )
+            decimal_leaves += len(value)
+        else:
+            raise SmokeFailure(f"unsupported generated argument shape {shape!r}")
+    if decimal_leaves > 64:
+        raise SmokeFailure("xs_eval arguments exceed the 64-decimal-leaf Tiny JSON limit")
     return {
         "binding_sha256": catalog["binding_sha256"],
         "op": operation_key,
@@ -119,7 +141,7 @@ def post_json(url: str, payload: dict[str, Any], timeout: float) -> dict[str, An
     request = urllib.request.Request(
         url,
         data=json.dumps(payload, separators=(",", ":")).encode("utf-8"),
-        headers={"Content-Type": "application/json", "Authorization": "Bearer no-key"},
+        headers={"Content-Type": "application/json"},
         method="POST",
     )
     try:
@@ -139,7 +161,7 @@ def post_json(url: str, payload: dict[str, Any], timeout: float) -> dict[str, An
     return decoded
 
 
-def synthetic_response() -> dict[str, Any]:
+def synthetic_response(operation: str, arguments: list[Any]) -> dict[str, Any]:
     return {
         "choices": [
             {
@@ -153,10 +175,7 @@ def synthetic_response() -> dict[str, Any]:
                             "function": {
                                 "name": "xs_eval",
                                 "arguments": json.dumps(
-                                    {
-                                        "op": "econ.ped.mid",
-                                        "a": ["10000", "12000", "100", "80"],
-                                    },
+                                    {"op": operation, "a": arguments},
                                     separators=(",", ":"),
                                 ),
                             },
@@ -185,8 +204,30 @@ def main() -> int:
     args = parse_args()
     request = build_request(args.hotset, args.model, args.prompt, args.tool_choice)
     if args.self_test:
-        validated = validate_tool_call(synthetic_response(), args.hotset)
-        print(json.dumps(validated, sort_keys=True))
+        economics = validate_tool_call(
+            synthetic_response("econ.ped.mid", ["10000", "12000", "100", "80"]),
+            args.hotset,
+        )
+        statistics = validate_tool_call(
+            synthetic_response("stats.mean", [["1", "2", "3"]]),
+            args.hotset,
+        )
+        rejected = [
+            synthetic_response("unknown.operation", []),
+            synthetic_response("econ.ped.mid", [["10000"], "12000", "100", "80"]),
+            synthetic_response("stats.mean", ["1"]),
+            synthetic_response("stats.mean.weighted", [["1", "2"]]),
+            synthetic_response("stats.mean", [[["1"]]]),
+            synthetic_response("stats.mean", [[1]]),
+            synthetic_response("stats.mean.weighted", [["0"] * 64, ["0"]]),
+        ]
+        for invalid in rejected:
+            try:
+                validate_tool_call(invalid, args.hotset)
+            except SmokeFailure:
+                continue
+            raise SmokeFailure("offline self-test accepted a malformed or out-of-contract tool call")
+        print(json.dumps({"economics": economics, "statistics": statistics}, sort_keys=True))
         return 0
     if args.dry_run:
         print(json.dumps(request, indent=2, sort_keys=True))

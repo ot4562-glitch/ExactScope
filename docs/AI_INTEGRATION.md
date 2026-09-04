@@ -50,7 +50,7 @@ Logical form:
 
 The checked-in schema is [`spec/schemas/xs-eval-tool.schema.json`](../spec/schemas/xs-eval-tool.schema.json).
 
-Decimal values are strings in the normative Tiny JSON profile so ordinary JSON parsers cannot silently round large/precise values before the core sees them.
+Scalar decimal values and every decimal leaf inside a vector are strings in the normative Tiny JSON profile, so ordinary JSON parsers cannot silently round large/precise values before the core sees them. Vectors are arrays of those strings; nested vectors and JSON numbers are rejected.
 
 ## 4. Discovery request
 

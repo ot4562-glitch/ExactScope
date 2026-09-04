@@ -233,6 +233,27 @@ if (golden.response !== expectedGolden) {
   throw new Error(`golden response mismatch: ${golden.response}`);
 }
 
+const statisticsMean = callJson('{"op":"stats.mean","a":[["1","2","3"]]}');
+if (
+  statisticsMean.returned !== 0 ||
+  statisticsMean.meta.status !== 0 ||
+  statisticsMean.response !== '{"s":0,"v":"2","p":"statistics-core@0.1.0","r":1}'
+) {
+  throw new Error(`Tiny JSON statistics mean failed: ${JSON.stringify(statisticsMean)}`);
+}
+
+const statisticsRegression = callJson(
+  '{"op":"stats.regression.linear","a":[["1","2","3"],["3","5","7"]]}',
+);
+if (
+  statisticsRegression.returned !== 0 ||
+  statisticsRegression.meta.status !== 0 ||
+  statisticsRegression.response !==
+    '{"s":0,"v":["2","1"],"names":["slope","intercept"],"p":"statistics-core@0.1.0","r":1}'
+) {
+  throw new Error(`Tiny JSON statistics regression failed: ${JSON.stringify(statisticsRegression)}`);
+}
+
 const discovery = callJson('{"q":"midpoint price elasticity","n":3}');
 if (discovery.returned !== 0 || discovery.meta.status !== 0) {
   throw new Error(`discovery failed: ${JSON.stringify(discovery)}`);
@@ -241,6 +262,17 @@ const expectedFind =
   '{"s":0,"m":[{"op":"econ.ped.mid","sig":"econ.ped.mid(p1,p2,q1,q2)","method":"midpoint"}]}';
 if (discovery.response !== expectedFind) {
   throw new Error(`discovery response mismatch: ${discovery.response}`);
+}
+
+const statisticsDiscovery = callJson('{"q":"sample variance","n":3}');
+if (statisticsDiscovery.returned !== 0 || statisticsDiscovery.meta.status !== 0) {
+  throw new Error(`statistics discovery failed: ${JSON.stringify(statisticsDiscovery)}`);
+}
+if (
+  statisticsDiscovery.response !==
+  '{"s":0,"m":[{"op":"stats.var.sample","sig":"stats.var.sample(values)","method":"two_pass_sample"}]}'
+) {
+  throw new Error(`statistics discovery response mismatch: ${statisticsDiscovery.response}`);
 }
 
 const ambiguous = callJson('{"q":"price elasticity","n":5}');

@@ -267,7 +267,8 @@ def nested_keys(value: Any) -> Iterable[str]:
 def validate_tool_schema_subset(schemas: dict[str, Any]) -> None:
     for name in ("xs-find-tool.schema.json", "xs-eval-tool.schema.json"):
         used = set(nested_keys(schemas[name]))
-        forbidden = sorted(used & PROHIBITED_TOOL_SCHEMA_KEYS)
+        allowed_exceptions = {"oneOf"} if name == "xs-eval-tool.schema.json" else set()
+        forbidden = sorted((used & PROHIBITED_TOOL_SCHEMA_KEYS) - allowed_exceptions)
         if forbidden:
             raise ValidationFailure(f"{name}: unsupported tiny-model schema keywords: {forbidden}")
         root = schemas[name]
@@ -277,6 +278,22 @@ def validate_tool_schema_subset(schemas: dict[str, Any]) -> None:
         properties = set(root.get("properties", {}))
         if required != properties:
             raise ValidationFailure(f"{name}: every model-facing field must be required")
+
+    eval_schema = schemas["xs-eval-tool.schema.json"]
+    argument_schema = eval_schema.get("properties", {}).get("a", {}).get("items", {})
+    alternatives = argument_schema.get("oneOf")
+    if sum(1 for key in nested_keys(eval_schema) if key == "oneOf") != 1 or alternatives != [
+        {"type": "string", "minLength": 1, "maxLength": 96},
+        {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 64,
+            "items": {"type": "string", "minLength": 1, "maxLength": 96},
+        },
+    ]:
+        raise ValidationFailure(
+            "xs-eval-tool.schema.json: only the canonical scalar/vector argument oneOf is allowed"
+        )
 
 
 def validate_schema_registry_alignment(schemas: dict[str, Any], registries: dict[str, dict[str, int]]) -> None:

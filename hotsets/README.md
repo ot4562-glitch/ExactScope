@@ -12,15 +12,15 @@ A hot-set source manifest contains:
 
 - a stable name;
 - explicit `sources` and `fused_packs` arrays;
-- reviewed `.xsp.json` source-pack paths and/or a supported built-in fused registry such as `econ-undergrad`;
+- reviewed `.xsp.json` source-pack paths and/or supported built-in fused registries such as `econ-undergrad` and `statistics-core`;
 - 1-32 canonical operation keys in product order;
 - whether the optional `xs_find` fallback assets should also be emitted.
 
-For source packs, the generator compiles the source with the canonical pack compiler and records a binding for the resulting `.xsp` bytes. For fused registries, it records a binding over canonical operation identity, revision, signature, method, and argument metadata. The catalog also carries a composite binding for the selected hot set.
+For source packs, the generator compiles the source with the canonical pack compiler and records a binding for the resulting `.xsp` bytes. For fused registries, it records a binding over canonical operation identity, revision, signature, method, argument metadata, and kernel output metadata where applicable. The catalog also carries a composite binding for the selected hot set.
 
-Current Tiny JSON model calls accept scalar decimal-string arguments. The generator therefore rejects vector operations for `xs-eval.tool.json`/GBNF instead of publishing a schema the runtime cannot honor. Vector operations continue to use typed/TinyWire host paths until a dedicated model-facing vector contract is implemented.
+Tiny JSON model calls accept exact scalar decimal strings and bounded vectors encoded as arrays of exact decimal strings. The generic OpenAI-compatible tool schema exposes that scalar/vector union, while generated GBNF fixes the exact arity and scalar/vector shape for every selected operation. The runtime still enforces the 512-byte request, 12 top-level argument, and 64 decimal-leaf limits.
 
-Generated files for a scalar direct hot set are:
+Generated files for a direct hot set are:
 
 ```text
 catalog.json
@@ -37,4 +37,4 @@ xs-find.tool.json
 xs-find.gbnf
 ```
 
-`adapters/generated/p0-smoke/` is the minimal reproducibility fixture. `adapters/generated/econ-core-8/` is the first production-size economics hot set. CI regenerates both and fails on any byte drift.
+`adapters/generated/p0-smoke/` is the minimal reproducibility fixture. `econ-core-8` and `statistics-core-8` are focused domain hot sets, while `quant-core-16` is the current mixed economics/statistics benchmark and prerelease-evaluation selection. CI regenerates all checked-in hot sets and fails on any byte drift.

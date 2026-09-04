@@ -56,7 +56,7 @@ The repository now builds a release-shaped prerelease evaluation archive contain
 - a target-native static library plus `ExactScope::exactscope` CMake package;
 - a prebuilt `exactscope-core` executable for Tiny JSON and benchmark use;
 - the no-import WebAssembly module;
-- generated `econ-core-8` OpenAI-compatible tool assets and GBNF;
+- generated mixed `quant-core-16` economics/statistics OpenAI-compatible tool assets and GBNF;
 - the benchmark runner/corpus;
 - manifest, checksums, licenses, and native/Wasm smoke tests.
 
@@ -87,7 +87,7 @@ The host owns model inference, UI, storage, permissions, and updates. ExactScope
 
 The portable release profile is a no-import WebAssembly module. The host instantiates it with an empty import object, allocates non-overlapping caller regions in exported memory, and uses the documented wire exports.
 
-TinyWire is preferred when compact typed scalar/vector transport matters. Tiny JSON is retained for simple model-facing scalar calls.
+TinyWire is preferred when compact typed transport, explicit semantic/unit metadata, or larger vectors matter. Tiny JSON supports bounded model-facing scalar strings and vector arrays under the 512-byte request and 64-decimal-leaf limits.
 
 ## 6. AI integration rule
 
@@ -140,4 +140,4 @@ See [Benchmark contract](BENCHMARK.md).
 
 ## 9. Current status
 
-The repository is still prerelease. Native C ABI, deterministic economics/statistics execution, no-import Wasm, TinyWire, CMake SDK integration, the developer-side SDK doctor, digest-bound hot-set/OpenAI/GBNF generation, the production-size `econ-core-8` selection, a llama.cpp direct-eval reference runner, a four-arm benchmark harness with a real Tiny JSON/core bridge, and deterministic release-shaped evaluation bundles with clean-room CI are implemented. Recorded real-model benchmark evidence, permanent versioned GitHub Release assets, broader official pack coverage, and real-device qualification remain release work.
+The repository is still prerelease. Native C ABI, deterministic economics/statistics execution, bounded Tiny JSON scalar/vector calls, no-import Wasm, TinyWire, CMake SDK integration, the developer-side SDK doctor, digest-bound hot-set/OpenAI/GBNF generation, focused `econ-core-8`/`statistics-core-8` selections plus mixed `quant-core-16`, a llama.cpp direct-eval reference runner, a four-arm benchmark harness with a real Tiny JSON/core bridge, and deterministic release-shaped evaluation bundles with clean-room CI are implemented. Recorded real-model benchmark evidence, permanent versioned GitHub Release assets, broader official pack coverage, and real-device qualification remain release work.

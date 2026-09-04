@@ -3,11 +3,15 @@
 use std::{collections::BTreeMap, error::Error, fmt};
 
 use exactscope_kernel::{
-    OperationDecl, OFFICIAL_ECON_OPERATIONS, SEMANTIC_COUNT, SEMANTIC_CURRENCY_AMOUNT,
+    statistics_kernel_output_names, OperationDecl, StatisticsOperationDecl,
+    OFFICIAL_ECON_OPERATIONS, OFFICIAL_STATS_OPERATIONS, SEMANTIC_COUNT, SEMANTIC_CURRENCY_AMOUNT,
     SEMANTIC_ELASTICITY, SEMANTIC_INDEX, SEMANTIC_NUMBER, SEMANTIC_PRICE, SEMANTIC_PROBABILITY,
     SEMANTIC_QUANTITY, SEMANTIC_RATE_PERCENT, SEMANTIC_RATE_RATIO, SEMANTIC_TIME_PERIODS,
 };
-use exactscope_pack::{ECON_UNDERGRAD_PACK_ID, ECON_UNDERGRAD_VERSION};
+use exactscope_pack::{
+    ECON_UNDERGRAD_PACK_ID, ECON_UNDERGRAD_VERSION, STATISTICS_CORE_PACK_ID,
+    STATISTICS_CORE_VERSION,
+};
 use serde_json::{json, Map, Value};
 
 use crate::{compile_source, CompileError};
@@ -155,9 +159,9 @@ pub fn parse_hotset_manifest(source: &str) -> Result<HotsetManifest, HotsetError
     ensure_unique(&source_paths, "scope-pack source path")?;
     ensure_unique(&fused_packs, "fused pack")?;
     for fused_pack in &fused_packs {
-        if fused_pack != "econ-undergrad" {
+        if !matches!(fused_pack.as_str(), "econ-undergrad" | "statistics-core") {
             return Err(HotsetError::Invalid(format!(
-                "unsupported fused pack {fused_pack}; v0.1 model-facing hot sets currently support econ-undergrad"
+                "unsupported fused pack {fused_pack}; v0.1 model-facing hot sets support econ-undergrad and statistics-core"
             )));
         }
     }
@@ -181,15 +185,15 @@ pub fn parse_hotset_manifest(source: &str) -> Result<HotsetManifest, HotsetError
 /// Generates digest-bound hot-set metadata, `OpenAI`-compatible tool assets,
 /// and `llama.cpp` GBNF from canonical scope-pack sources.
 ///
-/// The current Tiny JSON direct-eval adapter accepts scalar decimal strings.
-/// Selecting a vector operation therefore fails closed instead of generating a
-/// misleading model schema. Typed/TinyWire vector adapters remain separate.
+/// The Tiny JSON direct-eval adapter accepts exact scalar decimal strings and
+/// bounded vectors represented as arrays of exact decimal strings. Generated
+/// tool/schema assets must preserve the selected operation shapes and limits.
 ///
 /// # Errors
 ///
 /// Returns [`HotsetError`] if a source pack does not compile, a selected key is
 /// missing/ambiguous, metadata is malformed, or a selected operation is not
-/// compatible with the scalar Tiny JSON direct-eval profile.
+/// compatible with the bounded scalar/vector Tiny JSON direct-eval profile.
 pub fn generate_hotset(
     name: &str,
     sources: &[HotsetSource<'_>],
@@ -204,7 +208,7 @@ pub fn generate_hotset(
 /// # Errors
 ///
 /// Returns [`HotsetError`] when any input registry/source is invalid, ambiguous,
-/// or incompatible with the scalar model-facing adapter profile.
+/// or incompatible with the bounded scalar/vector model-facing adapter profile.
 #[allow(clippy::too_many_lines)]
 pub fn generate_hotset_with_fused(
     name: &str,
@@ -292,25 +296,39 @@ pub fn generate_hotset_with_fused(
     }
 
     for fused_pack in fused_packs {
-        if fused_pack != "econ-undergrad" {
-            return Err(HotsetError::Invalid(format!(
-                "unsupported fused pack {fused_pack}"
-            )));
-        }
-        let pack_binding_sha256 = fused_econ_digest()?;
-        pack_bindings.push(PackBinding {
-            label: "fused:econ-undergrad".to_owned(),
-            id: ECON_UNDERGRAD_PACK_ID.to_owned(),
-            version: ECON_UNDERGRAD_VERSION.to_owned(),
-            binding_kind: "fused_registry_sha256".to_owned(),
-            binding_sha256: pack_binding_sha256.clone(),
-        });
-        for operation in OFFICIAL_ECON_OPERATIONS {
-            let binding = fused_operation_binding(operation, &pack_binding_sha256)?;
-            let key = binding.key.clone();
-            if operation_map.insert(key.clone(), binding).is_some() {
+        match fused_pack.as_str() {
+            "econ-undergrad" => {
+                let pack_binding_sha256 = fused_econ_digest()?;
+                pack_bindings.push(PackBinding {
+                    label: "fused:econ-undergrad".to_owned(),
+                    id: ECON_UNDERGRAD_PACK_ID.to_owned(),
+                    version: ECON_UNDERGRAD_VERSION.to_owned(),
+                    binding_kind: "fused_registry_sha256".to_owned(),
+                    binding_sha256: pack_binding_sha256.clone(),
+                });
+                for operation in OFFICIAL_ECON_OPERATIONS {
+                    let binding = fused_operation_binding(operation, &pack_binding_sha256)?;
+                    insert_operation_binding(&mut operation_map, binding)?;
+                }
+            }
+            "statistics-core" => {
+                let pack_binding_sha256 = fused_statistics_digest()?;
+                pack_bindings.push(PackBinding {
+                    label: "fused:statistics-core".to_owned(),
+                    id: STATISTICS_CORE_PACK_ID.to_owned(),
+                    version: STATISTICS_CORE_VERSION.to_owned(),
+                    binding_kind: "fused_registry_sha256".to_owned(),
+                    binding_sha256: pack_binding_sha256.clone(),
+                });
+                for operation in OFFICIAL_STATS_OPERATIONS {
+                    let binding =
+                        fused_statistics_operation_binding(operation, &pack_binding_sha256)?;
+                    insert_operation_binding(&mut operation_map, binding)?;
+                }
+            }
+            _ => {
                 return Err(HotsetError::Invalid(format!(
-                    "operation key {key} is ambiguous across supplied sources/fused packs"
+                    "unsupported fused pack {fused_pack}"
                 )));
             }
         }
@@ -322,9 +340,9 @@ pub fn generate_hotset_with_fused(
             HotsetError::Invalid(format!("selected operation {key} was not found"))
         })?;
         for input in &operation.inputs {
-            if input.shape != "scalar" {
+            if !matches!(input.shape.as_str(), "scalar" | "vector") {
                 return Err(HotsetError::Invalid(format!(
-                    "selected operation {} uses {} input {}; the current Tiny JSON direct-eval hot-set profile is scalar-only",
+                    "selected operation {} uses unsupported input shape {} for {}",
                     operation.key, input.shape, input.name
                 )));
             }
@@ -368,7 +386,7 @@ pub fn generate_hotset_with_fused(
         "operations": binding_payload["operations"].clone(),
     });
 
-    let xs_eval_tool = eval_tool_json(operation_keys);
+    let xs_eval_tool = eval_tool_json(&selected);
     let xs_find_tool = include_find.then(find_tool_json);
 
     Ok(HotsetBundle {
@@ -391,6 +409,19 @@ fn parse_input_binding(value: &Value) -> Result<InputBinding, HotsetError> {
         shape: required_string(object, "shape")?.to_owned(),
         semantic: required_string(object, "semantic")?.to_owned(),
     })
+}
+
+fn insert_operation_binding(
+    operation_map: &mut BTreeMap<String, OperationBinding>,
+    binding: OperationBinding,
+) -> Result<(), HotsetError> {
+    let key = binding.key.clone();
+    if operation_map.insert(key.clone(), binding).is_some() {
+        return Err(HotsetError::Invalid(format!(
+            "operation key {key} is ambiguous across supplied sources/fused packs"
+        )));
+    }
+    Ok(())
 }
 
 fn fused_operation_binding(
@@ -418,6 +449,111 @@ fn fused_operation_binding(
         pack_binding_sha256: pack_binding_sha256.to_owned(),
         inputs,
     })
+}
+
+fn fused_statistics_operation_binding(
+    operation: &'static StatisticsOperationDecl,
+    pack_binding_sha256: &str,
+) -> Result<OperationBinding, HotsetError> {
+    let names = signature_argument_names(operation.signature)?;
+    if names.len() != usize::from(operation.input_count) {
+        return Err(HotsetError::Invalid(format!(
+            "statistics signature/input-count mismatch for {}",
+            operation.key
+        )));
+    }
+    let inputs = names
+        .into_iter()
+        .map(|name| InputBinding {
+            name,
+            shape: "vector".to_owned(),
+            semantic: "number".to_owned(),
+        })
+        .collect();
+    Ok(OperationBinding {
+        key: operation.key.to_owned(),
+        revision: u64::from(operation.revision),
+        signature: operation.signature.to_owned(),
+        method: operation.method.to_owned(),
+        pack_id: STATISTICS_CORE_PACK_ID.to_owned(),
+        pack_version: STATISTICS_CORE_VERSION.to_owned(),
+        pack_binding_sha256: pack_binding_sha256.to_owned(),
+        inputs,
+    })
+}
+
+fn signature_argument_names(signature: &str) -> Result<Vec<String>, HotsetError> {
+    let open = signature.find('(').ok_or_else(|| {
+        HotsetError::Invalid(format!(
+            "operation signature has no opening parenthesis: {signature}"
+        ))
+    })?;
+    let close = signature.rfind(')').ok_or_else(|| {
+        HotsetError::Invalid(format!(
+            "operation signature has no closing parenthesis: {signature}"
+        ))
+    })?;
+    if close <= open || close + 1 != signature.len() {
+        return Err(HotsetError::Invalid(format!(
+            "operation signature has invalid argument list: {signature}"
+        )));
+    }
+    let body = &signature[open + 1..close];
+    if body.is_empty() {
+        return Ok(Vec::new());
+    }
+    let names = body
+        .split(',')
+        .map(str::trim)
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    if names.iter().any(|name| {
+        name.is_empty()
+            || !name
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
+    }) {
+        return Err(HotsetError::Invalid(format!(
+            "operation signature contains a non-canonical argument name: {signature}"
+        )));
+    }
+    Ok(names)
+}
+
+fn fused_statistics_digest() -> Result<String, HotsetError> {
+    let operations = OFFICIAL_STATS_OPERATIONS
+        .iter()
+        .map(|operation| {
+            let names = signature_argument_names(operation.signature)?;
+            let inputs = names
+                .into_iter()
+                .map(|name| {
+                    json!({
+                        "name": name,
+                        "shape": "vector",
+                        "semantic": "number",
+                    })
+                })
+                .collect::<Vec<_>>();
+            Ok(json!({
+                "op": operation.key,
+                "revision": operation.revision,
+                "sig": operation.signature,
+                "method": operation.method,
+                "kernel_id": operation.kernel_id,
+                "output_count": operation.output_count,
+                "output_names": statistics_kernel_output_names(operation.kernel_id),
+                "args": inputs,
+            }))
+        })
+        .collect::<Result<Vec<_>, HotsetError>>()?;
+    let payload = json!({
+        "abi": "1.0",
+        "pack_id": STATISTICS_CORE_PACK_ID,
+        "version": STATISTICS_CORE_VERSION,
+        "operations": operations,
+    });
+    Ok(sha256_hex(&serde_json::to_vec(&payload)?))
 }
 
 fn fused_econ_digest() -> Result<String, HotsetError> {
@@ -496,12 +632,16 @@ fn operation_json(operation: &OperationBinding) -> Value {
     })
 }
 
-fn eval_tool_json(operation_keys: &[String]) -> Value {
+fn eval_tool_json(operations: &[OperationBinding]) -> Value {
+    let operation_keys = operations
+        .iter()
+        .map(|operation| operation.key.clone())
+        .collect::<Vec<_>>();
     json!({
         "type": "function",
         "function": {
             "name": "xs_eval",
-            "description": "Evaluate one deterministic ExactScope operation from the bound hot set. Pass exact base-10 decimal arguments as strings in the declared signature order.",
+            "description": "Evaluate one deterministic ExactScope operation from the bound hot set. Pass scalar arguments as exact base-10 strings and vector arguments as arrays of exact base-10 strings, in declared signature order.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -511,7 +651,17 @@ fn eval_tool_json(operation_keys: &[String]) -> Value {
                     },
                     "a": {
                         "type": "array",
-                        "items": {"type": "string"},
+                        "items": {
+                            "oneOf": [
+                                {"type": "string", "minLength": 1, "maxLength": 96},
+                                {
+                                    "type": "array",
+                                    "items": {"type": "string", "minLength": 1, "maxLength": 96},
+                                    "minItems": 0,
+                                    "maxItems": 64
+                                }
+                            ]
+                        },
                         "minItems": 0,
                         "maxItems": 12,
                     }
@@ -544,27 +694,32 @@ fn find_tool_json() -> Value {
 
 fn eval_gbnf(operations: &[OperationBinding]) -> String {
     let choices = (0..operations.len())
-        .map(|index| format!("op_{index}"))
+        .map(|index| format!("op-{index}"))
         .collect::<Vec<_>>()
         .join(" | ");
     let mut grammar = format!("root ::= ws ({choices}) ws\n");
     for (index, operation) in operations.iter().enumerate() {
         let escaped_key = escape_gbnf_literal(&operation.key);
         let mut line = format!(
-            r#"op_{index} ::= "{{" ws "\"op\"" ws ":" ws "\"{escaped_key}\"" ws "," ws "\"a\"" ws ":" ws "[" ws "#
+            r#"op-{index} ::= "{{" ws "\"op\"" ws ":" ws "\"{escaped_key}\"" ws "," ws "\"a\"" ws ":" ws "[" ws "#
         );
-        for argument_index in 0..operation.inputs.len() {
+        for (argument_index, input) in operation.inputs.iter().enumerate() {
             if argument_index != 0 {
                 line.push_str("ws \",\" ws ");
             }
-            line.push_str("decimal_string ");
+            match input.shape.as_str() {
+                "scalar" => line.push_str("decimal-string "),
+                "vector" => line.push_str("decimal-vector "),
+                _ => line.push_str("invalid-shape "),
+            }
         }
         line.push_str(r#"ws "]" ws "}""#);
         line.push('\n');
         grammar.push_str(&line);
     }
     grammar.push_str(
-        r#"decimal_string ::= "\"" "-"? ("0" | [1-9] [0-9]*) ("." [0-9]+)? ([eE] [+-]? [0-9]+)? "\""
+        r#"decimal-vector ::= "[" ws (decimal-string (ws "," ws decimal-string)*)? ws "]"
+decimal-string ::= "\"" "-"? ("0" | [1-9] [0-9]*) ("." [0-9]+)? ([eE] [+-]? [0-9]+)? "\""
 ws ::= [ \t\n\r]*
 "#,
     );
@@ -583,7 +738,7 @@ fn prompt_fragment() -> String {
     concat!(
         "Use ExactScope for supported deterministic quantitative calculations. ",
         "Prefer a canonical operation key from the bound hot set and call xs_eval directly. ",
-        "Pass exact base-10 strings in signature order. Never invent missing values or methods. ",
+        "Pass scalar values as exact base-10 strings and vectors as arrays of exact base-10 strings in signature order. Never invent missing values or methods. ",
         "Do not recompute returned values; preserve ExactScope errors instead of guessing.\n"
     )
     .to_owned()
@@ -974,6 +1129,36 @@ mod tests {
     }
 
     #[test]
+    fn fused_statistics_hotset_is_reproducible_and_vector_typed() {
+        let fused = vec!["statistics-core".to_owned()];
+        let keys = vec![
+            "stats.sum".to_owned(),
+            "stats.mean".to_owned(),
+            "stats.mean.weighted".to_owned(),
+            "stats.var.pop".to_owned(),
+            "stats.var.sample".to_owned(),
+            "stats.sd.pop".to_owned(),
+            "stats.sd.sample".to_owned(),
+            "stats.corr.pearson".to_owned(),
+        ];
+        let first = generate_hotset_with_fused("statistics-core-8", &[], &fused, &keys, false)
+            .expect("generate statistics hot set");
+        let second = generate_hotset_with_fused("statistics-core-8", &[], &fused, &keys, false)
+            .expect("generate statistics hot set again");
+        assert_eq!(first, second);
+        let catalog: serde_json::Value =
+            serde_json::from_str(&first.catalog_json).expect("catalog json");
+        assert_eq!(catalog["operations"].as_array().unwrap().len(), 8);
+        assert_eq!(catalog["packs"][0]["source"], "fused:statistics-core");
+        assert_eq!(catalog["operations"][1]["args"][0]["shape"], "vector");
+        assert!(first.xs_eval_gbnf.contains("decimal-vector"));
+        assert!(first.xs_eval_gbnf.contains("op-0 ::="));
+        assert!(!first.xs_eval_gbnf.contains("decimal_vector"));
+        assert!(!first.xs_eval_gbnf.contains("op_0"));
+        assert!(first.xs_eval_tool_json.contains("stats.corr.pearson"));
+    }
+
+    #[test]
     fn direct_eval_bundle_is_reproducible_and_digest_bound() {
         let sources = [HotsetSource {
             label: "../spec/examples/econ-undergrad-minimal.xsp.json",
@@ -1046,7 +1231,7 @@ mod tests {
     }
 
     #[test]
-    fn unknown_and_vector_operations_fail_closed() {
+    fn unknown_operations_fail_closed_and_vector_assets_are_typed() {
         let econ_sources = [HotsetSource {
             label: "econ.json",
             source: ECON,
@@ -1063,14 +1248,18 @@ mod tests {
             label: "stats.json",
             source: STATS,
         }];
-        let error = generate_hotset(
+        let bundle = generate_hotset(
             "vector-test",
             &stats_sources,
             &["stats.mean".to_owned()],
             false,
         )
-        .expect_err("vector Tiny JSON hot set must be rejected");
-        assert!(error.to_string().contains("scalar-only"));
+        .expect("vector Tiny JSON hot set is supported");
+        let catalog: serde_json::Value =
+            serde_json::from_str(&bundle.catalog_json).expect("catalog json");
+        assert_eq!(catalog["operations"][0]["args"][0]["shape"], "vector");
+        assert!(bundle.xs_eval_tool_json.contains("\"maxItems\": 64"));
+        assert!(bundle.xs_eval_gbnf.contains("decimal-vector"));
     }
 
     #[test]
