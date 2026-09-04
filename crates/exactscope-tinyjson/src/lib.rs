@@ -1651,5 +1651,10 @@ mod tests {
         assert_eq!(result.status, Status::BUFFER_TOO_SMALL);
         assert!(result.written_or_required > u32::try_from(output.len()).unwrap());
         assert_eq!(output, [0xa5; 8]);
+
+        let result = calc(br#"{"p":[{"o":"add","a":["1","2"]}]}"#, &mut output);
+        assert_eq!(result.status, Status::BUFFER_TOO_SMALL);
+        assert!(result.written_or_required > u32::try_from(output.len()).unwrap());
+        assert_eq!(output, [0xa5; 8]);
     }
 }

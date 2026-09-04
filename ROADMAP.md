@@ -35,47 +35,45 @@ The engine is therefore not the main blocker. The next blocker is proving the **
 
 # P0 — prove the retrofit mechanism
 
-## P0.1 Freeze the vNext plan contract
+## P0.1 Freeze the first bounded plan contract
 
-Design only until implementation begins:
+Implemented for the v1.0.0 release candidate:
 
-- [ ] freeze `PLAN_V0_1`;
-- [ ] define one planned model-facing `xs_calc` request;
-- [ ] cap the first plan at 8 arithmetic steps;
-- [ ] initial operations: `add`, `sub`, `mul`, `div`, `powi`, `sqrt`;
-- [ ] allow exact decimal-string leaves and backward-only previous-result references;
-- [ ] forbid loops, arbitrary branches, variables, arbitrary functions, arbitrary expression text, and arbitrary code;
-- [ ] define stable errors for invalid reference, arity, resource limit, domain, divide-by-zero, overflow, and precision failures;
-- [ ] specify canonical lowering to the existing bounded VM/numeric kernel;
-- [ ] require that the plan path introduces no second arithmetic semantics.
+- [x] freeze `PLAN_V0_1` as the RC's implemented experimental plan contract;
+- [x] define one model-facing `xs_calc` request;
+- [x] cap the first plan at 8 arithmetic steps;
+- [x] initial operations: `add`, `sub`, `mul`, `div`, `powi`, `sqrt`;
+- [x] allow exact decimal-string leaves and backward-only previous-result references;
+- [x] forbid loops, arbitrary branches, variables, arbitrary functions, arbitrary expression text, and arbitrary code;
+- [x] define stable errors for invalid reference, arity, resource limit, domain, divide-by-zero, overflow, and precision failures;
+- [x] specify canonical lowering to the existing bounded numeric kernel;
+- [x] require that the plan path introduces no second arithmetic semantics.
 
 Success criterion: the target model surface is small enough to explain completely and validate mechanically.
 
 ## P0.2 Implement the bounded plan using the existing core
 
-**Not started in this design-only revision.**
+Implemented for the v1.0.0 release candidate:
 
-Future implementation sequence:
-
-- [ ] add bounded plan representation/validator;
-- [ ] lower each accepted plan to shared VM/kernel semantics;
-- [ ] expose native and no-import Wasm plan evaluation without duplicating calculation logic;
-- [ ] add Tiny JSON or equivalent bounded model-facing plan decoding;
-- [ ] add malformed/reference/resource/domain conformance tests;
-- [ ] prove no heap/network/filesystem/daemon/runtime dependency is introduced into the minimum profile.
+- [x] add bounded plan representation/validator;
+- [x] lower each accepted plan to shared kernel semantics;
+- [x] expose native and no-import Wasm plan evaluation without duplicating calculation logic;
+- [x] add bounded Tiny JSON model-facing plan decoding;
+- [x] add malformed/reference/resource/domain conformance tests;
+- [x] prove no heap/network/filesystem/daemon/runtime dependency is introduced into the minimum profile.
 
 Success criterion: `xs_calc` is a thin bounded front end to the existing deterministic engine, not a new language runtime.
 
 ## P0.3 Generate tiny-model constrained assets
 
-- [ ] one conservative JSON Schema for `xs_calc`;
-- [ ] one generated/checked-in GBNF for the same plan contract;
-- [ ] whitespace/output-token termination tests;
-- [ ] llama.cpp reference example;
-- [ ] raw JSON and OpenAI-compatible envelope fixtures;
-- [ ] immutable schema/grammar digests in benchmark metadata;
-- [ ] preserve existing semantic `xs_eval` hot-set assets;
-- [ ] keep `xs_find` as optional cold/development discovery.
+- [x] one conservative JSON Schema for `xs_calc`;
+- [x] one checked-in GBNF for the same plan contract;
+- [x] whitespace/output-token termination tests;
+- [x] llama.cpp reference example;
+- [x] raw JSON and OpenAI-compatible envelope fixtures;
+- [x] immutable schema/grammar digests in the checked-in contract metadata;
+- [x] preserve existing semantic `xs_eval` hot-set assets;
+- [x] keep `xs_find` as optional cold/development discovery.
 
 Success criterion: a small model normally chooses between **one arithmetic-plan tool** and a small set of reviewed semantic operations, not a catalog of hundreds of tools.
 
@@ -90,14 +88,14 @@ Priority:
 
 For each public dataset:
 
-- [ ] pin exact source/revision;
-- [ ] derive ExactScope compatibility from gold program/derivation/metadata only;
-- [ ] convert to a bounded plan without consulting model outputs;
-- [ ] execute every candidate plan through ExactScope;
-- [ ] admit an item only when execution matches the dataset gold result;
-- [ ] publish full-split coverage percentage;
-- [ ] keep full model-only score separate from `ExactScope-compatible subset` score;
-- [ ] preserve unsupported items rather than silently dropping them from official-dataset reporting.
+- [x] pin exact source/revision and source-file digest;
+- [x] derive ExactScope compatibility from gold program/derivation/metadata only;
+- [x] convert to a bounded plan without consulting model outputs;
+- [x] execute every candidate plan through ExactScope;
+- [x] admit an item only when execution matches the dataset gold result;
+- [x] publish full-split coverage percentage;
+- [x] keep full model-only score separate from `ExactScope-compatible subset` score;
+- [x] preserve unsupported items rather than silently dropping them from official-dataset reporting.
 
 Success criterion: the deterministic ceiling is trustworthy before a model is allowed into the experiment.
 

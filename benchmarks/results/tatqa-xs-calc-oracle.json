@@ -1,5 +1,13 @@
 {
   "classification": "oracle/structural validation subset; not a model accuracy score",
+  "source": {
+    "dataset": "TAT-QA",
+    "url": "https://github.com/NExTplusplus/TAT-QA",
+    "revision": "870accc41953dcde885aabeb963d94aabdc0fbc3",
+    "split": "dev",
+    "file": "dataset_raw/tatqa_dataset_dev.json",
+    "file_sha256": "6c3660345bf155b44bb3b55e63a4355716521028f291263d47c66667335f0144"
+  },
   "rules": {
     "max_steps": 8,
     "max_arguments": 2,

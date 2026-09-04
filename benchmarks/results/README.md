@@ -6,6 +6,11 @@ These JSON files are checked-in evidence, not general model-accuracy claims:
 - `tatqa-xs-calc-oracle.json`: TAT-QA dev arithmetic derivations lowered to bounded plans, executed by ExactScope, and compared exactly with explicit answers.
 - `xs-calc-llama-b10797.json`: five-case constrained-generation integration smoke for the three RC reference GGUF files.
 
+The public dataset inputs are pinned as follows:
+
+- FinQA test: upstream `main.zip`, archive SHA-256 `b6e8aadb9cdebe9be6574dfbdcba835a90f0a71664a417118d1d4a2671339a6f`; `dataset/test.json` SHA-256 `831dbfb2e785dbc227f895ce3f24046433467aec67b09db2bd6ac7692a8a30dc`.
+- TAT-QA dev: upstream commit `870accc41953dcde885aabeb963d94aabdc0fbc3`; `dataset_raw/tatqa_dataset_dev.json` SHA-256 `6c3660345bf155b44bb3b55e63a4355716521028f291263d47c66667335f0144`.
+
 Only rows whose runtime result exactly matches the explicit dataset answer form the oracle/structural validation subset. Dataset-specific implicit percentage scaling and rounding are not guessed. MathQA `annotated_formula` is not used.
 
 To reproduce an oracle report after obtaining the upstream dataset under its own license and building `exactscope-core`:
