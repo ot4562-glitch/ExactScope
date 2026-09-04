@@ -69,6 +69,11 @@ pub const OPERATION_KIND_FORMULA: u8 = 1;
 /// Operation kind for bounded built-in kernels.
 pub const OPERATION_KIND_KERNEL: u8 = 2;
 
+/// Input shape for one scalar value.
+pub const INPUT_SHAPE_SCALAR: u8 = 0;
+/// Input shape for one immutable decimal vector.
+pub const INPUT_SHAPE_VECTOR: u8 = 1;
+
 /// Operation flag: caller may override scale.
 pub const OP_FLAG_SCALE_OVERRIDE: u8 = 0x01;
 /// Operation flag: caller may override rounding.

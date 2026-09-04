@@ -3,21 +3,23 @@
 use core::str;
 
 use exactscope_kernel::{
-    evaluate_runtime_operation, execute_predicate, validate_program, ConstraintKind, Decimal64,
+    evaluate_runtime_operation, evaluate_statistics_operation, execute_predicate,
+    statistics_kernel_contract, validate_program, ConstraintKind, Decimal64, DecimalVector,
     EvaluationResult, InputDecl, Instruction, ProgramKind, RoundingMode, RuntimeOperation,
-    ScalarValue, Status, WorkRational, MAX_VM_INSTRUCTIONS,
+    ScalarValue, StatisticsOperationDecl, Status, WorkRational, MAX_STATS_VECTOR_LEN,
+    MAX_VM_INSTRUCTIONS,
 };
 
 use crate::format::{
     crc32_iso_hdlc, read_i64, read_u16, read_u32, read_u8, ALIAS_RECORD_SIZE,
     CLASSIFICATION_RECORD_SIZE, CONSTANT_RECORD_SIZE, CONSTRAINT_GE, CONSTRAINT_GT, CONSTRAINT_NE,
     CONSTRAINT_RECORD_SIZE, FORMAT_MAJOR, FORMAT_MINOR, HEADER_SIZE, INPUT_FLAGS_V1,
-    INPUT_FLAG_UNIT_REQUIRED, INPUT_RECORD_SIZE, INSTRUCTION_RECORD_SIZE, MAGIC, MAX_SECTION_KIND,
-    META_RECORD_SIZE, NUMERIC_PROFILE_DECIMAL64_V1, OPERATION_KIND_FORMULA, OPERATION_RECORD_SIZE,
-    OP_FLAGS_V1, OP_FLAG_CLASSIFICATION_REQUIRED, OUTPUT_RECORD_SIZE, SECTION_ALIASES,
-    SECTION_CLASSIFICATIONS, SECTION_CONSTANTS, SECTION_CONSTRAINTS, SECTION_ENTRY_SIZE,
-    SECTION_INPUTS, SECTION_META, SECTION_OPERATIONS, SECTION_OUTPUTS, SECTION_PROGRAMS,
-    SECTION_STRINGS,
+    INPUT_FLAG_UNIT_REQUIRED, INPUT_RECORD_SIZE, INPUT_SHAPE_VECTOR, INSTRUCTION_RECORD_SIZE,
+    MAGIC, MAX_SECTION_KIND, META_RECORD_SIZE, NUMERIC_PROFILE_DECIMAL64_V1,
+    OPERATION_KIND_FORMULA, OPERATION_KIND_KERNEL, OPERATION_RECORD_SIZE, OP_FLAGS_V1,
+    OP_FLAG_CLASSIFICATION_REQUIRED, OUTPUT_RECORD_SIZE, SECTION_ALIASES, SECTION_CLASSIFICATIONS,
+    SECTION_CONSTANTS, SECTION_CONSTRAINTS, SECTION_ENTRY_SIZE, SECTION_INPUTS, SECTION_META,
+    SECTION_OPERATIONS, SECTION_OUTPUTS, SECTION_PROGRAMS, SECTION_STRINGS,
 };
 
 const ABI_V1_0: u32 = 0x0001_0000;
@@ -63,6 +65,19 @@ pub struct DynamicOperation<'a> {
     pub signature: &'a str,
     /// Explicit method key.
     pub method: &'a str,
+}
+
+/// Validated input metadata for one dynamic operation argument.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DynamicInputMeta {
+    /// Stable semantic kind.
+    pub semantic_kind: u8,
+    /// Stable scalar/vector shape ID.
+    pub shape: u8,
+    /// Stable input flags.
+    pub flags: u16,
+    /// Maximum vector length, zero for scalar inputs.
+    pub max_vector_len: u16,
 }
 
 /// Safe immutable view over one validated `.xsp` byte slice.
@@ -287,6 +302,55 @@ impl<'a> PackView<'a> {
         Ok(usize::from(read_u16(record, 28)?))
     }
 
+    /// Returns the stable formula/kernel kind for an operation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Status::PACK_INVALID`] if caller-owned bytes changed after parsing.
+    pub fn operation_kind(self, operation: DynamicOperation<'a>) -> Result<u8, Status> {
+        let record = self.operation_record(operation.record_index)?;
+        match read_u8(record, 6)? {
+            OPERATION_KIND_FORMULA => Ok(OPERATION_KIND_FORMULA),
+            OPERATION_KIND_KERNEL => Ok(OPERATION_KIND_KERNEL),
+            _ => Err(Status::PACK_INVALID),
+        }
+    }
+
+    /// Returns one validated dynamic input's scalar/vector metadata.
+    ///
+    /// # Errors
+    ///
+    /// Returns a stable unknown/pack status for an invalid index or mutated bytes.
+    pub fn input_meta(
+        self,
+        operation: DynamicOperation<'a>,
+        index: usize,
+    ) -> Result<DynamicInputMeta, Status> {
+        let record = self.operation_record(operation.record_index)?;
+        let first = usize::try_from(read_u32(record, 24)?).map_err(|_| Status::PACK_INVALID)?;
+        let count = usize::from(read_u16(record, 28)?);
+        if index >= count {
+            return Err(Status::UNKNOWN_OPERATION);
+        }
+        let input = self.input_record(first.checked_add(index).ok_or(Status::PACK_INVALID)?)?;
+        Ok(DynamicInputMeta {
+            semantic_kind: read_u8(input, 4)?,
+            shape: read_u8(input, 5)?,
+            flags: read_u16(input, 6)?,
+            max_vector_len: read_u16(input, 22)?,
+        })
+    }
+
+    /// Returns the declared scalar output count.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Status::PACK_INVALID`] if caller-owned bytes changed after parsing.
+    pub fn output_count(self, operation: DynamicOperation<'a>) -> Result<usize, Status> {
+        let record = self.operation_record(operation.record_index)?;
+        Ok(usize::from(read_u8(record, 30)?))
+    }
+
     /// Builds a normalized failure tied to one dynamic operation identity.
     ///
     /// # Errors
@@ -330,6 +394,9 @@ impl<'a> PackView<'a> {
         arguments: &[ScalarValue],
     ) -> Result<EvaluationResult, Status> {
         let record = self.operation_record(operation.record_index)?;
+        if read_u8(record, 6)? != OPERATION_KIND_FORMULA {
+            return Err(Status::PACK_INVALID);
+        }
         let mut inputs = [InputDecl::EMPTY; MAX_INPUTS];
         let input_count = self.decode_inputs(record, &mut inputs)?;
 
@@ -362,6 +429,44 @@ impl<'a> PackView<'a> {
             &runtime,
             arguments,
             |exact| self.classify(record, exact, &constants[..constant_count]),
+        ))
+    }
+
+    /// Evaluates one validated dynamic statistics kernel through the shared kernel.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Status::PACK_INVALID`] only if caller-owned bytes changed after
+    /// parsing. Numeric/domain failures are normalized into [`EvaluationResult`].
+    pub fn evaluate_statistics<V: DecimalVector>(
+        self,
+        pack_slot: u16,
+        operation: DynamicOperation<'a>,
+        arguments: &[V],
+    ) -> Result<EvaluationResult, Status> {
+        let record = self.operation_record(operation.record_index)?;
+        if read_u8(record, 6)? != OPERATION_KIND_KERNEL {
+            return Err(Status::PACK_INVALID);
+        }
+        let declaration = StatisticsOperationDecl {
+            id: operation.id,
+            revision: operation.revision,
+            key: "",
+            signature: "",
+            method: "",
+            kernel_id: read_u16(record, 42)?,
+            input_count: read_u16(record, 28)?
+                .try_into()
+                .map_err(|_| Status::PACK_INVALID)?,
+            output_count: read_u8(record, 30)?,
+            output_scale: read_u8(record, 50)?,
+            rounding_mode: RoundingMode::from_id(read_u8(record, 51)?)
+                .map_err(|_| Status::PACK_INVALID)?,
+        };
+        Ok(evaluate_statistics_operation(
+            pack_slot,
+            &declaration,
+            arguments,
         ))
     }
 
@@ -454,16 +559,26 @@ impl<'a> PackView<'a> {
         }
 
         let record = self.operation_record(record_index)?;
-        if read_u8(record, 6)? != OPERATION_KIND_FORMULA
-            || read_u8(record, 7)? & !OP_FLAGS_V1 != 0
-            || read_u16(record, 42)? != 0
-            || read_u8(record, 30)? != 1
-            || read_u8(record, 31)? > 16
+        let kind = read_u8(record, 6)?;
+        let flags = read_u8(record, 7)?;
+        let input_count = usize::from(read_u16(record, 28)?);
+        let output_count = usize::from(read_u8(record, 30)?);
+        let max_stack = read_u8(record, 31)?;
+        let program_start = read_u32(record, 36)?;
+        let program_count = read_u16(record, 40)?;
+        let kernel_id = read_u16(record, 42)?;
+        let classification_count = read_u16(record, 48)?;
+        if !matches!(kind, OPERATION_KIND_FORMULA | OPERATION_KIND_KERNEL)
+            || flags & !OP_FLAGS_V1 != 0
+            || input_count > MAX_INPUTS
+            || !(1..=2).contains(&output_count)
+            || read_u8(record, 50)? > 18
             || read_u16(record, 58)? != 0
             || read_u32(record, 60)? != 0
         {
             return Err(Status::PACK_INVALID);
         }
+        RoundingMode::from_id(read_u8(record, 51)?).map_err(|_| Status::PACK_INVALID)?;
 
         self.string_at(read_u32(record, 12)?)?;
         self.string_at(read_u32(record, 16)?)?;
@@ -472,50 +587,117 @@ impl<'a> PackView<'a> {
             self.string_at(method)?;
         }
 
-        let mut inputs = [InputDecl::EMPTY; MAX_INPUTS];
-        let input_count = self.decode_inputs(record, &mut inputs)?;
-        if input_count != usize::from(read_u16(record, 28)?) {
-            return Err(Status::PACK_INVALID);
+        match kind {
+            OPERATION_KIND_FORMULA => {
+                if kernel_id != 0 || output_count != 1 || max_stack == 0 || max_stack > 16 {
+                    return Err(Status::PACK_INVALID);
+                }
+                let mut inputs = [InputDecl::EMPTY; MAX_INPUTS];
+                let decoded_input_count = self.decode_inputs(record, &mut inputs)?;
+                if decoded_input_count != input_count {
+                    return Err(Status::PACK_INVALID);
+                }
+                let mut constants = [WorkRational::ZERO; MAX_CONSTANTS];
+                let constant_count = self.decode_constants(&mut constants)?;
+                let mut program = [Instruction::new(0, 0); MAX_VM_INSTRUCTIONS];
+                let decoded_program_count = self.decode_operation_program(record, &mut program)?;
+                let actual_max_stack = validate_program(
+                    &program[..decoded_program_count],
+                    ProgramKind::Formula,
+                    input_count,
+                    constant_count,
+                    0,
+                )?;
+                if actual_max_stack > usize::from(max_stack) {
+                    return Err(Status::PACK_INVALID);
+                }
+                self.validate_outputs(record, kind, output_count)?;
+                self.validate_classifications(record, constant_count)?;
+            }
+            OPERATION_KIND_KERNEL => {
+                let contract = statistics_kernel_contract(kernel_id).ok_or(Status::PACK_INVALID)?;
+                if input_count != usize::from(contract.input_count)
+                    || output_count != usize::from(contract.output_count)
+                    || max_stack != 0
+                    || program_start != 0
+                    || program_count != 0
+                    || classification_count != 0
+                    || flags & OP_FLAG_CLASSIFICATION_REQUIRED != 0
+                {
+                    return Err(Status::PACK_INVALID);
+                }
+                self.validate_kernel_inputs(record, input_count)?;
+                self.validate_outputs(record, kind, output_count)?;
+            }
+            _ => return Err(Status::PACK_INVALID),
         }
-
-        let mut constants = [WorkRational::ZERO; MAX_CONSTANTS];
-        let constant_count = self.decode_constants(&mut constants)?;
-
-        let mut program = [Instruction::new(0, 0); MAX_VM_INSTRUCTIONS];
-        let program_count = self.decode_operation_program(record, &mut program)?;
-        let max_stack = validate_program(
-            &program[..program_count],
-            ProgramKind::Formula,
-            input_count,
-            constant_count,
-            0,
-        )?;
-        if max_stack > usize::from(read_u8(record, 31)?) {
-            return Err(Status::PACK_INVALID);
-        }
-
-        let output = self.output_record_for(record)?;
-        if read_u8(output, 4)? > 10
-            || read_u8(output, 5)? > 3
-            || read_u16(output, 6)? != 0
-            || read_u16(output, 14)? != 0
-            || read_u16(output, 22)? != 0
-            || read_u8(output, 12)? != read_u8(record, 50)?
-            || read_u8(output, 13)? != read_u8(record, 51)?
-            || read_u32(output, 16)? != read_u32(record, 36)?
-            || read_u16(output, 20)? != read_u16(record, 40)?
-        {
-            return Err(Status::PACK_INVALID);
-        }
-        self.string_at(read_u32(output, 0)?)?;
-        let unit_rule = read_u32(output, 8)?;
-        if unit_rule != ABSENT_STRING {
-            self.string_at(unit_rule)?;
-        }
-        RoundingMode::from_id(read_u8(record, 51)?).map_err(|_| Status::PACK_INVALID)?;
-
-        self.validate_classifications(record, constant_count)?;
         self.validate_aliases(record, record_index)?;
+        Ok(())
+    }
+
+    fn validate_kernel_inputs(&self, operation: &[u8], count: usize) -> Result<(), Status> {
+        let first = usize::try_from(read_u32(operation, 24)?).map_err(|_| Status::PACK_INVALID)?;
+        let pack_max = self.max_vector_len()?;
+        for index in 0..count {
+            let input = self.input_record(first.checked_add(index).ok_or(Status::PACK_INVALID)?)?;
+            self.string_at(read_u32(input, 0)?)?;
+            let max_len = read_u16(input, 22)?;
+            if read_u8(input, 4)? != 0
+                || read_u8(input, 5)? != INPUT_SHAPE_VECTOR
+                || read_u16(input, 6)? != 0
+                || read_u32(input, 8)? != ABSENT_STRING
+                || read_u32(input, 12)? != ABSENT_STRING
+                || read_u16(input, 20)? != 0
+                || max_len == 0
+                || max_len > pack_max
+                || usize::from(max_len) > MAX_STATS_VECTOR_LEN
+                || read_u32(input, 24)? != 0
+                || read_u32(input, 28)? != 0
+            {
+                return Err(Status::PACK_INVALID);
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_outputs(&self, operation: &[u8], kind: u8, count: usize) -> Result<(), Status> {
+        let first = usize::try_from(read_u32(operation, 32)?).map_err(|_| Status::PACK_INVALID)?;
+        for index in 0..count {
+            let output = self.record(
+                SECTION_OUTPUTS,
+                first.checked_add(index).ok_or(Status::PACK_INVALID)?,
+                OUTPUT_RECORD_SIZE,
+            )?;
+            self.string_at(read_u32(output, 0)?)?;
+            let unit_rule = read_u32(output, 8)?;
+            if read_u8(output, 4)? > 10
+                || read_u8(output, 5)? > 3
+                || read_u16(output, 6)? != 0
+                || read_u16(output, 14)? != 0
+                || read_u16(output, 22)? != 0
+                || read_u8(output, 12)? != read_u8(operation, 50)?
+                || read_u8(output, 13)? != read_u8(operation, 51)?
+            {
+                return Err(Status::PACK_INVALID);
+            }
+            if unit_rule != ABSENT_STRING {
+                self.string_at(unit_rule)?;
+            }
+            if kind == OPERATION_KIND_FORMULA {
+                if read_u32(output, 16)? != read_u32(operation, 36)?
+                    || read_u16(output, 20)? != read_u16(operation, 40)?
+                {
+                    return Err(Status::PACK_INVALID);
+                }
+            } else if read_u8(output, 4)? != 0
+                || read_u8(output, 5)? != 0
+                || unit_rule != ABSENT_STRING
+                || read_u32(output, 16)? != 0
+                || read_u16(output, 20)? != 0
+            {
+                return Err(Status::PACK_INVALID);
+            }
+        }
         Ok(())
     }
 

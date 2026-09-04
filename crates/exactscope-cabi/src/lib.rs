@@ -27,7 +27,7 @@ fn panic(_info: &PanicInfo<'_>) -> ! {
 
 /// Abort-only exception personality for the standalone `no_std` static library.
 ///
-/// ExactScope exports non-unwinding C ABI functions and does not support a
+/// `ExactScope` exports non-unwinding C ABI functions and does not support a
 /// foreign exception crossing a Rust frame. Some hosted targets still retain a
 /// `rust_eh_personality` reference even with `panic=abort`; satisfying that
 /// reference with an aborting symbol keeps the library self-contained without
@@ -40,12 +40,18 @@ pub extern "C" fn rust_eh_personality() -> ! {
 }
 
 use exactscope_kernel::{
-    evaluate_operation, Decimal64, EvaluationResult, ScalarValue, Status, ARGUMENT_INDEX_NONE,
-    MAX_RESULT_VALUES, SEMANTIC_ELASTICITY,
+    evaluate_operation, evaluate_statistics_operation, Decimal64, DecimalVector, EvaluationResult,
+    ScalarValue, StatisticsOperationDecl, Status, ARGUMENT_INDEX_NONE, MAX_RESULT_VALUES,
+    MAX_STATS_VECTOR_LEN, SEMANTIC_ELASTICITY, SEMANTIC_NUMBER, VALUE_FLAGS_V1,
 };
-use exactscope_pack::{empty_matches, FusedRegistry, ECON_UNDERGRAD_PACK_SLOT};
 #[cfg(feature = "dynamic-packs")]
-use exactscope_pack::{PackView, ECON_UNDERGRAD_PACK_ID};
+use exactscope_pack::format::OPERATION_KIND_KERNEL;
+use exactscope_pack::{
+    empty_matches, empty_statistics_matches, FusedRegistry, StatisticsRegistry,
+    ECON_UNDERGRAD_PACK_SLOT, STATISTICS_CORE_PACK_SLOT,
+};
+#[cfg(feature = "dynamic-packs")]
+use exactscope_pack::{PackView, ECON_UNDERGRAD_PACK_ID, STATISTICS_CORE_PACK_ID};
 
 pub use exactscope_kernel::{DESIGN_ABI_MAJOR, DESIGN_ABI_MINOR};
 
@@ -60,12 +66,13 @@ const EVAL_INCLUDE_PROVENANCE: u16 = 0x0001;
 const EVAL_REQUIRE_CLASSIFICATION: u16 = 0x0002;
 const EVAL_KNOWN_FLAGS: u16 = EVAL_INCLUDE_PROVENANCE | EVAL_REQUIRE_CLASSIFICATION;
 const VALUE_SCALAR: u8 = 0;
+const VALUE_VECTOR: u8 = 1;
 const USE_OPERATION_SCALE: i8 = -128;
 const USE_OPERATION_ROUNDING: u8 = 255;
 #[cfg(feature = "dynamic-packs")]
 const MAX_PACKS: usize = 8;
 #[cfg(feature = "dynamic-packs")]
-const FIRST_DYNAMIC_PACK_SLOT: u16 = 2;
+const FIRST_DYNAMIC_PACK_SLOT: u16 = 3;
 
 #[cfg(feature = "dynamic-packs")]
 #[derive(Clone, Copy)]
@@ -640,6 +647,14 @@ pub unsafe extern "C" fn xs_lookup(
             Status::OK.code()
         }
         Err(Status::UNKNOWN_OPERATION) => {
+            if let Ok(operation) = StatisticsRegistry::new().lookup(key) {
+                unsafe {
+                    out_pack_slot.write(operation.pack_slot);
+                    out_operation_id.write(operation.operation.id);
+                    out_operation_revision.write(operation.operation.revision);
+                }
+                return Status::OK.code();
+            }
             #[cfg(feature = "dynamic-packs")]
             {
                 if context.config_flags & CONFIG_ALLOW_DYNAMIC_PACKS != 0 {
@@ -700,6 +715,41 @@ pub unsafe extern "C" fn xs_find(
     let configured_limit = usize::from(context.max_find_matches).min(found.len());
     let count = match FusedRegistry::new().find(query, &mut found[..configured_limit]) {
         Ok(count) => count,
+        Err(Status::UNKNOWN_OPERATION) => {
+            let mut statistics = empty_statistics_matches();
+            let statistics_limit = usize::from(context.max_find_matches).min(statistics.len());
+            let count =
+                match StatisticsRegistry::new().find(query, &mut statistics[..statistics_limit]) {
+                    Ok(count) => count,
+                    Err(status) => return status.code(),
+                };
+            let Ok(count_u16) = u16::try_from(count) else {
+                return Status::INTERNAL_ERROR.code();
+            };
+            unsafe { out_match_count.write(count_u16) };
+            if usize::from(match_capacity) < count {
+                return Status::BUFFER_TOO_SMALL.code();
+            }
+            if count == 0 {
+                return Status::OK.code();
+            }
+            if matches.is_null() || !matches.is_aligned() {
+                return Status::INVALID_REQUEST.code();
+            }
+            for (index, found_match) in statistics[..count].iter().enumerate() {
+                let target = unsafe { matches.add(index) };
+                let caller_size = unsafe { ptr::addr_of!((*target).struct_size).read() };
+                if caller_size < size_u32::<XsMatchV1>() {
+                    return Status::INVALID_REQUEST.code();
+                }
+                let output = match build_statistics_match(caller_size, *found_match) {
+                    Ok(output) => output,
+                    Err(status) => return status.code(),
+                };
+                unsafe { target.write(output) };
+            }
+            return Status::OK.code();
+        }
         Err(status) => return status.code(),
     };
     let Ok(count_u16) = u16::try_from(count) else {
@@ -734,7 +784,7 @@ pub unsafe extern "C" fn xs_find(
     Status::OK.code()
 }
 
-/// Evaluates one fused operation using typed scalar arguments.
+/// Evaluates one fused scalar-formula or statistics-vector operation.
 ///
 /// # Safety
 ///
@@ -762,6 +812,22 @@ pub unsafe extern "C" fn xs_eval(
         Ok(size) => size,
         Err(status) => return status.code(),
     };
+
+    if pack_slot == STATISTICS_CORE_PACK_SLOT {
+        return unsafe {
+            eval_statistics(
+                context,
+                result_struct_size,
+                operation_id,
+                args,
+                arg_count,
+                options,
+                scratch,
+                scratch_len,
+                out_result,
+            )
+        };
+    }
 
     if pack_slot != ECON_UNDERGRAD_PACK_SLOT {
         #[cfg(feature = "dynamic-packs")]
@@ -877,7 +943,288 @@ pub unsafe extern "C" fn xs_eval(
 }
 
 #[cfg(feature = "dynamic-packs")]
-#[allow(clippy::too_many_arguments)]
+unsafe fn eval_dynamic_statistics(
+    context: &XsContext,
+    result_struct_size: u32,
+    pack: &PackView<'_>,
+    pack_slot: u16,
+    operation: exactscope_pack::DynamicOperation<'_>,
+    arguments: &[XsValueRefV1],
+    out_result: *mut XsResultV1,
+) -> u16 {
+    let mut sources = [CStatisticsVector::EMPTY; 2];
+    if arguments.len() > sources.len() {
+        let evaluated = dynamic_failure(
+            pack,
+            pack_slot,
+            operation,
+            Status::RESOURCE_LIMIT,
+            ARGUMENT_INDEX_NONE,
+            0,
+        );
+        unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+        return Status::RESOURCE_LIMIT.code();
+    }
+
+    for (index, argument) in arguments.iter().enumerate() {
+        let argument_index = u16::try_from(index).unwrap_or(ARGUMENT_INDEX_NONE);
+        let input = match pack.input_meta(operation, index) {
+            Ok(input) => input,
+            Err(status) => {
+                let evaluated =
+                    dynamic_failure(pack, pack_slot, operation, status, argument_index, 0);
+                unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+                return status.code();
+            }
+        };
+        let count = match validate_dynamic_statistics_vector_ref(context, argument, input) {
+            Ok(count) => count,
+            Err(status) => {
+                let evaluated =
+                    dynamic_failure(pack, pack_slot, operation, status, argument_index, 0);
+                unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+                return status.code();
+            }
+        };
+        let raw_values = match unsafe { typed_slice(argument.values, count) } {
+            Ok(values) => values,
+            Err(status) => {
+                let evaluated =
+                    dynamic_failure(pack, pack_slot, operation, status, argument_index, 0);
+                unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+                return status.code();
+            }
+        };
+        for raw in raw_values.iter().copied() {
+            if let Err(status) = decimal_from_statistics_raw(raw) {
+                let evaluated =
+                    dynamic_failure(pack, pack_slot, operation, status, argument_index, 0);
+                unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+                return status.code();
+            }
+        }
+        sources[index] = CStatisticsVector {
+            values: argument.values,
+            len: count,
+        };
+    }
+
+    let evaluated =
+        match pack.evaluate_statistics(pack_slot, operation, &sources[..arguments.len()]) {
+            Ok(evaluated) => evaluated,
+            Err(status) => {
+                dynamic_failure(pack, pack_slot, operation, status, ARGUMENT_INDEX_NONE, 0)
+            }
+        };
+    let status = evaluated.status;
+    unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+    status.code()
+}
+
+#[cfg(feature = "dynamic-packs")]
+fn validate_dynamic_statistics_vector_ref(
+    context: &XsContext,
+    argument: &XsValueRefV1,
+    input: exactscope_pack::DynamicInputMeta,
+) -> Result<usize, Status> {
+    if argument.struct_size < size_u32::<XsValueRefV1>()
+        || argument.reserved0 != 0
+        || argument.reserved1 != 0
+        || argument.reserved2 != 0
+    {
+        return Err(Status::INVALID_REQUEST);
+    }
+    if argument.value_kind != VALUE_VECTOR {
+        return Err(Status::ARGUMENT_TYPE);
+    }
+    let count = usize::try_from(argument.value_count).map_err(|_| Status::RESOURCE_LIMIT)?;
+    if count > usize::from(context.max_vector_len)
+        || count > usize::from(input.max_vector_len)
+        || count > MAX_STATS_VECTOR_LEN
+    {
+        return Err(Status::RESOURCE_LIMIT);
+    }
+    if count != 0 && (argument.values.is_null() || !argument.values.is_aligned()) {
+        return Err(Status::INVALID_REQUEST);
+    }
+    Ok(count)
+}
+
+#[derive(Clone, Copy)]
+struct CStatisticsVector {
+    values: *const XsDecimalV1,
+    len: usize,
+}
+
+impl CStatisticsVector {
+    const EMPTY: Self = Self {
+        values: ptr::null(),
+        len: 0,
+    };
+}
+
+impl DecimalVector for CStatisticsVector {
+    fn len(&self) -> usize {
+        self.len
+    }
+
+    fn value_at(&self, index: usize) -> Result<Decimal64, Status> {
+        if index >= self.len {
+            return Err(Status::INTERNAL_ERROR);
+        }
+        if self.values.is_null() || !self.values.is_aligned() {
+            return Err(Status::INVALID_REQUEST);
+        }
+        let raw = unsafe { self.values.add(index).read() };
+        decimal_from_statistics_raw(raw)
+    }
+}
+
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
+unsafe fn eval_statistics(
+    context: &XsContext,
+    result_struct_size: u32,
+    operation_id: u32,
+    args: *const XsValueRefV1,
+    arg_count: u16,
+    options: *const XsEvalOptionsV1,
+    scratch: *mut c_void,
+    scratch_len: u32,
+    out_result: *mut XsResultV1,
+) -> u16 {
+    let operation = match StatisticsRegistry::new().lookup_id(operation_id) {
+        Ok(found) => found.operation,
+        Err(status) => {
+            unsafe { out_result.write(unidentified_result(result_struct_size, status)) };
+            return status.code();
+        }
+    };
+
+    if let Err(status) = unsafe { validate_options(options) } {
+        let evaluated = statistics_failure(operation, status);
+        unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+        return status.code();
+    }
+    if scratch.is_null() && scratch_len != 0 {
+        let evaluated = statistics_failure(operation, Status::INVALID_REQUEST);
+        unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+        return Status::INVALID_REQUEST.code();
+    }
+    if usize::from(arg_count) != usize::from(operation.input_count) {
+        let evaluated = statistics_failure(operation, Status::ARGUMENT_COUNT);
+        unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+        return Status::ARGUMENT_COUNT.code();
+    }
+
+    let arg_refs = match unsafe { typed_slice(args, usize::from(arg_count)) } {
+        Ok(args) => args,
+        Err(status) => {
+            let evaluated = statistics_failure(operation, status);
+            unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+            return status.code();
+        }
+    };
+
+    let mut sources = [CStatisticsVector::EMPTY; 2];
+    for (index, argument) in arg_refs.iter().enumerate() {
+        let count = match validate_statistics_vector_ref(context, argument) {
+            Ok(count) => count,
+            Err(status) => {
+                let mut evaluated = statistics_failure(operation, status);
+                evaluated.argument_index = u16::try_from(index).unwrap_or(ARGUMENT_INDEX_NONE);
+                unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+                return status.code();
+            }
+        };
+
+        // Validate all elements in argument order before execution so malformed
+        // external storage preserves the public deterministic error precedence.
+        let raw_values = match unsafe { typed_slice(argument.values, count) } {
+            Ok(values) => values,
+            Err(status) => {
+                let mut evaluated = statistics_failure(operation, status);
+                evaluated.argument_index = u16::try_from(index).unwrap_or(ARGUMENT_INDEX_NONE);
+                unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+                return status.code();
+            }
+        };
+        for raw in raw_values.iter().copied() {
+            if let Err(status) = decimal_from_statistics_raw(raw) {
+                let mut evaluated = statistics_failure(operation, status);
+                evaluated.argument_index = u16::try_from(index).unwrap_or(ARGUMENT_INDEX_NONE);
+                unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+                return status.code();
+            }
+        }
+        sources[index] = CStatisticsVector {
+            values: argument.values,
+            len: count,
+        };
+    }
+
+    let evaluated = evaluate_statistics_operation(
+        STATISTICS_CORE_PACK_SLOT,
+        operation,
+        &sources[..usize::from(operation.input_count)],
+    );
+    let status = evaluated.status;
+    unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+    status.code()
+}
+
+fn statistics_failure(operation: &StatisticsOperationDecl, status: Status) -> EvaluationResult {
+    let mut result = EvaluationResult::unidentified_failure(status);
+    result.pack_slot = STATISTICS_CORE_PACK_SLOT;
+    result.operation_revision = operation.revision;
+    result.operation_id = operation.id;
+    result.output_scale = i8::try_from(operation.output_scale).unwrap_or(0);
+    result.rounding_mode = operation.rounding_mode.id();
+    result
+}
+
+fn validate_statistics_vector_ref(
+    context: &XsContext,
+    argument: &XsValueRefV1,
+) -> Result<usize, Status> {
+    if argument.struct_size < size_u32::<XsValueRefV1>()
+        || argument.reserved0 != 0
+        || argument.reserved1 != 0
+        || argument.reserved2 != 0
+    {
+        return Err(Status::INVALID_REQUEST);
+    }
+    if argument.value_kind != VALUE_VECTOR {
+        return Err(Status::ARGUMENT_TYPE);
+    }
+    let count = usize::try_from(argument.value_count).map_err(|_| Status::RESOURCE_LIMIT)?;
+    if count > usize::from(context.max_vector_len) || count > MAX_STATS_VECTOR_LEN {
+        return Err(Status::RESOURCE_LIMIT);
+    }
+    if count != 0 && (argument.values.is_null() || !argument.values.is_aligned()) {
+        return Err(Status::INVALID_REQUEST);
+    }
+    Ok(count)
+}
+
+fn decimal_from_statistics_raw(raw: XsDecimalV1) -> Result<Decimal64, Status> {
+    if raw.flags & !VALUE_FLAGS_V1 != 0 {
+        return Err(Status::INVALID_REQUEST);
+    }
+    if raw.semantic_kind != SEMANTIC_NUMBER {
+        return Err(Status::ARGUMENT_TYPE);
+    }
+    let decimal = Decimal64::from_parts(raw.coefficient, raw.exponent)?;
+    if decimal.coefficient() != raw.coefficient || decimal.exponent() != raw.exponent {
+        return Err(Status::INVALID_DECIMAL);
+    }
+    if raw.unit_id != 0 {
+        return Err(Status::UNIT_MISMATCH);
+    }
+    Ok(decimal)
+}
+
+#[cfg(feature = "dynamic-packs")]
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 unsafe fn eval_dynamic(
     context: &XsContext,
     result_struct_size: u32,
@@ -957,6 +1304,29 @@ unsafe fn eval_dynamic(
             return result_status.code();
         }
     };
+
+    let operation_kind = match pack.operation_kind(operation) {
+        Ok(kind) => kind,
+        Err(status) => {
+            let evaluated =
+                dynamic_failure(&pack, pack_slot, operation, status, ARGUMENT_INDEX_NONE, 0);
+            unsafe { out_result.write(result_from_evaluation(result_struct_size, evaluated)) };
+            return status.code();
+        }
+    };
+    if operation_kind == OPERATION_KIND_KERNEL {
+        return unsafe {
+            eval_dynamic_statistics(
+                context,
+                result_struct_size,
+                &pack,
+                pack_slot,
+                operation,
+                arg_refs,
+                out_result,
+            )
+        };
+    }
 
     let mut typed_arguments = [ScalarValue::new(Decimal64::ZERO, 0, 0); 12];
     for (index, argument) in arg_refs.iter().enumerate() {
@@ -1077,13 +1447,18 @@ unsafe fn validate_dynamic_pack_registration(
     candidate: &PackView<'_>,
 ) -> Result<(), Status> {
     let candidate_pack_id = candidate.pack_id()?;
-    if candidate_pack_id == ECON_UNDERGRAD_PACK_ID {
+    if candidate_pack_id == ECON_UNDERGRAD_PACK_ID || candidate_pack_id == STATISTICS_CORE_PACK_ID {
         return Err(Status::PACK_INVALID);
     }
 
     for operation_index in 0..candidate.operation_count() {
         let operation = candidate.operation(operation_index)?;
         match FusedRegistry::new().lookup(operation.key.as_bytes()) {
+            Ok(_) => return Err(Status::PACK_INVALID),
+            Err(Status::UNKNOWN_OPERATION) => {}
+            Err(status) => return Err(status),
+        }
+        match StatisticsRegistry::new().lookup(operation.key.as_bytes()) {
             Ok(_) => return Err(Status::PACK_INVALID),
             Err(Status::UNKNOWN_OPERATION) => {}
             Err(status) => return Err(status),
@@ -1329,6 +1704,25 @@ fn build_match(caller_size: u32, found: exactscope_pack::Match) -> Result<XsMatc
     })
 }
 
+fn build_statistics_match(
+    caller_size: u32,
+    found: exactscope_pack::StatisticsMatch,
+) -> Result<XsMatchV1, Status> {
+    let operation = found.operation.operation;
+    Ok(XsMatchV1 {
+        struct_size: caller_size,
+        pack_slot: found.operation.pack_slot,
+        operation_revision: operation.revision,
+        operation_id: operation.id,
+        rank: found.rank,
+        flags: 0,
+        operation_key: XsBytesV1::from_static(operation.key)?,
+        signature: XsBytesV1::from_static(operation.signature)?,
+        method_key: XsBytesV1::from_static(operation.method)?,
+        reserved: [0; 2],
+    })
+}
+
 fn valid_mut_ptr<T>(pointer: *mut T) -> bool {
     !pointer.is_null() && pointer.is_aligned()
 }
@@ -1459,6 +1853,167 @@ mod tests {
         assert_eq!(output, XsDecimalV1::ZERO);
     }
 
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn statistics_lookup_and_vector_eval_use_public_c_abi() {
+        let mut memory = MaybeUninit::<XsContext>::uninit();
+        let context = unsafe { initialized_context(&mut memory, CONFIG_ENABLE_DISCOVERY) };
+
+        let key = b"stats.mean";
+        let mut pack_slot = 0u16;
+        let mut operation_id = 0u32;
+        let mut revision = 0u16;
+        let status = unsafe {
+            xs_lookup(
+                context,
+                key.as_ptr(),
+                u32::try_from(key.len()).unwrap(),
+                ptr::from_mut(&mut pack_slot),
+                ptr::from_mut(&mut operation_id),
+                ptr::from_mut(&mut revision),
+            )
+        };
+        assert_eq!(status, Status::OK.code());
+        assert_eq!(
+            (pack_slot, operation_id, revision),
+            (STATISTICS_CORE_PACK_SLOT, 2, 1)
+        );
+
+        let mut discovered = XsMatchV1 {
+            struct_size: size_u32::<XsMatchV1>(),
+            pack_slot: 0,
+            operation_revision: 0,
+            operation_id: 0,
+            rank: u16::MAX,
+            flags: 0,
+            operation_key: XsBytesV1::EMPTY,
+            signature: XsBytesV1::EMPTY,
+            method_key: XsBytesV1::EMPTY,
+            reserved: [0; 2],
+        };
+        let query = b"linear regression";
+        let mut match_count = 0u16;
+        let status = unsafe {
+            xs_find(
+                context,
+                query.as_ptr(),
+                u32::try_from(query.len()).unwrap(),
+                ptr::from_mut(&mut discovered),
+                1,
+                ptr::from_mut(&mut match_count),
+            )
+        };
+        assert_eq!(status, Status::OK.code());
+        assert_eq!(match_count, 1);
+        assert_eq!(discovered.pack_slot, STATISTICS_CORE_PACK_SLOT);
+        assert_eq!(discovered.operation_id, 11);
+
+        let values = [
+            decimal(b"1", SEMANTIC_NUMBER),
+            decimal(b"2", SEMANTIC_NUMBER),
+            decimal(b"3", SEMANTIC_NUMBER),
+        ];
+        let vector = XsValueRefV1 {
+            struct_size: size_u32::<XsValueRefV1>(),
+            value_kind: VALUE_VECTOR,
+            reserved0: 0,
+            reserved1: 0,
+            values: values.as_ptr(),
+            value_count: u32::try_from(values.len()).unwrap(),
+            reserved2: 0,
+        };
+        let mut scratch = [0u8; 256];
+        let mut result = XsResultV1::empty(size_u32::<XsResultV1>(), Status::INTERNAL_ERROR);
+        let status = unsafe {
+            xs_eval(
+                context,
+                STATISTICS_CORE_PACK_SLOT,
+                2,
+                ptr::from_ref(&vector),
+                1,
+                ptr::null(),
+                scratch.as_mut_ptr().cast::<c_void>(),
+                u32::try_from(scratch.len()).unwrap(),
+                ptr::from_mut(&mut result),
+            )
+        };
+        assert_eq!(status, Status::OK.code());
+        assert_eq!(result.status, Status::OK.code());
+        assert_eq!(result.value_count, 1);
+        assert_eq!(result.values[0].coefficient, 2);
+        assert_eq!(result.values[0].exponent, 0);
+        assert_eq!(result.values[0].semantic_kind, SEMANTIC_NUMBER);
+
+        let x = [
+            decimal(b"1", SEMANTIC_NUMBER),
+            decimal(b"2", SEMANTIC_NUMBER),
+            decimal(b"3", SEMANTIC_NUMBER),
+        ];
+        let y = [
+            decimal(b"3", SEMANTIC_NUMBER),
+            decimal(b"5", SEMANTIC_NUMBER),
+            decimal(b"7", SEMANTIC_NUMBER),
+        ];
+        let regression_args = [
+            XsValueRefV1 {
+                struct_size: size_u32::<XsValueRefV1>(),
+                value_kind: VALUE_VECTOR,
+                reserved0: 0,
+                reserved1: 0,
+                values: x.as_ptr(),
+                value_count: 3,
+                reserved2: 0,
+            },
+            XsValueRefV1 {
+                struct_size: size_u32::<XsValueRefV1>(),
+                value_kind: VALUE_VECTOR,
+                reserved0: 0,
+                reserved1: 0,
+                values: y.as_ptr(),
+                value_count: 3,
+                reserved2: 0,
+            },
+        ];
+        let mut regression = XsResultV1::empty(size_u32::<XsResultV1>(), Status::INTERNAL_ERROR);
+        let status = unsafe {
+            xs_eval(
+                context,
+                STATISTICS_CORE_PACK_SLOT,
+                11,
+                regression_args.as_ptr(),
+                2,
+                ptr::null(),
+                scratch.as_mut_ptr().cast::<c_void>(),
+                u32::try_from(scratch.len()).unwrap(),
+                ptr::from_mut(&mut regression),
+            )
+        };
+        assert_eq!(status, Status::OK.code());
+        assert_eq!(regression.value_count, 2);
+        assert_eq!(regression.values[0].coefficient, 2);
+        assert_eq!(regression.values[0].exponent, 0);
+        assert_eq!(regression.values[1].coefficient, 1);
+        assert_eq!(regression.values[1].exponent, 0);
+
+        let mut zero_copy = XsResultV1::empty(size_u32::<XsResultV1>(), Status::INTERNAL_ERROR);
+        let status = unsafe {
+            xs_eval(
+                context,
+                STATISTICS_CORE_PACK_SLOT,
+                2,
+                ptr::from_ref(&vector),
+                1,
+                ptr::null(),
+                ptr::null_mut(),
+                0,
+                ptr::from_mut(&mut zero_copy),
+            )
+        };
+        assert_eq!(status, Status::OK.code());
+        assert_eq!(zero_copy.required_size, 0);
+        assert_eq!(zero_copy.values[0].coefficient, 2);
+    }
+
     #[cfg(not(feature = "dynamic-packs"))]
     #[test]
     fn context_rejects_dynamic_pack_configuration() {
@@ -1487,7 +2042,7 @@ mod tests {
         .unwrap();
 
         let mut dynamic_config = config(CONFIG_ALLOW_DYNAMIC_PACKS);
-        dynamic_config.max_packs = 2;
+        dynamic_config.max_packs = FIRST_DYNAMIC_PACK_SLOT;
         assert_ne!(
             unsafe { xs_context_size(ptr::from_ref(&dynamic_config)) },
             0
@@ -1594,10 +2149,86 @@ mod tests {
     }
 
     #[cfg(feature = "dynamic-packs")]
+    #[test]
+    fn dynamic_statistics_pack_uses_zero_copy_shared_kernel() {
+        let pack = custom_dynamic_statistics_pack();
+        let mut dynamic_config = config(CONFIG_ALLOW_DYNAMIC_PACKS);
+        dynamic_config.max_packs = FIRST_DYNAMIC_PACK_SLOT;
+        let mut memory = MaybeUninit::<XsContext>::uninit();
+        let context = unsafe { initialized_context_with_config(&mut memory, &dynamic_config) };
+        let (status, slot, required_arena) = mount_pack(context, &pack);
+        assert_eq!(status, Status::OK.code());
+        assert_eq!(slot, FIRST_DYNAMIC_PACK_SLOT);
+        assert_eq!(required_arena, 0);
+
+        let x = [
+            decimal(b"1", SEMANTIC_NUMBER),
+            decimal(b"2", SEMANTIC_NUMBER),
+            decimal(b"3", SEMANTIC_NUMBER),
+        ];
+        let y = [
+            decimal(b"1", SEMANTIC_NUMBER),
+            decimal(b"2", SEMANTIC_NUMBER),
+            decimal(b"4", SEMANTIC_NUMBER),
+        ];
+        let arguments = [vector_ref(&x), vector_ref(&y)];
+        let mut result = XsResultV1::empty(size_u32::<XsResultV1>(), Status::INTERNAL_ERROR);
+        let status = unsafe {
+            xs_eval(
+                context,
+                slot,
+                10,
+                arguments.as_ptr(),
+                2,
+                ptr::null(),
+                ptr::null_mut(),
+                0,
+                ptr::from_mut(&mut result),
+            )
+        };
+        assert_eq!(status, Status::OK.code());
+        assert_eq!(result.pack_slot, slot);
+        assert_eq!(result.operation_id, 10);
+        assert_eq!(result.values[0].coefficient, 981_981);
+        assert_eq!(result.values[0].exponent, -6);
+        assert_ne!(result.values[0].flags & 0x0000_0001, 0);
+        assert_ne!(result.values[0].flags & 0x0000_0002, 0);
+
+        let scalar = value_ref(&x[0]);
+        let mut failure = XsResultV1::empty(size_u32::<XsResultV1>(), Status::INTERNAL_ERROR);
+        let status = unsafe {
+            xs_eval(
+                context,
+                slot,
+                1,
+                ptr::from_ref(&scalar),
+                1,
+                ptr::null(),
+                ptr::null_mut(),
+                0,
+                ptr::from_mut(&mut failure),
+            )
+        };
+        assert_eq!(status, Status::ARGUMENT_TYPE.code());
+        assert_eq!(failure.argument_index, 0);
+    }
+
+    #[cfg(feature = "dynamic-packs")]
     fn custom_dynamic_pack() -> std::vec::Vec<u8> {
         let source = include_str!("../../../spec/examples/econ-undergrad-minimal.xsp.json")
             .replace("org.exactscope.econ-undergrad", "org.example.custom-econ")
             .replace("econ.ped.mid", "custom.ped.mid");
+        exactscope_packc::compile_source(&source).unwrap()
+    }
+
+    #[cfg(feature = "dynamic-packs")]
+    fn custom_dynamic_statistics_pack() -> std::vec::Vec<u8> {
+        let source = include_str!("../../../packs/statistics-core.xsp.json")
+            .replace(
+                "org.exactscope.statistics-core",
+                "org.example.custom-statistics",
+            )
+            .replace("\"key\": \"stats.", "\"key\": \"custom.stats.");
         exactscope_packc::compile_source(&source).unwrap()
     }
 
@@ -1617,6 +2248,18 @@ mod tests {
             )
         };
         (status, slot, required_arena)
+    }
+
+    fn vector_ref(values: &[XsDecimalV1]) -> XsValueRefV1 {
+        XsValueRefV1 {
+            struct_size: size_u32::<XsValueRefV1>(),
+            value_kind: VALUE_VECTOR,
+            reserved0: 0,
+            reserved1: 0,
+            values: values.as_ptr(),
+            value_count: u32::try_from(values.len()).unwrap(),
+            reserved2: 0,
+        }
     }
 
     #[cfg(feature = "dynamic-packs")]

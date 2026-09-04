@@ -15,6 +15,18 @@ Before runtime code is accepted:
 
 Selected implementation language: Rust for the core, pack loader/compiler, ABI wrapper, and WebAssembly build. The checked-in workspace and toolchain policy are now frozen. The portability authority remains the C ABI and data formats, not the Rust API.
 
+### Current implementation checkpoint
+
+The repository has moved beyond the original scaffold milestones. Deterministic scalar economics execution works through the shared kernel, C ABI, dynamic packs, no-import Wasm, and Tiny JSON. The bounded statistics slice now includes ordered sum, arithmetic/weighted mean, population/sample variance and standard deviation, population/sample covariance, Pearson correlation, and simple linear regression. Canonical `.xsp` kernel/vector packs execute through the same shared statistics kernel as the fused registry, native vectors are zero-copy, and fused↔dynamic success/failure parity is conformance-tested. Correctly rounded square root and explicit VM round are implemented. The no-import Wasm artifact exposes typed zero-copy statistics-vector evaluation plus deterministic-CBOR TinyWire `find` and scalar/vector `eval`; runtime tests cover canonical encoding, ambiguity preservation, buffer sizing, and zero imports.
+
+The release-closing critical path is therefore:
+
+1. finish the reviewed official `math-basic`, `statistics-core`, and `econ-undergrad` hot sets plus malformed/golden corpora required by the release gate;
+2. finish OEM convenience packaging around the same evaluator: Android Prefab/AAR, target-side canonical self-test/qualification evidence, and immutable release manifests; the relocatable CMake target and developer-side integrity/ABI/ELF doctor are already present;
+3. publish permanent reproducible artifacts and measure the exact release bytes, latency, energy, offline behavior, and power-loss/update evidence on constrained real hardware.
+
+No release path may gain a separate evaluator to close these gaps. A feature is complete only when its shared semantics and conformance evidence reach every release path that claims it.
+
 ## 1. Frozen crates and dependency policy
 
 | Crate | Runtime class | Default allocation | Dependency policy |

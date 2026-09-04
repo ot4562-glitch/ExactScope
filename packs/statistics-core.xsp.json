@@ -1,0 +1,272 @@
+{
+  "$schema": "../spec/schemas/scopepack-source.schema.json",
+  "format": "exactscope.scopepack.source",
+  "format_version": "0.1",
+  "pack": {
+    "id": "org.exactscope.statistics-core",
+    "name": "statistics-core",
+    "version": "0.1.0",
+    "license": "Apache-2.0 OR MIT",
+    "description": "Deterministic bounded descriptive-statistics kernels for ExactScope v0.1.",
+    "numeric_profile": "decimal64-v1",
+    "abi_min": "1.0",
+    "abi_max": "1.0",
+    "default_locale": "en"
+  },
+  "limits": {
+    "max_scalar_args": 12,
+    "max_vector_args": 4,
+    "max_vector_len": 256,
+    "max_vm_steps": 64,
+    "max_stack": 16,
+    "max_outputs": 4
+  },
+  "sources": [
+    {
+      "id": "nist.eda.summary",
+      "title": "NIST/SEMATECH e-Handbook of Statistical Methods — Measures of Location and Scale",
+      "url": "https://www.itl.nist.gov/div898/handbook/eda/section3/eda35.htm",
+      "license": "US-PUBLIC-DOMAIN",
+      "note": "Definition reference. Deterministic algorithms and vectors are independently authored and governed by spec/NUMERIC_V0_1.md."
+    }
+  ],
+  "operations": [
+    {
+      "id": 1,
+      "key": "stats.sum",
+      "revision": 1,
+      "name": "Ordered sum",
+      "description": "Exact rational accumulation in input order.",
+      "method": "exact_ordered",
+      "aliases": ["sum", "statistics sum"],
+      "kind": "kernel",
+      "kernel": "sum",
+      "inputs": [{"name":"values","shape":"vector","semantic":"number","max_len":256,"unit_required":false,"constraints":[]}],
+      "relations": [],
+      "outputs": [{"name":"sum","semantic":"number","unit_rule":"dimensionless"}],
+      "output_policy": {"scale":6,"rounding":"half_even","allow_scale_override":false,"allow_rounding_override":false,"classification_required":false},
+      "classifications": [],
+      "sources": ["nist.eda.summary"],
+      "tests": [
+        {"name":"normal","args":[["0.1","0.2","0.3"]],"expect":{"status":"OK","values":["0.6"],"rounded":false,"inexact":false}},
+        {"name":"empty","args":[[]],"expect":{"status":"INSUFFICIENT_DATA"}}
+      ]
+    },
+    {
+      "id": 2,
+      "key": "stats.mean",
+      "revision": 1,
+      "name": "Arithmetic mean",
+      "description": "Exact sum divided by observation count.",
+      "method": "arithmetic",
+      "aliases": ["mean", "arithmetic mean", "average"],
+      "kind": "kernel",
+      "kernel": "mean",
+      "inputs": [{"name":"values","shape":"vector","semantic":"number","max_len":256,"unit_required":false,"constraints":[]}],
+      "relations": [],
+      "outputs": [{"name":"mean","semantic":"number","unit_rule":"dimensionless"}],
+      "output_policy": {"scale":6,"rounding":"half_even","allow_scale_override":false,"allow_rounding_override":false,"classification_required":false},
+      "classifications": [],
+      "sources": ["nist.eda.summary"],
+      "tests": [
+        {"name":"normal","args":[["1","2","3"]],"expect":{"status":"OK","values":["2"],"rounded":false,"inexact":false}},
+        {"name":"rounding","args":[["1","2","2"]],"expect":{"status":"OK","values":["1.666667"],"rounded":true,"inexact":false}}
+      ]
+    },
+    {
+      "id": 3,
+      "key": "stats.mean.weighted",
+      "revision": 1,
+      "name": "Weighted arithmetic mean",
+      "description": "Exact sum of value-weight products divided by exact weight sum.",
+      "method": "weighted_arithmetic",
+      "aliases": ["weighted mean", "weighted average"],
+      "kind": "kernel",
+      "kernel": "weighted_mean",
+      "inputs": [
+        {"name":"values","shape":"vector","semantic":"number","max_len":256,"unit_required":false,"constraints":[]},
+        {"name":"weights","shape":"vector","semantic":"number","max_len":256,"unit_required":false,"constraints":[]}
+      ],
+      "relations": [],
+      "outputs": [{"name":"mean","semantic":"number","unit_rule":"dimensionless"}],
+      "output_policy": {"scale":6,"rounding":"half_even","allow_scale_override":false,"allow_rounding_override":false,"classification_required":false},
+      "classifications": [],
+      "sources": ["nist.eda.summary"],
+      "tests": [
+        {"name":"normal","args":[["10","20","40"],["1","2","1"]],"expect":{"status":"OK","values":["22.5"],"rounded":false,"inexact":false}},
+        {"name":"zero-weight-sum","args":[["10","20"],["1","-1"]],"expect":{"status":"DIVIDE_BY_ZERO"}}
+      ]
+    },
+    {
+      "id": 4,
+      "key": "stats.var.pop",
+      "revision": 1,
+      "name": "Population variance",
+      "description": "Deterministic exact two-pass population variance.",
+      "method": "two_pass_population",
+      "aliases": ["population variance"],
+      "kind": "kernel",
+      "kernel": "variance_population",
+      "inputs": [{"name":"values","shape":"vector","semantic":"number","max_len":256,"unit_required":false,"constraints":[]}],
+      "relations": [],
+      "outputs": [{"name":"variance","semantic":"number","unit_rule":"dimensionless"}],
+      "output_policy": {"scale":6,"rounding":"half_even","allow_scale_override":false,"allow_rounding_override":false,"classification_required":false},
+      "classifications": [],
+      "sources": ["nist.eda.summary"],
+      "tests": [{"name":"normal","args":[["1","2","3","4"]],"expect":{"status":"OK","values":["1.25"],"rounded":false,"inexact":false}}]
+    },
+    {
+      "id": 5,
+      "key": "stats.var.sample",
+      "revision": 1,
+      "name": "Sample variance",
+      "description": "Deterministic exact two-pass sample variance.",
+      "method": "two_pass_sample",
+      "aliases": ["sample variance"],
+      "kind": "kernel",
+      "kernel": "variance_sample",
+      "inputs": [{"name":"values","shape":"vector","semantic":"number","max_len":256,"unit_required":false,"constraints":[]}],
+      "relations": [],
+      "outputs": [{"name":"variance","semantic":"number","unit_rule":"dimensionless"}],
+      "output_policy": {"scale":6,"rounding":"half_even","allow_scale_override":false,"allow_rounding_override":false,"classification_required":false},
+      "classifications": [],
+      "sources": ["nist.eda.summary"],
+      "tests": [
+        {"name":"normal","args":[["1","2","3","4"]],"expect":{"status":"OK","values":["1.666667"],"rounded":true,"inexact":false}},
+        {"name":"insufficient","args":[["1"]],"expect":{"status":"INSUFFICIENT_DATA"}}
+      ]
+    },
+    {
+      "id": 6,
+      "key": "stats.sd.pop",
+      "revision": 1,
+      "name": "Population standard deviation",
+      "description": "Correctly rounded deterministic square root of population variance.",
+      "method": "population",
+      "aliases": ["population standard deviation", "population stddev"],
+      "kind": "kernel",
+      "kernel": "standard_deviation_population",
+      "inputs": [{"name":"values","shape":"vector","semantic":"number","max_len":256,"unit_required":false,"constraints":[]}],
+      "relations": [],
+      "outputs": [{"name":"standard_deviation","semantic":"number","unit_rule":"dimensionless"}],
+      "output_policy": {"scale":6,"rounding":"half_even","allow_scale_override":false,"allow_rounding_override":false,"classification_required":false},
+      "classifications": [],
+      "sources": ["nist.eda.summary"],
+      "tests": [{"name":"irrational","args":[["1","2","3"]],"expect":{"status":"OK","values":["0.816497"],"rounded":true,"inexact":true}}]
+    },
+    {
+      "id": 7,
+      "key": "stats.sd.sample",
+      "revision": 1,
+      "name": "Sample standard deviation",
+      "description": "Correctly rounded deterministic square root of sample variance.",
+      "method": "sample",
+      "aliases": ["sample standard deviation", "sample stddev"],
+      "kind": "kernel",
+      "kernel": "standard_deviation_sample",
+      "inputs": [{"name":"values","shape":"vector","semantic":"number","max_len":256,"unit_required":false,"constraints":[]}],
+      "relations": [],
+      "outputs": [{"name":"standard_deviation","semantic":"number","unit_rule":"dimensionless"}],
+      "output_policy": {"scale":6,"rounding":"half_even","allow_scale_override":false,"allow_rounding_override":false,"classification_required":false},
+      "classifications": [],
+      "sources": ["nist.eda.summary"],
+      "tests": [{"name":"exact","args":[["1","2","3"]],"expect":{"status":"OK","values":["1"],"rounded":false,"inexact":false}}]
+    },
+    {
+      "id": 8,
+      "key": "stats.cov.pop",
+      "revision": 1,
+      "name": "Population covariance",
+      "description": "Exact two-pass population covariance.",
+      "method": "population",
+      "aliases": ["population covariance"],
+      "kind": "kernel",
+      "kernel": "covariance_population",
+      "inputs": [
+        {"name":"x","shape":"vector","semantic":"number","max_len":256,"unit_required":false,"constraints":[]},
+        {"name":"y","shape":"vector","semantic":"number","max_len":256,"unit_required":false,"constraints":[]}
+      ],
+      "relations": [],
+      "outputs": [{"name":"covariance","semantic":"number","unit_rule":"dimensionless"}],
+      "output_policy": {"scale":6,"rounding":"half_even","allow_scale_override":false,"allow_rounding_override":false,"classification_required":false},
+      "classifications": [],
+      "sources": ["nist.eda.summary"],
+      "tests": [
+        {"name":"normal","args":[["1","2","3"],["2","4","8"]],"expect":{"status":"OK","values":["2"],"rounded":false,"inexact":false}},
+        {"name":"unequal","args":[["1","2"],["1"]],"expect":{"status":"ARGUMENT_TYPE"}}
+      ]
+    },
+    {
+      "id": 9,
+      "key": "stats.cov.sample",
+      "revision": 1,
+      "name": "Sample covariance",
+      "description": "Exact two-pass sample covariance.",
+      "method": "sample",
+      "aliases": ["sample covariance"],
+      "kind": "kernel",
+      "kernel": "covariance_sample",
+      "inputs": [
+        {"name":"x","shape":"vector","semantic":"number","max_len":256,"unit_required":false,"constraints":[]},
+        {"name":"y","shape":"vector","semantic":"number","max_len":256,"unit_required":false,"constraints":[]}
+      ],
+      "relations": [],
+      "outputs": [{"name":"covariance","semantic":"number","unit_rule":"dimensionless"}],
+      "output_policy": {"scale":6,"rounding":"half_even","allow_scale_override":false,"allow_rounding_override":false,"classification_required":false},
+      "classifications": [],
+      "sources": ["nist.eda.summary"],
+      "tests": [{"name":"normal","args":[["1","2","3"],["2","4","8"]],"expect":{"status":"OK","values":["3"],"rounded":false,"inexact":false}}]
+    },
+    {
+      "id": 10,
+      "key": "stats.corr.pearson",
+      "revision": 1,
+      "name": "Pearson correlation",
+      "description": "Pearson product-moment correlation with deterministic square-root rounding.",
+      "method": "pearson",
+      "aliases": ["pearson correlation", "correlation"],
+      "kind": "kernel",
+      "kernel": "correlation",
+      "inputs": [
+        {"name":"x","shape":"vector","semantic":"number","max_len":256,"unit_required":false,"constraints":[]},
+        {"name":"y","shape":"vector","semantic":"number","max_len":256,"unit_required":false,"constraints":[]}
+      ],
+      "relations": [],
+      "outputs": [{"name":"correlation","semantic":"number","unit_rule":"dimensionless"}],
+      "output_policy": {"scale":6,"rounding":"half_even","allow_scale_override":false,"allow_rounding_override":false,"classification_required":false},
+      "classifications": [],
+      "sources": ["nist.eda.summary"],
+      "tests": [
+        {"name":"perfect","args":[["1","2","3"],["3","5","7"]],"expect":{"status":"OK","values":["1"],"rounded":false,"inexact":false}},
+        {"name":"zero-variance","args":[["1","2","3"],["2","2","2"]],"expect":{"status":"DOMAIN_ERROR"}}
+      ]
+    },
+    {
+      "id": 11,
+      "key": "stats.regression.linear",
+      "revision": 1,
+      "name": "Simple linear regression",
+      "description": "Exact least-squares slope and intercept for y = intercept + slope*x.",
+      "method": "least_squares",
+      "aliases": ["simple linear regression", "least squares regression"],
+      "kind": "kernel",
+      "kernel": "linear_regression",
+      "inputs": [
+        {"name":"x","shape":"vector","semantic":"number","max_len":256,"unit_required":false,"constraints":[]},
+        {"name":"y","shape":"vector","semantic":"number","max_len":256,"unit_required":false,"constraints":[]}
+      ],
+      "relations": [],
+      "outputs": [
+        {"name":"slope","semantic":"number","unit_rule":"dimensionless"},
+        {"name":"intercept","semantic":"number","unit_rule":"dimensionless"}
+      ],
+      "output_policy": {"scale":6,"rounding":"half_even","allow_scale_override":false,"allow_rounding_override":false,"classification_required":false},
+      "classifications": [],
+      "sources": ["nist.eda.summary"],
+      "tests": [
+        {"name":"normal","args":[["1","2","3"],["3","5","7"]],"expect":{"status":"OK","values":["2","1"],"rounded":false,"inexact":false}},
+        {"name":"zero-x-variance","args":[["2","2"],["1","3"]],"expect":{"status":"DOMAIN_ERROR"}}
+      ]
+    }
+  ]
+}

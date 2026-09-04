@@ -4,10 +4,11 @@ ExactScope is compatibility-first infrastructure for constrained AI. Contributio
 
 ## Current repository phase
 
-The repository contains the implementation-ready v0.1 design and compile-oriented crate scaffolds, but no evaluator or released runtime implementation. Early implementation must follow `docs/FIRST_IMPLEMENTATION_SLICE.md`, `crates/README.md`, and `docs/IMPLEMENTATION_PLAN.md` rather than creating parallel prototypes.
+The repository contains an experimental v0.1 runtime: the deterministic scalar evaluator, C ABI, no-import Wasm path, pack compiler/loader foundations, Tiny JSON scalar adapter, wearable reference integration, executable economics formulas, and initial exact statistics kernels are present. No stable runtime release has been declared. New implementation must extend the shared core and follow `docs/PRODUCT_DIRECTION.md`, `docs/FIRST_IMPLEMENTATION_SLICE.md`, `crates/README.md`, and `docs/IMPLEMENTATION_PLAN.md` rather than creating parallel evaluators or application-specific calculation code.
 
 Before proposing a large change, read:
 
+- `docs/PRODUCT_DIRECTION.md`
 - `docs/ARCHITECTURE.md`
 - `docs/COMPATIBILITY.md`
 - `docs/INSTALLATION.md`

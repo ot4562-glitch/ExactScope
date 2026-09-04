@@ -31,10 +31,20 @@ memory
 xs_abi_version
 xs_wasm_reserved_end
 xs_wasm_memory_alignment
+xs_wasm_eval_statistics
 xs_wire_request
 ```
 
 The typed context/evaluation exports from the C ABI may also be exposed. The one-call wire helper is required for the smallest integration profile.
+
+The fused v0.1 vector path exposes `xs_wasm_eval_statistics`. Its `x` and
+optional `y` regions contain consecutive 16-byte little-endian
+`xs_decimal_v1` records; `x_len` and `y_len` are element counts. The output is
+one 112-byte little-endian `xs_result_v1` record initialized with
+`struct_size == 112`. A one-input kernel requires `y_offset == y_len == 0`.
+All vector and result regions follow the ownership, bounds, alignment, and
+non-overlap rules in this document. The wrapper validates representation only;
+it delegates calculation to the same fused statistics kernel used by native C.
 
 ### 2.2 Generic profile
 

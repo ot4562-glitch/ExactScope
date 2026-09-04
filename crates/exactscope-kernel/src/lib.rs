@@ -12,6 +12,7 @@ mod operation;
 mod rational;
 mod rounding;
 mod semantic;
+mod stats;
 mod status;
 mod vm;
 
@@ -32,7 +33,7 @@ pub use operation::{
     classification_key, ClassificationDecl, ConstraintKind, InputDecl, OperationDecl,
     RuntimeOperation, PED_MID_OPERATION,
 };
-pub use rational::{RoundedDecimal, WorkRational};
+pub use rational::{RoundedDecimal, SqrtDecimal, WorkRational};
 pub use rounding::RoundingMode;
 pub use semantic::{
     validate_same_unit, ScalarValue, SEMANTIC_COUNT, SEMANTIC_CURRENCY_AMOUNT, SEMANTIC_ELASTICITY,
@@ -40,10 +41,29 @@ pub use semantic::{
     SEMANTIC_RATE_PERCENT, SEMANTIC_RATE_RATIO, SEMANTIC_TIME_PERIODS, VALUE_FLAGS_V1,
     VALUE_FLAG_INEXACT, VALUE_FLAG_ROUNDED,
 };
+pub use stats::{
+    evaluate_statistics_operation, statistics_kernel_contract, statistics_linear_regression,
+    statistics_mean, statistics_pearson_correlation, statistics_population_covariance,
+    statistics_population_standard_deviation, statistics_population_variance,
+    statistics_sample_covariance, statistics_sample_standard_deviation, statistics_sample_variance,
+    statistics_sum, statistics_weighted_mean, DecimalVector, LinearRegression,
+    StatisticsKernelContract, StatisticsOperationDecl, MAX_STATS_VECTOR_LEN,
+    OFFICIAL_STATS_OPERATIONS, STATS_CORRELATION_PEARSON_OPERATION,
+    STATS_COVARIANCE_POPULATION_OPERATION, STATS_COVARIANCE_SAMPLE_OPERATION,
+    STATS_KERNEL_CORRELATION, STATS_KERNEL_COVARIANCE_POPULATION, STATS_KERNEL_COVARIANCE_SAMPLE,
+    STATS_KERNEL_LINEAR_REGRESSION, STATS_KERNEL_MEAN, STATS_KERNEL_STANDARD_DEVIATION_POPULATION,
+    STATS_KERNEL_STANDARD_DEVIATION_SAMPLE, STATS_KERNEL_SUM, STATS_KERNEL_VARIANCE_POPULATION,
+    STATS_KERNEL_VARIANCE_SAMPLE, STATS_KERNEL_WEIGHTED_MEAN, STATS_LINEAR_REGRESSION_OPERATION,
+    STATS_MEAN_OPERATION, STATS_STANDARD_DEVIATION_POPULATION_OPERATION,
+    STATS_STANDARD_DEVIATION_SAMPLE_OPERATION, STATS_SUM_OPERATION,
+    STATS_VARIANCE_POPULATION_OPERATION, STATS_VARIANCE_SAMPLE_OPERATION,
+    STATS_WEIGHTED_MEAN_OPERATION,
+};
 pub use status::Status;
 pub use vm::{
-    execute_formula, execute_predicate, validate_program, Instruction, ProgramKind,
-    MAX_VM_INSTRUCTIONS, MAX_VM_STACK,
+    decode_round_operand, encode_round_operand, execute_formula, execute_formula_with_policy,
+    execute_predicate, validate_program, FormulaExecution, Instruction, ProgramKind,
+    MAX_VM_INSTRUCTIONS, MAX_VM_STACK, ROUND_MODE_SHIFT, ROUND_RESERVED_MASK, ROUND_SCALE_MASK,
 };
 
 /// ABI major implemented by the first runtime slice.

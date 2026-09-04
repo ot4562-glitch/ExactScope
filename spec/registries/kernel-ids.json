@@ -12,6 +12,8 @@
     {"id": 6, "key": "covariance_population", "description": "Population covariance."},
     {"id": 7, "key": "covariance_sample", "description": "Sample covariance."},
     {"id": 8, "key": "correlation", "description": "Pearson correlation with deterministic square-root semantics."},
-    {"id": 9, "key": "linear_regression", "description": "Simple least-squares linear regression."}
+    {"id": 9, "key": "linear_regression", "description": "Simple least-squares linear regression."},
+    {"id": 10, "key": "standard_deviation_population", "description": "Population standard deviation using deterministic square root."},
+    {"id": 11, "key": "standard_deviation_sample", "description": "Sample standard deviation using deterministic square root."}
   ]
 }

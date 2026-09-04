@@ -3,7 +3,7 @@
 use core::cmp::Ordering;
 
 use crate::{
-    execute_formula, execute_predicate, validate_same_unit, ConstraintKind, Decimal64,
+    execute_formula_with_policy, execute_predicate, validate_same_unit, ConstraintKind, Decimal64,
     OperationDecl, RuntimeOperation, ScalarValue, Status, WorkRational, VALUE_FLAGS_V1,
     VALUE_FLAG_ROUNDED,
 };
@@ -286,10 +286,12 @@ where
         }
     }
 
-    let exact = match execute_formula(
+    let execution = match execute_formula_with_policy(
         operation.program,
         &work[..arguments.len()],
         operation.constants,
+        operation.output_scale,
+        operation.rounding_mode,
     ) {
         Ok(value) => value,
         Err(status) => {
@@ -302,6 +304,17 @@ where
             );
         }
     };
+    let exact = execution.value;
+
+    if operation.classification_required && execution.flags != 0 {
+        return EvaluationResult::failure_runtime(
+            Status::PRECISION_UNRESOLVED,
+            pack_slot,
+            operation,
+            ARGUMENT_INDEX_NONE,
+            0,
+        );
+    }
 
     let classification_id = match classifier(exact) {
         Ok(classification_id) => classification_id,
@@ -338,11 +351,10 @@ where
         }
     };
 
-    let value_flags = if rounded.rounded {
-        VALUE_FLAG_ROUNDED
-    } else {
-        0
-    };
+    let mut value_flags = execution.flags;
+    if rounded.rounded {
+        value_flags |= VALUE_FLAG_ROUNDED;
+    }
     EvaluationResult {
         status: Status::OK,
         flags: u16::try_from(value_flags).unwrap_or(0),

@@ -8,11 +8,18 @@
 
 pub use exactscope_kernel::{DESIGN_ABI_MAJOR, DESIGN_ABI_MINOR};
 
+#[cfg(any(target_arch = "wasm32", test))]
+mod tinywire;
+
 #[cfg(target_arch = "wasm32")]
 mod wasm32 {
     use core::{arch::wasm32, ptr, slice};
 
-    use exactscope_kernel::Status;
+    use exactscope_kernel::{
+        evaluate_statistics_operation, Decimal64, DecimalVector, EvaluationResult, Status,
+        ARGUMENT_INDEX_NONE, MAX_STATS_VECTOR_LEN, VALUE_FLAGS_V1,
+    };
+    use exactscope_pack::{StatisticsRegistry, STATISTICS_CORE_PACK_SLOT};
 
     const ABI_VERSION: u32 = 0x0001_0000;
     const MEMORY_ALIGNMENT: u32 = 8;
@@ -21,6 +28,8 @@ mod wasm32 {
     const META_FLAG_OUTPUT_WRITTEN: u16 = 0x0001;
     const WIRE_FORMAT_TINY_JSON: u32 = 1;
     const WIRE_FORMAT_TINY_CBOR: u32 = 2;
+    const DECIMAL_SIZE: u32 = 16;
+    const RESULT_SIZE: u32 = 112;
 
     unsafe extern "C" {
         static __heap_base: u8;
@@ -65,7 +74,7 @@ mod wasm32 {
         required: u32,
     }
 
-    /// Returns the encoded ExactScope ABI version.
+    /// Returns the encoded `ExactScope` ABI version.
     #[unsafe(no_mangle)]
     pub extern "C" fn xs_abi_version() -> u32 {
         ABI_VERSION
@@ -85,6 +94,100 @@ mod wasm32 {
     #[unsafe(no_mangle)]
     pub extern "C" fn xs_wasm_memory_alignment() -> u32 {
         MEMORY_ALIGNMENT
+    }
+
+    /// Evaluates one fused statistics operation over zero-copy decimal vectors.
+    ///
+    /// `x` and optional `y` are arrays of the 16-byte little-endian
+    /// `xs_decimal_v1` layout. `result_offset` points to a 112-byte
+    /// `xs_result_v1` record whose `struct_size` is initialized by the host.
+    #[unsafe(no_mangle)]
+    pub extern "C" fn xs_wasm_eval_statistics(
+        operation_id: u32,
+        x_offset: u32,
+        x_len: u32,
+        y_offset: u32,
+        y_len: u32,
+        result_offset: u32,
+    ) -> u16 {
+        let reserved = xs_wasm_reserved_end();
+        let memory_bytes = current_memory_bytes();
+        let result_region = Region {
+            offset: result_offset,
+            len: RESULT_SIZE,
+        };
+        if !valid_nonempty_region(result_region, reserved, memory_bytes)
+            || result_offset % MEMORY_ALIGNMENT != 0
+            || read_u32_at(result_offset) != Some(RESULT_SIZE)
+        {
+            return Status::INVALID_REQUEST.code();
+        }
+
+        let operation = match StatisticsRegistry::new().lookup_id(operation_id) {
+            Ok(operation) => operation.operation,
+            Err(status) => {
+                write_result(
+                    result_offset,
+                    EvaluationResult::unidentified_failure(status),
+                );
+                return status.code();
+            }
+        };
+        let x = match decimal_vector_region(x_offset, x_len, reserved, memory_bytes) {
+            Ok(region) => region,
+            Err(status) => {
+                let failure = statistics_failure(operation, status, 0);
+                write_result(result_offset, failure);
+                return status.code();
+            }
+        };
+        let y = match decimal_vector_region(y_offset, y_len, reserved, memory_bytes) {
+            Ok(region) => region,
+            Err(status) => {
+                let failure = statistics_failure(operation, status, 1);
+                write_result(result_offset, failure);
+                return status.code();
+            }
+        };
+        if x.overlaps(result_region)
+            || y.overlaps(result_region)
+            || (operation.input_count == 1 && (y.offset != 0 || y.len != 0))
+        {
+            let failure =
+                statistics_failure(operation, Status::INVALID_REQUEST, ARGUMENT_INDEX_NONE);
+            write_result(result_offset, failure);
+            return Status::INVALID_REQUEST.code();
+        }
+
+        let sources = [
+            WasmDecimalVector { region: x },
+            WasmDecimalVector { region: y },
+        ];
+        for (argument_index, source) in sources[..usize::from(operation.input_count)]
+            .iter()
+            .enumerate()
+        {
+            for index in 0..source.len() {
+                if let Err(status) = source.value_at(index) {
+                    let failure = statistics_failure(
+                        operation,
+                        status,
+                        u16::try_from(argument_index).unwrap_or(ARGUMENT_INDEX_NONE),
+                    );
+                    write_result(result_offset, failure);
+                    return status.code();
+                }
+            }
+        }
+
+        let evaluated = evaluate_statistics_operation(
+            STATISTICS_CORE_PACK_SLOT,
+            operation,
+            &sources[..usize::from(operation.input_count)],
+        );
+        let status = evaluated.status;
+        write_result(result_offset, evaluated);
+        status.code()
     }
 
     /// Processes one Tiny JSON/TinyWire request from exported linear memory.
@@ -146,10 +249,7 @@ mod wasm32 {
 
         match wire_format {
             WIRE_FORMAT_TINY_JSON => process_tiny_json(input, output, meta_offset),
-            WIRE_FORMAT_TINY_CBOR => {
-                initialize_meta(meta_offset, Status::UNSUPPORTED_OPERATION, 0, 0, 0);
-                Status::UNSUPPORTED_OPERATION.code()
-            }
+            WIRE_FORMAT_TINY_CBOR => process_tiny_cbor(input, output, meta_offset),
             _ => {
                 initialize_meta(meta_offset, Status::INVALID_REQUEST, 0, 0, 0);
                 Status::INVALID_REQUEST.code()
@@ -187,11 +287,171 @@ mod wasm32 {
         Status::UNSUPPORTED_OPERATION.code()
     }
 
+    fn process_tiny_cbor(input: Region, output: Region, meta_offset: u32) -> u16 {
+        let input = unsafe { input_slice(input) };
+        let output = if output.len == 0 {
+            &mut []
+        } else {
+            unsafe { output_slice(output) }
+        };
+        let result = crate::tinywire::request(input, output);
+        if result.status == Status::BUFFER_TOO_SMALL {
+            initialize_meta(meta_offset, result.status, 0, 0, result.written_or_required);
+        } else {
+            initialize_meta(
+                meta_offset,
+                result.status,
+                META_FLAG_OUTPUT_WRITTEN,
+                result.written_or_required,
+                0,
+            );
+        }
+        result.status.code()
+    }
+
     fn valid_nonempty_region(region: Region, reserved: u32, memory_bytes: u64) -> bool {
         if region.len == 0 || region.offset < reserved {
             return false;
         }
         region.end().is_some_and(|end| end <= memory_bytes)
+    }
+
+    fn decimal_vector_region(
+        offset: u32,
+        count: u32,
+        reserved: u32,
+        memory_bytes: u64,
+    ) -> Result<Region, Status> {
+        let count = usize::try_from(count).map_err(|_| Status::RESOURCE_LIMIT)?;
+        if count > MAX_STATS_VECTOR_LEN {
+            return Err(Status::RESOURCE_LIMIT);
+        }
+        if count == 0 {
+            return if offset == 0 {
+                Ok(Region::empty())
+            } else {
+                Err(Status::INVALID_REQUEST)
+            };
+        }
+        let len = u32::try_from(count)
+            .ok()
+            .and_then(|count| count.checked_mul(DECIMAL_SIZE))
+            .ok_or(Status::RESOURCE_LIMIT)?;
+        let region = Region { offset, len };
+        if offset % MEMORY_ALIGNMENT != 0 || !valid_nonempty_region(region, reserved, memory_bytes)
+        {
+            return Err(Status::INVALID_REQUEST);
+        }
+        Ok(region)
+    }
+
+    #[derive(Clone, Copy)]
+    struct WasmDecimalVector {
+        region: Region,
+    }
+
+    impl DecimalVector for WasmDecimalVector {
+        fn len(&self) -> usize {
+            usize::try_from(self.region.len / DECIMAL_SIZE).unwrap_or(0)
+        }
+
+        fn value_at(&self, index: usize) -> Result<Decimal64, Status> {
+            if index >= self.len() {
+                return Err(Status::INTERNAL_ERROR);
+            }
+            let relative = index
+                .checked_mul(DECIMAL_SIZE as usize)
+                .ok_or(Status::RESOURCE_LIMIT)?;
+            let offset = usize::try_from(self.region.offset)
+                .map_err(|_| Status::INVALID_REQUEST)?
+                .checked_add(relative)
+                .ok_or(Status::INVALID_REQUEST)?;
+            let bytes =
+                unsafe { slice::from_raw_parts(offset as *const u8, DECIMAL_SIZE as usize) };
+            let coefficient =
+                i64::from_le_bytes(bytes[0..8].try_into().map_err(|_| Status::INTERNAL_ERROR)?);
+            let exponent = i8::from_ne_bytes([bytes[8]]);
+            if bytes[9] != 0
+                || u16::from_le_bytes([bytes[10], bytes[11]]) != 0
+                || u32::from_le_bytes(
+                    bytes[12..16]
+                        .try_into()
+                        .map_err(|_| Status::INTERNAL_ERROR)?,
+                ) & !VALUE_FLAGS_V1
+                    != 0
+            {
+                return Err(if bytes[9] != 0 {
+                    Status::ARGUMENT_TYPE
+                } else if u16::from_le_bytes([bytes[10], bytes[11]]) != 0 {
+                    Status::UNIT_MISMATCH
+                } else {
+                    Status::INVALID_REQUEST
+                });
+            }
+            let decimal = Decimal64::from_parts(coefficient, exponent)?;
+            if decimal.coefficient() != coefficient || decimal.exponent() != exponent {
+                return Err(Status::INVALID_DECIMAL);
+            }
+            Ok(decimal)
+        }
+    }
+
+    fn statistics_failure(
+        operation: &exactscope_kernel::StatisticsOperationDecl,
+        status: Status,
+        argument_index: u16,
+    ) -> EvaluationResult {
+        let mut result = EvaluationResult::unidentified_failure(status);
+        result.pack_slot = STATISTICS_CORE_PACK_SLOT;
+        result.operation_revision = operation.revision;
+        result.operation_id = operation.id;
+        result.output_scale = i8::try_from(operation.output_scale).unwrap_or(0);
+        result.rounding_mode = operation.rounding_mode.id();
+        result.argument_index = argument_index;
+        result
+    }
+
+    fn read_u32_at(offset: u32) -> Option<u32> {
+        let offset = usize::try_from(offset).ok()?;
+        let bytes = unsafe { slice::from_raw_parts(offset as *const u8, 4) };
+        Some(u32::from_le_bytes(bytes.try_into().ok()?))
+    }
+
+    fn write_result(offset: u32, result: EvaluationResult) {
+        let Ok(offset) = usize::try_from(offset) else {
+            return;
+        };
+        let bytes = unsafe { slice::from_raw_parts_mut(offset as *mut u8, RESULT_SIZE as usize) };
+        bytes.fill(0);
+        put_u32(bytes, 0, RESULT_SIZE);
+        put_u16(bytes, 4, result.status.code());
+        put_u16(bytes, 6, result.flags);
+        put_u16(bytes, 8, result.value_count);
+        put_u16(bytes, 10, result.classification_id);
+        put_u16(bytes, 12, result.pack_slot);
+        put_u16(bytes, 14, result.operation_revision);
+        put_u32(bytes, 16, result.operation_id);
+        bytes[20] = result.output_scale.to_ne_bytes()[0];
+        bytes[21] = result.rounding_mode;
+        put_u16(bytes, 22, result.detail_code);
+        put_u16(bytes, 24, result.argument_index);
+        put_u32(bytes, 28, result.required_size);
+        for (index, value) in result.values.iter().enumerate() {
+            let base = 32 + index * DECIMAL_SIZE as usize;
+            bytes[base..base + 8].copy_from_slice(&value.decimal.coefficient().to_le_bytes());
+            bytes[base + 8] = value.decimal.exponent().to_ne_bytes()[0];
+            bytes[base + 9] = value.semantic_kind;
+            bytes[base + 10..base + 12].copy_from_slice(&value.unit_id.to_le_bytes());
+            bytes[base + 12..base + 16].copy_from_slice(&value.flags.to_le_bytes());
+        }
+    }
+
+    fn put_u16(bytes: &mut [u8], offset: usize, value: u16) {
+        bytes[offset..offset + 2].copy_from_slice(&value.to_le_bytes());
+    }
+
+    fn put_u32(bytes: &mut [u8], offset: usize, value: u32) {
+        bytes[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
     }
 
     fn current_memory_bytes() -> u64 {
@@ -203,9 +463,8 @@ mod wasm32 {
     }
 
     fn meta_struct_size_is_valid(meta_offset: u32) -> bool {
-        let offset = match usize::try_from(meta_offset) {
-            Ok(offset) => offset,
-            Err(_) => return false,
+        let Ok(offset) = usize::try_from(meta_offset) else {
+            return false;
         };
         let bytes = unsafe { slice::from_raw_parts(offset as *const u8, 4) };
         u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) == META_SIZE
@@ -219,9 +478,8 @@ mod wasm32 {
             written,
             required,
         };
-        let offset = match usize::try_from(meta_offset) {
-            Ok(offset) => offset,
-            Err(_) => return,
+        let Ok(offset) = usize::try_from(meta_offset) else {
+            return;
         };
         let struct_size = meta.struct_size.to_le_bytes();
         let status = meta.status.to_le_bytes();

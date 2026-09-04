@@ -25,6 +25,7 @@ SUPPORTED_TARGETS = {
 }
 
 PUBLIC_FILES: tuple[tuple[str, str], ...] = (
+    ("cmake/ExactScopeConfig.cmake", "lib/cmake/ExactScope/ExactScopeConfig.cmake"),
     ("include/exactscope.h", "include/exactscope.h"),
     ("include/exactscope_platform.h", "include/exactscope_platform.h"),
     ("include/exactscope_wasm.h", "include/exactscope_wasm.h"),
@@ -52,6 +53,8 @@ PUBLIC_FILES: tuple[tuple[str, str], ...] = (
         "spec/schemas/wearable-qualification-record.schema.json",
         "spec/wearable-qualification-record.schema.json",
     ),
+    ("tools/exactscope_doctor.py", "tools/exactscope_doctor.py"),
+    ("tools/package_wearable_sdk.py", "tools/package_wearable_sdk.py"),
     ("LICENSE-MIT", "licenses/LICENSE-MIT"),
     ("LICENSE-APACHE", "licenses/LICENSE-APACHE"),
 )
@@ -160,6 +163,12 @@ def stage_bundle(
             "size_bytes": runtime["size_bytes"],
             "sha256": runtime["sha256"],
             "required_host_symbol": "xs_platform_panic_abort",
+        },
+        "integration": {
+            "cmake_config": "lib/cmake/ExactScope/ExactScopeConfig.cmake",
+            "cmake_target": "ExactScope::exactscope",
+            "developer_doctor": "tools/exactscope_doctor.py",
+            "target_runtime_dependency": False,
         },
         "contracts": {
             "core_abi": "1.0",
@@ -304,7 +313,14 @@ def verify_archive(path: Path, *, expected_target: str | None = None) -> dict[st
 
     if root_name is None:
         raise PackagingError("SDK archive is empty")
-    for required in ("manifest.json", "SHA256SUMS"):
+    for required in (
+        "manifest.json",
+        "SHA256SUMS",
+        "include/exactscope.h",
+        "lib/cmake/ExactScope/ExactScopeConfig.cmake",
+        "tools/exactscope_doctor.py",
+        "tools/package_wearable_sdk.py",
+    ):
         if required not in files:
             raise PackagingError(f"SDK archive missing {required}")
 
@@ -359,6 +375,18 @@ def verify_archive(path: Path, *, expected_target: str | None = None) -> dict[st
         raise PackagingError("SDK manifest lost the mandatory host panic boundary")
     if runtime.get("sha256") != sha256_bytes(files[runtime_path]):
         raise PackagingError("SDK runtime digest mismatch")
+
+    integration = manifest.get("integration")
+    if not isinstance(integration, dict):
+        raise PackagingError("SDK manifest integration section must be an object")
+    if integration.get("cmake_config") != "lib/cmake/ExactScope/ExactScopeConfig.cmake":
+        raise PackagingError("SDK manifest CMake config path drifted")
+    if integration.get("cmake_target") != "ExactScope::exactscope":
+        raise PackagingError("SDK manifest CMake target drifted")
+    if integration.get("developer_doctor") != "tools/exactscope_doctor.py":
+        raise PackagingError("SDK manifest doctor path drifted")
+    if integration.get("target_runtime_dependency") is not False:
+        raise PackagingError("developer integration tools must not become target runtime dependencies")
     return manifest
 
 

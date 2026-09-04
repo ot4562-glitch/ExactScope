@@ -91,6 +91,27 @@ jobs:
         shell: bash
         run: cargo "+$RUST_TOOLCHAIN" test --package exactscope-cabi --features dynamic-packs
 
+      - name: Build reproducible canonical scope-pack artifact
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          mkdir -p target/conformance
+          cargo "+$RUST_TOOLCHAIN" run --quiet --package exactscope-packc -- spec/examples/econ-undergrad-minimal.xsp.json target/conformance/econ-undergrad-minimal.xsp
+          cargo "+$RUST_TOOLCHAIN" run --quiet --package exactscope-packc -- spec/examples/econ-undergrad-minimal.xsp.json target/conformance/econ-undergrad-minimal.second.xsp
+          cmp target/conformance/econ-undergrad-minimal.xsp target/conformance/econ-undergrad-minimal.second.xsp
+          sha256sum target/conformance/econ-undergrad-minimal.xsp > target/conformance/econ-undergrad-minimal.xsp.sha256
+          rm target/conformance/econ-undergrad-minimal.second.xsp
+
+      - name: Upload canonical scope-pack artifact
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: econ-undergrad-minimal-xsp
+          path: |
+            target/conformance/econ-undergrad-minimal.xsp
+            target/conformance/econ-undergrad-minimal.xsp.sha256
+          if-no-files-found: error
+
   msrv:
     name: Rust 1.84 MSRV
     runs-on: ubuntu-latest

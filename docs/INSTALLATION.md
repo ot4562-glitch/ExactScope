@@ -1,20 +1,49 @@
 # Installation and embedding profiles
 
-ExactScope is installed into an AI runtime, not launched by a human. The project deliberately avoids a required daemon, package manager, database, account, network connection, or configuration UI.
+ExactScope is installed or loaded as a component of an AI runtime, not used as a standalone human application. The project deliberately avoids a required daemon, database, account, network connection, configuration UI, or always-running installer service.
 
-No installable runtime exists yet. This document freezes the intended release layouts so implementation and packaging do not invent incompatible integration paths later.
+The repository already builds experimental runtime artifacts in CI, but no stable consumer release has been declared. Release packaging must preserve the same core and ABI rather than creating a second app-specific evaluator.
 
 ## 1. Choose the smallest profile that fits
 
-| Profile | Files needed by product | Runtime pack parsing | Heap required | Best target |
+| Profile | Files needed by host | Runtime pack parsing | Heap required | Best target |
 |---|---:|---:|---:|---|
-| Fused Wasm | one `.wasm` | no | no | wearable/embedded/portable host |
+| Fused Wasm | one `.wasm` | no | no | user-installable AI host / wearable / portable runtime |
 | Fused native static | header + one static library | no | no | firmware/native appliance |
-| Static data packs | header + library + embedded `.xsp` bytes | yes at init | caller arena only | updatable app without filesystem dependency |
-| Dynamic data packs | header + library + `.xsp` files | yes | caller arena only | phone/desktop companion runtime |
-| Android AAR | one `.aar` | profile-dependent | profile-dependent | Kotlin/Java companion app |
+| Native resident component | shared library + manifest | profile-dependent | profile-dependent | user-installable native AI host extension |
+| Static data packs | header + library + embedded `.xsp` bytes | yes at init | caller arena only | updatable host without filesystem dependency |
+| Dynamic data packs | library + `.xsp` files | yes | caller arena only | hosts that already provide persistent pack storage |
+| Platform wrapper | one host-specific bundle | profile-dependent | profile-dependent | convenience integration only |
 
-A product should not install the generic dynamic runtime when a fused pack is sufficient. A product should not embed an HTTP or MCP adapter unless its host already uses that protocol.
+A host should not install the generic dynamic runtime when a fused pack is sufficient. A host should not embed an HTTP or MCP adapter unless it already uses that protocol. Platform wrappers are packaging conveniences, not the product definition.
+
+### 1.1 Consumer-installed resident component
+
+For hosts that expose a safe user-installable extension/runtime boundary, the preferred distribution is one small component bundle:
+
+```text
+exactscope-component-<version>-<target>/
+  runtime/
+    exactscope.wasm              # preferred portable form; or one native library
+  packs/                         # omitted when the selected hot set is fused
+    *.xsp
+  manifest.json
+  SHA256SUMS
+  SELFTEST.json
+```
+
+The host-specific installer or extension manager performs only registration and verification:
+
+1. verify the bundle digest/signature according to host policy;
+2. verify target architecture, ABI major, numeric profile, and declared resource budgets;
+3. copy/register immutable runtime and pack artifacts in the host's normal extension location;
+4. instantiate the component offline and execute the canonical self-test vector;
+5. expose `xs_find`/`xs_eval` only after the self-test succeeds;
+6. exit. No ExactScope installer process remains running.
+
+Updates stage a complete new component, verify/self-test it, then atomically switch the host binding. When the platform supplies durable slots, the A/B principles in the wearable reference should be reused. ExactScope does not invent a privileged updater when the host already owns software distribution.
+
+A device that exposes no executable extension/application/WebAssembly/native loading boundary cannot support direct user installation. In that case a paired local host may load ExactScope, but documentation must say so explicitly rather than implying that the glasses firmware itself is extensible.
 
 ## 2. Fused WebAssembly
 
@@ -68,9 +97,28 @@ Minimum integration:
 #include <exactscope.h>
 ```
 
-The host allocates context, arena, scratch, input, and output memory. The library owns no global allocator and starts no threads. Static-linking is the preferred embedded/native profile because it removes loader and deployment variation.
+The host owns context, optional arena/scratch, input, and output memory. The library owns no global allocator and starts no threads. The fused statistics-vector C ABI reads validated caller-owned vectors zero-copy and requires no vector-sized conversion scratch; operation-specific scratch remains explicit for future kernels that genuinely need it. Static-linking is the preferred embedded/native profile because it removes loader and deployment variation.
 
 A shared library may be published for desktop/mobile integration, but it must export only the documented `xs_*` allowlist and carry the same ABI conformance record as the static archive.
+
+### 3.1 OEM integration happy path
+
+Release engineering should optimize for a device team being able to complete the first integration without learning the Rust workspace:
+
+```text
+unpack SDK
+  -> link one ExactScope target
+  -> provide xs_platform_panic_abort when required by the static profile
+  -> run exactscope-doctor on the developer machine
+  -> run the canonical self-test on the target
+  -> bind xs_find / xs_eval into the model tool router
+```
+
+The experimental wearable SDK now includes a relocatable CMake package at `lib/cmake/ExactScope/ExactScopeConfig.cmake`. A consumer can point `ExactScope_DIR` at that directory, call `find_package(ExactScope CONFIG REQUIRED)`, and link `ExactScope::exactscope`; CI configure-tests this imported target. Android Prefab/AAR remains the next convenience layer. Wrappers must delegate to the exact same C ABI and must not introduce calculation logic.
+
+The SDK also carries the developer-only `tools/exactscope_doctor.py` plus its archive verifier. The doctor validates manifest/checksum integrity, public-header ABI, static-archive structure, ELF target architecture for the current ARM64 SDKs, runtime digest, the required `xs_platform_panic_abort` host boundary, and the relocatable CMake target. It emits `READY_FOR_TARGET_TEST` rather than a support claim for experimental bundles. Canonical smoke execution and performance/energy evidence still belong to the target-side self-test/qualification path. These Python tools are workstation conveniences and are **not** target runtime dependencies.
+
+For enterprise adoption, the integration criterion is intentionally simple: **add artifact -> link/load -> self-test -> expose two tool calls**. If an integration requires a resident service, cloud login, package-manager runtime, or a second evaluator, it has violated the product boundary.
 
 ## 4. Android AAR
 

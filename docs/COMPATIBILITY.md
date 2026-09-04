@@ -23,6 +23,22 @@ Status vocabulary:
 
 No README badge may call a target supported without meeting this definition.
 
+### Current evidence snapshot
+
+The repository currently has stronger evidence than a design-only project, but it has **not** declared Tier 1 platform support. The distinction matters for OEM evaluation:
+
+| Artifact/path | Evidence available now | Claim allowed now |
+|---|---|---|
+| Native scalar C ABI | shared golden/conformance coverage in CI | implemented runtime path |
+| Native statistics vectors | fused and dynamic `.xsp` execution share the same kernel; zero-copy C ABI vectors and fused↔dynamic success/failure parity tests are present | implemented v0.1 statistics slice |
+| No-import `wasm32v1-none` | scalar Tiny JSON, typed statistics-vector export, and deterministic-CBOR TinyWire `find`/scalar/vector `eval`; zero-import inspection and runtime conformance pass locally/CI contract | implemented portable path; not Tier 1 until immutable release evidence |
+| Android AArch64 wearable SDK | reproducible cross-build and OEM bundle packaging in CI, relocatable CMake target, bundled SDK doctor | **Experimental** |
+| Linux AArch64 musl wearable SDK | reproducible cross-build and OEM bundle packaging in CI; local real cross-build doctor verified ELF `EM_AARCH64` | **Experimental** |
+| SDK integration tooling | deterministic packager, `ExactScope::exactscope` CMake configure smoke test, immutable doctor self-test | developer integration aid; not target dependency |
+| Real wearable/edge hardware | qualification contract exists; final device measurements are incomplete | no Tier 1 claim |
+
+Promotion from Experimental/Planned to Tier 2 or Tier 1 must be based on immutable release artifacts, not a source-tree build from a different commit.
+
 ## 2. v0.1 target matrix
 
 | Environment | Target/artifact | Initial status goal | Notes |

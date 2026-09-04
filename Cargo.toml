@@ -47,6 +47,6 @@ overflow-checks = true
 [profile.dev]
 overflow-checks = true
 
-# This is a compileable repository scaffold, not an implementation release.
-# Runtime crate types, exported symbols, and release feature sets are activated
-# only when the corresponding ABI/Wasm milestones have conformance tests.
+# This workspace contains an experimental alpha runtime, not a stable release.
+# Release feature sets and support labels remain gated on artifact-level
+# ABI/Wasm conformance, measured footprint, and target qualification.

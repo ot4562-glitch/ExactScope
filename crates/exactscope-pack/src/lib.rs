@@ -12,9 +12,12 @@ pub use exactscope_kernel::{DESIGN_ABI_MAJOR, DESIGN_ABI_MINOR};
 mod dynamic;
 pub mod format;
 
-pub use dynamic::{DynamicOperation, PackView};
+pub use dynamic::{DynamicInputMeta, DynamicOperation, PackView};
 
-use exactscope_kernel::{OperationDecl, Status, OFFICIAL_ECON_OPERATIONS, PED_MID_OPERATION};
+use exactscope_kernel::{
+    OperationDecl, StatisticsOperationDecl, Status, OFFICIAL_ECON_OPERATIONS,
+    OFFICIAL_STATS_OPERATIONS, PED_MID_OPERATION, STATS_SUM_OPERATION,
+};
 
 /// Fused pack slot reserved for the first official economics pack.
 pub const ECON_UNDERGRAD_PACK_SLOT: u16 = 1;
@@ -24,6 +27,12 @@ pub const ECON_UNDERGRAD_PACK_ID: &str = "org.exactscope.econ-undergrad";
 pub const ECON_UNDERGRAD_PROVENANCE: &str = "econ-undergrad@0.1.0";
 /// Source pack semantic version.
 pub const ECON_UNDERGRAD_VERSION: &str = "0.1.0";
+/// Fused pack slot reserved for the first statistics pack.
+pub const STATISTICS_CORE_PACK_SLOT: u16 = 2;
+/// Globally meaningful statistics source-pack identity.
+pub const STATISTICS_CORE_PACK_ID: &str = "org.exactscope.statistics-core";
+/// Compact statistics provenance used by host adapters.
+pub const STATISTICS_CORE_PROVENANCE: &str = "statistics-core@0.1.0";
 /// Maximum discovery matches in the v0.1 tiny profile.
 pub const MAX_FIND_MATCHES: usize = 5;
 
@@ -95,6 +104,233 @@ const ECON_ALIASES: [&[&str]; 15] = [
     &RULE72_ALIASES,
     &PER_CAPITA_GROWTH_ALIASES,
 ];
+
+const STATS_SUM_ALIASES: [&str; 3] = ["sum", "statistics sum", "stats.sum"];
+const STATS_MEAN_ALIASES: [&str; 4] = ["mean", "arithmetic mean", "average", "stats.mean"];
+const STATS_WEIGHTED_MEAN_ALIASES: [&str; 3] =
+    ["weighted mean", "weighted average", "stats.mean.weighted"];
+const STATS_VARIANCE_POPULATION_ALIASES: [&str; 3] = [
+    "population variance",
+    "variance population",
+    "stats.var.pop",
+];
+const STATS_VARIANCE_SAMPLE_ALIASES: [&str; 3] =
+    ["sample variance", "variance sample", "stats.var.sample"];
+const STATS_SD_POPULATION_ALIASES: [&str; 3] = [
+    "population standard deviation",
+    "population stddev",
+    "stats.sd.pop",
+];
+const STATS_SD_SAMPLE_ALIASES: [&str; 3] = [
+    "sample standard deviation",
+    "sample stddev",
+    "stats.sd.sample",
+];
+const STATS_COVARIANCE_POPULATION_ALIASES: [&str; 3] = [
+    "population covariance",
+    "covariance population",
+    "stats.cov.pop",
+];
+const STATS_COVARIANCE_SAMPLE_ALIASES: [&str; 3] =
+    ["sample covariance", "covariance sample", "stats.cov.sample"];
+const STATS_CORRELATION_ALIASES: [&str; 4] = [
+    "pearson correlation",
+    "pearson product moment correlation",
+    "correlation",
+    "stats.corr.pearson",
+];
+const STATS_LINEAR_REGRESSION_ALIASES: [&str; 4] = [
+    "linear regression",
+    "simple linear regression",
+    "least squares regression",
+    "stats.regression.linear",
+];
+const STATS_ALIASES: [&[&str]; 11] = [
+    &STATS_SUM_ALIASES,
+    &STATS_MEAN_ALIASES,
+    &STATS_WEIGHTED_MEAN_ALIASES,
+    &STATS_VARIANCE_POPULATION_ALIASES,
+    &STATS_VARIANCE_SAMPLE_ALIASES,
+    &STATS_SD_POPULATION_ALIASES,
+    &STATS_SD_SAMPLE_ALIASES,
+    &STATS_COVARIANCE_POPULATION_ALIASES,
+    &STATS_COVARIANCE_SAMPLE_ALIASES,
+    &STATS_CORRELATION_ALIASES,
+    &STATS_LINEAR_REGRESSION_ALIASES,
+];
+
+/// Immutable reference to one fused statistics operation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct StatisticsOperationRef {
+    /// Fused statistics pack slot.
+    pub pack_slot: u16,
+    /// Stable statistics pack identity.
+    pub pack_id: &'static str,
+    /// Compact pack provenance.
+    pub provenance: &'static str,
+    /// Deterministic built-in statistics declaration.
+    pub operation: &'static StatisticsOperationDecl,
+}
+
+/// Compact deterministic statistics discovery result.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct StatisticsMatch {
+    /// Installed statistics operation.
+    pub operation: StatisticsOperationRef,
+    /// Deterministic rank; lower values are better.
+    pub rank: u16,
+}
+
+impl StatisticsMatch {
+    const EMPTY: Self = Self {
+        operation: StatisticsOperationRef {
+            pack_slot: STATISTICS_CORE_PACK_SLOT,
+            pack_id: STATISTICS_CORE_PACK_ID,
+            provenance: STATISTICS_CORE_PROVENANCE,
+            operation: &STATS_SUM_OPERATION,
+        },
+        rank: u16::MAX,
+    };
+}
+
+/// Creates an initialized statistics discovery buffer.
+#[must_use]
+pub const fn empty_statistics_matches() -> [StatisticsMatch; MAX_FIND_MATCHES] {
+    [StatisticsMatch::EMPTY; MAX_FIND_MATCHES]
+}
+
+/// Zero-allocation exact lookup for the executable statistics kernel slice.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct StatisticsRegistry;
+
+impl StatisticsRegistry {
+    /// Creates the immutable statistics registry.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self
+    }
+
+    /// Looks up an exact canonical statistics key.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Status::UNKNOWN_OPERATION`] when the key is not part of the
+    /// executable fused statistics slice.
+    pub fn lookup(self, key: &[u8]) -> Result<StatisticsOperationRef, Status> {
+        for operation in OFFICIAL_STATS_OPERATIONS {
+            if key == operation.key.as_bytes() {
+                return Ok(statistics_operation_ref(operation));
+            }
+        }
+        Err(Status::UNKNOWN_OPERATION)
+    }
+
+    /// Looks up an executable statistics operation by pack-local ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Status::UNKNOWN_OPERATION`] when the ID is not fused.
+    pub fn lookup_id(self, operation_id: u32) -> Result<StatisticsOperationRef, Status> {
+        for operation in OFFICIAL_STATS_OPERATIONS {
+            if operation.id == operation_id {
+                return Ok(statistics_operation_ref(operation));
+            }
+        }
+        Err(Status::UNKNOWN_OPERATION)
+    }
+
+    /// Discovers one or more executable statistics operations by alias.
+    ///
+    /// # Errors
+    ///
+    /// Returns a stable malformed/resource/unknown status when the query cannot
+    /// be normalized or no executable statistics operation matches it.
+    pub fn find(self, query: &[u8], output: &mut [StatisticsMatch]) -> Result<usize, Status> {
+        if query.is_empty() || query.len() > 96 {
+            return Err(Status::INVALID_REQUEST);
+        }
+        let mut normalized = [0u8; 96];
+        let normalized_len = normalize_query(query, &mut normalized)?;
+        let query = &normalized[..normalized_len];
+        if query.is_empty() {
+            return Err(Status::INVALID_REQUEST);
+        }
+
+        let mut matches = empty_statistics_matches();
+        let mut match_count = 0usize;
+        for (index, operation) in OFFICIAL_STATS_OPERATIONS.iter().enumerate() {
+            let mut best_rank = alias_rank(query, operation.key.as_bytes());
+            for alias in STATS_ALIASES[index] {
+                best_rank = best_rank.min(alias_rank(query, alias.as_bytes()));
+            }
+            if best_rank != u16::MAX {
+                insert_statistics_match(
+                    &mut matches,
+                    &mut match_count,
+                    StatisticsMatch {
+                        operation: statistics_operation_ref(operation),
+                        rank: best_rank,
+                    },
+                );
+            }
+        }
+        if match_count == 0 {
+            return Err(Status::UNKNOWN_OPERATION);
+        }
+        if output.is_empty() {
+            return Err(Status::BUFFER_TOO_SMALL);
+        }
+        let written = output.len().min(match_count);
+        output[..written].copy_from_slice(&matches[..written]);
+        Ok(written)
+    }
+
+    /// Number of executable fused statistics operations in this slice.
+    #[must_use]
+    pub const fn operation_count(self) -> usize {
+        OFFICIAL_STATS_OPERATIONS.len()
+    }
+}
+
+const fn statistics_operation_ref(
+    operation: &'static StatisticsOperationDecl,
+) -> StatisticsOperationRef {
+    StatisticsOperationRef {
+        pack_slot: STATISTICS_CORE_PACK_SLOT,
+        pack_id: STATISTICS_CORE_PACK_ID,
+        provenance: STATISTICS_CORE_PROVENANCE,
+        operation,
+    }
+}
+
+fn insert_statistics_match(
+    matches: &mut [StatisticsMatch; MAX_FIND_MATCHES],
+    count: &mut usize,
+    candidate: StatisticsMatch,
+) {
+    let occupied = (*count).min(MAX_FIND_MATCHES);
+    let candidate_key = (candidate.rank, candidate.operation.operation.id);
+    let mut insertion = occupied;
+    for (index, existing) in matches[..occupied].iter().enumerate() {
+        let existing_key = (existing.rank, existing.operation.operation.id);
+        if candidate_key < existing_key {
+            insertion = index;
+            break;
+        }
+    }
+    if insertion >= MAX_FIND_MATCHES {
+        return;
+    }
+
+    let new_occupied = (occupied + 1).min(MAX_FIND_MATCHES);
+    let mut index = new_occupied;
+    while index > insertion + 1 {
+        matches[index - 1] = matches[index - 2];
+        index -= 1;
+    }
+    matches[insertion] = candidate;
+    *count = new_occupied;
+}
 
 /// Immutable reference to one installed operation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -374,7 +610,10 @@ fn has_midpoint_cue(query: &[u8]) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{empty_matches, FusedRegistry, ECON_UNDERGRAD_PACK_SLOT};
+    use super::{
+        empty_matches, empty_statistics_matches, FusedRegistry, StatisticsRegistry,
+        ECON_UNDERGRAD_PACK_SLOT, STATISTICS_CORE_PACK_SLOT,
+    };
     use exactscope_kernel::Status;
 
     #[test]
@@ -426,6 +665,32 @@ mod tests {
         assert_eq!(count, 2);
         assert_eq!(matches[0].operation.operation.id, 417);
         assert_eq!(matches[1].operation.operation.id, 418);
+    }
+
+    #[test]
+    fn statistics_lookup_and_discovery_are_stable() {
+        let registry = StatisticsRegistry::new();
+        let mean = registry.lookup(b"stats.mean").unwrap();
+        assert_eq!(mean.pack_slot, STATISTICS_CORE_PACK_SLOT);
+        assert_eq!(mean.operation.id, 2);
+        assert_eq!(
+            registry.lookup_id(11).unwrap().operation.key,
+            "stats.regression.linear"
+        );
+        assert_eq!(registry.operation_count(), 11);
+
+        let mut matches = empty_statistics_matches();
+        let count = registry.find(b"linear regression", &mut matches).unwrap();
+        assert_eq!(count, 1);
+        assert_eq!(matches[0].operation.operation.id, 11);
+
+        let count = registry.find(b"sample variance", &mut matches).unwrap();
+        assert_eq!(count, 1);
+        assert_eq!(matches[0].operation.operation.id, 5);
+
+        let count = registry.find(b"pearson correlation", &mut matches).unwrap();
+        assert_eq!(count, 1);
+        assert_eq!(matches[0].operation.operation.id, 10);
     }
 
     #[test]

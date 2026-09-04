@@ -184,7 +184,9 @@ def validate_examples(schemas: dict[str, Any]) -> int:
     explicit = {
         "compatibility-manifest.json": "compatibility-manifest.schema.json",
     }
-    for path in sorted(examples.glob("*.json")):
+    json_documents = list(examples.glob("*.json"))
+    json_documents.extend((ROOT / "packs").glob("*.xsp.json"))
+    for path in sorted(json_documents):
         document = read_json(path)
         schema_name = explicit.get(path.name)
         if schema_name is None:
@@ -480,10 +482,12 @@ def validate_toml_workspace() -> int:
 
 
 def validate_repository_text() -> tuple[int, int]:
+    ignored_parts = {".git", ".venv", "target"}
     files = [
         path
         for path in ROOT.rglob("*")
-        if path.is_file() and ".git" not in path.relative_to(ROOT).parts
+        if path.is_file()
+        and ignored_parts.isdisjoint(path.relative_to(ROOT).parts)
     ]
     markdown_files: list[Path] = []
     link_pattern = re.compile(r"\[[^\]]*\]\(([^)]+)\)")

@@ -61,6 +61,11 @@ exactscope-wearable-sdk-<version>-<target>/
     exactscope_wearable_bench.h
   lib/<target>/
     libexactscope_cabi.a
+  lib/cmake/ExactScope/
+    ExactScopeConfig.cmake
+  tools/
+    exactscope_doctor.py
+    package_wearable_sdk.py
   src/
     exactscope_wearable_ref.c
     exactscope_wearable_ab.c
@@ -84,6 +89,8 @@ exactscope-wearable-sdk-<version>-<target>/
 ```
 
 The C reference sources are intentionally shipped alongside the binary runtime because they are product policy adapters, not duplicate calculation implementations. OEMs may compile them directly, wrap the lower C ABI themselves, or use them as conformance references.
+
+The CMake package and Python tools are **developer-workstation integration aids**. They are not linked into the runtime and MUST NOT become target dependencies. `ExactScopeConfig.cmake` exposes the prebuilt archive as `ExactScope::exactscope`. `exactscope_doctor.py` verifies bundle integrity, public ABI consistency, static-archive/ELF target architecture, the mandatory panic boundary, and the relocatable CMake target before the SDK advances to target testing.
 
 ## 4. Runtime artifact
 
@@ -135,6 +142,7 @@ toolchain
 support
 qualification
 runtime
+integration
 contracts
 files
 claim
@@ -163,7 +171,20 @@ sha256
 required_host_symbol = xs_platform_panic_abort
 ```
 
-### 5.2 Contract record
+### 5.2 Integration record
+
+The integration record contains:
+
+```text
+cmake_config = lib/cmake/ExactScope/ExactScopeConfig.cmake
+cmake_target = ExactScope::exactscope
+developer_doctor = tools/exactscope_doctor.py
+target_runtime_dependency = false
+```
+
+The verifier MUST reject integration metadata that turns these developer conveniences into target runtime dependencies.
+
+### 5.3 Contract record
 
 The contract record contains at least:
 
@@ -175,7 +196,7 @@ pack_mount_arena_bytes = 0
 execution_modes
 ```
 
-### 5.3 File records
+### 5.4 File records
 
 Every payload file present before `manifest.json`/`SHA256SUMS` generation receives:
 
@@ -220,6 +241,8 @@ The verifier MUST reject:
 - a target outside the v0.1 allowlist;
 - runtime digest drift;
 - disappearance of the mandatory panic hook contract;
+- missing or drifted CMake/doctor integration metadata;
+- developer tooling marked as a target runtime dependency;
 - an archive that upgrades itself beyond `experimental / contract-only` without a separate qualification process.
 
 Extraction is not required for verification; the reference verifier operates directly on archive members.
@@ -232,10 +255,10 @@ The initial Android artifact is a static library for:
 aarch64-linux-android
 ```
 
-An Android product team is expected to use the NDK/CMake or equivalent native build system to link:
+An Android product team may point `ExactScope_DIR` at the bundled CMake package and link `ExactScope::exactscope`, or use an equivalent native build system to link the same archive. The wearable reference adapter remains a normal product source:
 
 ```text
-libexactscope_cabi.a
+ExactScope::exactscope  # resolves to libexactscope_cabi.a
 exactscope_wearable_ref.c
 ```
 

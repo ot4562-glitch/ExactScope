@@ -26,6 +26,13 @@ typedef struct xs_wasm_io_meta_v1 {
  */
 XS_API uint32_t XS_CALL xs_wasm_reserved_end(void) XS_NOEXCEPT;
 XS_API uint32_t XS_CALL xs_wasm_memory_alignment(void) XS_NOEXCEPT;
+XS_API xs_status XS_CALL xs_wasm_eval_statistics(
+    uint32_t operation_id,
+    uint32_t x_offset,
+    uint32_t x_len,
+    uint32_t y_offset,
+    uint32_t y_len,
+    uint32_t result_offset) XS_NOEXCEPT;
 XS_API xs_status XS_CALL xs_wire_request(
     uint32_t wire_format,
     uint32_t input_offset,

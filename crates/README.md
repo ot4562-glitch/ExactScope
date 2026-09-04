@@ -1,6 +1,6 @@
 # Rust workspace boundaries
 
-The repository now contains compile-oriented crate scaffolds, but no evaluator, pack decoder, wire parser, or exported runtime implementation. Fill the existing crates in place and do not move responsibilities across compatibility boundaries. The first coding sequence is frozen in [`../docs/FIRST_IMPLEMENTATION_SLICE.md`](../docs/FIRST_IMPLEMENTATION_SLICE.md).
+The workspace now contains a real executable runtime, not just the original vertical slice: deterministic scalar evaluation, canonical `.xsp` compilation/loading foundations, Tiny JSON, typed C ABI, no-import WebAssembly, executable economics operations, and the first fused exact statistics kernels with zero-copy C ABI vector inputs. Continue filling the existing crates in place without moving responsibilities across compatibility boundaries. The remaining v0.1 closure order is tracked in [`../ROADMAP.md`](../ROADMAP.md) and [`../docs/IMPLEMENTATION_PLAN.md`](../docs/IMPLEMENTATION_PLAN.md).
 
 ## Crates
 

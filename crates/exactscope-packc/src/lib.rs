@@ -14,20 +14,21 @@ use std::{
 };
 
 use exactscope_kernel::{
-    validate_program, Decimal64, Instruction, ProgramKind, RoundingMode, ScalarValue, Status,
-    VALUE_FLAG_ROUNDED,
+    encode_round_operand, evaluate_statistics_operation, statistics_kernel_contract,
+    validate_program, Decimal64, Instruction, ProgramKind, RoundingMode, ScalarValue,
+    StatisticsOperationDecl, Status, VALUE_FLAG_ROUNDED,
 };
 use exactscope_pack::{
     format::{
         crc32_iso_hdlc, ALIAS_RECORD_SIZE, CLASSIFICATION_RECORD_SIZE, CONSTANT_RECORD_SIZE,
         CONSTRAINT_GE, CONSTRAINT_GT, CONSTRAINT_NE, CONSTRAINT_RECORD_SIZE, FORMAT_MAJOR,
-        FORMAT_MINOR, HEADER_SIZE, INPUT_FLAG_UNIT_REQUIRED, INPUT_RECORD_SIZE,
-        INSTRUCTION_RECORD_SIZE, META_RECORD_SIZE, NUMERIC_PROFILE_DECIMAL64_V1,
-        OPERATION_KIND_FORMULA, OPERATION_RECORD_SIZE, OP_FLAG_CLASSIFICATION_REQUIRED,
-        OP_FLAG_ROUNDING_OVERRIDE, OP_FLAG_SCALE_OVERRIDE, OUTPUT_RECORD_SIZE, SECTION_ALIASES,
-        SECTION_CLASSIFICATIONS, SECTION_CONSTANTS, SECTION_CONSTRAINTS, SECTION_ENTRY_SIZE,
-        SECTION_INPUTS, SECTION_META, SECTION_OPERATIONS, SECTION_OUTPUTS, SECTION_PROGRAMS,
-        SECTION_STRINGS,
+        FORMAT_MINOR, HEADER_SIZE, INPUT_FLAG_UNIT_REQUIRED, INPUT_RECORD_SIZE, INPUT_SHAPE_SCALAR,
+        INPUT_SHAPE_VECTOR, INSTRUCTION_RECORD_SIZE, META_RECORD_SIZE,
+        NUMERIC_PROFILE_DECIMAL64_V1, OPERATION_KIND_FORMULA, OPERATION_KIND_KERNEL,
+        OPERATION_RECORD_SIZE, OP_FLAG_CLASSIFICATION_REQUIRED, OP_FLAG_ROUNDING_OVERRIDE,
+        OP_FLAG_SCALE_OVERRIDE, OUTPUT_RECORD_SIZE, SECTION_ALIASES, SECTION_CLASSIFICATIONS,
+        SECTION_CONSTANTS, SECTION_CONSTRAINTS, SECTION_ENTRY_SIZE, SECTION_INPUTS, SECTION_META,
+        SECTION_OPERATIONS, SECTION_OUTPUTS, SECTION_PROGRAMS, SECTION_STRINGS,
     },
     PackView,
 };
@@ -117,8 +118,10 @@ struct OperationSource {
     method: String,
     signature: String,
     aliases: Vec<String>,
+    kind: u8,
+    kernel_id: u16,
     inputs: Vec<InputSource>,
-    output: OutputSource,
+    outputs: Vec<OutputSource>,
     scale: u8,
     rounding: RoundingMode,
     allow_scale_override: bool,
@@ -134,7 +137,9 @@ struct OperationSource {
 #[derive(Debug)]
 struct InputSource {
     name: String,
+    shape: u8,
     semantic: u8,
+    max_len: u16,
     unit_namespace: Option<String>,
     same_unit_group: Option<String>,
     unit_required: bool,
@@ -159,9 +164,15 @@ struct ClassificationSource {
 }
 
 #[derive(Debug)]
+enum TestArg {
+    Scalar(String),
+    Vector(Vec<String>),
+}
+
+#[derive(Debug)]
 struct TestSource {
     name: String,
-    args: Vec<String>,
+    args: Vec<TestArg>,
     status: String,
     values: Vec<String>,
     classification: Option<String>,
@@ -260,11 +271,24 @@ fn parse_source(root: &Value) -> Result<PackSource, CompileError> {
 #[allow(clippy::too_many_lines)]
 fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, CompileError> {
     let operation = object(value)?;
-    if string(operation, "kind")? != "formula" {
-        return Err(CompileError::Unsupported(
-            "first compiler slice supports formula operations only",
-        ));
-    }
+    let kind = match string(operation, "kind")? {
+        "formula" => OPERATION_KIND_FORMULA,
+        "kernel" => OPERATION_KIND_KERNEL,
+        _ => return Err(CompileError::Invalid("unknown operation kind")),
+    };
+    let kernel_id = if kind == OPERATION_KIND_KERNEL {
+        kernel_id(string(operation, "kernel")?)?
+    } else {
+        0
+    };
+    let kernel_contract = if kind == OPERATION_KIND_KERNEL {
+        Some(
+            statistics_kernel_contract(kernel_id)
+                .ok_or(CompileError::Invalid("unknown statistics kernel"))?,
+        )
+    } else {
+        None
+    };
     let id = to_u32(integer(operation, "id")?)?;
     let revision = to_u16(integer(operation, "revision")?)?;
     if id == 0 || revision == 0 {
@@ -281,30 +305,62 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
         return Err(CompileError::Invalid("too many scalar inputs"));
     }
 
-    let source_constants = array(required(operation, "constants")?)?;
     let mut constants = Vec::<Decimal64>::new();
     let mut local_constant_map = Vec::<usize>::new();
-    for value in source_constants {
-        let text = value
-            .as_str()
-            .ok_or(CompileError::Invalid("constant must be a decimal string"))?;
-        let decimal = parse_decimal(text)?;
-        let index = intern_constant(&mut constants, decimal);
-        local_constant_map.push(index);
+    if kind == OPERATION_KIND_FORMULA {
+        let source_constants = array(required(operation, "constants")?)?;
+        for value in source_constants {
+            let text = value
+                .as_str()
+                .ok_or(CompileError::Invalid("constant must be a decimal string"))?;
+            let decimal = parse_decimal(text)?;
+            let index = intern_constant(&mut constants, decimal);
+            local_constant_map.push(index);
+        }
+    } else if operation.get("constants").is_some() {
+        return Err(CompileError::Invalid(
+            "kernel operations must not declare formula constants",
+        ));
     }
 
     let mut inputs = Vec::with_capacity(input_values.len());
     let mut input_names = Vec::with_capacity(input_values.len());
     for input_value in input_values {
         let input = object(input_value)?;
-        if string(input, "shape")? != "scalar" {
+        let shape = match string(input, "shape")? {
+            "scalar" => INPUT_SHAPE_SCALAR,
+            "vector" => INPUT_SHAPE_VECTOR,
+            _ => return Err(CompileError::Invalid("unknown input shape")),
+        };
+        if kind == OPERATION_KIND_FORMULA && shape != INPUT_SHAPE_SCALAR {
             return Err(CompileError::Unsupported(
-                "vector inputs are deferred until statistics kernels",
+                "formula VM inputs must remain scalar in v0.1",
             ));
         }
+        if kind == OPERATION_KIND_KERNEL && shape != INPUT_SHAPE_VECTOR {
+            return Err(CompileError::Unsupported(
+                "first kernel slice accepts vector inputs only",
+            ));
+        }
+        let max_len = if shape == INPUT_SHAPE_VECTOR {
+            let value = to_u16(integer(input, "max_len")?)?;
+            if value == 0 || value > limits.vector_len {
+                return Err(CompileError::Invalid(
+                    "vector max_len exceeds source-declared pack limit",
+                ));
+            }
+            value
+        } else {
+            0
+        };
         let name = string(input, "name")?.to_owned();
         input_names.push(name.clone());
         let constraints = array(required(input, "constraints")?)?;
+        if shape == INPUT_SHAPE_VECTOR && !constraints.is_empty() {
+            return Err(CompileError::Unsupported(
+                "vector element constraints are deferred from the first kernel slice",
+            ));
+        }
         if constraints.len() > 1 {
             return Err(CompileError::Unsupported(
                 "compiler currently supports at most one scalar constraint per input",
@@ -338,9 +394,17 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
             } else {
                 (None, None, 0)
             };
+        let semantic = semantic_id(string(input, "semantic")?)?;
+        if kind == OPERATION_KIND_KERNEL && semantic != 0 {
+            return Err(CompileError::Unsupported(
+                "first statistics kernel slice accepts dimensionless number vectors only",
+            ));
+        }
         inputs.push(InputSource {
             name,
-            semantic: semantic_id(string(input, "semantic")?)?,
+            shape,
+            semantic,
+            max_len,
             unit_namespace: optional_string(input, "unit_namespace")?,
             same_unit_group: optional_string(input, "same_unit_group")?,
             unit_required: optional_bool(input, "unit_required")?.unwrap_or(false),
@@ -349,23 +413,48 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
             detail_id,
         });
     }
+    if let Some(contract) = kernel_contract {
+        if inputs.len() != usize::from(contract.input_count) {
+            return Err(CompileError::Invalid(
+                "kernel input count does not match the stable kernel contract",
+            ));
+        }
+    }
 
     let output_values = array(required(operation, "outputs")?)?;
-    if output_values.len() != 1 {
+    if output_values.is_empty() || output_values.len() > 2 {
         return Err(CompileError::Unsupported(
-            "first compiler slice supports one scalar output",
+            "first compiler/kernel slice supports one or two scalar outputs",
         ));
     }
-    let output_value = object(&output_values[0])?;
-    let output = OutputSource {
-        name: string(output_value, "name")?.to_owned(),
-        semantic: semantic_id(string(output_value, "semantic")?)?,
-        unit_rule: string(output_value, "unit_rule")?.to_owned(),
-    };
-    if output.unit_rule != "dimensionless" {
+    if kind == OPERATION_KIND_FORMULA && output_values.len() != 1 {
         return Err(CompileError::Unsupported(
-            "first compiler slice supports dimensionless output only",
+            "formula operations currently support exactly one scalar output",
         ));
+    }
+    if let Some(contract) = kernel_contract {
+        if output_values.len() != usize::from(contract.output_count) {
+            return Err(CompileError::Invalid(
+                "kernel output count does not match the stable kernel contract",
+            ));
+        }
+    }
+    let mut outputs = Vec::with_capacity(output_values.len());
+    for output_value in output_values {
+        let output_value = object(output_value)?;
+        let output = OutputSource {
+            name: string(output_value, "name")?.to_owned(),
+            semantic: semantic_id(string(output_value, "semantic")?)?,
+            unit_rule: string(output_value, "unit_rule")?.to_owned(),
+        };
+        if output.unit_rule != "dimensionless"
+            || (kind == OPERATION_KIND_KERNEL && output.semantic != 0)
+        {
+            return Err(CompileError::Unsupported(
+                "first compiler/kernel slice supports dimensionless number outputs only",
+            ));
+        }
+        outputs.push(output);
     }
 
     let output_policy = object(required(operation, "output_policy")?)?;
@@ -378,35 +467,46 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
     let allow_rounding_override = boolean(output_policy, "allow_rounding_override")?;
     let classification_required = boolean(output_policy, "classification_required")?;
 
-    let programs = array(required(operation, "programs")?)?;
-    if programs.len() != 1 {
-        return Err(CompileError::Unsupported(
-            "first compiler slice requires exactly one formula program",
-        ));
-    }
-    let formula_source = object(&programs[0])?;
-    if string(formula_source, "output")? != output.name {
-        return Err(CompileError::Invalid(
-            "formula program output does not match declared output",
-        ));
-    }
-    let formula = parse_program(
-        array(required(formula_source, "instructions")?)?,
-        &local_constant_map,
-    )?;
-    let formula_max_stack = validate_program(
-        &formula,
-        ProgramKind::Formula,
-        inputs.len(),
-        constants.len(),
-        0,
-    )?;
-    if formula.len() > usize::from(limits.vm_steps) || formula_max_stack > usize::from(limits.stack)
-    {
-        return Err(CompileError::Invalid(
-            "formula exceeds source-declared VM limits",
-        ));
-    }
+    let (formula, formula_max_stack) = if kind == OPERATION_KIND_FORMULA {
+        let programs = array(required(operation, "programs")?)?;
+        if programs.len() != 1 {
+            return Err(CompileError::Unsupported(
+                "first formula slice requires exactly one formula program",
+            ));
+        }
+        let formula_source = object(&programs[0])?;
+        if string(formula_source, "output")? != outputs[0].name {
+            return Err(CompileError::Invalid(
+                "formula program output does not match declared output",
+            ));
+        }
+        let formula = parse_program(
+            array(required(formula_source, "instructions")?)?,
+            &local_constant_map,
+        )?;
+        let formula_max_stack = validate_program(
+            &formula,
+            ProgramKind::Formula,
+            inputs.len(),
+            constants.len(),
+            0,
+        )?;
+        if formula.len() > usize::from(limits.vm_steps)
+            || formula_max_stack > usize::from(limits.stack)
+        {
+            return Err(CompileError::Invalid(
+                "formula exceeds source-declared VM limits",
+            ));
+        }
+        (formula, formula_max_stack)
+    } else {
+        if operation.get("programs").is_some() {
+            return Err(CompileError::Invalid(
+                "kernel operations must not declare formula programs",
+            ));
+        }
+        (Vec::new(), 0)
+    };
 
     let classification_values = array(required(operation, "classifications")?)?;
     let mut classifications = Vec::with_capacity(classification_values.len());
@@ -441,6 +541,11 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
         });
         previous_priority = priority;
     }
+    if kind == OPERATION_KIND_KERNEL && (classification_required || !classifications.is_empty()) {
+        return Err(CompileError::Unsupported(
+            "statistics kernel classifications are deferred from the first kernel slice",
+        ));
+    }
     if classification_required && classifications.is_empty() {
         return Err(CompileError::Invalid(
             "classification is required but no classes are declared",
@@ -468,8 +573,10 @@ fn parse_operation(value: &Value, limits: Limits) -> Result<OperationSource, Com
         method,
         signature,
         aliases,
+        kind,
+        kernel_id,
         inputs,
-        output,
+        outputs,
         scale,
         rounding,
         allow_scale_override,
@@ -499,6 +606,29 @@ fn parse_program(
             .first()
             .and_then(Value::as_str)
             .ok_or(CompileError::Invalid("instruction opcode must be a string"))?;
+        if opcode_name == "round" {
+            if parts.len() != 3 {
+                return Err(CompileError::Invalid(
+                    "round instruction requires scale and rounding-mode ID",
+                ));
+            }
+            let scale = parts[1]
+                .as_u64()
+                .and_then(|value| u8::try_from(value).ok())
+                .ok_or(CompileError::Invalid("round scale must be a u8 integer"))?;
+            let mode_id = parts[2]
+                .as_u64()
+                .and_then(|value| u8::try_from(value).ok())
+                .ok_or(CompileError::Invalid(
+                    "round mode must be a stable u8 integer ID",
+                ))?;
+            let mode = RoundingMode::from_id(mode_id)
+                .map_err(|_| CompileError::Invalid("unknown round mode ID"))?;
+            let operand = encode_round_operand(scale, mode)
+                .map_err(|_| CompileError::Invalid("round scale exceeds decimal64-v1"))?;
+            output.push(Instruction::new(23, operand));
+            continue;
+        }
         let (opcode, needs_operand) = opcode_id(opcode_name)?;
         let mut operand = if needs_operand {
             let raw = parts
@@ -547,13 +677,28 @@ fn parse_tests(values: &[Value]) -> Result<Vec<TestSource>, CompileError> {
         }
         let mut args = Vec::new();
         for arg in array(required(test, "args")?)? {
-            args.push(
-                arg.as_str()
-                    .ok_or(CompileError::Unsupported(
-                        "first compiler slice supports scalar string test args only",
-                    ))?
-                    .to_owned(),
-            );
+            if let Some(value) = arg.as_str() {
+                args.push(TestArg::Scalar(value.to_owned()));
+                continue;
+            }
+            let values = array(arg)?;
+            if values.len() > 256 {
+                return Err(CompileError::Invalid(
+                    "golden-test vector length outside v0.1 limits",
+                ));
+            }
+            let mut vector = Vec::with_capacity(values.len());
+            for value in values {
+                vector.push(
+                    value
+                        .as_str()
+                        .ok_or(CompileError::Invalid(
+                            "golden-test vector element must be a decimal string",
+                        ))?
+                        .to_owned(),
+                );
+            }
+            args.push(TestArg::Vector(vector));
         }
         let expect = object(required(test, "expect")?)?;
         let mut expected_values = Vec::new();
@@ -664,9 +809,11 @@ fn collect_pack_strings(source: &PackSource) -> BTreeSet<String> {
             &operation.name,
             &operation.method,
             &operation.signature,
-            &operation.output.name,
         ] {
             strings.insert(value.clone());
+        }
+        for output in &operation.outputs {
+            strings.insert(output.name.clone());
         }
         for input in &operation.inputs {
             strings.insert(input.name.clone());
@@ -725,12 +872,10 @@ fn emit_tables(
             classification_base,
             alias_base,
         )?);
-        tables.inputs.extend_from_slice(&emit_inputs(
-            operation,
-            strings,
-            constraint_base,
-        )?);
-        tables.outputs.extend_from_slice(&emit_output(
+        tables
+            .inputs
+            .extend_from_slice(&emit_inputs(operation, strings, constraint_base)?);
+        tables.outputs.extend_from_slice(&emit_outputs(
             operation,
             strings,
             formula_start,
@@ -739,17 +884,19 @@ fn emit_tables(
         tables
             .constraints
             .extend_from_slice(&emit_constraints(operation, constant_base)?);
-        tables.constants.extend_from_slice(&emit_constants(operation));
-        tables.classifications.extend_from_slice(&emit_classifications(
-            operation,
-            strings,
-            &class_program_ranges,
-        )?);
-        tables.aliases.extend_from_slice(&emit_aliases(
-            operation,
-            strings,
-            operation_index,
-        )?);
+        tables
+            .constants
+            .extend_from_slice(&emit_constants(operation));
+        tables
+            .classifications
+            .extend_from_slice(&emit_classifications(
+                operation,
+                strings,
+                &class_program_ranges,
+            )?);
+        tables
+            .aliases
+            .extend_from_slice(&emit_aliases(operation, strings, operation_index)?);
     }
     Ok(tables)
 }
@@ -821,7 +968,7 @@ fn emit_operation(
     let mut bytes = vec![0u8; OPERATION_RECORD_SIZE];
     put_u32(&mut bytes, 0, operation.id)?;
     put_u16(&mut bytes, 4, operation.revision)?;
-    bytes[6] = OPERATION_KIND_FORMULA;
+    bytes[6] = operation.kind;
     bytes[7] = (u8::from(operation.allow_scale_override) * OP_FLAG_SCALE_OVERRIDE)
         | (u8::from(operation.allow_rounding_override) * OP_FLAG_ROUNDING_OVERRIDE)
         | (u8::from(operation.classification_required) * OP_FLAG_CLASSIFICATION_REQUIRED);
@@ -843,13 +990,30 @@ fn emit_operation(
     )?;
     put_u32(&mut bytes, 24, to_u32_usize(first_input)?)?;
     put_u16(&mut bytes, 28, to_u16_usize(operation.inputs.len())?)?;
-    bytes[30] = 1;
+    bytes[30] = u8::try_from(operation.outputs.len())
+        .map_err(|_| CompileError::Invalid("output count exceeds u8"))?;
     bytes[31] = u8::try_from(operation.formula_max_stack)
         .map_err(|_| CompileError::Invalid("formula max stack exceeds u8"))?;
     put_u32(&mut bytes, 32, to_u32_usize(first_output)?)?;
-    put_u32(&mut bytes, 36, formula_start)?;
-    put_u16(&mut bytes, 40, formula_count)?;
-    put_u16(&mut bytes, 42, 0)?;
+    put_u32(
+        &mut bytes,
+        36,
+        if operation.kind == OPERATION_KIND_FORMULA {
+            formula_start
+        } else {
+            0
+        },
+    )?;
+    put_u16(
+        &mut bytes,
+        40,
+        if operation.kind == OPERATION_KIND_FORMULA {
+            formula_count
+        } else {
+            0
+        },
+    )?;
+    put_u16(&mut bytes, 42, operation.kernel_id)?;
     put_u32(&mut bytes, 44, to_u32_usize(first_classification)?)?;
     put_u16(
         &mut bytes,
@@ -876,7 +1040,7 @@ fn emit_inputs(
         let base = index * INPUT_RECORD_SIZE;
         put_u32(&mut bytes, base, string_offset(strings, &input.name)?)?;
         bytes[base + 4] = input.semantic;
-        bytes[base + 5] = 0;
+        bytes[base + 5] = input.shape;
         put_u16(
             &mut bytes,
             base + 6,
@@ -899,34 +1063,38 @@ fn emit_inputs(
         put_u32(&mut bytes, base + 16, to_u32_usize(constraint_index)?)?;
         let constraint_count = u16::from(input.constraint_kind.is_some());
         put_u16(&mut bytes, base + 20, constraint_count)?;
-        put_u16(&mut bytes, base + 22, 0)?;
+        put_u16(&mut bytes, base + 22, input.max_len)?;
         constraint_index += usize::from(constraint_count);
     }
     Ok(bytes)
 }
 
-fn emit_output(
+fn emit_outputs(
     operation: &OperationSource,
     strings: &BTreeMap<String, u32>,
     formula_start: u32,
     formula_count: u16,
 ) -> Result<Vec<u8>, CompileError> {
-    let mut bytes = vec![0u8; OUTPUT_RECORD_SIZE];
-    put_u32(
-        &mut bytes,
-        0,
-        string_offset(strings, &operation.output.name)?,
-    )?;
-    bytes[4] = operation.output.semantic;
-    bytes[5] = 0;
-    put_u16(&mut bytes, 6, 0)?;
-    put_u32(&mut bytes, 8, ABSENT_STRING)?;
-    bytes[12] = operation.scale;
-    bytes[13] = operation.rounding.id();
-    put_u16(&mut bytes, 14, 0)?;
-    put_u32(&mut bytes, 16, formula_start)?;
-    put_u16(&mut bytes, 20, formula_count)?;
-    put_u16(&mut bytes, 22, 0)?;
+    let mut bytes = vec![0u8; operation.outputs.len() * OUTPUT_RECORD_SIZE];
+    for (index, output) in operation.outputs.iter().enumerate() {
+        let base = index * OUTPUT_RECORD_SIZE;
+        put_u32(&mut bytes, base, string_offset(strings, &output.name)?)?;
+        bytes[base + 4] = output.semantic;
+        bytes[base + 5] = 0;
+        put_u16(&mut bytes, base + 6, 0)?;
+        put_u32(&mut bytes, base + 8, ABSENT_STRING)?;
+        bytes[base + 12] = operation.scale;
+        bytes[base + 13] = operation.rounding.id();
+        put_u16(&mut bytes, base + 14, 0)?;
+        let (program_start, program_count) = if operation.kind == OPERATION_KIND_FORMULA {
+            (formula_start, formula_count)
+        } else {
+            (0, 0)
+        };
+        put_u32(&mut bytes, base + 16, program_start)?;
+        put_u16(&mut bytes, base + 20, program_count)?;
+        put_u16(&mut bytes, base + 22, 0)?;
+    }
     Ok(bytes)
 }
 
@@ -1114,15 +1282,57 @@ fn validate_operation_golden(
                 "golden test argument count differs from operation signature",
             ));
         }
-        let mut arguments = Vec::with_capacity(test.args.len());
-        for (index, text) in test.args.iter().enumerate() {
-            arguments.push(ScalarValue::new(
-                parse_decimal(text)?,
-                source.inputs[index].semantic,
-                0,
-            ));
-        }
-        let result = pack.evaluate(1, operation, &arguments)?;
+        let result = if source.kind == OPERATION_KIND_FORMULA {
+            let mut arguments = Vec::with_capacity(test.args.len());
+            for (index, argument) in test.args.iter().enumerate() {
+                let TestArg::Scalar(text) = argument else {
+                    return Err(CompileError::Invalid(
+                        "formula golden-test argument must be scalar",
+                    ));
+                };
+                arguments.push(ScalarValue::new(
+                    parse_decimal(text)?,
+                    source.inputs[index].semantic,
+                    0,
+                ));
+            }
+            pack.evaluate(1, operation, &arguments)?
+        } else {
+            let mut vectors = Vec::<Vec<Decimal64>>::with_capacity(test.args.len());
+            for (index, argument) in test.args.iter().enumerate() {
+                let TestArg::Vector(values) = argument else {
+                    return Err(CompileError::Invalid(
+                        "kernel golden-test argument must be a vector",
+                    ));
+                };
+                if values.len() > usize::from(source.inputs[index].max_len) {
+                    return Err(CompileError::Invalid(
+                        "kernel golden-test vector exceeds declared input max_len",
+                    ));
+                }
+                let mut vector = Vec::with_capacity(values.len());
+                for value in values {
+                    vector.push(parse_decimal(value)?);
+                }
+                vectors.push(vector);
+            }
+            let refs: Vec<&[Decimal64]> = vectors.iter().map(Vec::as_slice).collect();
+            let declaration = StatisticsOperationDecl {
+                id: source.id,
+                revision: source.revision,
+                key: "",
+                signature: "",
+                method: "",
+                kernel_id: source.kernel_id,
+                input_count: u8::try_from(source.inputs.len())
+                    .map_err(|_| CompileError::Invalid("kernel input count exceeds u8"))?,
+                output_count: u8::try_from(source.outputs.len())
+                    .map_err(|_| CompileError::Invalid("kernel output count exceeds u8"))?,
+                output_scale: source.scale,
+                rounding_mode: source.rounding,
+            };
+            evaluate_statistics_operation(1, &declaration, &refs)
+        };
         validate_golden_result(pack, operation, test, &result)?;
     }
     Ok(())
@@ -1140,12 +1350,18 @@ fn validate_golden_result(
             "compiled golden-test status mismatch",
         ));
     }
-    if test.argument_index.is_some_and(|value| result.argument_index != value) {
+    if test
+        .argument_index
+        .is_some_and(|value| result.argument_index != value)
+    {
         return Err(CompileError::Invalid(
             "compiled golden-test argument index mismatch",
         ));
     }
-    if test.detail_id.is_some_and(|value| result.detail_code != value) {
+    if test
+        .detail_id
+        .is_some_and(|value| result.detail_code != value)
+    {
         return Err(CompileError::Invalid(
             "compiled golden-test detail id mismatch",
         ));
@@ -1283,6 +1499,23 @@ fn rounding_mode(value: &str) -> Result<RoundingMode, CompileError> {
     }
 }
 
+fn kernel_id(value: &str) -> Result<u16, CompileError> {
+    match value {
+        "sum" => Ok(1),
+        "mean" => Ok(2),
+        "weighted_mean" => Ok(3),
+        "variance_population" => Ok(4),
+        "variance_sample" => Ok(5),
+        "covariance_population" => Ok(6),
+        "covariance_sample" => Ok(7),
+        "correlation" => Ok(8),
+        "linear_regression" => Ok(9),
+        "standard_deviation_population" => Ok(10),
+        "standard_deviation_sample" => Ok(11),
+        _ => Err(CompileError::Invalid("unknown statistics kernel")),
+    }
+}
+
 fn opcode_id(value: &str) -> Result<(u8, bool), CompileError> {
     let result = match value {
         "end" => (0, false),
@@ -1308,11 +1541,7 @@ fn opcode_id(value: &str) -> Result<(u8, bool), CompileError> {
         "or" => (20, false),
         "not" => (21, false),
         "select" => (22, false),
-        "round" => {
-            return Err(CompileError::Unsupported(
-                "ROUND source operands are deferred",
-            ))
-        }
+        "round" => (23, true),
         _ => return Err(CompileError::Invalid("unknown VM opcode")),
     };
     Ok(result)
@@ -1500,8 +1729,7 @@ fn put_u32(bytes: &mut [u8], offset: usize, value: u32) -> Result<(), CompileErr
 mod tests {
     use super::compile_source;
     use exactscope_kernel::{
-        Decimal64, ScalarValue, Status, SEMANTIC_CURRENCY_AMOUNT, SEMANTIC_PRICE,
-        SEMANTIC_QUANTITY,
+        Decimal64, ScalarValue, Status, SEMANTIC_CURRENCY_AMOUNT, SEMANTIC_PRICE, SEMANTIC_QUANTITY,
     };
     use exactscope_pack::PackView;
 
@@ -1545,6 +1773,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn multi_operation_pack_rebases_all_runtime_tables() {
         let mut source: serde_json::Value = serde_json::from_str(SOURCE).expect("source json");
         source["operations"]

@@ -16,6 +16,7 @@ REQUIRED_EXPORTS = {
     "xs_abi_version": 0,
     "xs_wasm_reserved_end": 0,
     "xs_wasm_memory_alignment": 0,
+    "xs_wasm_eval_statistics": 0,
     "xs_wire_request": 0,
 }
 ALLOWED_EXTRA_EXPORTS = {

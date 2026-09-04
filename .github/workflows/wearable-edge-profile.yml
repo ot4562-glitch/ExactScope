@@ -62,6 +62,12 @@ jobs:
       - name: Verify deterministic wearable SDK packager
         run: python tools/package_wearable_sdk.py --self-test
 
+      - name: Configure-test relocatable CMake SDK package
+        run: python tools/test_cmake_sdk.py
+
+      - name: Verify OEM SDK doctor
+        run: python tools/exactscope_doctor.py --self-test
+
       - name: Install pinned Rust toolchain
         run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component clippy
 

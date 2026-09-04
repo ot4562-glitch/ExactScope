@@ -30,6 +30,14 @@ ExactScope owns:
 
 ExactScope does not own natural-language generation, general symbolic reasoning, forecasting, internet data retrieval, or model inference.
 
+### 1.1 Product and installation boundary
+
+ExactScope's deployable product is a **resident computation component**, not a standalone application or background service. The same core may be packaged as a fused no-import Wasm module, native library plus manifest, or a thin host-extension bundle. Packaging may be user-installable when the host platform exposes an extension/runtime boundary, but installation tooling is outside the execution core and must not remain resident as an ExactScope daemon.
+
+Closed devices without an application, plugin, WebAssembly, native-extension, or paired-host execution boundary are not directly user-installable targets. ExactScope must not weaken a platform's security model to create one. Compatibility is described against the actual host boundary that loads the component.
+
+This packaging rule does not change calculation semantics: wrappers register, load, transport, and display; only the shared ExactScope core and validated scope packs calculate.
+
 ## 2. Frozen workspace boundaries
 
 ```text
@@ -86,6 +94,8 @@ Responsibilities:
 - classification rules;
 - canonical result encoding.
 
+The vector-kernel interface follows the same bounded-memory rule as the scalar path. External adapters may expose immutable caller-owned vectors through a read-only source abstraction; the kernel reads elements in deterministic ascending index order and does not retain or copy the full vector. This keeps the fused C ABI path zero-copy while preserving the same kernel semantics for future dynamic-pack and WebAssembly adapters.
+
 ### 3.2 `exactscope-pack`
 
 Responsibilities:
@@ -125,6 +135,10 @@ The C ABI is the portability foundation and is frozen syntactically by `include/
 AI adapters are outside the core trust boundary. They translate model-generated Tiny JSON into typed core calls and translate typed results back into compact JSON. Adapters may not calculate results or repair invalid arguments silently.
 
 ## 4. Installation profiles
+
+The execution profiles below are internal shapes. A supported consumer host may package any conforming shape as one installable **resident component bundle** containing the runtime artifact, selected packs when applicable, an immutable manifest, checksums, and self-test metadata. The bundle registration mechanism is host-specific; the calculation ABI and pack semantics are not.
+
+A resident bundle must be inert when not called. It must not require an ExactScope-owned process, scheduler, network connection, account, or writable home directory after registration.
 
 ### 4.1 Fused profile
 
