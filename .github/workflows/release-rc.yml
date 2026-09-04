@@ -1,0 +1,167 @@
+name: release-candidate
+
+on:
+  push:
+    tags:
+      - "v*-rc.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  RUST_TOOLCHAIN: "1.98.0"
+
+jobs:
+  evaluation-sdk:
+    name: Evaluation SDK / ${{ matrix.native_target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            native_target: x86_64-unknown-linux-gnu
+            native_library: target/release/libexactscope_cabi.a
+            core: target/release/exactscope-core
+          - os: windows-latest
+            native_target: x86_64-pc-windows-msvc
+            native_library: target/release/exactscope_cabi.lib
+            core: target/release/exactscope-core.exe
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install pinned Rust and Wasm target
+        shell: bash
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target wasm32v1-none
+
+      - name: Build native static library and core bridge
+        shell: bash
+        run: |
+          cargo "+$RUST_TOOLCHAIN" rustc --release --package exactscope-cabi --lib --features standalone-staticlib --crate-type staticlib
+          cargo "+$RUST_TOOLCHAIN" build --release --package exactscope-conformance --bin exactscope-core
+
+      - name: Initialize MSVC developer environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Compile and execute native C11 xs_calc example on Linux
+        if: runner.os == 'Linux'
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude examples/c/xs_calc.c target/release/libexactscope_cabi.a -o /tmp/xs-calc
+          /tmp/xs-calc
+
+      - name: Compile and execute native C11 xs_calc example on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cl /nologo /std:c11 /W4 /WX /Iinclude examples\c\xs_calc.c target\release\exactscope_cabi.lib /Fe:target\release\xs-calc.exe
+          target\release\xs-calc.exe
+
+      - name: Build and validate no-import Wasm
+        shell: bash
+        run: |
+          cargo "+$RUST_TOOLCHAIN" build --release --package exactscope-wasm --target wasm32v1-none --no-default-features --features fused,tinyjson
+          python tools/inspect_wasm.py target/wasm32v1-none/release/exactscope_wasm.wasm
+          node tools/test_wasm.mjs target/wasm32v1-none/release/exactscope_wasm.wasm
+          node examples/javascript/wasm-xs-calc.mjs target/wasm32v1-none/release/exactscope_wasm.wasm
+
+      - name: Package deterministic evaluation SDK
+        shell: bash
+        run: >-
+          python tools/package_evaluation_bundle.py build
+          --native-target "${{ matrix.native_target }}"
+          --native-library "${{ matrix.native_library }}"
+          --core-executable "${{ matrix.core }}"
+          --wasm target/wasm32v1-none/release/exactscope_wasm.wasm
+          --source-commit "$GITHUB_SHA"
+          --toolchain "rustc-$RUST_TOOLCHAIN-${{ matrix.native_target }}"
+          --output-dir dist
+
+      - name: Verify evaluation SDK
+        shell: bash
+        run: |
+          python tools/package_evaluation_bundle.py verify dist/exactscope-eval-1.0.0-rc.1-${{ matrix.native_target }}.tar.gz
+          python tools/test_evaluation_bundle.py dist/exactscope-eval-1.0.0-rc.1-${{ matrix.native_target }}.tar.gz
+
+      - name: Upload evaluation SDK
+        uses: actions/upload-artifact@v7
+        with:
+          name: evaluation-${{ matrix.native_target }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+
+  linux-arm64-sdk:
+    name: Linux ARM64 static SDK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install target and cross compiler
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target aarch64-unknown-linux-musl
+          sudo apt-get update
+          sudo apt-get install --yes gcc-aarch64-linux-gnu
+
+      - name: Build and package Linux ARM64 SDK
+        run: |
+          cargo "+$RUST_TOOLCHAIN" rustc --release --target aarch64-unknown-linux-musl --package exactscope-cabi --lib --features dynamic-packs,standalone-staticlib --crate-type staticlib
+          python tools/package_wearable_sdk.py --target aarch64-unknown-linux-musl --library target/aarch64-unknown-linux-musl/release/libexactscope_cabi.a --output-dir dist --source-commit "$GITHUB_SHA" --toolchain "rustc-$RUST_TOOLCHAIN-aarch64-musl"
+          python tools/package_wearable_sdk.py --verify dist/exactscope-wearable-sdk-1.0.0-rc.1-aarch64-unknown-linux-musl.tar.gz --target aarch64-unknown-linux-musl
+
+      - name: Upload Linux ARM64 SDK
+        uses: actions/upload-artifact@v7
+        with:
+          name: sdk-aarch64-unknown-linux-musl
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+
+  publish-prerelease:
+    name: Publish GitHub prerelease
+    if: github.event_name == 'push'
+    needs: [evaluation-sdk, linux-arm64-sdk]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          pattern: "*"
+          merge-multiple: true
+
+      - name: Create release manifest and checksums
+        run: |
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path("dist")
+          assets = []
+          for path in sorted(root.glob("*.tar.gz")):
+              data = path.read_bytes()
+              assets.append({"name": path.name, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()})
+          manifest = {
+              "release": os.environ["GITHUB_REF_NAME"],
+              "source_commit": os.environ["GITHUB_SHA"],
+              "prerelease": True,
+              "artifacts": assets,
+              "sbom": "not generated: no repository SBOM tool is currently configured",
+          }
+          (root / "release-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          files = sorted(path for path in root.iterdir() if path.is_file())
+          lines = [f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n" for path in files]
+          (root / "SHA256SUMS").write_text("".join(lines), encoding="ascii")
+          PY
+
+      - name: Publish v1.0.0-rc.1 as a prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          --prerelease
+          --verify-tag
+          --title "ExactScope $GITHUB_REF_NAME"
+          --notes-file RELEASE_NOTES_v1.0.0-rc.1.md
+          dist/*.tar.gz dist/SHA256SUMS dist/release-manifest.json

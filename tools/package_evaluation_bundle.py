@@ -34,6 +34,20 @@ PUBLIC_FILES: tuple[tuple[str, str], ...] = (
     ("include/exactscope_platform.h", "include/exactscope_platform.h"),
     ("include/exactscope_wasm.h", "include/exactscope_wasm.h"),
     ("examples/evaluation/native_smoke.c", "examples/native_smoke.c"),
+    ("examples/c/xs_calc.c", "examples/xs_calc.c"),
+    ("examples/javascript/wasm-xs-calc.mjs", "examples/wasm-xs-calc.mjs"),
+    ("adapters/xs-calc-v0.1/xs-calc.gbnf", "adapters/xs-calc-v0.1/xs-calc.gbnf"),
+    ("adapters/xs-calc-v0.1/xs-calc.tool.json", "adapters/xs-calc-v0.1/xs-calc.tool.json"),
+    ("spec/PLAN_V0_1.md", "spec/PLAN_V0_1.md"),
+    ("examples/llama.cpp/README.md", "examples/llama.cpp/README.md"),
+    ("examples/llama.cpp/run_xs_calc.py", "examples/llama.cpp/run_xs_calc.py"),
+    ("examples/llama.cpp/benchmark_xs_calc.py", "examples/llama.cpp/benchmark_xs_calc.py"),
+    ("examples/llama.cpp/cases.json", "examples/llama.cpp/cases.json"),
+    ("benchmarks/results/finqa-xs-calc-oracle.json", "benchmarks/results/finqa-xs-calc-oracle.json"),
+    ("benchmarks/results/tatqa-xs-calc-oracle.json", "benchmarks/results/tatqa-xs-calc-oracle.json"),
+    ("benchmarks/results/xs-calc-llama-b10797.json", "benchmarks/results/xs-calc-llama-b10797.json"),
+    ("benchmarks/results/README.md", "benchmarks/results/README.md"),
+    ("benchmarks/public_xs_calc_oracle.py", "benchmarks/public_xs_calc_oracle.py"),
     ("tools/test_wasm.mjs", "tools/test_wasm.mjs"),
     ("tools/inspect_wasm.py", "tools/inspect_wasm.py"),
     ("benchmarks/run_benchmark.py", "benchmarks/run_benchmark.py"),
@@ -43,6 +57,7 @@ PUBLIC_FILES: tuple[tuple[str, str], ...] = (
     ("docs/EVALUATION_BUNDLE.md", "docs/EVALUATION_BUNDLE.md"),
     ("LICENSE-MIT", "licenses/LICENSE-MIT"),
     ("LICENSE-APACHE", "licenses/LICENSE-APACHE"),
+    ("THIRD_PARTY_NOTICES.md", "licenses/THIRD_PARTY_NOTICES.md"),
 )
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 TARGET_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -197,7 +212,9 @@ def stage_bundle(
         "integration": {
             "cmake_target": "ExactScope::exactscope",
             "native_smoke": "examples/native_smoke.c",
+            "native_xs_calc": "examples/xs_calc.c",
             "wasm_smoke": "tools/test_wasm.mjs",
+            "wasm_xs_calc": "examples/wasm-xs-calc.mjs",
             "benchmark_runner": "benchmarks/run_benchmark.py",
             "rust_toolchain_required_to_evaluate": False,
         },

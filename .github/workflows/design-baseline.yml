@@ -36,11 +36,14 @@ jobs:
       - name: Validate schemas, registries, examples, catalog, ABI constants, and links
         run: python tools/validate_design.py
 
+      - name: Check dependency attribution and SPDX inventory
+        run: python tools/check_licenses.py
+
       - name: Validate llama.cpp direct-eval adapter envelope
         run: python adapters/llama-cpp/direct_eval_smoke.py --self-test
 
-      - name: Compile public headers as C99
-        run: cc -std=c99 -Wall -Wextra -Werror -pedantic -Iinclude -fsyntax-only tests/abi/header_c.c
+      - name: Compile public headers as C11
+        run: cc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude -fsyntax-only tests/abi/header_c.c
 
       - name: Compile public headers as C++11
         run: c++ -std=c++11 -Wall -Wextra -Werror -pedantic -Iinclude -fsyntax-only tests/abi/header_cpp.cpp
@@ -187,6 +190,9 @@ jobs:
       - name: Execute fused WebAssembly wire conformance
         run: node tools/test_wasm.mjs target/wasm32v1-none/release/exactscope_wasm.wasm
 
+      - name: Execute public dependency-free xs_calc Wasm example
+        run: node examples/javascript/wasm-xs-calc.mjs target/wasm32v1-none/release/exactscope_wasm.wasm
+
   evaluation-bundle:
     name: Prerelease evaluation bundle / Linux x86-64
     runs-on: ubuntu-latest
@@ -201,6 +207,11 @@ jobs:
 
       - name: Build benchmark core executable
         run: cargo "+$RUST_TOOLCHAIN" build --release --package exactscope-conformance --bin exactscope-core
+
+      - name: Compile and execute public xs_calc C11 example
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude examples/c/xs_calc.c target/release/libexactscope_cabi.a -o /tmp/exactscope-xs-calc
+          /tmp/exactscope-xs-calc
 
       - name: Build no-import Wasm evaluation artifact
         run: cargo "+$RUST_TOOLCHAIN" build --release --package exactscope-wasm --target wasm32v1-none --no-default-features --features fused,tinyjson
@@ -217,14 +228,14 @@ jobs:
           --output-dir target/evaluation-bundles
 
       - name: Verify evaluation archive integrity
-        run: python3 tools/package_evaluation_bundle.py verify target/evaluation-bundles/exactscope-eval-0.1.0-alpha.0-x86_64-unknown-linux-gnu.tar.gz
+        run: python3 tools/package_evaluation_bundle.py verify target/evaluation-bundles/exactscope-eval-1.0.0-rc.1-x86_64-unknown-linux-gnu.tar.gz
 
       - name: Run clean-room evaluation without Rust source/build access
-        run: python3 tools/test_evaluation_bundle.py target/evaluation-bundles/exactscope-eval-0.1.0-alpha.0-x86_64-unknown-linux-gnu.tar.gz
+        run: python3 tools/test_evaluation_bundle.py target/evaluation-bundles/exactscope-eval-1.0.0-rc.1-x86_64-unknown-linux-gnu.tar.gz
 
       - name: Upload prerelease evaluation bundle
         uses: actions/upload-artifact@v4
         with:
           name: exactscope-eval-linux-x86_64
-          path: target/evaluation-bundles/exactscope-eval-0.1.0-alpha.0-x86_64-unknown-linux-gnu.tar.gz
+          path: target/evaluation-bundles/exactscope-eval-1.0.0-rc.1-x86_64-unknown-linux-gnu.tar.gz
           if-no-files-found: error

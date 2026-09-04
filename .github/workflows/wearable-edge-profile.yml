@@ -104,8 +104,8 @@ jobs:
 
       - name: Verify packaged OEM SDK archives
         run: |
-          python tools/package_wearable_sdk.py --verify dist/exactscope-wearable-sdk-0.1.0-alpha.0-aarch64-linux-android.tar.gz --target aarch64-linux-android
-          python tools/package_wearable_sdk.py --verify dist/exactscope-wearable-sdk-0.1.0-alpha.0-aarch64-unknown-linux-musl.tar.gz --target aarch64-unknown-linux-musl
+          python tools/package_wearable_sdk.py --verify dist/exactscope-wearable-sdk-1.0.0-rc.1-aarch64-linux-android.tar.gz --target aarch64-linux-android
+          python tools/package_wearable_sdk.py --verify dist/exactscope-wearable-sdk-1.0.0-rc.1-aarch64-unknown-linux-musl.tar.gz --target aarch64-unknown-linux-musl
           sha256sum dist/*.tar.gz
 
       - name: Upload wearable OEM SDK archives

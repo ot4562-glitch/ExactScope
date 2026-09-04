@@ -18,7 +18,7 @@ default-members = [
 ]
 
 [workspace.package]
-version = "0.1.0-alpha.0"
+version = "1.0.0-rc.1"
 edition = "2021"
 rust-version = "1.84"
 license = "MIT OR Apache-2.0"
@@ -47,6 +47,6 @@ overflow-checks = true
 [profile.dev]
 overflow-checks = true
 
-# This workspace contains an experimental alpha runtime, not a stable release.
-# Release feature sets and support labels remain gated on artifact-level
-# ABI/Wasm conformance, measured footprint, and target qualification.
+# This workspace is a release candidate, not a stable or certified release.
+# Support labels remain gated on artifact-level ABI/Wasm conformance,
+# measured footprint, and target qualification.

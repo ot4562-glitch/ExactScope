@@ -1,7 +1,7 @@
 {
   "format": "exactscope.compatibility-manifest",
   "format_version": "0.1",
-  "project_version": "0.1.0-alpha.0",
+  "project_version": "1.0.0-rc.1",
   "source_commit": "0000000000000000000000000000000000000000",
   "core_abi": "1.0",
   "pack_format": "1.0",
