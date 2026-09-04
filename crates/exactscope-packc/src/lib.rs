@@ -574,6 +574,7 @@ fn parse_tests(values: &[Value]) -> Result<Vec<TestSource>, CompileError> {
     Ok(tests)
 }
 
+#[allow(clippy::too_many_lines)]
 fn emit_pack(source: &PackSource) -> Result<Vec<u8>, CompileError> {
     let operation = &source.operation;
     let mut strings = BTreeSet::<String>::new();
