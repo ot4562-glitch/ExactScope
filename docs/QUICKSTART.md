@@ -47,18 +47,22 @@ hot path:
 model ---------------------> xs_eval
 ```
 
-## 3. Prebuilt artifact target
+## 3. Prebuilt evaluation artifact
 
-The release goal is that integrators do **not** build ExactScope from Rust source.
+Integrators should not need to build ExactScope from Rust source just to decide whether the component is useful.
 
-Preferred release forms:
+The repository now builds a release-shaped prerelease evaluation archive containing:
 
-- one no-import WebAssembly module plus manifest;
-- one native SDK/archive with headers and `ExactScope::exactscope` CMake target;
-- Android AAR/Prefab when that package is released;
-- generated AI adapter assets for the installed hot set.
+- a target-native static library plus `ExactScope::exactscope` CMake package;
+- a prebuilt `exactscope-core` executable for Tiny JSON and benchmark use;
+- the no-import WebAssembly module;
+- generated `econ-core-8` OpenAI-compatible tool assets and GBNF;
+- the benchmark runner/corpus;
+- manifest, checksums, licenses, and native/Wasm smoke tests.
 
-Rust, Python, Node.js, Java, a daemon, an account, or a network connection must not be required on the target device.
+CI extracts that archive outside the source tree and executes the packaged components. See [Evaluation bundle](EVALUATION_BUNDLE.md) for the no-Rust evaluation path.
+
+Permanent versioned GitHub Release assets remain a release task. Rust, Python, Node.js, Java, a daemon, an account, or a network connection must not be required by the target runtime itself; Python/Node are only developer-side evaluation tools in the prerelease bundle.
 
 ## 4. Native C/C++ integration
 
@@ -136,4 +140,4 @@ See [Benchmark contract](BENCHMARK.md).
 
 ## 9. Current status
 
-The repository is still prerelease. Native C ABI, deterministic economics/statistics execution, no-import Wasm, TinyWire, CMake SDK integration, the developer-side SDK doctor, digest-bound hot-set/OpenAI/GBNF generation, the production-size `econ-core-8` selection, a llama.cpp direct-eval reference runner, and a four-arm benchmark harness with a real Tiny JSON/core bridge are implemented. Recorded real-model benchmark evidence, stable prebuilt release artifacts, broader official pack coverage, and real-device qualification remain release work.
+The repository is still prerelease. Native C ABI, deterministic economics/statistics execution, no-import Wasm, TinyWire, CMake SDK integration, the developer-side SDK doctor, digest-bound hot-set/OpenAI/GBNF generation, the production-size `econ-core-8` selection, a llama.cpp direct-eval reference runner, a four-arm benchmark harness with a real Tiny JSON/core bridge, and deterministic release-shaped evaluation bundles with clean-room CI are implemented. Recorded real-model benchmark evidence, permanent versioned GitHub Release assets, broader official pack coverage, and real-device qualification remain release work.

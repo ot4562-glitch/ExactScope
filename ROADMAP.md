@@ -69,10 +69,11 @@ Success criterion: ExactScope has a reproducible answer to “how much does this
 - [x] Add `docs/QUICKSTART.md`.
 - [x] Provide relocatable `ExactScope::exactscope` CMake target in the experimental SDK.
 - [x] Provide developer-side SDK doctor.
-- [ ] Publish permanent prebuilt native evaluation archive.
-- [ ] Publish permanent no-import Wasm evaluation artifact.
-- [ ] Include manifest, checksums, hot-set metadata, licenses, and smoke-test instructions.
-- [ ] Add a clean-room quickstart CI test using only downloaded/release-shaped artifacts.
+- [x] Build release-shaped native + benchmark-core + no-import Wasm evaluation archives in CI without requiring Rust for evaluation.
+- [ ] Publish permanent versioned native evaluation archives as GitHub Release assets.
+- [ ] Publish permanent versioned no-import Wasm evaluation artifacts as GitHub Release assets.
+- [x] Include manifest, checksums, hot-set metadata, licenses, and smoke-test instructions.
+- [x] Add a clean-room quickstart CI test using only the extracted release-shaped artifact; Linux CI also compiles/runs the bundled C smoke against the bundled static library.
 
 Success criterion: a non-Rust integrator can evaluate ExactScope without building the workspace.
 

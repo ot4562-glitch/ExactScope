@@ -190,12 +190,14 @@ Implemented today:
 - production-size `econ-core-8` hot set generated directly from the fused executable economics registry;
 - llama.cpp OpenAI-compatible direct-eval reference runner with strict tool-call validation and an offline CI self-test;
 - four-arm benchmark harness with a real Tiny JSON/core bridge, stage-level metrics, corpus/core drift self-test, and digest-bound result metadata;
-- CI covering design validation, C/C++ headers, Rust/MSRV, no-import Wasm, native/dynamic conformance, hot-set reproducibility, benchmark-core validation, adapter envelope validation, wearable reference integration, and experimental Android/Linux ARM64 SDK builds.
+- deterministic prerelease evaluation-bundle packaging that combines a prebuilt native library, prebuilt benchmark/core executable, no-import Wasm, `econ-core-8`, benchmark assets, CMake/header integration, manifests/checksums, licenses, and smoke instructions without requiring Rust to evaluate;
+- clean-room evaluation tests that extract the release-shaped archive outside the source tree and execute the packaged core, benchmark self-test, Wasm conformance, and host-native C smoke when the archive matches the CI host;
+- CI covering design validation, C/C++ headers, Rust/MSRV, no-import Wasm, native/dynamic conformance, hot-set reproducibility, benchmark-core validation, release-shaped clean-room evaluation, adapter envelope validation, wearable reference integration, and experimental Android/Linux ARM64 SDK builds.
 
 Still missing before a stable product release:
 
 - recorded real-model llama.cpp runs and model-only vs ExactScope benchmark evidence across the target model classes;
-- stable downloadable/prebuilt release assets;
+- permanent versioned GitHub Release assets; release-shaped CI evaluation bundles are implemented but are not yet a stable release channel;
 - reviewed official hot-set/domain pack coverage and large golden corpora;
 - complete target self-test/qualification tooling;
 - real-device latency, memory, energy, offline, and update/rollback qualification.

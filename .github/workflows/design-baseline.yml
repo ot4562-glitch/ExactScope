@@ -182,3 +182,45 @@ jobs:
 
       - name: Execute fused WebAssembly wire conformance
         run: node tools/test_wasm.mjs target/wasm32v1-none/release/exactscope_wasm.wasm
+
+  evaluation-bundle:
+    name: Prerelease evaluation bundle / Linux x86-64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install pinned Rust and portable Wasm target
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target wasm32v1-none
+
+      - name: Build native static library
+        run: cargo "+$RUST_TOOLCHAIN" rustc --release --package exactscope-cabi --lib --features standalone-staticlib --crate-type staticlib
+
+      - name: Build benchmark core executable
+        run: cargo "+$RUST_TOOLCHAIN" build --release --package exactscope-conformance --bin exactscope-core
+
+      - name: Build no-import Wasm evaluation artifact
+        run: cargo "+$RUST_TOOLCHAIN" build --release --package exactscope-wasm --target wasm32v1-none --no-default-features --features fused,tinyjson
+
+      - name: Build deterministic release-shaped evaluation archive
+        run: >-
+          python3 tools/package_evaluation_bundle.py build
+          --native-target x86_64-unknown-linux-gnu
+          --native-library target/release/libexactscope_cabi.a
+          --core-executable target/release/exactscope-core
+          --wasm target/wasm32v1-none/release/exactscope_wasm.wasm
+          --source-commit "$GITHUB_SHA"
+          --toolchain "rustc-$RUST_TOOLCHAIN-linux-gnu"
+          --output-dir target/evaluation-bundles
+
+      - name: Verify evaluation archive integrity
+        run: python3 tools/package_evaluation_bundle.py verify target/evaluation-bundles/exactscope-eval-0.1.0-alpha.0-x86_64-unknown-linux-gnu.tar.gz
+
+      - name: Run clean-room evaluation without Rust source/build access
+        run: python3 tools/test_evaluation_bundle.py target/evaluation-bundles/exactscope-eval-0.1.0-alpha.0-x86_64-unknown-linux-gnu.tar.gz
+
+      - name: Upload prerelease evaluation bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: exactscope-eval-linux-x86_64
+          path: target/evaluation-bundles/exactscope-eval-0.1.0-alpha.0-x86_64-unknown-linux-gnu.tar.gz
+          if-no-files-found: error
