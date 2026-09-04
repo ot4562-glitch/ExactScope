@@ -27,47 +27,51 @@ These decisions are binding for v0.1 unless a later decision explicitly supersed
 | D-021 | Stable IDs live in machine-readable registries. | Hand-copied identity tables drift. | Registry files remain the authoritative source for generated constants. |
 | D-022 | Abort-only artifacts do not promise panic recovery. | Minimum no_std/Wasm builds cannot reliably recover from arbitrary panics. | Malformed input must be non-panicking; a panic/abort is a conformance defect. |
 | D-023 | Fused Wasm uses an exported reserved-memory boundary and caller-owned regions. | Hidden allocators/mailboxes harm footprint and integration. | Hosts grow memory and pass aligned non-overlapping regions. |
-| D-024 | **Direct `xs_eval` is the primary model hot path; `xs_find` is optional cold-path discovery.** | Mandatory discovery can add another model inference turn, latency, tokens, and energy. | Known/cached operation keys call `xs_eval` directly; discovery results are digest/revision-bound and cached. |
-| D-025 | **Products expose a small generated hot set instead of the full catalog.** | Tiny models need low prompt/tool-selection cost. | Typical product hot sets target 8-32 operations and generate compact hints/schema/GBNF. |
+| D-024 | **Direct `xs_eval` is the primary semantic-method hot path; `xs_find` is optional cold-path discovery.** | Mandatory discovery can add another model inference turn, latency, tokens, and energy. | Known/cached semantic operation keys call `xs_eval` directly; discovery results are digest/revision-bound and cached. |
+| D-025 | **Products expose the smallest capability slice required by the target task families instead of the full catalog.** | Tiny models need low prompt/tool-selection cost, and raw operation count is not product value. | Hot-set generation remains an implementation mechanism; the deployed model surface is selected by task-family coverage and model/device budget. |
 | D-026 | **Adapters may repair syntax/transport but not semantics.** | A strict core is useful only if common envelope mistakes can be normalized without moving calculation authority outward. | Envelope/whitespace/field normalization is allowed; unit/method/value guessing is forbidden. |
-| D-027 | **Benchmark evidence precedes accuracy/latency/energy marketing claims.** | Deterministic arithmetic alone does not prove better end-to-end UX. | Compare model-only, direct hot path, discovery path, and constrained direct path with failure breakdowns. |
+| D-027 | **Benchmark evidence precedes accuracy/latency/energy marketing claims.** | Deterministic arithmetic alone does not prove better end-to-end UX. | Compare model-only, `xs_calc`, semantic capability slice, combined path, and a larger-model reference where fair, with failure and resource breakdowns. |
 | D-028 | **Native static C ABI and no-import Wasm are the primary v0.1 release profiles.** | Requiring every internal profile/platform to mature simultaneously delays proof of value. | Dynamic packs, dynamic discovery, and broader wrappers may remain Experimental without blocking focused v0.1. |
 | D-029 | **One shared calculation semantics is mandatory; universal simultaneous Tier 1 parity is not.** | Semantic forks are dangerous, but profile breadth is a sequencing choice. | Any profile exposing an operation uses the shared evaluator/kernel; release scope may be narrower. |
 | D-030 | **Offline is a product capability, not the market definition.** | Bounded/auditable execution is also useful in networked products. | Positioning includes wearables, mobile, industrial, private local AI, edge/cloud agents, and certifiable systems. |
-| D-031 | **The OSS core is the adoption wedge; commercialization may center on assurance and domain support.** | Permissive licensing does not prevent enterprise value from qualification/LTS/verified packs. | No mandatory proprietary cloud calculation path is introduced. |
-| D-032 | **A smaller benchmark-proven hot set is preferred to catalog breadth before product proof.** | Operation count does not demonstrate adoption value. | Pack expansion follows benchmark/integration evidence. |
+| D-031 | **The OSS core is the adoption wedge; commercialization centers on maintained capability products and assurance.** | Permissive licensing does not prevent enterprise value from reviewed domain sources, profile engineering, qualification, benchmark evidence, and LTS. | No mandatory proprietary cloud calculation path is introduced. |
+| D-032 | **A smaller benchmark-proven capability slice is preferred to catalog breadth.** | Operation count does not demonstrate adoption value. | Domain expansion follows measured task-family capability, weak-model usability, and marginal footprint evidence. |
 | D-033 | **The primary product thesis is on-device AI capability retrofit.** | Physically constrained or deployed devices may be unable to absorb a larger model without new hardware, while software can still be updated. | Product, benchmark, packaging, and commercial priorities optimize for strengthening an existing small model at tiny incremental cost. |
 | D-034 | **A bounded `xs_calc` plan is the generic arithmetic path.** | Current tiny-model tests indicate that model-side selection across semantic operations can dominate failure, while one constrained plan can express short multi-step arithmetic. | `xs_calc` is implemented as one compact 1-8 step tool; runtime semantic validation remains authoritative. |
 | D-035 | **The first `xs_calc` plan is limited to 8 steps over add/sub/mul/div/powi/sqrt.** | Public FinQA/TAT-QA planning analysis showed short gold computations while boundedness preserves footprint and qualification simplicity. | Loops, arbitrary branches, variables, arbitrary functions, arbitrary expressions, and arbitrary code remain forbidden. |
 | D-036 | **`xs_eval` remains a first-class semantic fast path.** | Method identity, units, sample/population choices, and reviewed domain contracts should not be flattened into generic arithmetic when semantic validation matters. | The product has a generic plan lane plus reviewed semantic-operation lane sharing one calculation core. |
 | D-037 | **`xs_find` is cold/development infrastructure, not the main tiny-model serving path.** | Discovery can add selection error, prompt cost, latency, and turns. | Keep discovery for setup/exploration/binding, but ordinary retrofit use must not depend on it. |
 | D-038 | **Footprint is a release KPI equal in importance to accuracy.** | The product loses its retrofit advantage if the support runtime grows toward the cost of a model/hardware upgrade. | Record binary/RAM/scratch growth; target no-import Wasm near <=128 KiB when practical, require explanation beyond 192 KiB, and explicit design review beyond 256 KiB. |
-| D-039 | **Domain series share one runtime.** | Separate calculators/runtimes would multiply footprint, semantics, qualification, and integration cost. | Math/Statistics/Economics/Finance/Physics/Chemistry/Engineering are reviewed capability packs/series over the same core and ABI. |
+| D-039 | **Domain series share one runtime and separate source catalogs from deployed slices.** | Separate calculators/runtimes would multiply footprint, semantics, qualification, and integration cost; exposing every domain operation would also overload weak models. | Statistics/Economics/Finance/Physics/Engineering and later domains are reviewed source catalogs compiled/selected into small capability slices over the same core and ABI. |
 | D-040 | **The flagship benchmark tests the hardware-upgrade alternative.** | The customer decision is often not calculator-vs-model but existing small model vs small model + retrofit vs larger model/new hardware. | Public evidence prioritizes 0.5B-3B model-only vs ExactScope, with larger-model reference arms and resource cost where fair/feasible. |
+| D-041 | **The product unit is a capability/task family, not an operation count.** | A vendor can reimplement isolated formulas cheaply; product value is a measurable task family a weak model gains. | Profiles and benchmarks name task families separately from their selected operation list. |
+| D-042 | **Every deployed capability slice has a model-difficulty budget as well as a device-footprint budget.** | A 100 KiB artifact can still be unusable if tool choice, prompt, schema, or generation burden overwhelms a 0.5B-1B model. | Track model-visible tools/operations, prompt/schema/grammar size, generated request tokens, turns, valid/accepted call rate, selection, extraction, and fidelity. |
+| D-043 | **Capability density and Capability Recovery Ratio are first-class evidence concepts.** | The strategic alternative is often a larger model/newer device, so raw accuracy and binary size alone do not describe the engineering trade. | Publish raw uplift and wrong-number reduction beside bytes/RAM/tokens/latency/energy; report CRR only where a larger-model reference meaningfully outperforms the small baseline. |
+| D-044 | **The long-term build product is a deterministic capability compiler/profile generator.** | The defensible build-vs-buy value is maintained weak-model interfaces, reviewed semantics, footprint engineering, evidence, and qualification—not formula secrecy. | Build tooling should turn domain sources + target task/model/device budgets into minimal immutable runtime/model-surface artifacts, manifests, conformance inputs, and evidence bindings. |
 
 ## Superseded or narrowed earlier decisions
 
 ### D-008 — “default model surface contains only xs_find and xs_eval”
 
-The two generic logical functions remain valid, but D-024/D-025 narrow the intended usage:
+D-008 is superseded by the implemented bounded-plan lane and later surface decisions:
 
-- `xs_eval` is the default hot path;
+- `xs_calc` is the generic short-arithmetic lane;
+- `xs_eval` is the direct reviewed semantic-method lane;
 - `xs_find` is fallback discovery;
-- generated hot-set metadata constrains the operation key without exposing hundreds of tools;
+- generated capability-slice metadata constrains semantic operation choice without exposing a full domain catalog;
 - a fixed appliance may omit discovery entirely from its serving path.
 
-Therefore D-008 must not be interpreted as requiring `xs_find -> xs_eval` for every calculation.
+Therefore D-008 must not be interpreted as requiring `xs_find -> xs_eval` for every calculation or as excluding `xs_calc`.
 
-### D-024/D-025 — “direct xs_eval is the primary model hot path / products expose a small generated hot set”
+### D-024/D-025 — “direct xs_eval semantic hot path / small generated model surface”
 
-These decisions remain correct for the **implemented semantic-operation lane**, but D-034/D-036/D-037 narrow their product-wide interpretation:
+These decisions remain correct for the **implemented semantic-operation lane**, but D-034/D-036/D-037 and D-041/D-042 narrow their product-wide interpretation:
 
-- generic short arithmetic is now targeted at one bounded `xs_calc` plan surface;
+- generic short arithmetic uses one bounded `xs_calc` plan surface;
 - `xs_eval` remains primary for reviewed semantic operations;
-- semantic hot sets remain compact and useful, but ordinary arithmetic should not require selecting among a semantic catalog;
+- semantic hot sets are an implementation mechanism for compiling a small capability slice, not a fixed 8-32-operation product rule;
+- task-family coverage and model/device budgets determine the deployed slice;
 - `xs_find` remains cold/development infrastructure rather than a common serving step.
-
-Until `xs_calc` is implemented, the current runtime continues to use `xs_eval`/hot-set integration. The design change must not be documented as an implemented ABI feature.
 
 ### D-012 — “fused deployment is first-class; fused and dynamic results are identical”
 
@@ -84,11 +88,12 @@ D-028/D-029 narrow the release-sequencing consequence:
 Before publishing a comparative claim such as “ExactScope improves small-model accuracy” or “saves energy,” the evidence must identify:
 
 - exact ExactScope artifact digest;
-- hot-set/pack digest and operation revisions;
-- adapter/grammar digest;
+- capability-profile/hot-set/pack digest and operation revisions;
+- tool/schema/grammar/prompt digests;
 - model/runtime/quantization/hardware;
-- benchmark dataset revision;
-- stage-level results and cost metrics.
+- benchmark dataset/mapping revision;
+- stage-level results, model-difficulty metrics, and resource costs;
+- capability-density/CRR values only when their raw numerator/denominator evidence is also published.
 
 See `BENCHMARK.md`.
 

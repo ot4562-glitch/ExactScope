@@ -1,20 +1,20 @@
 # Installation and embedding profiles
 
-ExactScope is loaded as a component of another AI runtime. It is not a standalone calculator application and does not require a daemon, account, database, or network service.
+ExactScope is loaded as a component of another AI runtime. **The runtime consumer is the AI system; a developer/OEM engineer is the integrator. ExactScope is not a human-facing calculator or end-user application.** It does not require a daemon, account, database, or network service.
 
-The product goal is that evaluators use **prebuilt artifacts**, not the Rust workspace.
+The product goal is that integrators evaluate and deploy **prebuilt capability artifacts**, not the Rust workspace. End users should normally never install, configure, or invoke ExactScope directly.
 
 ## 1. Five-minute principle
 
 A release evaluator should be able to:
 
 ```text
-download
+download/receive product artifact
   -> verify
-  -> link/load
+  -> link/load into the AI runtime
   -> run smoke test
-  -> bind hot-set metadata
-  -> call xs_eval directly
+  -> bind xs_calc plus the selected capability slice
+  -> route supported AI requests through ExactScope
 ```
 
 No Rust/Python/Node/Java runtime is required on the target.
@@ -99,29 +99,33 @@ These artifacts are useful integration evidence but are not yet stable permanent
 
 The doctor is a developer-workstation tool. It is not a target runtime dependency.
 
-## 4. Hot-set installation
+## 4. Capability-slice installation
 
-A product should select a small 8-32 operation hot set and bind it to the installed runtime/pack registry digest.
+A product should select or compile the **smallest capability slice that covers its target task families** and bind that slice to the installed runtime/pack registry digest. The broad domain source catalog is a build-time asset; it is not the normal model-facing surface.
 
 Installation or build tooling should produce:
 
-- canonical operation keys/signatures;
-- operation revisions;
+- selected semantic operation keys/signatures and revisions;
 - compact argument/method hints;
-- OpenAI-compatible direct eval asset;
-- GBNF when supported;
-- registry/pack digest.
+- `xs_calc` assets when the generic bounded arithmetic lane is enabled;
+- a compact OpenAI-compatible `xs_eval` asset for the selected slice;
+- GBNF/JSON Schema when supported;
+- minimal prompt guidance;
+- registry/pack/profile digests;
+- model-difficulty metadata;
+- footprint/conformance metadata.
 
-The full operation catalog does not need to be injected into the model prompt.
+The full operation catalog must not be injected into a weak-model prompt by default.
 
-At runtime:
+At runtime, the preferred hot path is already bound:
 
 ```text
-known op -> xs_eval directly
-unknown op -> xs_find -> cache/bind -> future direct xs_eval
+short arithmetic -> xs_calc
+known reviewed method -> xs_eval directly
+unknown semantic operation -> optional xs_find cold/development path
 ```
 
-Any digest/revision mismatch invalidates the cached binding.
+Any digest/revision/profile mismatch invalidates the cached binding.
 
 ## 5. Dynamic packs
 
@@ -180,19 +184,19 @@ The target must not require:
 
 Platform policy may still determine how a host application or extension is installed.
 
-## 9. User-installable devices and wearables
+## 9. Closed devices and wearables
 
-ExactScope can be directly user-installable only when the device/host exposes a legitimate executable boundary such as:
+ExactScope is **not an end-user installable product**. It is integrated by the product's software team into whatever executable boundary the AI stack legitimately exposes, such as:
 
-- application installation;
-- native plugin/extension loading;
-- WebAssembly runtime;
-- host extension API;
-- paired local compute host.
+- application or firmware-bundled native library loading;
+- product-owned plugin/extension loading;
+- an embedded WebAssembly runtime;
+- a host extension API;
+- a paired local compute host controlled by the product stack.
 
-A closed device with no such boundary cannot be made directly installable by ExactScope alone. In that case, execution may occur on the paired phone/host if that product design permits it.
+A closed device with no such integration boundary cannot be retrofitted by ExactScope independently. ExactScope never asks the consumer to sideload a calculator or manually select formulas.
 
-Compatibility claims must name the actual loading boundary rather than implying generic “smart-glasses support.”
+Compatibility claims must name the actual product integration boundary rather than implying generic “smart-glasses support.”
 
 ## 10. Self-test and qualification
 
@@ -226,10 +230,12 @@ Each release bundle should include:
 - source commit;
 - artifact digest;
 - ABI/core version;
-- target/profile;
-- selected hot set/packs and revisions;
-- compiler/linker metadata;
-- size/memory evidence;
+- target/execution profile;
+- capability-profile ID/revision when used;
+- selected hot set/domain-source operations and revisions;
+- model-surface schema/grammar/prompt digests;
+- compiler/linker/profile-generator metadata;
+- size/memory/model-difficulty evidence;
 - conformance status;
 - support label.
 

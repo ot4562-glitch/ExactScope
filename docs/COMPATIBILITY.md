@@ -180,7 +180,7 @@ A wrapper:
 
 - may translate lifecycle/protocol/buffer types;
 - may package headers/libraries/manifests;
-- may expose hot-set schemas/GBNF;
+- may package the selected capability profile and its tool/schema/GBNF/prompt assets;
 - may not implement formulas/rounding/classification/unit conversion.
 
 Only ABI slices with exact release evidence belong in a supported package.
@@ -197,7 +197,7 @@ Documentation must identify the actual execution boundary:
 - paired phone/compute host;
 - vendor extension environment.
 
-A closed device without any legitimate executable boundary is not directly user-installable.
+A closed device without a legitimate product-controlled executable boundary cannot be retrofitted by ExactScope independently. ExactScope is integrated by the product team; it is not an end-user installation target.
 
 ## 14. Conformance corpus priorities
 

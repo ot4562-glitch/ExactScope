@@ -16,7 +16,7 @@ It moves bounded deterministic quantitative work out of the model and executes i
 
 Smart glasses and wearables are strong use cases, but the product thesis applies more broadly to phones, robots, industrial systems, automotive systems, embedded assistants, and other constrained local-AI products.
 
-The detailed target direction is defined in [`RETROFIT_PRODUCT_STRATEGY.md`](RETROFIT_PRODUCT_STRATEGY.md).
+The lifecycle retrofit thesis is defined in [`RETROFIT_PRODUCT_STRATEGY.md`](RETROFIT_PRODUCT_STRATEGY.md). The next-stage product-unit, capability-slice, weak-model budget, and build-vs-buy design is defined in [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md).
 
 ## 2. Product hypothesis
 
@@ -32,7 +32,7 @@ The first public proof matters more than catalog breadth.
 
 ## 3. Primary interaction model
 
-The **current implemented** generic model path is direct `xs_eval` against a small generated hot set. The **vNext target** adds one generic bounded arithmetic-plan path without replacing reviewed semantic operations.
+ExactScope now has two implemented experimental model-facing lanes: one bounded generic `xs_calc` arithmetic-plan path and one direct `xs_eval` path for reviewed semantic operations. `xs_calc` does not replace reviewed semantic methods; the two lanes share one deterministic core.
 
 ```text
                          small/local model
@@ -44,7 +44,7 @@ The **current implemented** generic model path is direct `xs_eval` against a sma
                  |                             |
                  v                             v
         xs_calc(bounded plan)            xs_eval(op,args)
-          TARGET / PLANNED                 IMPLEMENTED
+      IMPLEMENTED / EXPERIMENTAL       IMPLEMENTED / REVIEWED
                  |                             |
                  +--------------+--------------+
                                 |
@@ -62,18 +62,19 @@ The **current implemented** generic model path is direct `xs_eval` against a sma
 
 The small-model surface should be minimized according to task type:
 
-- ordinary short arithmetic: one `xs_calc` plan schema/grammar once implemented;
-- reviewed domain methods: a generated **8-32 operation hot set** for `xs_eval` when needed;
+- ordinary short arithmetic: one bounded `xs_calc` plan schema/grammar;
+- reviewed domain methods: the **smallest capability slice** that covers the target task families, typically exposed through one compact `xs_eval` tool;
 - unknown semantic operations: optional `xs_find` outside the common hot path.
 
 Generated artifacts may include:
 
-- the bounded-plan JSON schema/GBNF after `xs_calc` is implemented;
-- canonical semantic operation keys/signatures;
-- compact model hints;
+- the bounded-plan JSON Schema/GBNF for `xs_calc`;
+- canonical semantic operation keys/signatures for the selected capability slice;
+- compact model hints and prompt fragments;
 - OpenAI-compatible tool assets;
 - checked-in/generated GBNF;
-- registry/pack digest binding;
+- registry/pack/profile digest binding;
+- model-difficulty and footprint metadata;
 - optional direct numeric operation IDs for typed hosts.
 
 The full catalog should not be embedded in a tiny model prompt by default. Domain breadth must not force every constrained model to choose among hundreds of tools.
@@ -117,8 +118,8 @@ It competes on a narrower systems combination:
 - **retrofit/OTA suitability for constrained or deployed AI devices**;
 - small resident footprint;
 - deterministic bounded execution;
-- one compact bounded arithmetic-plan surface once implemented;
-- reviewed semantic operations when method identity matters;
+- one compact bounded arithmetic-plan surface;
+- small reviewed semantic capability slices when method identity matters;
 - no required service or target-side language runtime;
 - no arbitrary model-generated code execution;
 - fixed auditable operation surface;
@@ -170,39 +171,38 @@ Both profiles must preserve the tiny, embed-and-update retrofit model.
 
 All paths exposing the same computation must use shared calculation semantics. v0.1 does not wait for universal platform parity.
 
-## 9. Retrofit-first roadmap
+## 9. Capability-first roadmap
 
-### P0 — prove the mechanism
+### P0 — prove one capability unit
 
-- keep the implemented bounded `xs_calc` contract frozen and drift-checked;
-- lower accepted plans into existing core semantics;
-- generate JSON Schema/GBNF for one compact plan surface;
-- gold-validate public FinQA/TAT-QA compatible subsets;
-- benchmark multiple 0.5B-3B models;
-- report wrong-number reduction and tool penalty;
-- enforce binary/RAM/scratch footprint gates;
-- preserve `xs_eval` as the reviewed semantic fast path.
+- preserve and drift-check the implemented bounded `xs_calc` surface;
+- define a machine-readable capability-profile format;
+- define model-difficulty and footprint budgets;
+- build one intentionally small Statistics flagship slice;
+- benchmark model-only, `xs_calc`, semantic slice, combined slice, and a larger-model reference where fair;
+- report wrong-number reduction, tool penalty, capability density, and Capability Recovery Ratio (CRR).
 
 ### P1 — prove it on constrained hardware
 
-- measure the same small model with and without ExactScope on a real target;
-- compare against a larger-model reference where useful;
+- measure the same small model with and without the capability slice on a real target;
+- compare against a larger-model/newer-device path where useful;
 - record binary, resident RAM, scratch, latency, tokens, and energy where measurable;
 - document update/rollback and integration cost.
 
-### P2 — harden OEM adoption
+### P2 — productize slice generation and qualification
 
+- deterministic capability compiler/profile generator;
 - stable C ABI/no-import Wasm artifacts;
-- immutable manifests and self-test;
+- immutable manifests, model-surface digests, and self-test;
 - compatibility/qualification records;
 - update-safe integration guidance;
 - convenience platform packages only when validated by real consumers.
 
-### P3 — domain series
+### P3 — expand reviewed domain sources after proof
 
 - one shared core;
-- Math, Statistics, Economics, Finance, Physics, Chemistry, Engineering, then evidence-backed OEM/domain packs;
-- every series adds reviewed contracts/provenance/tests, not another runtime.
+- Statistics first, then Economics, Finance, Physics/Engineering and other evidence-backed domains;
+- every domain adds reviewed contracts/provenance/tests and emits small target-specific slices rather than another runtime or a full-catalog prompt.
 
 See [`../ROADMAP.md`](../ROADMAP.md) for the detailed gates.
 
@@ -242,37 +242,39 @@ Before enterprise optimization claims, publish at least one real constrained-tar
 
 ## 12. Commercial direction
 
-The OSS core remains the adoption wedge. Possible commercial layers are described in [COMMERCIALIZATION.md](COMMERCIALIZATION.md): verified packs, LTS/SLA, OEM qualification, integration support, and custom deterministic domain packs.
+The OSS core remains the adoption wedge. Possible commercial layers are described in [COMMERCIALIZATION.md](COMMERCIALIZATION.md): verified domain source catalogs, capability-slice/profile engineering, LTS/SLA, OEM qualification, integration support, and custom deterministic capability work.
 
 The business model must not require a proprietary cloud calculation service or incompatible evaluator fork.
 
 ## 13. Current implementation position
 
-Already implemented:
+Already implemented experimentally:
 
-- deterministic no_std numeric kernel;
-- scalar VM including sqrt/round;
-- economics execution;
-- bounded statistics vector kernels;
-- native C ABI and zero-copy vectors;
+- deterministic `no_std` numeric kernel and bounded scalar VM;
+- bounded `xs_calc` plan-v0.1 over `add/sub/mul/div/powi/sqrt`;
+- Tiny JSON decoding plus generated JSON Schema/GBNF/tool/prompt assets for `xs_calc`;
+- reviewed economics execution and bounded statistics vector kernels;
+- semantic `xs_eval` hot sets and optional cold/development `xs_find`;
+- native typed C ABI and zero-copy vectors;
 - current formula/kernel `.xsp` path;
 - no-import Wasm;
 - Tiny JSON and TinyWire;
+- llama.cpp reference integration and small multi-model smoke evidence;
+- FinQA/TAT-QA gold-derived `xs_calc` oracle/compatibility evidence;
+- prebuilt RC evaluation artifacts and GitHub release workflow;
 - wearable reference/A-B update reference;
 - experimental ARM64 SDK packaging;
-- relocatable CMake target;
-- developer SDK doctor;
-- strong CI around those paths.
+- relocatable CMake target, SDK doctor, and CI gates.
 
 Largest product gaps now:
 
-1. the bounded `xs_calc` contract and implementation through shared core semantics;
-2. gold-validated public benchmark mappings for the retrofit path;
-3. reproducible multi-model evidence on 0.5B-3B classes;
-4. explicit binary/RAM/scratch footprint gates;
-5. prebuilt public evaluation artifacts for the vNext path;
+1. a frozen machine-readable capability-profile format and generator;
+2. a task-family-driven Statistics flagship slice with explicit model-difficulty budget;
+3. reproducible multi-arm capability evidence across multiple 0.5B-3B model classes;
+4. capability-density and CRR reporting against a larger-model reference where meaningful;
+5. per-slice binary/RAM/scratch/token/latency/energy evidence;
 6. target qualification and real-device measurements;
-7. larger-model substitution evidence where useful.
+7. long-term compatibility/LTS evidence strong enough to create a real build-vs-buy moat.
 
 ## 14. Decision test
 

@@ -4,24 +4,25 @@ Adapters connect AI runtimes and host platforms to the same ExactScope core. The
 
 ## 1. Product priority
 
-The first adapter goal is no longer “support every host.” It is:
+The adapter goal is not “support every host.” It is to expose the smallest reliable AI-facing surface for the selected capability:
 
 ```text
 small local model
-  -> generated hot-set/direct xs_eval
+  -> xs_calc for short arithmetic
+  -> compact xs_eval capability slice for reviewed methods
   -> ExactScope
-  -> deterministic result
+  -> deterministic result / explicit failure
 ```
 
-`xs_find` remains an optional fallback for unknown operations.
+`xs_find` remains an optional cold/development fallback for unknown semantic operations.
 
 The adapter roadmap therefore prioritizes:
 
-1. generated hot-set metadata;
-2. OpenAI-compatible direct-eval tool assets;
-3. GBNF;
-4. llama.cpp reference integration;
-5. benchmark fixtures;
+1. bounded `xs_calc` tool/schema/GBNF assets;
+2. generated capability-slice/hot-set metadata for `xs_eval`;
+3. minimal prompt/tool surfaces for weak models;
+4. llama.cpp reference integration and benchmark fixtures;
+5. digest-bound model-difficulty/evidence metadata;
 6. platform wrappers after product proof.
 
 ## 2. Implemented integration reference
@@ -32,9 +33,9 @@ The adapter roadmap therefore prioritizes:
 
 It is not generic “smart-glasses support” and is not the primary proof-of-value adapter for the product. Real device support still requires the actual host loading boundary and qualification evidence.
 
-## 3. P0 — generated hot-set assets
+## 3. Generated semantic-slice assets
 
-`exactscope-packc hotset` now consumes reviewed scope-pack source, compiles it through the canonical pack compiler, and emits a digest-bound 1-32 operation hot set. Production hot sets should normally use 8-32 operations; smaller sets such as `p0-smoke` are permitted as reproducibility/conformance fixtures.
+`exactscope-packc hotset` consumes reviewed scope-pack source, compiles it through the canonical pack compiler, and emits a digest-bound 1-32 operation selection. This remains useful machinery for a semantic capability slice, but **8-32 is not a product rule**. The selected operation count should be the smallest set that covers the target task families under the model/device budget; tiny fixtures such as `p0-smoke` remain valid for reproducibility/conformance.
 
 Generated outputs:
 
@@ -51,40 +52,39 @@ adapters/generated/<hotset>/
 
 The hot set contains only selection/integration metadata. It never duplicates formulas.
 
-## 4. P0 — OpenAI-compatible protocol assets
+## 4. OpenAI-compatible protocol assets
 
-The first generic protocol adapter should demonstrate direct one-hop evaluation.
+The generic protocol layer now has two compact one-hop surfaces:
 
-Deliverables:
-
-- conservative `xs_eval` tool definition;
-- optional `xs_find` fallback definition;
-- compact hot-set hints;
+- bounded `xs_calc` tool definition + JSON Schema/GBNF for short arithmetic;
+- conservative `xs_eval` tool definition for the selected semantic capability slice;
+- optional `xs_find` fallback definition outside the normal hot path;
+- compact slice hints/prompt fragment;
 - valid/error response fixtures;
 - exact decimal preservation;
 - no calculation logic.
 
 “OpenAI-compatible” is a protocol-envelope target, not a cloud dependency.
 
-## 5. P0 — llama.cpp
+## 5. llama.cpp
 
-Implemented now:
+Implemented references now cover both lanes:
 
-- generated direct-eval GBNF;
-- optional discovery GBNF generation;
-- compact system/tool prompt fragment;
-- OpenAI-compatible server-style reference runner;
-- strict returned-tool-call validation against the bound hot set;
-- offline synthetic envelope self-test in CI;
-- hot-set binding digest/revision propagation.
+- `adapters/llama-cpp/` for direct semantic `xs_eval` integration;
+- `examples/llama.cpp/` for one-turn bounded `xs_calc` generation/execution;
+- generated GBNF/tool assets and compact prompt fragments;
+- strict returned-call/plan validation with no semantic repair;
+- hot-set/profile identity propagation where applicable;
+- a recorded five-case three-model `xs_calc` integration smoke.
 
-Still required for benchmark completion:
+Still required for product benchmark completion:
 
-- recorded runs against selected small GGUF models;
-- benchmark configuration/results for those model revisions;
-- additional raw/tag-wrapped model-template fixtures where they materially improve compatibility.
+- larger reproducible task-family runs across the target 0.5B-3B classes;
+- the Statistics capability-slice arms defined in the benchmark contract;
+- larger-model reference comparisons where fair;
+- exact model-difficulty, resource-cost, capability-density, and CRR records.
 
-The primary example does not require `xs_find` before every calculation.
+Neither primary lane requires `xs_find` before every calculation.
 
 ## 6. Secondary adapters
 
@@ -151,19 +151,20 @@ Every shipped adapter should test:
 
 Measure adapter prompt/tool cost.
 
-Initial design targets:
+Current product targets:
 
-- direct `xs_eval` tool asset as primary;
-- optional `xs_find` fallback;
-- no full catalog in prompt;
-- 8-32 operation generated hot set;
-- compact prompt fragment;
-- discovery result cap where discovery is enabled.
+- one bounded `xs_calc` tool for generic short arithmetic;
+- one compact `xs_eval` tool for the selected semantic capability slice;
+- optional `xs_find` fallback outside the normal hot path;
+- no full domain catalog in the prompt;
+- the smallest semantic operation selection that covers the target task families;
+- compact prompt/schema/grammar assets with explicit byte/token budgets;
+- discovery result caps where discovery is enabled.
 
-Prompt growth, operation-selection accuracy, invalid-call rate, and number of inference turns belong in the benchmark.
+Prompt growth, tool/operation-selection accuracy, invalid/accepted-call rate, argument extraction, result fidelity, and inference turns belong in the model-difficulty benchmark.
 
 ## 11. Benchmark responsibility
 
-Adapters are part of the product claim and therefore must record their exact schema/grammar/hot-set digest in benchmark outputs.
+Adapters are part of the product claim and therefore must record the exact capability-profile/hot-set, tool/schema/grammar/prompt, and runtime artifact identities in benchmark outputs.
 
 See [`../docs/BENCHMARK.md`](../docs/BENCHMARK.md).

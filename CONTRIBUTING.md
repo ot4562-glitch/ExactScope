@@ -54,16 +54,16 @@ Do not casually weaken:
 
 ## AI integration changes
 
-The product hot path is direct `xs_eval` with a known/cached operation key. `xs_find` is fallback discovery.
+The product has two normal hot paths: bounded `xs_calc` for short arithmetic and direct `xs_eval` for reviewed semantic operations in the selected capability slice. `xs_find` is fallback discovery.
 
-Adapter/hot-set contributions should therefore prefer:
+Adapter/capability-slice contributions should therefore prefer:
 
-- 8-32 operation generated hot sets;
-- OpenAI-compatible direct eval assets;
-- GBNF;
+- one compact bounded `xs_calc` tool rather than per-arithmetic-operation tools;
+- the smallest semantic operation selection that covers the target task families, not a fixed operation-count target;
+- OpenAI-compatible tool assets and constrained GBNF/JSON Schema where useful;
 - llama.cpp fixtures/reference integration;
-- digest/revision-bound caching;
-- measurable prompt/invalid-call/inference-turn cost.
+- digest/revision/profile-bound caching;
+- measurable model-difficulty cost: prompt/schema/grammar size, tool/operation selection, invalid/accepted calls, extraction, turns, and fidelity.
 
 Adapters may normalize syntax/transport but not semantics.
 

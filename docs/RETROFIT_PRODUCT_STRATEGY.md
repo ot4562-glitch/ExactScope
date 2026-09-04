@@ -1,6 +1,8 @@
 # ExactScope retrofit product strategy
 
-> **Design status: target direction. This document changes product and architecture priorities only. It does not claim that the vNext interfaces described here are implemented.**
+> **Design status: product direction. The bounded `xs_calc` plan-v0.1 path is now implemented experimentally; capability-slice/profile design, domain proof, and real-target qualification remain product work.**
+>
+> See [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) for the next-stage product-unit and build-vs-buy architecture.
 
 ## 1. Product thesis
 
@@ -23,7 +25,7 @@ existing device
   = stronger quantitative capability without replacing the device
 ```
 
-This is a **capability retrofit** strategy, not a calculator-app strategy.
+This is a **capability retrofit** strategy, not a calculator-app strategy. The runtime user is the AI model/system itself. A developer or OEM engineer integrates ExactScope into the product; a human end user should not have to install, configure, browse, or invoke ExactScope directly.
 
 ## 2. The customer problem
 
@@ -99,9 +101,9 @@ OTA/software update
   -> route supported deterministic work through ExactScope
 ```
 
-## 5. vNext interaction architecture
+## 5. Current interaction architecture
 
-The target architecture has two first-class execution lanes.
+The current architecture has two first-class execution lanes.
 
 ```text
                            small/local model
@@ -123,9 +125,9 @@ The target architecture has two first-class execution lanes.
                       exact result / typed failure
 ```
 
-### 5.1 `xs_calc` — target generic quantitative lane
+### 5.1 `xs_calc` — implemented experimental generic quantitative lane
 
-**Status: planned, not implemented.**
+**Status: implemented experimentally as plan-v0.1; not yet a stable v1 compatibility promise.**
 
 `xs_calc` is the model-facing path for short arithmetic programs that do not require a large catalog of named domain operations.
 
@@ -140,7 +142,7 @@ The initial plan vocabulary is intentionally small:
 
 The model emits one bounded plan rather than making a sequence of independent tool calls.
 
-Conceptual example:
+Example:
 
 ```json
 {
@@ -186,9 +188,9 @@ It should not be required for common on-device quantitative requests.
 
 ## 6. Bounded plan contract
 
-The first plan format should be deliberately boring and small.
+Plan v0.1 is deliberately boring and small.
 
-Initial target bounds:
+Current experimental bounds:
 
 | Property | Target |
 |---|---|
@@ -237,7 +239,7 @@ During current development, local prerelease artifacts have been observed at app
 
 These are development measurements, not universal release-size guarantees.
 
-vNext should introduce explicit footprint gates:
+The capability product should keep explicit footprint gates:
 
 - **target:** keep the primary no-import Wasm artifact near or below 128 KiB when practical;
 - **warning:** growth beyond 192 KiB requires a recorded explanation;
@@ -255,7 +257,7 @@ It should answer:
 
 > **How far can an existing 0.5B-3B on-device model be strengthened by adding ExactScope, and how does that compare with moving to a larger model when larger-model deployment is feasible?**
 
-Required numerical-reasoning arms for the vNext product proof:
+Required numerical-reasoning arms for the capability product proof:
 
 | Arm | Meaning |
 |---|---|
@@ -309,37 +311,44 @@ A useful internal go/no-go target for the first public slice is:
 
 These are design gates, not current measured public claims.
 
-## 11. Domain-series strategy
+## 11. Domain-series and capability-slice strategy
 
-After the core retrofit mechanism is proven, ExactScope may ship as one core with optional reviewed capability series.
+ExactScope should maintain broad reviewed **domain source catalogs**, but deploy only the smallest **capability slice** required by the target AI product.
 
 ```text
-ExactScope Core
-  + Math
-  + Statistics
-  + Economics
-  + Finance
-  + Physics
-  + Chemistry
-  + Engineering
-  + later reviewed OEM/domain packs
+ExactScope shared core
+  + Statistics source catalog
+  + Economics source catalog
+  + Finance source catalog
+  + Physics / Engineering / later sources
+             |
+             v
+    compile/select target slice
+             |
+             +--> statistics-8
+             +--> statistics-16
+             +--> custom device/model profile
 ```
 
-This is **not** a family of separate runtimes. All series must reuse the same deterministic core and stable ABI/wire semantics.
+This is **not** a family of separate runtimes and not a collection of human calculators. All series reuse the same deterministic core and stable ABI/wire semantics.
 
-A domain series may add:
+A domain source may add:
 
 - reviewed semantic operation definitions;
 - explicit units/method contracts;
 - domain constraints;
-- provenance;
+- provenance and revision history;
 - golden/negative/boundary vectors;
 - benchmark mappings;
 - compatibility/qualification records.
 
-The order is evidence-driven. The current priority remains completing the core bounded-plan product proof before broad domain expansion.
+A deployed capability slice additionally records its model-visible operation set, prompt/schema/grammar identity, target task families, footprint budget, model-difficulty budget, and benchmark identity.
 
-## 12. OEM adoption wedge
+The product metric is not operation count. It is whether the slice gives the target weak model a useful new task-family capability at very low binary/RAM/token/latency/energy cost.
+
+Statistics is the recommended first flagship domain proof because the runtime already contains bounded statistics kernels and because method identity creates real value beyond generic arithmetic.
+
+## 12. OEM adoption wedge and build-vs-buy thesis
 
 The ideal OEM conversation is not:
 
@@ -347,21 +356,34 @@ The ideal OEM conversation is not:
 
 It is:
 
-> "Can you keep the model and hardware you already ship, add a tiny audited component, and remove a measurable class of quantitative failures through software?"
+> "Can you keep the model and hardware you already ship, add a tiny audited capability slice, and recover a measurable part of the capability you would otherwise need a larger model or newer device to obtain?"
 
-The adoption path should therefore optimize for:
+A large vendor can implement individual formulas. ExactScope therefore earns adoption only if it removes a larger recurring engineering burden:
+
+- weak-model interface design;
+- constrained-decoding assets;
+- deterministic exact semantics;
+- domain review/provenance;
+- footprint optimization;
+- conformance/malformed-input testing;
+- model benchmark maintenance;
+- artifact identity and update/rollback discipline;
+- target qualification and long-term revision support.
+
+The adoption path should optimize for:
 
 ```text
-public reproducible proof
+public reproducible capability proof
   -> prebuilt tiny artifact
-  -> 5-minute desktop evaluation
-  -> customer model benchmark
+  -> 5-minute developer evaluation
+  -> customer weak-model benchmark
+  -> select/compile smallest useful capability slice
   -> target integration
   -> OTA/update-safe integration
   -> qualification/LTS/support where required
 ```
 
-Retrofit compatibility, update safety, and artifact stability are first-class commercial concerns.
+Retrofit compatibility, weak-model usability, update safety, artifact stability, and accumulated qualification evidence are first-class commercial concerns.
 
 ## 13. Competitive frame
 
@@ -373,33 +395,36 @@ Its differentiation is the systems combination:
 - tiny resident footprint;
 - bounded non-Turing-complete execution;
 - one compact plan rather than a large generic tool catalog for ordinary arithmetic;
+- small compiled semantic capability slices rather than full-domain prompt exposure;
+- explicit model-difficulty budgets for weak-model usability;
 - exact decimal/rational semantics;
 - fail-closed validation;
 - no Python or scientific runtime requirement;
 - no daemon/account/network dependency;
 - native static C ABI;
 - no-import Wasm;
-- reviewed semantic domain packs;
-- reproducible conformance and target qualification;
+- reviewed domain source catalogs with provenance/revision history;
+- reproducible conformance, benchmark, and target qualification;
+- capability-density and larger-model-gap recovery measurement;
 - retrofit/OTA suitability as a primary design objective.
 
 ## 14. Messaging hierarchy
 
 Technical definition:
 
-> **A tiny deterministic quantitative coprocessor for small and on-device AI.**
+> **A tiny deterministic AI-facing capability coprocessor for small and on-device AI.**
 
 Customer value:
 
-> **Upgrade on-device AI without upgrading the hardware.**
+> **Add narrow professional quantitative capability to the model you can already deploy.**
 
 Product strategy:
 
-> **Extend the useful capability of deployed AI devices through a tiny software retrofit.**
+> **Recover useful domain capability through a tiny software retrofit before paying for a larger model or new hardware.**
 
 Short developer message:
 
-> **Keep your small model. Give it exact quantitative execution.**
+> **Keep your small model. Add the capability slice it is missing.**
 
 These are positioning statements and hypotheses until backed by the benchmark/target evidence required above.
 

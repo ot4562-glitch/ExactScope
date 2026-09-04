@@ -1,6 +1,6 @@
 # ExactScope hot sets
 
-Hot sets are build-time selections of canonical ExactScope operations for small-model direct evaluation. They contain no formulas and are not a second calculation catalog.
+Hot sets are build-time selections of canonical ExactScope operations for small-model direct evaluation. They contain no formulas and are not a second calculation catalog. In the current product architecture, a hot set is an **implementation input/build artifact for a semantic capability slice**, not the product unit by itself; task-family coverage and model/device budgets determine whether a selection is useful.
 
 The generator lives in `exactscope-packc`:
 

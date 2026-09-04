@@ -139,13 +139,16 @@ Useful external results include build/runtime outcomes, model integration behavi
 ## Architecture and guarantees
 
 ```text
-Layer 1: bounded deterministic arithmetic plan       xs_calc
-Layer 2: reviewed semantic quantitative operations  xs_eval
-Layer 3: optional domain packs
-Cold/development fallback                            xs_find
+Layer 1: small-model surface       xs_calc + compact xs_eval
+Layer 2: deployed capability slice task families + selected reviewed semantics
+Layer 3: ExactScope MicroCore      bounded deterministic exact execution
+Layer 4: domain source catalogs    Statistics / Economics / Finance / later domains
+Cold/development fallback          xs_find
 ```
 
-The implementation keeps `no_std` where intended, caller-owned bounded storage at public boundaries, checked arithmetic, deterministic rounding, no mandatory network/account/daemon/database, and no arbitrary native code in data packs. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/AI_INTEGRATION.md](docs/AI_INTEGRATION.md), [docs/BENCHMARK.md](docs/BENCHMARK.md), and [SECURITY.md](SECURITY.md).
+The broad domain catalog is a build-time/maintenance asset; a weak model should see only the smallest capability slice needed by its product. The implementation keeps `no_std` where intended, caller-owned bounded storage at public boundaries, checked arithmetic, deterministic rounding, no mandatory network/account/daemon/database, and no arbitrary native code in data packs.
+
+See [docs/CAPABILITY_PRODUCT_ARCHITECTURE.md](docs/CAPABILITY_PRODUCT_ARCHITECTURE.md) for the capability-unit/product design, [docs/PRODUCT_DIRECTION.md](docs/PRODUCT_DIRECTION.md) for product priorities, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for runtime boundaries, [docs/AI_INTEGRATION.md](docs/AI_INTEGRATION.md) for the model interface, [docs/BENCHMARK.md](docs/BENCHMARK.md) for evidence rules, and [SECURITY.md](SECURITY.md).
 
 ## Contributing and license
 

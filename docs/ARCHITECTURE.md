@@ -1,6 +1,6 @@
 # ExactScope architecture baseline v0.1
 
-This document defines the runtime architecture. Product priority is defined in `PRODUCT_DIRECTION.md`; where an older architecture emphasis conflicts with the current product priority, the shared-core invariants remain binding while release sequencing follows the product direction.
+This document defines the runtime architecture. Product priority is defined in `PRODUCT_DIRECTION.md`, while `CAPABILITY_PRODUCT_ARCHITECTURE.md` defines the next-stage product unit and capability-slice architecture. Where older wording conflicts, shared-core invariants remain binding while product sequencing follows those documents.
 
 ## 1. System boundary
 
@@ -12,7 +12,7 @@ The host owns:
 - sensor/UI input and output;
 - extraction of candidate values from the request;
 - model/tool routing;
-- hot-set selection and cache binding;
+- capability-slice/hot-set selection and cache binding;
 - optional discovery invocation;
 - storage, updates, authentication/signature policy, and lifecycle.
 
@@ -30,7 +30,7 @@ ExactScope does not own model inference, retrieval, forecasting, live market/eco
 
 ## 2. Product call paths
 
-The architecture now distinguishes the **current implemented semantic path** from the **vNext target generic arithmetic path**.
+The architecture has two current model-facing execution paths: bounded generic `xs_calc` arithmetic and reviewed semantic `xs_eval`. Both converge on the same deterministic core.
 
 ```text
                          small/local model
@@ -42,7 +42,7 @@ The architecture now distinguishes the **current implemented semantic path** fro
                  |                             |
                  v                             v
         xs_calc(bounded plan)            xs_eval(op,args)
-          TARGET / PLANNED                 IMPLEMENTED
+      IMPLEMENTED / EXPERIMENTAL       IMPLEMENTED / REVIEWED
                  |                             |
                  +--------------+--------------+
                                 |
@@ -50,7 +50,7 @@ The architecture now distinguishes the **current implemented semantic path** fro
                      ExactScope shared core
 ```
 
-### 2.1 Target `xs_calc` plan path
+### 2.1 Current experimental `xs_calc` plan path
 
 `xs_calc` is implemented as a single model turn followed by one bounded deterministic execution. Plan v0.1 contains at most eight arithmetic steps and only a fixed vocabulary (`add`, `sub`, `mul`, `div`, `powi`, `sqrt`). Previous-result references are backward-only. Loops, arbitrary branches, variables, arbitrary functions, arbitrary expression text, and arbitrary code are forbidden.
 
@@ -70,10 +70,10 @@ A constrained product should expose the smallest useful surface rather than the 
 
 ```text
 ordinary short arithmetic
-        -> one bounded xs_calc schema/grammar (target)
+        -> one bounded xs_calc schema/grammar
 
 reviewed domain methods
-        -> compact xs_eval hot set
+        -> compact xs_eval capability slice
 
 unknown semantic operation
         -> optional xs_find cold/development path
@@ -109,8 +109,11 @@ crates/
   exactscope-conformance/ # shared conformance/golden runner
 adapters/
   wearable/               # implemented integration reference
-  llama-cpp/              # planned P0 product adapter
-  openai-tools/           # planned P0 generated protocol assets
+  llama-cpp/              # implemented direct semantic reference
+  xs-calc-v0.1/           # bounded arithmetic tool/schema/GBNF/prompt assets
+  generated/              # generated semantic hot-set/capability inputs
+examples/
+  llama.cpp/              # one-turn xs_calc reference runner and smoke benchmark
 packs/
 include/
 spec/
@@ -172,7 +175,7 @@ Responsibilities include:
 - canonical `.xsp` serialization;
 - manifests/digests;
 - optional fused tables;
-- product hot-set/adapter metadata generation as P0 work evolves.
+- product hot-set/capability-slice model assets and profile metadata generation.
 
 The target runtime does not contain a general expression parser.
 
@@ -206,12 +209,12 @@ The portable primary profile uses `wasm32v1-none`:
 
 The architecture supports more than the first product needs.
 
-### Primary v0.1 candidates
+### Primary RC/evaluation profiles
 
 1. native static C ABI;
 2. no-import WebAssembly.
 
-These are the release profiles that should receive first-class prebuilt artifacts, quickstart, benchmark integration, and qualification.
+These profiles now receive first-class prebuilt RC artifacts, quickstart coverage, benchmark integration, and conformance gates. Stable support still requires the qualification evidence defined elsewhere.
 
 ### Secondary/experimental profiles
 
@@ -224,7 +227,7 @@ All exposed operations must use shared semantics, but these profiles may remain 
 
 ## 11. Execution pipelines
 
-### 11.1 Target bounded-plan path
+### 11.1 Bounded-plan execution path
 
 ```text
 model/host xs_calc request
@@ -279,7 +282,7 @@ Vector work uses bounded kernel IDs rather than VM loops.
 
 ExactScope's product is a component, not a daemon/application service. The primary deployment story is a **small software retrofit** into an existing AI stack.
 
-The intended vNext release-shaped flow is:
+The current release-shaped integration flow is:
 
 ```text
 prebuilt artifact / product software update
@@ -294,7 +297,7 @@ Target installation must not require replacing/retraining the model, Rust, Pytho
 
 Update/rollback compatibility and artifact identity are first-class concerns because an important target is already-designed or already-deployed hardware.
 
-Closed devices with no application/plugin/native/Wasm/paired-host execution boundary cannot be made directly installable by ExactScope alone.
+Closed devices with no product-controlled application/plugin/native/Wasm/paired-host execution boundary cannot be retrofitted by ExactScope independently. End users are not expected to install or configure ExactScope themselves.
 
 ## 15. Compatibility philosophy
 

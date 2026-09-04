@@ -2,9 +2,9 @@
 
 ExactScope is consumed by AI runtimes. This document defines the model-facing behavior that product integrations should optimize for.
 
-## 1. Target interaction model
+## 1. Current interaction model
 
-The **current implemented** model-facing path is direct `xs_eval` against a compact semantic hot set. The **vNext target** adds a generic bounded plan path for short arithmetic without requiring the model to select from a large catalog.
+ExactScope exposes two implemented experimental model-facing lanes: bounded `xs_calc` for short arithmetic plans and direct `xs_eval` for reviewed semantic methods. Both are intentionally small and share the same deterministic core.
 
 ```text
                          model
@@ -16,7 +16,7 @@ The **current implemented** model-facing path is direct `xs_eval` against a comp
                |                       |
                v                       v
         xs_calc(plan)              xs_eval(op,args)
-       TARGET / PLANNED              IMPLEMENTED
+  IMPLEMENTED / EXPERIMENTAL     IMPLEMENTED / REVIEWED
                |                       |
                +-----------+-----------+
                            |
@@ -28,17 +28,17 @@ The **current implemented** model-facing path is direct `xs_eval` against a comp
 
 ## 2. Model-facing surface
 
-The target logical surface contains three roles, but a deployed product should expose only what it needs:
+The logical surface contains three roles, but a deployed product should expose only what it needs:
 
-- `xs_calc` — implemented one-call bounded arithmetic plan for generic short numerical execution;
+- `xs_calc` — implemented experimental one-call bounded arithmetic plan for generic short numerical execution;
 - `xs_eval` — implemented direct evaluation for reviewed semantic operations;
 - `xs_find` — optional cold/development discovery fallback.
 
 For ordinary arithmetic, the design goal is **one compact plan tool**, not six independent arithmetic tools and not hundreds of per-formula tools.
 
-For semantic methods, a product may still generate a small 8-32 operation hot-set hint/grammar so the model can select canonical operation keys without discovery.
+For semantic methods, a product should expose only the selected **capability slice** through a compact `xs_eval` surface. The broad domain source catalog stays build-time/host-side and is not injected into a weak-model prompt.
 
-The target `xs_calc` P0 plan is limited to at most eight steps over `add/sub/mul/div/powi/sqrt`, exact decimal-string leaves, and backward-only prior-result references. Loops, arbitrary branches, variables, arbitrary functions, and arbitrary code are forbidden. The plan layer must lower to the shared bounded core semantics.
+Plan v0.1 is limited to at most eight steps over `add/sub/mul/div/powi/sqrt`, exact decimal-string leaves, and backward-only prior-result references. Loops, arbitrary branches, variables, arbitrary functions, and arbitrary code are forbidden. The plan layer lowers to the shared bounded core semantics.
 
 ## 3. Canonical eval request
 
@@ -70,14 +70,17 @@ The checked-in schema is [`spec/schemas/xs-find-tool.schema.json`](../spec/schem
 
 A successful response returns canonical operation metadata. The host should cache/bind the result rather than forcing discovery on every repeated task.
 
-## 5. Hot-set artifact
+## 5. Capability-slice model assets
 
-The intended generator output is conceptually:
+The current hot-set generator is the starting point for capability-slice output. A production capability profile should bind the runtime surface and its model assets together:
 
 ```text
-hotset/
+capability-slice/
+  profile.json
   catalog.json
   binding-sha256.txt
+  xs-calc.tool.json       # when xs_calc is enabled
+  xs-calc.gbnf
   xs-eval.tool.json
   xs-eval.gbnf
   xs-find.tool.json       # only when include_find=true
@@ -85,16 +88,16 @@ hotset/
   prompt-fragment.txt
 ```
 
-A hot-set entry contains only compact immutable metadata needed to select and call an operation:
+The deployed slice contains only compact immutable metadata needed to select and call the supported capability:
 
-- canonical key;
-- compact signature;
-- method cue when needed;
+- target task families;
+- canonical operation keys and revisions;
+- compact signatures/method cues;
 - argument semantic names/order;
-- registry/pack digest binding;
-- operation revision.
+- registry/pack/profile digest bindings;
+- model-surface and footprint budgets.
 
-The complete pack catalog remains available to the host/tooling but should not be placed in a small-model prompt by default.
+The complete domain source catalog remains available to build tooling but should not be placed in a small-model prompt by default.
 
 ## 6. Model policy
 
@@ -102,11 +105,11 @@ A compact system/tool policy should communicate:
 
 ```text
 Use ExactScope for supported deterministic quantitative calculations.
-Prefer a known operation key from the provided hot set.
-Call xs_eval directly when the operation is known.
-Use xs_find only when the required operation key is unknown.
-Pass arguments in the declared order.
-Use exact base-10 values; never invent missing values or methods.
+Use xs_calc for supported short arithmetic plans.
+Use xs_eval directly for a known reviewed semantic method in the bound capability slice.
+Use xs_find only when the required semantic operation is genuinely unknown and discovery is enabled.
+Pass arguments in the declared order and obey backward-reference rules.
+Use exact base-10 values; never invent missing values, units, or methods.
 Do not recompute an ExactScope result.
 Preserve ExactScope errors instead of guessing a number.
 ```
@@ -187,33 +190,34 @@ An adapter may:
 - provide locale aliases before discovery;
 - render a deterministic result after the core call.
 
-## 10. OpenAI-compatible adapter target
+## 10. OpenAI-compatible adapter surface
 
-The first generic adapter deliverables should be:
+The current generic adapter surface should remain compact:
 
-- conservative OpenAI-style `xs_eval` tool definition;
-- optional `xs_find` definition;
-- hot-set generation from installed operation metadata;
-- examples for direct one-hop eval;
+- conservative OpenAI-style `xs_calc` tool definition plus bounded JSON Schema/GBNF;
+- conservative `xs_eval` definition for the selected capability slice;
+- optional `xs_find` definition outside the normal hot path;
+- capability-slice/hot-set generation from installed operation metadata;
+- examples for one-turn bounded-plan and direct semantic eval;
 - fixtures for error/status preservation;
-- no calculation logic.
+- no calculation logic in the protocol wrapper.
 
 Cloud use is not required. "OpenAI-compatible" describes a widely used tool-call envelope format.
 
-## 11. llama.cpp target
+## 11. llama.cpp reference
 
-The current local-runtime reference supports direct semantic `xs_eval`. The vNext target should add:
+The repository now contains a one-turn `xs_calc` llama.cpp reference path and small multi-model smoke evidence. The reference surface includes:
 
 - generated/checked-in GBNF for the bounded `xs_calc` plan;
 - matching JSON Schema/tool asset;
-- strict whitespace/output-tail termination tests;
-- compact prompt policy;
-- OpenAI-compatible and raw JSON fixtures;
-- a sample runner/configuration showing one-turn bounded-plan use;
-- preserved direct semantic `xs_eval` examples;
-- benchmark integration with selected small GGUF instruct/tool models.
+- strict bounded request/runtime validation;
+- compact system/user prompt policy;
+- raw plan extraction without semantic repair;
+- a sample runner showing one-turn bounded-plan use;
+- preserved direct semantic `xs_eval` integration patterns;
+- benchmark integration points for selected small GGUF instruct/tool models.
 
-Any grammar/schema used for public benchmark claims must be checked in or reproducibly generated and digest-recorded.
+The current smoke is integration evidence, not a general model-quality benchmark. Any grammar/schema used for public benchmark claims must be checked in or reproducibly generated and digest-recorded together with exact model/runtime/prompt/artifact identities.
 
 ## 12. TinyWire and typed hosts
 
@@ -223,7 +227,7 @@ A product with fixed operations may omit discovery and generic JSON from the run
 
 ## 13. Benchmark stages
 
-The vNext adapter benchmark separates:
+The capability benchmark separates:
 
 1. recognition of a supported deterministic task;
 2. plan/semantic-operation selection;
@@ -241,7 +245,7 @@ See [BENCHMARK.md](BENCHMARK.md).
 
 ## 14. Required comparison paths
 
-For the planned generic arithmetic lane, serious evaluation should compare:
+For the implemented generic arithmetic lane, serious evaluation should compare:
 
 - model only;
 - model -> unconstrained `xs_calc` -> ExactScope;
@@ -255,7 +259,7 @@ This keeps discovery overhead visible without making discovery the headline prod
 
 ## 15. Tiny-model acceptance cases
 
-Before the vNext model-facing path is considered usable, cover at least:
+Before a capability profile is considered usable on a weak model, cover at least:
 
 - one-step plan;
 - maximum-length valid plan;

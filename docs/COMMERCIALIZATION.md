@@ -1,103 +1,212 @@
 # ExactScope commercialization direction
 
-ExactScope core is open infrastructure. Commercial value, if pursued, should come from assurance, qualification, long-term maintenance, domain packs, and integration support rather than from locking deterministic arithmetic behind a proprietary runtime.
+ExactScope core is open infrastructure. Commercial value, if pursued, should come from **maintained AI capability products**: reviewed domain semantics, weak-model interface engineering, capability-slice/profile generation, benchmark evidence, qualification, long-term revision support, and integration assistance.
 
-## 1. OSS core
+It should not come from hiding arithmetic behind a proprietary runtime.
 
-The core runtime remains permissively licensed under Apache-2.0/MIT and includes:
+See [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) for the product-unit definition.
+
+## 1. Customer and runtime user
+
+ExactScope has two different roles that must not be confused:
+
+- **runtime consumer:** the small/on-device AI system;
+- **customer/integrator:** the software, AI, platform, or device team embedding ExactScope into that AI system.
+
+The consumer of the product is not a person typing equations into an ExactScope application. End users should normally never see an ExactScope UI, choose formulas, install a calculator, or configure capability packs manually.
+
+## 2. OSS core as the adoption wedge
+
+The core runtime remains permissively licensed under Apache-2.0/MIT and should include enough public infrastructure for a vendor to prove the mechanism before any commercial relationship:
 
 - deterministic numeric kernel;
-- stable C ABI and no-import Wasm ABI;
-- public scope-pack format;
-- baseline official operation metadata and conformance tooling;
-- reference adapter formats and benchmark methodology.
+- bounded `xs_calc` model-facing arithmetic path;
+- stable/native C ABI direction and no-import Wasm path;
+- public scope-pack/source formats where applicable;
+- baseline official semantic operation metadata;
+- constrained model-interface assets;
+- conformance tooling;
+- benchmark methodology;
+- reference integrations.
 
-The OSS core is the adoption wedge. A large vendor should be able to prove technical value before entering a commercial relationship.
+A large vendor must be able to answer "does this actually improve our small model cheaply enough?" before buying anything.
 
-## 2. Possible commercial layers
+## 3. Why a large vendor should adopt instead of rebuild
 
-### 2.1 Verified domain packs
+A large vendor can implement arithmetic, variance, correlation, elasticity, or other individual formulas internally. Formula implementation alone is therefore not a defensible commercial wedge.
 
-Commercial or enterprise-supported packs may provide:
+The build-vs-buy value is the maintained system around those formulas:
 
-- independently reviewed formulas/methods;
+- weak-model-friendly tool-surface design;
+- minimal prompts and operation-choice surfaces;
+- generated JSON Schema/GBNF/typed bindings;
+- deterministic exact numeric behavior;
+- explicit semantic/method/unit contracts;
+- provenance and operation revision history;
+- golden, negative, malformed-input, and boundary corpora;
+- binary/RAM/scratch optimization;
+- native C ABI and no-import Wasm portability;
+- digest-bound immutable artifacts;
+- model-by-model benchmark evidence;
+- target qualification;
+- update/rollback compatibility;
+- long-term maintenance of the above as models, runtimes, and devices change.
+
+The commercial question should become:
+
+```text
+build internally
+  = own and maintain all of that forever
+
+adopt ExactScope
+  = select a proven capability slice,
+    benchmark it on the target model,
+    integrate one tiny component,
+    consume maintained revisions and qualification evidence
+```
+
+The moat is cumulative engineering and evidence, not formula secrecy.
+
+## 4. Commercial product layers
+
+### 4.1 Verified domain source catalogs
+
+A commercial or enterprise-supported domain source may provide:
+
+- independently reviewed formulas and methods;
+- explicit units, conventions, and assumptions;
 - provenance and revision history;
-- larger golden/negative corpora;
+- larger golden/negative/boundary corpora;
 - long-term operation-revision support;
 - change-control guarantees;
-- domain-specific compatibility records.
+- domain-specific benchmark mappings;
+- compatibility and qualification metadata.
 
-Possible future domains include finance, insurance, industrial formulas, scientific instrumentation, regulated reporting, or organization-specific deterministic calculations.
+Possible future domains include Statistics, Economics, Finance, Physics, Engineering, scientific instrumentation, insurance, regulated reporting, industrial calculations, and organization-specific deterministic methods.
 
-### 2.2 Enterprise LTS and SLA
+A broad source catalog is a maintained build-time asset. It is not automatically exposed to the small model.
+
+### 4.2 Capability-slice/profile engineering
+
+A higher-value offering is the production of **minimal capability slices** for a target model/device/runtime budget.
+
+This may include:
+
+- task-family selection;
+- operation subset selection;
+- fused/static profile generation;
+- minimal model prompt/tool surface;
+- constrained-decoding assets;
+- model-difficulty measurements;
+- binary/RAM/scratch footprint reports;
+- target-model benchmark reports;
+- immutable profile manifests.
+
+This directly addresses the vendor problem: "give this exact weak model the capability we need without spending more flash, RAM, tokens, latency, or engineering time than necessary."
+
+### 4.3 Enterprise LTS and SLA
 
 Potential offering:
 
-- long-term supported ExactScope core branch;
-- security and parser/ABI fixes;
+- long-term supported ExactScope core/profile branches;
+- security, parser, ABI, and model-surface fixes;
 - reproducible release artifacts;
-- support response targets;
-- compatibility notices and migration guidance;
-- maintained target/toolchain matrix.
+- operation/profile compatibility notices;
+- migration guidance;
+- maintained target/toolchain/runtime matrix;
+- support response targets.
 
-### 2.3 OEM qualification
+### 4.4 OEM/device qualification
 
 A device/vendor engagement may cover:
 
 - target integration review;
-- memory/latency/energy qualification;
-- malformed-input and update/rollback testing;
+- flash/RAM/scratch/latency/energy qualification;
+- malformed-input and fail-closed validation;
+- update/rollback testing;
 - artifact identity and supply-chain evidence;
-- signed qualification reports;
-- assistance integrating with the customer's local model/tool router.
+- model/tool-router integration review;
+- capability-density and Capability Recovery Ratio reporting;
+- signed qualification records where commercially appropriate.
 
-The value is not merely the formula implementation. It is the evidence that a specific ExactScope artifact, pack set, and target combination behaves within a defined contract.
+The value is not merely that "the formula is correct." It is evidence that a specific ExactScope artifact, capability profile, model/runtime, and target behave within a defined product contract.
 
-### 2.4 Custom domain-pack engineering
+### 4.5 Custom domain capability engineering
 
-Customers may need deterministic operations that do not belong in the public academic catalog. These should still compile to the same data-only pack format or shared bounded kernel contracts rather than creating customer-specific calculation forks.
+Customers may need deterministic capabilities that do not belong in a public academic source catalog. These should still reuse the same shared bounded core and capability-profile machinery rather than creating customer-specific calculation forks.
 
-## 3. What should not become the business model
+## 5. Capability compiler as a product multiplier
 
-Avoid commercial pressure that would damage the technical wedge:
+The long-term integration product should include a deterministic build-time capability compiler/profile generator.
+
+Input should describe:
+
+- target model class;
+- inference runtime;
+- device footprint budget;
+- allowed model turns/tokens;
+- required task families;
+- selected domain sources.
+
+Output should include:
+
+- the minimal deployable ExactScope artifact/profile;
+- selected reviewed operations;
+- `xs_calc` and compact `xs_eval` assets as needed;
+- schema/grammar/prompt fragments;
+- manifests and digests;
+- conformance vectors;
+- model-difficulty metadata;
+- footprint metadata;
+- benchmark mapping.
+
+A vendor may be able to recreate one formula cheaply. Recreating and continuously maintaining this compiler + evidence system is a materially different cost.
+
+## 6. What should not become the business model
+
+Avoid commercial pressure that damages the technical wedge:
 
 - mandatory cloud calls;
-- per-evaluation telemetry;
-- account/login requirements in the core;
+- per-evaluation telemetry requirements;
+- account/login requirements in the runtime;
+- end-user subscription calculator applications;
+- user-facing formula browsers;
 - proprietary target daemon;
 - hidden formula semantics;
 - proprietary incompatible ABI forks;
-- arbitrary native plugins inside packs.
+- arbitrary native plugins inside packs;
+- deliberately bloated catalogs designed only to increase SKU count.
 
-The product should remain attractive precisely because it can be embedded, audited, and operated offline.
+The product should remain attractive because it can be embedded invisibly into an AI product, audited, qualified, and operated offline or locally when required.
 
-## 4. Enterprise/OEM adoption funnel
+## 7. Adoption funnel
 
-The desired funnel is:
+The desired funnel is technical first:
 
 ```text
-public retrofit benchmark + prebuilt tiny artifact
-        -> 5-minute local proof
-        -> customer's existing small-model benchmark
+public capability benchmark + prebuilt tiny artifact
+        -> 5-minute developer proof
+        -> customer's existing weak-model benchmark
+        -> select/compile smallest useful capability slice
         -> existing-device integration
         -> OTA/update/rollback proof
         -> target qualification
-        -> LTS/support if needed
+        -> maintained profiles / LTS / support where valuable
 ```
 
 The project should not require a sales conversation before a technical evaluator can measure value.
 
-The strongest commercial wedge may be **already-designed or already-deployed devices** where replacing the SoC, memory configuration, thermal design, or model-size class is expensive or impossible but software can still be updated.
+The strongest commercial wedge is likely **already-designed or already-deployed constrained AI hardware** where changing the SoC, RAM, thermal design, battery budget, or model-size class is expensive or impossible but software can still be updated.
 
-## 5. Market positioning
+## 8. Market positioning
 
-ExactScope should not define its market as only "devices with no network." Offline capability is a feature, not the market definition.
+ExactScope should not define its market as only "offline AI" and should not define itself as a calculator library.
 
 The primary target is:
 
-> **Physically constrained or deployed on-device AI products that want to gain deterministic quantitative capability through a tiny software retrofit instead of requiring a hardware/model-size upgrade for every capability gap.**
+> **Physically constrained or already-deployed on-device AI products that need a narrow professional/academic capability upgrade through a tiny software component instead of a model-size or hardware generation jump.**
 
-Representative environments:
+Representative environments include:
 
 - smart glasses and wearables;
 - phones and tablets;
@@ -105,50 +214,73 @@ Representative environments:
 - robots and industrial systems;
 - automotive systems;
 - other constrained edge products;
-- later regulated or certifiable product paths where arbitrary-code sandboxes are undesirable.
+- later regulated/certifiable product paths where arbitrary-code sandboxes are undesirable.
 
 Desktop/server environments remain useful for evaluation and integration, but they are not the center of the product thesis.
 
-## 6. Competitive framing
+## 9. Competitive framing
 
-ExactScope should not compete with Python, MCP calculators, or large symbolic systems on breadth, and it should not claim to invent external computation for language models.
+ExactScope should not primarily compare itself with Python, MCP calculators, spreadsheet engines, or symbolic-math systems. Those products solve different problems and may be perfectly adequate where runtime size and qualification cost are unimportant.
 
-The differentiator is the combination of:
-
-- **retrofit/OTA suitability as a primary design objective**;
-- tiny resident footprint;
-- no required service/runtime environment;
-- one bounded arithmetic-plan surface for common short numerical work once implemented;
-- reviewed semantic operations for method-specific work;
-- deterministic exact decimal/rational semantics;
-- no arbitrary model-generated code execution;
-- fail-closed validation;
-- stable operation revision/provenance;
-- native static C ABI and no-import Wasm;
-- model-independent target qualification potential.
-
-The core competitive comparison should often be:
+The economically relevant comparison is often:
 
 ```text
 existing small model
 vs
-existing small model + ExactScope
+existing small model + ExactScope capability slice
 vs
 larger model / next hardware generation
 ```
 
-For a product where a larger model or trusted Python sandbox is already cheap, acceptable, and easy to deploy/qualify, ExactScope may provide little advantage. That is an acceptable non-target.
+The differentiating systems combination is:
 
-## 7. Commercial proof gate
+- retrofit/OTA suitability;
+- very small resident footprint;
+- weak-model-friendly constrained interface;
+- one bounded arithmetic-plan surface;
+- small reviewed semantic capability slices;
+- deterministic exact decimal/rational semantics;
+- no arbitrary model-generated code execution;
+- fail-closed validation;
+- stable operation/profile provenance;
+- native static C ABI and no-import Wasm;
+- reproducible model and target qualification.
 
-Commercial effort should follow evidence. Before presenting ExactScope as an OEM retrofit/optimization product, publish at least:
+For a product where a larger model is already cheap, fits comfortably, and has acceptable latency/energy/qualification cost, ExactScope may provide little advantage. That is an acceptable non-target.
 
-1. a reproducible public benchmark showing a material advantage across multiple constrained model classes;
-2. incorrect-numeric-answer reduction and tool-penalty measurements, not only aggregate accuracy;
-3. a prebuilt tiny artifact that a non-Rust integrator can run quickly;
-4. one documented `xs_calc`/`xs_eval` integration with a common local-AI runtime after the vNext plan path exists;
-5. one real-target qualification record with measured binary size, resident/scratch memory, and latency, plus energy where measurable;
-6. an update/rollback integration note showing how an existing product could add/remove the component safely;
-7. where practical, a small-model + ExactScope versus larger-model comparison with resource cost reported separately.
+## 10. Commercial KPIs
 
-Until then, commercialization and hardware-life-extension language remain product hypotheses rather than proven customer savings claims.
+The first commercial evidence should report more than accuracy.
+
+Required product-level measurements include:
+
+- successful-answer uplift;
+- wrong-number reduction;
+- tool penalty rate;
+- structurally valid and accepted call rate on weak models;
+- added binary/RAM/scratch;
+- added prompt/completion tokens;
+- added end-to-end latency;
+- energy where measurable;
+- capability density;
+- Capability Recovery Ratio against a larger model where meaningful;
+- engineering/update/qualification constraints.
+
+A domain with 200 operations and no measured small-model uplift is commercially weaker than an 8-operation slice that closes a valuable capability gap at negligible cost.
+
+## 11. Commercial proof gate
+
+Before presenting ExactScope as a credible OEM capability-retrofit product, publish at least:
+
+1. one reproducible capability-slice benchmark across multiple constrained model classes;
+2. one flagship domain slice, recommended first target: Statistics;
+3. incorrect-numeric-answer reduction and tool-penalty measurements;
+4. model-difficulty measurements showing that weak models can actually use the interface;
+5. a prebuilt tiny artifact a non-Rust integrator can run quickly;
+6. one documented `xs_calc` + semantic-slice integration with a common local-AI runtime;
+7. one real-target qualification record with binary, resident/scratch memory, latency, and energy where measurable;
+8. an update/rollback integration note;
+9. a small-model + ExactScope versus larger-model comparison where fair;
+10. capability-density and CRR reporting with raw underlying values.
+
+Until then, hardware-life extension, larger-model substitution, and customer-cost-saving language remain hypotheses rather than proven commercial claims.

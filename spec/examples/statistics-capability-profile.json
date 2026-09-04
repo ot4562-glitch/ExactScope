@@ -1,0 +1,75 @@
+{
+  "$schema": "../schemas/capability-profile.schema.json",
+  "format": "exactscope.capability.profile",
+  "format_version": "0.1-draft",
+  "profile_id": "statistics-core-8-ai",
+  "profile_revision": 1,
+  "support": "experimental",
+  "domain": "statistics",
+  "task_families": [
+    "descriptive-aggregation",
+    "weighted-mean",
+    "variance-standard-deviation-method-selection",
+    "pearson-correlation"
+  ],
+  "runtime_surface": {
+    "xs_calc": {
+      "enabled": true,
+      "plan_revision": "plan-v0.1"
+    },
+    "xs_eval": {
+      "operations": [
+        "stats.sum",
+        "stats.mean",
+        "stats.mean.weighted",
+        "stats.var.pop",
+        "stats.var.sample",
+        "stats.sd.pop",
+        "stats.sd.sample",
+        "stats.corr.pearson"
+      ]
+    },
+    "xs_find": {
+      "enabled": false
+    },
+    "model_visible_tools_max": 2,
+    "normal_model_turns_max": 1
+  },
+  "model_budget": {
+    "semantic_operation_count": 8,
+    "prompt_fragment_bytes_max": 1024,
+    "schema_bytes_max": 4096,
+    "grammar_bytes_max": 4096,
+    "generated_request_tokens_max": 256,
+    "request_bytes_max": 512,
+    "plan_steps_max": 8,
+    "normal_model_turns_max": 1
+  },
+  "device_budget": {
+    "target_profile": "no-import-wasm",
+    "artifact_bytes_max": 131072,
+    "resident_bytes_max": null,
+    "scratch_bytes_max": null,
+    "imports_max": 0
+  },
+  "bindings": {
+    "core_revision": null,
+    "abi_revision": null,
+    "registry_sha256": null,
+    "hotset_sha256": null,
+    "tool_schema_sha256": null,
+    "grammar_sha256": null,
+    "prompt_sha256": null,
+    "artifact_sha256": null,
+    "profile_generator": null
+  },
+  "evidence": {
+    "conformance_suite": null,
+    "conformance_sha256": null,
+    "benchmark_mapping": null,
+    "benchmark_mapping_sha256": null,
+    "qualification_records": [],
+    "model_result_bundles": []
+  },
+  "notes": "Design example only. Null evidence/binding values must be replaced by released artifact identities before any benchmarked or target-qualified claim."
+}

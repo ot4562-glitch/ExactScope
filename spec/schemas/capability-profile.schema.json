@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.org/spec/schemas/capability-profile.schema.json",
+  "title": "ExactScope Capability Profile v0.1 draft",
+  "description": "Design-draft build/deployment identity for one ExactScope AI capability slice. This is not yet a stable runtime ABI or release-format promise.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "format_version",
+    "profile_id",
+    "profile_revision",
+    "support",
+    "domain",
+    "task_families",
+    "runtime_surface",
+    "model_budget",
+    "device_budget",
+    "bindings",
+    "evidence"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "format": {
+      "const": "exactscope.capability.profile"
+    },
+    "format_version": {
+      "const": "0.1-draft"
+    },
+    "profile_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 96,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "profile_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4294967295
+    },
+    "support": {
+      "type": "string",
+      "enum": ["experimental", "benchmarked", "target-qualified", "lts"]
+    },
+    "domain": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "task_families": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 96,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+      }
+    },
+    "runtime_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["xs_calc", "xs_eval", "xs_find", "model_visible_tools_max", "normal_model_turns_max"],
+      "properties": {
+        "xs_calc": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled"],
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "plan_revision": {
+              "type": ["string", "null"],
+              "maxLength": 64
+            }
+          },
+          "allOf": [
+            {
+              "if": {"properties": {"enabled": {"const": true}}, "required": ["enabled"]},
+              "then": {"required": ["plan_revision"], "properties": {"plan_revision": {"type": "string", "minLength": 1}}}
+            }
+          ]
+        },
+        "xs_eval": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operations"],
+          "properties": {
+            "operations": {
+              "type": "array",
+              "maxItems": 32,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              }
+            }
+          }
+        },
+        "xs_find": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled"],
+          "properties": {
+            "enabled": {"type": "boolean", "default": false}
+          }
+        },
+        "model_visible_tools_max": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        "normal_model_turns_max": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        }
+      }
+    },
+    "model_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "semantic_operation_count",
+        "prompt_fragment_bytes_max",
+        "schema_bytes_max",
+        "grammar_bytes_max",
+        "generated_request_tokens_max",
+        "request_bytes_max",
+        "plan_steps_max",
+        "normal_model_turns_max"
+      ],
+      "properties": {
+        "semantic_operation_count": {"type": "integer", "minimum": 0, "maximum": 32},
+        "prompt_fragment_bytes_max": {"type": "integer", "minimum": 1, "maximum": 65536},
+        "schema_bytes_max": {"type": "integer", "minimum": 1, "maximum": 262144},
+        "grammar_bytes_max": {"type": "integer", "minimum": 1, "maximum": 262144},
+        "generated_request_tokens_max": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "request_bytes_max": {"type": "integer", "minimum": 1, "maximum": 65536},
+        "plan_steps_max": {"type": "integer", "minimum": 0, "maximum": 8},
+        "normal_model_turns_max": {"type": "integer", "minimum": 1, "maximum": 4},
+        "tokenizer_measurements": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["tokenizer_id", "prompt_tokens"],
+            "properties": {
+              "tokenizer_id": {"type": "string", "minLength": 1, "maxLength": 160},
+              "prompt_tokens": {"type": "integer", "minimum": 0, "maximum": 65536}
+            }
+          }
+        }
+      }
+    },
+    "device_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_profile", "artifact_bytes_max", "resident_bytes_max", "scratch_bytes_max", "imports_max"],
+      "properties": {
+        "target_profile": {
+          "type": "string",
+          "enum": ["native-static", "no-import-wasm", "other-experimental"]
+        },
+        "artifact_bytes_max": {"type": "integer", "minimum": 1},
+        "resident_bytes_max": {"type": ["integer", "null"], "minimum": 0},
+        "scratch_bytes_max": {"type": ["integer", "null"], "minimum": 0},
+        "imports_max": {"type": ["integer", "null"], "minimum": 0}
+      }
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core_revision",
+        "abi_revision",
+        "registry_sha256",
+        "hotset_sha256",
+        "tool_schema_sha256",
+        "grammar_sha256",
+        "prompt_sha256",
+        "artifact_sha256",
+        "profile_generator"
+      ],
+      "properties": {
+        "core_revision": {"type": ["string", "null"], "maxLength": 96},
+        "abi_revision": {"type": ["string", "null"], "maxLength": 96},
+        "registry_sha256": {"$ref": "#/$defs/nullableSha256"},
+        "hotset_sha256": {"$ref": "#/$defs/nullableSha256"},
+        "tool_schema_sha256": {"$ref": "#/$defs/nullableSha256"},
+        "grammar_sha256": {"$ref": "#/$defs/nullableSha256"},
+        "prompt_sha256": {"$ref": "#/$defs/nullableSha256"},
+        "artifact_sha256": {"$ref": "#/$defs/nullableSha256"},
+        "profile_generator": {"type": ["string", "null"], "maxLength": 160}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "conformance_suite",
+        "conformance_sha256",
+        "benchmark_mapping",
+        "benchmark_mapping_sha256",
+        "qualification_records",
+        "model_result_bundles"
+      ],
+      "properties": {
+        "conformance_suite": {"type": ["string", "null"], "maxLength": 160},
+        "conformance_sha256": {"$ref": "#/$defs/nullableSha256"},
+        "benchmark_mapping": {"type": ["string", "null"], "maxLength": 160},
+        "benchmark_mapping_sha256": {"$ref": "#/$defs/nullableSha256"},
+        "qualification_records": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 256}
+        },
+        "model_result_bundles": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 256}
+        }
+      }
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 4096
+    }
+  },
+  "$defs": {
+    "nullableSha256": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      ]
+    }
+  }
+}

@@ -1,264 +1,317 @@
 # ExactScope roadmap
 
-No dates are promised. This roadmap is ordered by **retrofit leverage and evidence**, not by raw operation count or internal subsystem completeness.
+No dates are promised. This roadmap is ordered by **capability density, weak-model usability, and retrofit evidence**, not by raw operation count or subsystem breadth.
 
-ExactScope should prove one product proposition first:
+ExactScope must prove one product proposition:
 
-> **Can a tiny deterministic software addition materially strengthen an existing 0.5B-3B on-device model without requiring a model-size or hardware upgrade?**
+> **Can a tiny AI-facing capability component let an already-deployed 0.5B-3B on-device model recover enough narrow-domain ability that keeping the current model and hardware becomes the better engineering choice?**
 
-The detailed strategy is defined in [`docs/RETROFIT_PRODUCT_STRATEGY.md`](docs/RETROFIT_PRODUCT_STRATEGY.md).
+The detailed product architecture is defined in [`docs/CAPABILITY_PRODUCT_ARCHITECTURE.md`](docs/CAPABILITY_PRODUCT_ARCHITECTURE.md). The broader retrofit thesis remains in [`docs/RETROFIT_PRODUCT_STRATEGY.md`](docs/RETROFIT_PRODUCT_STRATEGY.md).
 
 ## Current baseline
 
-Implemented today:
+Implemented today includes:
 
 - deterministic `no_std` numeric kernel;
-- checked decimal/rational arithmetic, deterministic sqrt, explicit round;
+- checked decimal/rational arithmetic, deterministic square root, and explicit rounding;
 - bounded non-Turing-complete scalar VM;
-- executable economics operations;
-- bounded statistics kernels;
-- stable C ABI and zero-copy native vectors;
-- current formula/kernel `.xsp` compile/load path;
+- bounded `xs_calc` plan-v0.1 execution with 1-8 steps over `add/sub/mul/div/powi/sqrt`;
+- Tiny JSON `xs_calc` parsing with a 512-byte request bound;
+- generated/checked-in `xs_calc` JSON Schema, GBNF, tool definition, and compact prompt guidance;
+- native typed C ABI structures for the bounded plan path;
+- executable economics operations and bounded statistics kernels;
+- semantic `xs_eval` hot sets plus optional cold/development `xs_find`;
 - no-import Wasm;
 - Tiny JSON and TinyWire;
-- generated semantic hot sets and GBNF/OpenAI-compatible assets;
 - llama.cpp reference integration;
-- four-arm semantic benchmark harness;
+- generated digest-bound hot-set assets;
+- benchmark and conformance infrastructure;
+- pinned-source `public_xs_calc_oracle.py` evidence for FinQA test (1,058 runtime-accepted / 275 exact explicit-answer matches) and TAT-QA dev (717 / 443), explicitly classified as compatibility/deterministic-ceiling evidence rather than model accuracy;
+- recorded five-case three-model llama.cpp `xs_calc` integration smoke;
+- public `v1.0.0-rc.1` prerelease artifacts for Windows x86-64, Linux x86-64, and Linux ARM64/wearable evaluation;
 - wearable reference integration and A/B update reference;
 - experimental Android/Linux ARM64 SDK packaging;
-- relocatable CMake package;
-- SDK doctor and CI around implemented paths.
+- relocatable CMake package and SDK doctor.
 
-Current development measurements have also demonstrated that the primary artifacts can remain in a very small size class. Those observations are development evidence, not stable release guarantees.
+The engine and first weak-model arithmetic surface therefore exist. The next blocker is no longer "build a calculator path." The next blocker is proving that **small, domain-focused capability slices create enough measured model improvement per byte/token/millisecond to justify adoption.**
 
-The engine is therefore not the main blocker. The next blocker is proving the **retrofit mechanism** on public workloads.
+# P0 - prove the capability-unit product
 
-# P0 — prove the retrofit mechanism
+## P0.1 Freeze the first small-model arithmetic surface
 
-## P0.1 Freeze the vNext plan contract
+- [x] implement bounded `xs_calc` plan-v0.1;
+- [x] cap the plan at 8 arithmetic steps;
+- [x] restrict operations to `add`, `sub`, `mul`, `div`, `powi`, `sqrt`;
+- [x] use exact decimal-string leaves and backward-only previous-result references;
+- [x] forbid loops, arbitrary branches, variables, arbitrary functions, arbitrary expression text, and arbitrary code;
+- [x] provide deterministic failures with no plausible numeric value on error;
+- [x] reuse the shared exact numeric core rather than creating a second arithmetic implementation;
+- [x] provide schema/GBNF/tool/prompt assets for constrained generation;
+- [ ] freeze the public plan contract only after benchmark and integration evidence supports a stable promise.
 
-Design only until implementation begins:
+Success criterion: even a weak model can be given one small arithmetic interface that is completely bounded and mechanically constrained.
 
-- [ ] freeze `PLAN_V0_1`;
-- [ ] define one planned model-facing `xs_calc` request;
-- [ ] cap the first plan at 8 arithmetic steps;
-- [ ] initial operations: `add`, `sub`, `mul`, `div`, `powi`, `sqrt`;
-- [ ] allow exact decimal-string leaves and backward-only previous-result references;
-- [ ] forbid loops, arbitrary branches, variables, arbitrary functions, arbitrary expression text, and arbitrary code;
-- [ ] define stable errors for invalid reference, arity, resource limit, domain, divide-by-zero, overflow, and precision failures;
-- [ ] specify canonical lowering to the existing bounded VM/numeric kernel;
-- [ ] require that the plan path introduces no second arithmetic semantics.
+## P0.2 Define the capability-slice profile
 
-Success criterion: the target model surface is small enough to explain completely and validate mechanically.
+Create a machine-readable profile that describes a deployed ExactScope capability slice rather than only a list of operations.
 
-## P0.2 Implement the bounded plan using the existing core
+The design-draft profile/schema now records:
 
-**Not started in this design-only revision.**
+- [x] profile ID/revision;
+- [x] target domain and task families;
+- [x] selected semantic operations;
+- [x] whether `xs_calc` is enabled and its plan revision;
+- [x] model-visible tool/operation budgets;
+- [x] prompt/schema/grammar identity slots and digests;
+- [x] binary/RAM/scratch budget fields;
+- [x] normal hot-path model-turn budget;
+- [x] runtime/profile binding fields;
+- [x] conformance/golden evidence identity fields;
+- [x] benchmark mapping/result identity fields;
+- [ ] implement deterministic validation/generation from repository source metadata;
+- [ ] replace experimental null bindings/evidence with released immutable identities before a benchmarked claim;
+- [ ] freeze the format only after real benchmark/integration evidence.
 
-Future implementation sequence:
+Success criterion: a capability slice can be reproduced, benchmarked, qualified, and updated as one immutable product unit.
 
-- [ ] add bounded plan representation/validator;
-- [ ] lower each accepted plan to shared VM/kernel semantics;
-- [ ] expose native and no-import Wasm plan evaluation without duplicating calculation logic;
-- [ ] add Tiny JSON or equivalent bounded model-facing plan decoding;
-- [ ] add malformed/reference/resource/domain conformance tests;
-- [ ] prove no heap/network/filesystem/daemon/runtime dependency is introduced into the minimum profile.
+## P0.3 Add the model-difficulty budget
 
-Success criterion: `xs_calc` is a thin bounded front end to the existing deterministic engine, not a new language runtime.
+A slice is not tiny enough merely because its binary is small. It must also be easy for the target model to call.
 
-## P0.3 Generate tiny-model constrained assets
+The draft profile defines fields/ceilings for the static parts; benchmark tooling must measure and publish the dynamic parts:
 
-- [ ] one conservative JSON Schema for `xs_calc`;
-- [ ] one generated/checked-in GBNF for the same plan contract;
-- [ ] whitespace/output-token termination tests;
-- [ ] llama.cpp reference example;
-- [ ] raw JSON and OpenAI-compatible envelope fixtures;
-- [ ] immutable schema/grammar digests in benchmark metadata;
-- [ ] preserve existing semantic `xs_eval` hot-set assets;
-- [ ] keep `xs_find` as optional cold/development discovery.
+- [x] model-visible tool-count budget field;
+- [x] visible semantic-operation-count budget field;
+- [x] prompt/schema/grammar byte budget fields;
+- [x] maximum generated-request-token field;
+- [x] normal inference-turn budget field;
+- [ ] tokenizer-specific prompt token counts;
+- [ ] actual structurally valid-call rate;
+- [ ] actual core-accepted-call rate;
+- [ ] correct plan/operation selection rate;
+- [ ] argument extraction rate;
+- [ ] result/failure-fidelity rate.
 
-Success criterion: a small model normally chooses between **one arithmetic-plan tool** and a small set of reviewed semantic operations, not a catalog of hundreds of tools.
+Success criterion: widening a domain catalog cannot silently make the product unusable for the 0.5B-1B class.
 
-## P0.4 Gold-validated public benchmark mapping
+## P0.4 Build the first flagship Statistics capability slice
 
-Priority:
+Statistics is the first recommended domain proof because reviewed method identity matters and the core already contains relevant bounded kernels.
 
-1. FinQA;
-2. TAT-QA arithmetic;
-3. additional reproducibly mappable numerical reasoning sets;
-4. MathQA only after annotation/mapping reliability is explicitly validated.
+The first slice is task-family-driven, not catalog-driven. The design draft in [`docs/STATISTICS_CAPABILITY_SLICE.md`](docs/STATISTICS_CAPABILITY_SLICE.md) selects:
 
-For each public dataset:
+- [x] descriptive aggregation (`sum`, arithmetic mean);
+- [x] weighted mean;
+- [x] sample/population variance and standard deviation;
+- [x] Pearson correlation;
+- [x] explicit ambiguity/failure preservation where method assumptions are missing.
 
-- [ ] pin exact source/revision;
-- [ ] derive ExactScope compatibility from gold program/derivation/metadata only;
-- [ ] convert to a bounded plan without consulting model outputs;
-- [ ] execute every candidate plan through ExactScope;
-- [ ] admit an item only when execution matches the dataset gold result;
-- [ ] publish full-split coverage percentage;
-- [ ] keep full model-only score separate from `ExactScope-compatible subset` score;
-- [ ] preserve unsupported items rather than silently dropping them from official-dataset reporting.
+For the first slice:
 
-Success criterion: the deterministic ceiling is trustworthy before a model is allowed into the experiment.
+- [x] select the existing `statistics-core-8` semantic operation set;
+- [x] keep the normal model-facing surface to `xs_calc` + one compact `xs_eval` tool, with `xs_find` disabled;
+- [x] define draft model/device budgets in the capability profile;
+- [ ] freeze exact operation/profile bindings and provenance digests;
+- [ ] implement the checked-in 240-case target corpus/gold generator or revise the target with documented coverage evidence;
+- [ ] add/verify golden, negative, and boundary vectors for the benchmark corpus;
+- [ ] create a reproducible benchmark mapping/result bundle;
+- [ ] measure marginal artifact, prompt, and runtime cost versus `xs_calc` alone.
 
-## P0.5 Retrofit benchmark
+Success criterion: the slice is demonstrably a **Statistics capability upgrade**, not merely a collection of statistics functions.
 
-Primary model classes:
+## P0.5 Run the five-arm capability benchmark
+
+Primary small-model classes:
 
 - [ ] approximately 0.5B-0.8B;
 - [ ] approximately 1B;
 - [ ] approximately 1.5B-2B;
 - [ ] approximately 3B;
-- [ ] stress models below the main range where useful;
-- [ ] optional larger-model reference arm.
+- [ ] optional stress models below the main range;
+- [ ] at least one larger-model reference where fair and feasible.
 
-Required generic arithmetic arms after `xs_calc` exists:
+For the flagship domain proof compare:
 
-- [ ] A: model only;
-- [ ] B: model -> unconstrained `xs_calc` -> ExactScope;
-- [ ] C: model -> constrained `xs_calc` -> ExactScope;
-- [ ] D: gold plan -> ExactScope deterministic ceiling;
-- [ ] E: optional larger-model reference with separately reported deployment cost.
+- [ ] A: small model only;
+- [ ] B: small model + `xs_calc` only;
+- [ ] C: small model + Statistics semantic slice;
+- [ ] D: small model + `xs_calc` + Statistics semantic slice;
+- [ ] E: larger-model reference with its deployment cost reported separately.
 
-Required metrics:
+Required quality metrics:
 
-- [ ] final accuracy;
+- [ ] correct usable answer rate;
 - [ ] incorrect numeric answer rate;
 - [ ] tool penalty rate;
 - [ ] recognition;
-- [ ] extraction;
-- [ ] plan syntax/semantic validity;
+- [ ] plan/operation selection;
+- [ ] argument extraction;
+- [ ] syntax/semantic validity;
 - [ ] core acceptance/rejection;
-- [ ] result/failure fidelity;
-- [ ] turns/tokens;
+- [ ] result/failure fidelity.
+
+Required cost metrics:
+
+- [ ] binary bytes;
+- [ ] resident RAM;
+- [ ] scratch/context bytes;
+- [ ] prompt/completion tokens;
+- [ ] model turns;
 - [ ] model latency and ExactScope latency separately;
-- [ ] binary/resident/scratch memory;
 - [ ] energy where measurable.
 
-Internal go/no-go target for the first public slice:
+Success criterion: show whether the semantic slice adds measurable capability beyond generic exact arithmetic.
 
-- material supported-subset improvement on multiple constrained models, with +10 percentage points as a useful initial threshold unless another effect size is better justified;
-- at least 30% relative reduction in incorrect numeric answers;
-- acceptable tool-penalty and rejection rates;
-- no semantic repair;
-- tiny footprint retained.
+## P0.6 Report capability density and Capability Recovery Ratio
 
-These are product design gates, not current public claims.
+Do not hide the product result in one aggregate accuracy number.
 
-## P0.6 Footprint gate
+For each benchmarked slice report:
 
-- [ ] record Wasm/native size before and after bounded-plan support;
-- [ ] target primary no-import Wasm near or below 128 KiB when practical;
+- [ ] successful-answer uplift per 100 KiB added artifact;
+- [ ] wrong-number reduction per 100 KiB;
+- [ ] capability uplift per added resident-memory KiB;
+- [ ] capability uplift per added prompt token;
+- [ ] capability uplift per added millisecond;
+- [ ] capability uplift per joule where measured;
+- [ ] raw numerators and denominators beside every density ratio.
+
+When a larger model is a meaningful reference, report:
+
+```text
+CRR = (small + ExactScope - small)
+      ----------------------------
+      (larger model - small)
+```
+
+- [ ] never force CRR when the larger model does not beat the small baseline;
+- [ ] report CRR only for the benchmark/task family measured;
+- [ ] always pair CRR with the added ExactScope resource cost;
+- [ ] never translate a narrow-domain CRR into a claim of general model equivalence.
+
+Success criterion: answer directly how much of the larger-model capability gap is recovered per unit of tiny software cost.
+
+## P0.7 Keep the footprint gate hard
+
+Current product direction targets a primary no-import Wasm artifact near or below 128 KiB when practical.
+
+- [ ] record exact released Wasm/native size for every capability profile;
+- [ ] report marginal size of each capability slice, not only total binary size;
 - [ ] require recorded justification beyond 192 KiB;
 - [ ] require explicit design review beyond 256 KiB;
 - [ ] report resident RAM and scratch separately from binary size;
-- [ ] reject convenience features that materially damage retrofit suitability without measured benefit.
+- [ ] reject convenience features that materially damage capability density without measured benefit.
 
-Success criterion: ExactScope remains much cheaper to add than the model/hardware capability jump it is meant to offset.
+Success criterion: ExactScope remains dramatically cheaper than the model/hardware jump it is intended to offset.
 
-## P0.7 Five-minute OEM/developer proof
+# P1 - prove the retrofit on real constrained hardware
 
-- [x] existing native/CMake and no-import Wasm evaluation shapes exist experimentally;
-- [ ] update quickstart for the bounded-plan path after implementation;
-- [ ] provide prebuilt artifact + manifest + self-test;
-- [ ] show integration without Rust/Python/Node/Java as target dependencies;
-- [ ] provide one before/after small-model demonstration;
-- [ ] provide exact artifact/schema/grammar/model/dataset digests.
+## P1.1 Real target qualification
 
-Success criterion: an evaluator can reproduce the retrofit effect without learning the internal Rust workspace.
-
-# P1 — prove the hardware-retrofit proposition on a real target
-
-## P1.1 Real constrained device
-
-- [ ] choose one representative smartphone/embedded/edge target;
+- [ ] choose at least one representative constrained phone/wearable/embedded target;
 - [ ] run the same small model with and without ExactScope;
+- [ ] run the flagship capability slice on the actual target;
 - [ ] measure binary, resident RAM, scratch, latency distribution, and energy where possible;
 - [ ] test malformed input and fail-closed behavior;
-- [ ] document installation/update/rollback constraints;
-- [ ] keep desktop measurements labeled `desktop_validation`.
+- [ ] document integration/update/rollback constraints;
+- [ ] keep desktop measurements labeled as desktop validation.
 
-Success criterion: at least one real device demonstrates that the integration cost is small enough for the retrofit thesis.
+Success criterion: the measured target cost remains small enough for the capability-retrofit thesis.
 
-## P1.2 Larger-model substitution comparison
+## P1.2 Larger-model / newer-device substitution comparison
 
-Where benchmark hardware permits:
+Where fair and feasible:
 
-- [ ] compare small model;
-- [ ] compare small model + ExactScope;
-- [ ] compare a larger model representing an upgrade path;
-- [ ] record model file/VRAM/RAM/load/latency/token cost separately from ExactScope cost;
-- [ ] avoid claiming device deployability for a larger model that does not fit the target.
+- [ ] compare the existing small model;
+- [ ] compare the existing small model + ExactScope capability slice;
+- [ ] compare a larger model representing the upgrade path;
+- [ ] record model storage/RAM/load/latency/token/energy cost separately;
+- [ ] state clearly when the larger model cannot fit the original target hardware.
 
-Success criterion: quantify how much capability ExactScope recovers per byte/millisecond/joule of added software cost.
+Success criterion: quantify the engineering trade between a tiny software capability update and a model/hardware generation jump.
 
-# P2 — harden the retrofit product
+# P2 - productize the capability compiler and qualification system
 
-## P2.1 Primary release profiles
+## P2.1 Capability compiler
+
+Build-time tooling should turn a broad reviewed domain source into a minimal deployed slice.
+
+- [ ] input device/model/runtime budget;
+- [ ] input required task families;
+- [ ] select/fuse the required semantic operations;
+- [ ] emit `xs_calc`/`xs_eval` model-facing assets;
+- [ ] emit schema/GBNF/prompt fragments;
+- [ ] emit immutable manifest/digests;
+- [ ] emit conformance vectors and benchmark mapping;
+- [ ] emit model-difficulty and footprint metadata.
+
+The first compiler should be deterministic and configuration-driven. Automatic ML-based profile optimization is optional future work.
+
+## P2.2 Stable primary deployment profiles
 
 - [ ] stable native static C ABI package;
 - [ ] stable no-import Wasm package;
 - [ ] immutable manifests/checksums;
 - [ ] exact release-artifact conformance;
 - [ ] target self-test;
-- [ ] stable bounded-plan schema/ABI after evidence supports freezing it.
+- [ ] update/rollback-compatible artifact identity;
+- [ ] stable schema/ABI only after evidence supports freezing it.
 
-## P2.2 OEM integration and update safety
+## P2.3 Integration and qualification moat
 
-- [ ] minimal integration guide for existing local-model stacks;
-- [ ] documented schema/grammar version negotiation;
-- [ ] deterministic rollback-compatible artifact identity;
-- [ ] offline/no-account/no-daemon guarantee for the primary profile;
-- [ ] compatibility records for selected target toolchains/architectures;
+- [ ] maintained weak-model reference integrations;
+- [ ] deterministic schema/grammar version negotiation;
 - [ ] malformed-input/security review;
-- [ ] supply-chain/reproducibility evidence.
+- [ ] supply-chain/reproducibility evidence;
+- [ ] compatibility records for selected toolchains/architectures;
+- [ ] model-by-model benchmark records;
+- [ ] LTS operation-revision policy.
 
-## P2.3 Convenience packages only after evidence
+This work is part of the build-vs-buy value: a vendor adopting ExactScope should avoid recreating and maintaining this whole stack internally.
 
-- [ ] Android AAR/Prefab when a validated consumer path exists;
-- [ ] Windows/Linux/macOS packages as demand requires;
-- [ ] iOS/XCFramework only when a real host path justifies it;
-- [ ] no wrapper may duplicate calculation semantics.
+# P3 - expand domain capability sources only after proof
 
-# P3 — domain series after core proof
+ExactScope domains are one shared runtime plus reviewed source catalogs from which small deployment slices are compiled. They are not separate human calculators.
 
-ExactScope series are **one runtime plus reviewed capability packs**, not separate calculators.
+Recommended order after the first Statistics proof:
 
-Proposed evidence-driven order:
-
-1. Math;
-2. Statistics;
-3. Economics;
-4. Finance;
+1. Statistics;
+2. Economics;
+3. Finance;
+4. Math/task-specific quantitative helpers not already covered by `xs_calc`;
 5. Physics;
-6. Chemistry;
-7. Engineering;
-8. later OEM/domain-specific packs.
+6. Engineering;
+7. Chemistry;
+8. later OEM/domain-specific sources where real product pull exists.
 
-For every series:
+For every domain:
 
-- [ ] reuse the same core/ABI;
+- [ ] reuse the same deterministic core/ABI;
 - [ ] define explicit semantic/unit/method contracts;
 - [ ] provide provenance and revision history;
 - [ ] provide golden/negative/boundary vectors;
-- [ ] map at least one public or reproducible benchmark where possible;
-- [ ] publish compatibility/qualification evidence appropriate to the domain;
-- [ ] do not put every domain operation into every tiny-model prompt.
+- [ ] define capability units/task families before maximizing operation count;
+- [ ] compile small model-facing slices rather than exposing the full source catalog;
+- [ ] benchmark weak-model usability and marginal footprint;
+- [ ] publish compatibility/qualification evidence appropriate to the domain.
 
-Domain breadth must not delay or weaken the core retrofit proof.
+Domain breadth must not weaken the tiny model surface or delay measured product proof.
 
 # Commercial/product work
 
-- [x] keep the OSS core as the adoption wedge;
-- [ ] document ExactScope explicitly as an **AI capability retrofit** rather than a calculator product;
-- [ ] publish the small-model + ExactScope vs larger-model cost/quality comparison after evidence exists;
-- [ ] create an OEM one-page integration/value brief after the benchmark is reproducible;
-- [ ] publish at least one real-target case study before claiming useful hardware-life extension;
-- [ ] develop verified packs/LTS/OEM qualification/custom-pack offerings only after technical pull exists.
+- [x] define ExactScope as an AI capability retrofit rather than a calculator product;
+- [x] define the runtime consumer as the AI, with the developer/OEM engineer as integrator;
+- [x] define capability slice, model-difficulty budget, capability density, and CRR as product concepts;
+- [ ] publish the first reproducible Statistics capability-slice benchmark;
+- [ ] publish small-model + ExactScope versus larger-model cost/quality evidence;
+- [ ] create an OEM/developer integration brief based on measured evidence;
+- [ ] publish at least one real-target qualification case study before claiming useful hardware-life extension;
+- [ ] build verified domain source/LTS/qualification/custom-profile offerings only after technical pull exists.
 
 # Explicit non-goals
 
-- human calculator UI as the core product;
+- human calculator UI or user-facing calculation product;
+- end-user formula selection or formula browsing;
 - general chatbot;
 - general Python/scientific runtime;
 - arbitrary model-generated code execution;
@@ -266,24 +319,27 @@ Domain breadth must not delay or weaken the core retrofit proof.
 - mandatory cloud/account/telemetry;
 - ExactScope-owned daemon;
 - hidden semantic repair;
+- forcing a full academic catalog into a weak-model prompt;
 - solving recognition/world-knowledge/perception limitations by pretending they are arithmetic failures;
 - universal platform parity before product proof;
-- catalog breadth for its own sake;
-- claiming that ExactScope can replace every hardware or model upgrade.
+- raw catalog breadth for its own sake;
+- claiming that ExactScope replaces every hardware or model upgrade.
 
-# v0.1 product gate
+# Stable product gate
 
-ExactScope should not be called a stable v0.1 product until all of the following are true:
+ExactScope should not be called a stable capability-retrofit product until all of the following are true:
 
-1. the bounded `xs_calc` contract is frozen and implemented through shared core semantics;
-2. constrained schema/GBNF assets are reproducible and digest-bound;
-3. public compatible-subset generation is gold-derived and deterministic-ceiling validated;
-4. multiple 0.5B-3B models have reproducible model-only vs ExactScope results;
-5. wrong-number reduction, tool penalty, rejection, turns/tokens/latency, and resource cost are reported;
-6. semantic `xs_eval` remains available for reviewed method-specific operations without semantic forks;
-7. stable native static and/or no-import Wasm evaluation artifacts require no Rust toolchain for adopters;
-8. release artifacts pass ABI/wire/golden/malformed-input conformance;
-9. at least one real constrained target has measured binary/RAM/latency evidence and energy where measurable;
-10. product claims remain narrower than the evidence.
+1. bounded `xs_calc` semantics and model-facing assets have reproducible release evidence;
+2. at least one machine-readable capability-slice profile is frozen and reproducible;
+3. at least one Statistics capability slice has a reviewed task-family benchmark;
+4. multiple 0.5B-3B models have reproducible model-only versus ExactScope results;
+5. wrong-number reduction, tool penalty, rejection, turns/tokens/latency, model-difficulty, and resource cost are reported;
+6. capability-density measurements are published with raw values;
+7. a larger-model reference and CRR are published where meaningful;
+8. stable native static and/or no-import Wasm artifacts require no target-side language runtime or service;
+9. release artifacts pass ABI/wire/golden/malformed-input conformance;
+10. at least one real constrained target has measured binary/RAM/latency evidence and energy where measurable;
+11. update/rollback behavior is documented;
+12. product claims remain narrower than the evidence.
 
-Full academic catalog completion, dynamic discovery maturity, every domain series, and universal platform Tier 1 parity are **not** prerequisites for the first focused product proof.
+Full academic catalog completion, every domain series, automatic profile optimization, and universal platform Tier 1 parity are **not** prerequisites for the first focused product proof.

@@ -1,6 +1,8 @@
 # Implementation plan
 
-This plan is ordered by product proof and adoption leverage. Core correctness invariants stay strict, but v0.1 implementation is no longer organized around making every internal profile equally mature before anyone can evaluate the product.
+> **Historical productization plan.** This file records the hot-set/direct-`xs_eval` implementation sequence that established the current adapter, benchmark, and packaging foundation. Several phases below are already implemented and the bounded `xs_calc` lane now exists. Do not use the old 8-32-operation or `xs_eval`-only sequencing as the current product plan. Current work is defined by [`../ROADMAP.md`](../ROADMAP.md) and [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md): capability profiles, weak-model difficulty budgets, a flagship Statistics slice, capability-density/CRR evidence, and capability-compiler/qualification work.
+
+This plan was ordered by product proof and adoption leverage. Core correctness invariants stay strict, but v0.1 implementation was no longer organized around making every internal profile equally mature before anyone could evaluate the product.
 
 ## 0. Non-negotiable repository rules
 

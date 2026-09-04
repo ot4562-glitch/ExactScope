@@ -1,6 +1,6 @@
 # ExactScope 5-minute quickstart
 
-ExactScope is a tiny deterministic quantitative coprocessor for small and on-device AI. This `v1.0.0-rc.1` path lets a developer evaluate bounded generic arithmetic without first understanding the Rust implementation.
+ExactScope is a tiny deterministic quantitative coprocessor for small and on-device AI. This `v1.0.0-rc.1` path lets a developer evaluate bounded generic arithmetic without first understanding the Rust implementation. ExactScope is embedded by the AI/product team; it is not an end-user calculator or standalone consumer application.
 
 ## Fastest source evaluation
 
@@ -65,7 +65,7 @@ For a reproducible local matrix, `examples/llama.cpp/benchmark_xs_calc.py` repor
 
 ## Semantic operations
 
-Use `xs_eval` when the quantitative method itself matters, such as a reviewed economics or statistics operation:
+Use `xs_eval` when the quantitative method itself matters, such as a reviewed economics or statistics operation. A production integration should bind only the smallest semantic capability slice needed by its target task families rather than exposing the full domain catalog:
 
 ```json
 {"op":"econ.inflation.cpi_pct","a":["100","103.2"]}
@@ -77,4 +77,4 @@ The host should bind/cache reviewed operation identity and call `xs_eval` direct
 
 Adapters may normalize transport syntax, field order, and whitespace. They must not guess missing operands, units, percentages, currencies, rounding contracts, or methods. Failures contain a typed status and never a fabricated numeric `v`.
 
-Before adoption, measure final correctness, wrong numeric rate, rejected plans, tokens, end-to-end latency, ExactScope compute latency, resident/scratch memory, binary size, and energy on your actual device. See [BENCHMARK.md](BENCHMARK.md) and use the integration feedback issue template to report results.
+Before adoption, measure final correctness, wrong numeric rate, rejected plans, model-visible tool/operation count, prompt/schema/grammar tokens or bytes, end-to-end latency, ExactScope compute latency, resident/scratch memory, binary size, and energy on your actual device. For domain slices, also report capability density and Capability Recovery Ratio (CRR) against a larger-model reference where that comparison is meaningful. See [BENCHMARK.md](BENCHMARK.md) and use the integration feedback issue template to report results.

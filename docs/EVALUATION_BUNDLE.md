@@ -1,8 +1,8 @@
 # ExactScope prerelease evaluation bundle
 
-The evaluation bundle is the product-proof artifact for developers who want to test ExactScope without installing Rust or building the repository.
+The evaluation bundle is the prerelease integration artifact for developers who want to test ExactScope without installing Rust or building the repository.
 
-It is intentionally release-shaped but still prerelease. Passing these checks proves artifact integrity and deterministic execution for the included slice; it does **not** prove real-device qualification or a model-accuracy improvement.
+It is release-shaped but still prerelease. Passing these checks proves artifact integrity and deterministic execution for the included generic/semantic surfaces; it does **not** by itself prove a benchmarked capability slice, real-device qualification, or a model-accuracy improvement.
 
 ## Contents
 
@@ -115,13 +115,15 @@ python3 benchmarks/run_benchmark.py \
   --output-dir results/<model-id>
 ```
 
-The bundle already contains `quant-core-16` OpenAI-compatible scalar/vector tool schemas, direct per-operation GBNF, the economics/statistics benchmark corpus, and the four comparison arms. A real published claim still requires immutable model revision/quantization/runtime/hardware metadata and the raw generated result files.
+The bundle contains the current `quant-core-16` semantic evaluation assets and benchmark corpus. This is useful implementation evidence, not the final capability-product profile. A real published capability claim requires an immutable capability profile, exact model/tool/schema/grammar/prompt/artifact identities, raw per-item result files, model-difficulty metrics, and the comparison arms defined in `BENCHMARK.md`.
 
 ## 7. What remains before stable release
 
-The prerelease evaluation bundle removes Rust from the evaluation path. Stable product release still requires:
+The prerelease evaluation bundle removes Rust from the evaluation path and `v1.0.0-rc.1` now provides permanent versioned GitHub prerelease assets. Stable capability-product release still requires:
 
-- recorded real-model evidence across the target model classes;
-- broader reviewed benchmark/domain content where justified by evidence;
-- permanent versioned GitHub release assets rather than only CI artifacts;
-- real-device latency/memory/energy and update/rollback qualification for claimed hardware tiers.
+- a frozen/reproducible capability-profile format and generator;
+- a task-family-driven flagship Statistics capability slice;
+- reproducible multi-arm real-model evidence across the target model classes;
+- model-difficulty, capability-density, and CRR reporting with raw values;
+- real-device latency/memory/energy and update/rollback qualification for claimed hardware tiers;
+- long-term compatibility/change-control evidence appropriate to the support label.
