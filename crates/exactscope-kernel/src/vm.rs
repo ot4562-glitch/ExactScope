@@ -112,7 +112,7 @@ pub fn validate_program(
                 let _ = result;
                 push_type(&mut stack, &mut depth, ValueType::Number)?;
             }
-            4 | 5 | 6 | 7 => {
+            4..=7 => {
                 require_zero_operand(*instruction)?;
                 pop_type(&stack, &mut depth, ValueType::Number)?;
                 pop_type(&stack, &mut depth, ValueType::Number)?;
