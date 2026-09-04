@@ -1,0 +1,11 @@
+root ::= ws "{" ws "\"p\"" ws ":" ws "[" ws steps ws "]" ws "}" ws
+steps ::= step | step comma step | step comma step comma step | step comma step comma step comma step | step comma step comma step comma step comma step | step comma step comma step comma step comma step comma step | step comma step comma step comma step comma step comma step comma step | step comma step comma step comma step comma step comma step comma step comma step
+step ::= binary-step | sqrt-step
+binary-step ::= "{" ws "\"o\"" ws ":" ws binary-op ws "," ws "\"a\"" ws ":" ws "[" ws value ws "," ws value ws "]" ws "}"
+sqrt-step ::= "{" ws "\"o\"" ws ":" ws "\"sqrt\"" ws "," ws "\"a\"" ws ":" ws "[" ws value ws "]" ws "}"
+binary-op ::= "\"add\"" | "\"sub\"" | "\"mul\"" | "\"div\"" | "\"powi\""
+value ::= decimal-string | result-ref
+result-ref ::= "\"#0\"" | "\"#1\"" | "\"#2\"" | "\"#3\"" | "\"#4\"" | "\"#5\"" | "\"#6\"" | "\"#7\""
+decimal-string ::= "\"" "-"? ("0" | [1-9] [0-9]*) ("." [0-9]+)? ([eE] [+-]? [0-9]+)? "\""
+comma ::= ws "," ws
+ws ::= "" | [ \t\n\r] | [ \t\n\r] [ \t\n\r] | [ \t\n\r] [ \t\n\r] [ \t\n\r] | [ \t\n\r] [ \t\n\r] [ \t\n\r] [ \t\n\r]

@@ -40,9 +40,11 @@ pub extern "C" fn rust_eh_personality() -> ! {
 }
 
 use exactscope_kernel::{
-    evaluate_operation, evaluate_statistics_operation, Decimal64, DecimalVector, EvaluationResult,
-    ScalarValue, StatisticsOperationDecl, Status, ARGUMENT_INDEX_NONE, MAX_RESULT_VALUES,
-    MAX_STATS_VECTOR_LEN, SEMANTIC_ELASTICITY, SEMANTIC_NUMBER, VALUE_FLAGS_V1,
+    evaluate_operation, evaluate_plan, evaluate_statistics_operation, Decimal64, DecimalVector,
+    EvaluationResult, PlanOperation, PlanStep, PlanValue, ScalarValue, StatisticsOperationDecl,
+    Status, ARGUMENT_INDEX_NONE, MAX_PLAN_ARGUMENTS, MAX_PLAN_STEPS, MAX_RESULT_VALUES,
+    MAX_STATS_VECTOR_LEN, PLAN_STEP_INDEX_NONE, SEMANTIC_ELASTICITY, SEMANTIC_NUMBER,
+    VALUE_FLAGS_V1,
 };
 #[cfg(feature = "dynamic-packs")]
 use exactscope_pack::format::OPERATION_KIND_KERNEL;
@@ -67,6 +69,14 @@ const EVAL_REQUIRE_CLASSIFICATION: u16 = 0x0002;
 const EVAL_KNOWN_FLAGS: u16 = EVAL_INCLUDE_PROVENANCE | EVAL_REQUIRE_CLASSIFICATION;
 const VALUE_SCALAR: u8 = 0;
 const VALUE_VECTOR: u8 = 1;
+const PLAN_VALUE_LITERAL: u8 = 0;
+const PLAN_VALUE_PREVIOUS: u8 = 1;
+const PLAN_OP_ADD: u8 = 0;
+const PLAN_OP_SUB: u8 = 1;
+const PLAN_OP_MUL: u8 = 2;
+const PLAN_OP_DIV: u8 = 3;
+const PLAN_OP_POWI: u8 = 4;
+const PLAN_OP_SQRT: u8 = 5;
 const USE_OPERATION_SCALE: i8 = -128;
 const USE_OPERATION_ROUNDING: u8 = 255;
 #[cfg(feature = "dynamic-packs")]
@@ -177,6 +187,81 @@ pub struct XsValueRefV1 {
     pub value_count: u32,
     /// Reserved zero.
     pub reserved2: u32,
+}
+
+/// One typed operand in the bounded arithmetic-plan C ABI.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct XsPlanValueV1 {
+    /// Caller structure size.
+    pub struct_size: u32,
+    /// Zero for a literal decimal, one for an earlier-step reference.
+    pub value_kind: u8,
+    /// Earlier zero-based step index when `value_kind == 1`; otherwise zero.
+    pub previous_index: u8,
+    /// Reserved zero.
+    pub reserved0: u16,
+    /// Literal decimal when `value_kind == 0`; canonical zero when a reference.
+    pub literal: XsDecimalV1,
+    /// Reserved zero fields.
+    pub reserved: [u32; 2],
+}
+
+/// One typed bounded arithmetic-plan step in the C ABI.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct XsPlanStepV1 {
+    /// Caller structure size.
+    pub struct_size: u32,
+    /// Stable `XS_PLAN_OP_*_V1` operation ID.
+    pub operation: u8,
+    /// Number of populated operands.
+    pub argument_count: u8,
+    /// Reserved zero.
+    pub reserved0: u16,
+    /// Fixed operand storage; only the first `argument_count` entries are read.
+    pub arguments: [XsPlanValueV1; 2],
+    /// Reserved zero fields.
+    pub reserved: [u32; 2],
+}
+
+/// Result of one typed bounded arithmetic-plan C ABI call.
+#[repr(C)]
+pub struct XsPlanResultV1 {
+    /// Caller structure size.
+    pub struct_size: u32,
+    /// Stable core status.
+    pub status: u16,
+    /// Reserved zero.
+    pub reserved0: u16,
+    /// Aggregate stable `XS_VALUE_FLAG_*` bits.
+    pub flags: u32,
+    /// Failing zero-based step, or `0xff` when not step-specific.
+    pub step_index: u8,
+    /// Number of successfully configured plan steps on success; zero on failure.
+    pub step_count: u8,
+    /// Reserved zero.
+    pub reserved1: u16,
+    /// Canonical final decimal on success; zeroed on failure.
+    pub value: XsDecimalV1,
+    /// Reserved zero fields.
+    pub reserved: [u32; 4],
+}
+
+impl XsPlanResultV1 {
+    fn empty(struct_size: u32, status: Status, step_index: u8) -> Self {
+        Self {
+            struct_size,
+            status: status.code(),
+            reserved0: 0,
+            flags: 0,
+            step_index,
+            step_count: 0,
+            reserved1: 0,
+            value: XsDecimalV1::ZERO,
+            reserved: [0; 4],
+        }
+    }
 }
 
 /// C context configuration.
@@ -782,6 +867,153 @@ pub unsafe extern "C" fn xs_find(
         unsafe { target.write(output) };
     }
     Status::OK.code()
+}
+
+/// Executes one typed bounded arithmetic plan through the shared `ExactScope` kernel.
+///
+/// # Safety
+///
+/// `context` must be a valid initialized `ExactScope` context. For nonzero
+/// `step_count`, `steps` must point to that many readable aligned
+/// [`XsPlanStepV1`] records. `out_result` must point to one writable aligned
+/// [`XsPlanResultV1`] whose `struct_size` is initialized by the caller. Input
+/// and output regions must not overlap in a way that violates Rust aliasing.
+#[unsafe(no_mangle)]
+#[allow(clippy::too_many_lines)]
+pub unsafe extern "C" fn xs_calc(
+    context: *mut XsContext,
+    steps: *const XsPlanStepV1,
+    step_count: u16,
+    out_result: *mut XsPlanResultV1,
+) -> u16 {
+    if let Err(status) = unsafe { context_ref(context) } {
+        return status.code();
+    }
+    let result_struct_size = match unsafe { plan_result_output_size(out_result) } {
+        Ok(size) => size,
+        Err(status) => return status.code(),
+    };
+    let step_count = usize::from(step_count);
+    if step_count == 0 {
+        unsafe {
+            out_result.write(XsPlanResultV1::empty(
+                result_struct_size,
+                Status::INVALID_REQUEST,
+                PLAN_STEP_INDEX_NONE,
+            ));
+        }
+        return Status::INVALID_REQUEST.code();
+    }
+    if step_count > MAX_PLAN_STEPS {
+        unsafe {
+            out_result.write(XsPlanResultV1::empty(
+                result_struct_size,
+                Status::RESOURCE_LIMIT,
+                PLAN_STEP_INDEX_NONE,
+            ));
+        }
+        return Status::RESOURCE_LIMIT.code();
+    }
+
+    let raw_steps = match unsafe { typed_slice(steps, step_count) } {
+        Ok(steps) => steps,
+        Err(status) => {
+            unsafe {
+                out_result.write(XsPlanResultV1::empty(
+                    result_struct_size,
+                    status,
+                    PLAN_STEP_INDEX_NONE,
+                ));
+            }
+            return status.code();
+        }
+    };
+    let mut typed_steps = [PlanStep::EMPTY; MAX_PLAN_STEPS];
+    for (step_index, raw_step) in raw_steps.iter().enumerate() {
+        let step_index_u8 = u8::try_from(step_index).unwrap_or(PLAN_STEP_INDEX_NONE);
+        if raw_step.struct_size < size_u32::<XsPlanStepV1>()
+            || raw_step.reserved0 != 0
+            || raw_step.reserved != [0; 2]
+        {
+            unsafe {
+                out_result.write(XsPlanResultV1::empty(
+                    result_struct_size,
+                    Status::INVALID_REQUEST,
+                    step_index_u8,
+                ));
+            }
+            return Status::INVALID_REQUEST.code();
+        }
+        let operation = match plan_operation_from_id(raw_step.operation) {
+            Ok(operation) => operation,
+            Err(status) => {
+                unsafe {
+                    out_result.write(XsPlanResultV1::empty(
+                        result_struct_size,
+                        status,
+                        step_index_u8,
+                    ));
+                }
+                return status.code();
+            }
+        };
+        let argument_count = usize::from(raw_step.argument_count);
+        if argument_count > MAX_PLAN_ARGUMENTS {
+            unsafe {
+                out_result.write(XsPlanResultV1::empty(
+                    result_struct_size,
+                    Status::ARGUMENT_COUNT,
+                    step_index_u8,
+                ));
+            }
+            return Status::ARGUMENT_COUNT.code();
+        }
+        let mut arguments = [PlanValue::ZERO; MAX_PLAN_ARGUMENTS];
+        for (argument_index, raw_value) in raw_step.arguments[..argument_count].iter().enumerate() {
+            arguments[argument_index] = match plan_value_from_raw(raw_value) {
+                Ok(value) => value,
+                Err(status) => {
+                    unsafe {
+                        out_result.write(XsPlanResultV1::empty(
+                            result_struct_size,
+                            status,
+                            step_index_u8,
+                        ));
+                    }
+                    return status.code();
+                }
+            };
+        }
+        typed_steps[step_index] = PlanStep::new(operation, arguments, raw_step.argument_count);
+    }
+
+    match evaluate_plan(&typed_steps[..step_count]) {
+        Ok(result) => {
+            let mut output =
+                XsPlanResultV1::empty(result_struct_size, Status::OK, PLAN_STEP_INDEX_NONE);
+            output.flags = result.flags;
+            output.step_count = result.step_count;
+            output.value = XsDecimalV1 {
+                coefficient: result.value.coefficient(),
+                exponent: result.value.exponent(),
+                semantic_kind: SEMANTIC_NUMBER,
+                unit_id: 0,
+                flags: result.flags,
+            };
+            unsafe { out_result.write(output) };
+            Status::OK.code()
+        }
+        Err(failure) => {
+            unsafe {
+                out_result.write(XsPlanResultV1::empty(
+                    result_struct_size,
+                    failure.status,
+                    failure.step_index,
+                ));
+            }
+            failure.status.code()
+        }
+    }
 }
 
 /// Evaluates one fused scalar-formula or statistics-vector operation.
@@ -1593,6 +1825,51 @@ unsafe fn typed_slice<'a, T>(pointer: *const T, length: usize) -> Result<&'a [T]
     Ok(unsafe { slice::from_raw_parts(pointer, length) })
 }
 
+fn plan_operation_from_id(operation: u8) -> Result<PlanOperation, Status> {
+    match operation {
+        PLAN_OP_ADD => Ok(PlanOperation::Add),
+        PLAN_OP_SUB => Ok(PlanOperation::Sub),
+        PLAN_OP_MUL => Ok(PlanOperation::Mul),
+        PLAN_OP_DIV => Ok(PlanOperation::Div),
+        PLAN_OP_POWI => Ok(PlanOperation::Powi),
+        PLAN_OP_SQRT => Ok(PlanOperation::Sqrt),
+        _ => Err(Status::UNSUPPORTED_OPERATION),
+    }
+}
+
+fn plan_value_from_raw(raw: &XsPlanValueV1) -> Result<PlanValue, Status> {
+    if raw.struct_size < size_u32::<XsPlanValueV1>() || raw.reserved0 != 0 || raw.reserved != [0; 2]
+    {
+        return Err(Status::INVALID_REQUEST);
+    }
+    match raw.value_kind {
+        PLAN_VALUE_LITERAL => {
+            if raw.previous_index != 0
+                || raw.literal.semantic_kind != SEMANTIC_NUMBER
+                || raw.literal.unit_id != 0
+                || raw.literal.flags != 0
+            {
+                return Err(Status::INVALID_REQUEST);
+            }
+            let decimal = Decimal64::from_parts(raw.literal.coefficient, raw.literal.exponent)?;
+            if decimal.coefficient() != raw.literal.coefficient
+                || decimal.exponent() != raw.literal.exponent
+            {
+                return Err(Status::INVALID_DECIMAL);
+            }
+            Ok(PlanValue::Literal(decimal))
+        }
+        PLAN_VALUE_PREVIOUS => {
+            if usize::from(raw.previous_index) >= MAX_PLAN_STEPS || raw.literal != XsDecimalV1::ZERO
+            {
+                return Err(Status::INVALID_REQUEST);
+            }
+            Ok(PlanValue::Previous(raw.previous_index))
+        }
+        _ => Err(Status::ARGUMENT_TYPE),
+    }
+}
+
 unsafe fn scalar_from_ref(argument: &XsValueRefV1) -> Result<ScalarValue, Status> {
     if argument.struct_size < size_u32::<XsValueRefV1>()
         || argument.reserved0 != 0
@@ -1642,6 +1919,17 @@ unsafe fn validate_options(options: *const XsEvalOptionsV1) -> Result<(), Status
         return Err(Status::INVALID_REQUEST);
     }
     Ok(())
+}
+
+unsafe fn plan_result_output_size(output: *mut XsPlanResultV1) -> Result<u32, Status> {
+    if output.is_null() || !output.is_aligned() {
+        return Err(Status::INVALID_REQUEST);
+    }
+    let caller_size = unsafe { ptr::addr_of!((*output).struct_size).read() };
+    if caller_size < size_u32::<XsPlanResultV1>() {
+        return Err(Status::INVALID_REQUEST);
+    }
+    Ok(caller_size)
 }
 
 unsafe fn result_output_size(output: *mut XsResultV1) -> Result<u32, Status> {
@@ -1791,14 +2079,173 @@ mod tests {
         }
     }
 
+    fn plan_literal(text: &[u8]) -> XsPlanValueV1 {
+        XsPlanValueV1 {
+            struct_size: size_u32::<XsPlanValueV1>(),
+            value_kind: PLAN_VALUE_LITERAL,
+            previous_index: 0,
+            reserved0: 0,
+            literal: decimal(text, SEMANTIC_NUMBER),
+            reserved: [0; 2],
+        }
+    }
+
+    fn plan_previous(index: u8) -> XsPlanValueV1 {
+        XsPlanValueV1 {
+            struct_size: size_u32::<XsPlanValueV1>(),
+            value_kind: PLAN_VALUE_PREVIOUS,
+            previous_index: index,
+            reserved0: 0,
+            literal: XsDecimalV1::ZERO,
+            reserved: [0; 2],
+        }
+    }
+
+    fn plan_step(
+        operation: u8,
+        left: XsPlanValueV1,
+        right: XsPlanValueV1,
+        argument_count: u8,
+    ) -> XsPlanStepV1 {
+        XsPlanStepV1 {
+            struct_size: size_u32::<XsPlanStepV1>(),
+            operation,
+            argument_count,
+            reserved0: 0,
+            arguments: [left, right],
+            reserved: [0; 2],
+        }
+    }
+
     #[test]
     fn abi_layout_and_version_are_stable() {
         assert_eq!(size_of::<XsDecimalV1>(), 16);
+        assert_eq!(size_of::<XsPlanValueV1>(), 32);
+        assert_eq!(size_of::<XsPlanStepV1>(), 80);
+        assert_eq!(size_of::<XsPlanResultV1>(), 48);
         assert_eq!(xs_abi_version(), 0x0001_0000);
+        assert_eq!(
+            [
+                PLAN_OP_ADD,
+                PLAN_OP_SUB,
+                PLAN_OP_MUL,
+                PLAN_OP_DIV,
+                PLAN_OP_POWI,
+                PLAN_OP_SQRT
+            ],
+            [0, 1, 2, 3, 4, 5]
+        );
+        assert_eq!([PLAN_VALUE_LITERAL, PLAN_VALUE_PREVIOUS], [0, 1]);
         assert_eq!(
             xs_context_align(),
             u32::try_from(align_of::<XsContext>()).unwrap()
         );
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn calc_executes_typed_plan_and_preserves_fail_closed_status() {
+        let mut memory = MaybeUninit::<XsContext>::uninit();
+        let context = unsafe { initialized_context(&mut memory, 0) };
+        let steps = [
+            plan_step(PLAN_OP_MUL, plan_literal(b"12"), plan_literal(b"7"), 2),
+            plan_step(PLAN_OP_SUB, plan_previous(0), plan_literal(b"4"), 2),
+            plan_step(PLAN_OP_DIV, plan_previous(1), plan_literal(b"5"), 2),
+        ];
+        let mut result =
+            XsPlanResultV1::empty(size_u32::<XsPlanResultV1>(), Status::INTERNAL_ERROR, 0);
+        let status = unsafe {
+            xs_calc(
+                context,
+                steps.as_ptr(),
+                u16::try_from(steps.len()).unwrap(),
+                ptr::from_mut(&mut result),
+            )
+        };
+        assert_eq!(status, Status::OK.code());
+        assert_eq!(result.status, Status::OK.code());
+        assert_eq!(result.step_index, PLAN_STEP_INDEX_NONE);
+        assert_eq!(result.step_count, 3);
+        assert_eq!(result.flags, 0);
+        assert_eq!(result.value.coefficient, 16);
+        assert_eq!(result.value.exponent, 0);
+        assert_eq!(result.value.semantic_kind, SEMANTIC_NUMBER);
+        assert_eq!(result.value.unit_id, 0);
+
+        let failing = [plan_step(
+            PLAN_OP_DIV,
+            plan_literal(b"1"),
+            plan_literal(b"0"),
+            2,
+        )];
+        let status = unsafe { xs_calc(context, failing.as_ptr(), 1, ptr::from_mut(&mut result)) };
+        assert_eq!(status, Status::DIVIDE_BY_ZERO.code());
+        assert_eq!(result.status, Status::DIVIDE_BY_ZERO.code());
+        assert_eq!(result.step_index, 0);
+        assert_eq!(result.step_count, 0);
+        assert_eq!(result.value, XsDecimalV1::ZERO);
+
+        let forward = [plan_step(
+            PLAN_OP_ADD,
+            plan_previous(0),
+            plan_literal(b"1"),
+            2,
+        )];
+        let status = unsafe { xs_calc(context, forward.as_ptr(), 1, ptr::from_mut(&mut result)) };
+        assert_eq!(status, Status::INVALID_REQUEST.code());
+        assert_eq!(result.status, Status::INVALID_REQUEST.code());
+        assert_eq!(result.step_index, 0);
+        assert_eq!(result.value, XsDecimalV1::ZERO);
+
+        let status = unsafe { xs_calc(context, ptr::null(), 0, ptr::from_mut(&mut result)) };
+        assert_eq!(status, Status::INVALID_REQUEST.code());
+        assert_eq!(result.status, Status::INVALID_REQUEST.code());
+        assert_eq!(result.value, XsDecimalV1::ZERO);
+        assert_eq!(result.reserved0, 0);
+        assert_eq!(result.reserved1, 0);
+        assert_eq!(result.reserved, [0; 4]);
+
+        let mut reserved_step = plan_step(PLAN_OP_ADD, plan_literal(b"1"), plan_literal(b"2"), 2);
+        reserved_step.reserved[0] = 1;
+        let status = unsafe {
+            xs_calc(
+                context,
+                ptr::from_ref(&reserved_step),
+                1,
+                ptr::from_mut(&mut result),
+            )
+        };
+        assert_eq!(status, Status::INVALID_REQUEST.code());
+        assert_eq!(result.status, Status::INVALID_REQUEST.code());
+        assert_eq!(result.step_index, 0);
+        assert_eq!(result.value, XsDecimalV1::ZERO);
+
+        let mut reserved_value = plan_literal(b"1");
+        reserved_value.reserved0 = 1;
+        let invalid_value_step = plan_step(PLAN_OP_ADD, reserved_value, plan_literal(b"2"), 2);
+        let status = unsafe {
+            xs_calc(
+                context,
+                ptr::from_ref(&invalid_value_step),
+                1,
+                ptr::from_mut(&mut result),
+            )
+        };
+        assert_eq!(status, Status::INVALID_REQUEST.code());
+        assert_eq!(result.value, XsDecimalV1::ZERO);
+
+        let unknown_operation = plan_step(0xff, plan_literal(b"1"), plan_literal(b"2"), 2);
+        let status = unsafe {
+            xs_calc(
+                context,
+                ptr::from_ref(&unknown_operation),
+                1,
+                ptr::from_mut(&mut result),
+            )
+        };
+        assert_eq!(status, Status::UNSUPPORTED_OPERATION.code());
+        assert_eq!(result.status, Status::UNSUPPORTED_OPERATION.code());
+        assert_eq!(result.value, XsDecimalV1::ZERO);
     }
 
     #[test]

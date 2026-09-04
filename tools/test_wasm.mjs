@@ -202,6 +202,26 @@ if (golden.returned !== 0 || golden.meta.status !== 0 || golden.meta.flags !== 1
   throw new Error(`golden eval failed: ${JSON.stringify(golden)}`);
 }
 
+const boundedPlan = callJson(
+  '{"p":[{"o":"mul","a":["12","7"]},{"o":"sub","a":["#0","4"]},{"o":"div","a":["#1","5"]}]}',
+);
+if (
+  boundedPlan.returned !== 0 ||
+  boundedPlan.meta.status !== 0 ||
+  boundedPlan.response !== '{"s":0,"v":"16","f":0,"p":"plan-v0.1","r":1}'
+) {
+  throw new Error(`Tiny JSON bounded plan failed: ${JSON.stringify(boundedPlan)}`);
+}
+
+const boundedPlanFailure = callJson('{"p":[{"o":"div","a":["1","0"]}]}');
+if (
+  boundedPlanFailure.returned !== 13 ||
+  boundedPlanFailure.meta.status !== 13 ||
+  boundedPlanFailure.response !== '{"s":13,"e":"DIVIDE_BY_ZERO","step":0}'
+) {
+  throw new Error(`Tiny JSON bounded plan failure drift: ${JSON.stringify(boundedPlanFailure)}`);
+}
+
 {
   const reserved = xs.xs_wasm_reserved_end();
   const xOffset = alignUp(reserved, alignment);

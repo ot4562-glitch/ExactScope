@@ -1,0 +1,15 @@
+{
+  "format": "exactscope.xs-calc-contract",
+  "format_version": 1,
+  "plan_id": "plan-v0.1",
+  "plan_revision": 1,
+  "max_steps": 8,
+  "operations": ["add", "sub", "mul", "div", "powi", "sqrt"],
+  "files": {
+    "spec/PLAN_V0_1.md": "fbd3cebe12f606b4f4db5a7d881964be1bb4a9aa1e32c398ef0189b23d8a8877",
+    "spec/schemas/xs-calc-tool.schema.json": "c2089ed1f396852613a4279442d8625a00e1f6ab4a0ab38b5eb35fa5399e0e74",
+    "adapters/xs-calc-v0.1/xs-calc.tool.json": "a29c0d9daa1cc9ca40649753d832cfd9f5528bd33730ba791631225f0c2f4391",
+    "adapters/xs-calc-v0.1/xs-calc.gbnf": "7590c63d6d99642f00024f8719378fb0fc45757c704cb1bc1d251f9219d6d83b",
+    "adapters/xs-calc-v0.1/prompt-fragment.txt": "6ab3026cd1123159ca82a60ea2dafa5a77d40df0390e0c02b3764ee5dfda2391"
+  }
+}

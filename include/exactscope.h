@@ -99,6 +99,19 @@ extern "C" {
 #define XS_MAX_RESULT_VALUES_V1 4u
 #define XS_ARGUMENT_INDEX_NONE_V1 0xffffu
 
+/* Bounded arithmetic-plan constants. */
+#define XS_PLAN_MAX_STEPS_V1 8u
+#define XS_PLAN_MAX_ARGUMENTS_V1 2u
+#define XS_PLAN_STEP_INDEX_NONE_V1 0xffu
+#define XS_PLAN_VALUE_LITERAL_V1 0u
+#define XS_PLAN_VALUE_PREVIOUS_V1 1u
+#define XS_PLAN_OP_ADD_V1 0u
+#define XS_PLAN_OP_SUB_V1 1u
+#define XS_PLAN_OP_MUL_V1 2u
+#define XS_PLAN_OP_DIV_V1 3u
+#define XS_PLAN_OP_POWI_V1 4u
+#define XS_PLAN_OP_SQRT_V1 5u
+
 /* Context configuration flags. */
 #define XS_CONFIG_ALLOW_DYNAMIC_PACKS_V1 0x0001u
 #define XS_CONFIG_FREEZE_AFTER_INIT_V1 0x0002u
@@ -136,6 +149,36 @@ typedef struct xs_value_ref_v1 {
     uint32_t value_count;
     uint32_t reserved2;
 } xs_value_ref_v1;
+
+typedef struct xs_plan_value_v1 {
+    uint32_t struct_size;
+    uint8_t value_kind;
+    uint8_t previous_index;
+    uint16_t reserved0;
+    xs_decimal_v1 literal;
+    uint32_t reserved[2];
+} xs_plan_value_v1;
+
+typedef struct xs_plan_step_v1 {
+    uint32_t struct_size;
+    uint8_t operation;
+    uint8_t argument_count;
+    uint16_t reserved0;
+    xs_plan_value_v1 arguments[XS_PLAN_MAX_ARGUMENTS_V1];
+    uint32_t reserved[2];
+} xs_plan_step_v1;
+
+typedef struct xs_plan_result_v1 {
+    uint32_t struct_size;
+    uint16_t status;
+    uint16_t reserved0;
+    uint32_t flags;
+    uint8_t step_index;
+    uint8_t step_count;
+    uint16_t reserved1;
+    xs_decimal_v1 value;
+    uint32_t reserved[4];
+} xs_plan_result_v1;
 
 typedef struct xs_config_v1 {
     uint32_t struct_size;
@@ -238,6 +281,12 @@ XS_API xs_status XS_CALL xs_find(
     uint16_t match_capacity,
     uint16_t* out_match_count) XS_NOEXCEPT;
 
+XS_API xs_status XS_CALL xs_calc(
+    xs_context* context,
+    const xs_plan_step_v1* steps,
+    uint16_t step_count,
+    xs_plan_result_v1* out_result) XS_NOEXCEPT;
+
 XS_API xs_status XS_CALL xs_eval(
     xs_context* context,
     uint16_t pack_slot,
@@ -268,8 +317,14 @@ XS_API xs_status XS_CALL xs_match_json(
 
 #if defined(__cplusplus) && __cplusplus >= 201103L
 static_assert(sizeof(xs_decimal_v1) == 16u, "xs_decimal_v1 ABI size must be 16 bytes");
+static_assert(sizeof(xs_plan_value_v1) == 32u, "xs_plan_value_v1 ABI size must be 32 bytes");
+static_assert(sizeof(xs_plan_step_v1) == 80u, "xs_plan_step_v1 ABI size must be 80 bytes");
+static_assert(sizeof(xs_plan_result_v1) == 48u, "xs_plan_result_v1 ABI size must be 48 bytes");
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 _Static_assert(sizeof(xs_decimal_v1) == 16u, "xs_decimal_v1 ABI size must be 16 bytes");
+_Static_assert(sizeof(xs_plan_value_v1) == 32u, "xs_plan_value_v1 ABI size must be 32 bytes");
+_Static_assert(sizeof(xs_plan_step_v1) == 80u, "xs_plan_step_v1 ABI size must be 80 bytes");
+_Static_assert(sizeof(xs_plan_result_v1) == 48u, "xs_plan_result_v1 ABI size must be 48 bytes");
 #endif
 
 #endif /* EXACTSCOPE_H_INCLUDED */

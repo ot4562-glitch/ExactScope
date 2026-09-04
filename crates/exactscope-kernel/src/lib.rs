@@ -9,6 +9,7 @@ mod decimal;
 mod econ_formula;
 mod evaluate;
 mod operation;
+mod plan;
 mod rational;
 mod rounding;
 mod semantic;
@@ -32,6 +33,10 @@ pub use evaluate::{
 pub use operation::{
     classification_key, ClassificationDecl, ConstraintKind, InputDecl, OperationDecl,
     RuntimeOperation, PED_MID_OPERATION,
+};
+pub use plan::{
+    evaluate_plan, PlanFailure, PlanOperation, PlanResult, PlanStep, PlanValue, MAX_PLAN_ARGUMENTS,
+    MAX_PLAN_STEPS, PLAN_MAX_ABS_POWI_EXPONENT, PLAN_MAX_OUTPUT_SCALE, PLAN_STEP_INDEX_NONE,
 };
 pub use rational::{RoundedDecimal, SqrtDecimal, WorkRational};
 pub use rounding::RoundingMode;

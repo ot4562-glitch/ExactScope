@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:exactscope:schema:xs-calc-tool:1",
+  "title": "ExactScope xs_calc bounded plan arguments",
+  "description": "Conservative model-facing schema for the bounded plan-v0.1 arithmetic surface. Values are exact decimal strings or backward-result references; runtime validation remains authoritative for backward-reference ordering and decimal range.",
+  "type": "object",
+  "properties": {
+    "p": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "o": {
+                "type": "string",
+                "enum": ["add", "sub", "mul", "div", "powi"]
+              },
+              "a": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "$ref": "#/$defs/value"
+                }
+              }
+            },
+            "required": ["o", "a"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "o": {
+                "const": "sqrt"
+              },
+              "a": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                  "$ref": "#/$defs/value"
+                }
+              }
+            },
+            "required": ["o", "a"],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": ["p"],
+  "additionalProperties": false,
+  "$defs": {
+    "value": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 96,
+      "pattern": "^(?:#[0-7]|-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)$"
+    }
+  }
+}
