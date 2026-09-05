@@ -157,3 +157,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development and evidence requirements
 ## Experimental compiler implementation
 
 The build-time [capability compiler](docs/CAPABILITY_COMPILER.md) now validates Statistics task selections, binds actual operation revisions and canonical model assets, enforces static budgets, and checks reproducibility. The draft profile format remains experimental. This currently restricts the host/model surface; it does not specialize the fused runtime binary or establish model/target qualification.
+
+The [five-arm Statistics runner](benchmarks/CAPABILITY_BENCHMARK.md) now records raw model replies, tokenizer-specific counts, stage metrics, paired tool penalties, capability density and conditional CRR. The initial 1,200-record local-model experiment exposed an error-only tool surface; it is retained as negative interface evidence, not a successful capability claim.

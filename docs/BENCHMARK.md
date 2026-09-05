@@ -372,3 +372,5 @@ The flagship Statistics result should answer:
 5. where a larger-model reference is meaningful, what fraction of its measured advantage is recovered?
 
 If those answers are weak, ExactScope should improve the interface, slice, or evidence before expanding domain/catalog/platform breadth.
+
+The [five-arm Statistics runner](../benchmarks/CAPABILITY_BENCHMARK.md) now records raw model replies, tokenizer-specific counts, stage metrics, paired tool penalties, capability density and conditional CRR. The initial 1,200-record local-model experiment exposed an error-only tool surface; it is retained as negative interface evidence, not a successful capability claim.
