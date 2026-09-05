@@ -54,3 +54,14 @@ The few correct tool-arm outcomes are preserved errors, not recovered numeric
 capability. A positive arithmetic CRR from these tiny error-only counts must not
 be promoted as a useful capability upgrade. This is a prompt/surface failure to
 fix, with the complete original run retained for comparison.
+
+The second development run uses shorter request-translation prompts and shorter
+GBNF rule namespaces (actual combined grammar 3,444 bytes, within the 4,096-byte
+profile ceiling). Results: A 2/240, B 10/240, C 177/240, D 175/240, E 17/240.
+C made 231 calls and D 229, versus zero in the first experiment. C matched 215
+argument vectors but only 180 operation selections; sample/population method
+selection is a remaining weakness. B still made no calls and the answer-only
+A/E prompts are poor baselines. This is development-interface evidence with
+those limitations, not a credible larger-model substitution claim. The raw CRR
+11.5333 is retained mathematically, with its small 15/240 reference gap visible.
+No held-out accuracy claim is made after tuning on this corpus.

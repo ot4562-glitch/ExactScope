@@ -1,0 +1,6 @@
+root ::= answer | failure
+answer ::= "{" ws "\"v\"" ws ":" ws decimal ws "}" ws
+failure ::= "{" ws "\"e\"" ws ":" ws error ws "}" ws
+error ::= "\"AMBIGUOUS_METHOD\"" | "\"MISSING_INFORMATION\"" | "\"UNSUPPORTED_OPERATION\"" | "\"INSUFFICIENT_DATA\"" | "\"ARGUMENT_TYPE\"" | "\"DOMAIN_ERROR\"" | "\"DIVIDE_BY_ZERO\"" | "\"RESOURCE_LIMIT\"" | "\"OVERFLOW\"" | "\"INVALID_REQUEST\"" | "\"INVALID_DECIMAL\"" | "\"ARGUMENT_COUNT\"" | "\"PRECISION_UNRESOLVED\""
+decimal ::= "\"" "-"? ("0" | [1-9] [0-9]{0,95}) ("." [0-9]{1,95})? "\""
+ws ::= [ \t\n\r]*

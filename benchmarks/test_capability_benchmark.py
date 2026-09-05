@@ -107,10 +107,10 @@ class CapabilityTests(unittest.TestCase):
     def test_grammar_namespaces_do_not_change_literals(self):
         assets = surface(self.bundle, "D")
         grammar = assets["grammar"]
-        self.assertIn("lane0-root", grammar)
-        self.assertIn("lane1-root", grammar)
+        self.assertIn("a-root", grammar)
+        self.assertIn("b-root", grammar)
         self.assertIn("stats.mean", grammar)
-        self.assertNotIn("lane1-stats", grammar)
+        self.assertNotIn("b-stats", grammar)
         self.assertEqual(assets["top_level_tool_count"], 2)
 
 
