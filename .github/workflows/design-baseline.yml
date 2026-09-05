@@ -96,6 +96,16 @@ jobs:
           cargo "+$RUST_TOOLCHAIN" build --package exactscope-conformance --bin exactscope-core
           python3 benchmarks/run_benchmark.py --self-test --core target/debug/exactscope-core
 
+      - name: Validate capability generation and Statistics benchmark contracts
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          python3 -m pip install --requirement requirements-dev.txt
+          cargo "+$RUST_TOOLCHAIN" build --package exactscope-packc --bin exactscope-packc
+          python3 tools/test_compile_capability.py
+          python3 benchmarks/test_capability_benchmark.py
+          python3 benchmarks/statistics_corpus.py --check
+
       - name: Lint dynamic-pack C ABI feature
         shell: bash
         run: cargo "+$RUST_TOOLCHAIN" clippy --package exactscope-cabi --features dynamic-packs --all-targets -- -D warnings

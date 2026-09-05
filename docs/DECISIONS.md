@@ -123,3 +123,11 @@ algorithms, vector ownership, error order, operation revisions or the C ABI.
 All existing conformance tests and 225 Statistics Wasm gold calls pass. Latency
 benefit is not claimed. The source-bound profile advances to revision 2; the
 revision-1 bundle is retained unchanged with its original benchmark evidence.
+
+## D-047: Bind evidence without manufacturing support claims
+
+An experimental capability binder packages an actual no-import Wasm and admits
+the Statistics gold only after independent native and Wasm execution agree. A
+new profile revision binds artifact, corpus mapping and conformance hashes, while
+parent identity is preserved. Verified hashes and passing gold do not imply
+target qualification, peak memory measurements, source build attestation or LTS.

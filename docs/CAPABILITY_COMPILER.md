@@ -43,8 +43,31 @@ runtime binary. The existing fused artifact still contains other operations and
 discovery; hosts must restrict calls to the bound profile. Artifact and evidence
 slots remain null and support remains experimental. A profile source must not
 pretend that a filename or a declared budget is qualification evidence. Binary
-specialization, verified artifact/evidence attachment, model-token measurements and
+specialization, model-token measurements and
 released immutable identity management remain separate work.
+
+## Artifact and conformance binding
+
+`tools/bind_capability.py` creates a new immutable revision containing the actual
+Wasm and independently checked Statistics gold evidence:
+
+```sh
+python tools/bind_capability.py --bundle adapters/capabilities/statistics-core-8-ai-r2 --artifact target/wasm32v1-none/release/exactscope_wasm.wasm --corpus benchmarks/statistics-v0.1.jsonl --core target/debug/exactscope-core --revision 3 --output target/capabilities/statistics-core-8-ai-r3
+python tools/test_bind_capability.py
+```
+
+On Windows use `target/debug/exactscope-core.exe`. The binder checks artifact
+bytes/imports, requires gold coverage of the selected operations, checks the
+independent oracle against native execution, and executes all gold calls through
+the actual Wasm before emitting the unit. The new profile binds artifact,
+conformance and benchmark-mapping digests. The manifest also binds the parent
+bundle, binder, checker runtime and native bridge. The output can be copied and
+verified without the source checkout; its `runtime.wasm` is included.
+
+This is behavior/integrity evidence, not source-to-binary build attestation,
+publisher authentication, measured peak RAM/scratch, or device qualification.
+Support remains experimental and model-result/target-qualification slots remain
+empty. An existing source revision or output directory cannot be silently reused.
 
 The baseline no-import Wasm was reproduced at 102,971 bytes, zero imports and 17
 initial pages, SHA-256
