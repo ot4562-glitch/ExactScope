@@ -9,8 +9,8 @@ or public ABI changes are introduced.
 
 ```sh
 cargo build -p exactscope-packc
-python tools/compile_capability.py spec/examples/statistics-capability-profile.json adapters/capabilities/statistics-core-8-ai-r4
-python tools/compile_capability.py --verify adapters/capabilities/statistics-core-8-ai-r4
+python tools/compile_capability.py spec/examples/statistics-capability-profile.json adapters/capabilities/statistics-core-8-ai-r6
+python tools/compile_capability.py --verify adapters/capabilities/statistics-core-8-ai-r6
 python tools/test_compile_capability.py
 ```
 
@@ -62,7 +62,7 @@ released immutable identity management remain separate work.
 Wasm and independently checked Statistics gold evidence:
 
 ```sh
-python tools/bind_capability.py --bundle adapters/capabilities/statistics-core-8-ai-r4 --artifact target/wasm32v1-none/release/exactscope_wasm.wasm --corpus benchmarks/statistics-v0.1.jsonl --core target/debug/exactscope-core --revision 5 --output target/capabilities/statistics-core-8-ai-r5
+python tools/bind_capability.py --bundle adapters/capabilities/statistics-core-8-ai-r6 --artifact target/wasm32v1-none/release/exactscope_wasm.wasm --corpus benchmarks/statistics-v0.1.jsonl --core target/debug/exactscope-core --revision 7 --output target/capabilities/statistics-core-8-ai-r7
 python tools/test_bind_capability.py
 ```
 

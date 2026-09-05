@@ -155,6 +155,16 @@ The measured development Wasm is 85,671 bytes versus the RC baseline 102,971 byt
 (17,300 bytes smaller), with zero imports and 17 initial pages. This is a size
 measurement; indirect vector calls have not established a latency improvement.
 
+Subsequent rational multiplication/division avoid a third GCD after complete
+cross-cancellation of normalized inputs. The normalized-input invariant proves
+the resulting numerator/denominator are already coprime. Numeric grid and i128
+boundary tests preserve existing overflow behavior. This adds 71 artifact bytes
+(85,742 total) and reduced the three measured desktop wire microbench medians by
+about 6–10%; raw samples are in
+[`statistics-rational-microbench.json`](../benchmarks/results/statistics-rational-microbench.json).
+The microbenchmark includes wire parsing/formatting but excludes model inference;
+it is not physical-device energy or end-to-end model latency evidence.
+
 ## 7. `exactscope-pack`
 
 Scope packs are data only.

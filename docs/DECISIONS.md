@@ -131,3 +131,13 @@ the Statistics gold only after independent native and Wasm execution agree. A
 new profile revision binds artifact, corpus mapping and conformance hashes, while
 parent identity is preserved. Verified hashes and passing gold do not imply
 target qualification, peak memory measurements, source build attestation or LTS.
+
+## D-048: Avoid re-normalizing fully cross-reduced rational products
+
+`WorkRational` fields are private and all inputs are canonical. Multiplication and
+division already cancel both cross GCDs before checked products, making another
+normalizing GCD redundant. Return those checked coprime parts directly. Preserve
+the existing i128 intermediate-overflow contract rather than expanding numerical
+acceptance. A 90,000-pair grid plus extreme-value tests and Wasm gold validate the
+change. The measured artifact tradeoff is +71 bytes for lower median times in
+three paired desktop wire microbenchmarks; no model or target-latency claim follows.

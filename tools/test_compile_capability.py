@@ -87,7 +87,7 @@ class CompilerTests(unittest.TestCase):
                 write_bundle(self.bundle, output)
 
     def test_checked_in_drift(self):
-        output = ROOT / "adapters/capabilities/statistics-core-8-ai-r4"
+        output = ROOT / "adapters/capabilities/statistics-core-8-ai-r6"
         self.assertEqual(self.bundle, {p.name: p.read_bytes() for p in output.iterdir()})
 
     def test_requirements_select_minimal_task_surface(self):

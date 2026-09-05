@@ -10,13 +10,13 @@ from compile_capability import ROOT, digest, load, verify_bundle, write_bundle
 
 class BindingTests(unittest.TestCase):
     def setUp(self):
-        self.bundle = ROOT / "adapters/capabilities/statistics-core-8-ai-r2"
+        self.bundle = ROOT / "adapters/capabilities/statistics-core-8-ai-r6"
         self.artifact = ROOT / "target/wasm32v1-none/release/exactscope_wasm.wasm"
         self.corpus = ROOT / "benchmarks/statistics-v0.1.jsonl"
         self.core = ROOT / "target/debug" / ("exactscope-core.exe" if os.name == "nt" else "exactscope-core")
 
     def test_real_artifact_binds_gold_without_claim_promotion(self):
-        files = bind(self.bundle, self.artifact, self.corpus, self.core, 3)
+        files = bind(self.bundle, self.artifact, self.corpus, self.core, 7)
         profile = load(files["profile.json"])
         self.assertEqual(profile["support"], "experimental")
         self.assertEqual(profile["bindings"]["artifact_sha256"], digest(self.artifact.read_bytes()))
@@ -31,7 +31,7 @@ class BindingTests(unittest.TestCase):
                 verify_bundle(output)
 
     def test_revision_reuse_is_rejected_before_execution(self):
-        for revision in (1, 2, True, 0x100000000):
+        for revision in (1, 6, True, 0x100000000):
             with self.assertRaises(ValueError):
                 bind(self.bundle, self.artifact, self.corpus, self.core, revision)
 
@@ -40,7 +40,7 @@ class BindingTests(unittest.TestCase):
             bad = Path(tmp) / "runtime.wasm"
             bad.write_bytes(b"not wasm")
             with self.assertRaises(RuntimeError):
-                bind(self.bundle, bad, self.corpus, self.core, 3)
+                bind(self.bundle, bad, self.corpus, self.core, 7)
 
 
 if __name__ == "__main__":

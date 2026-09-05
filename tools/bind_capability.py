@@ -8,7 +8,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from compile_capability import ROOT, canonical, digest, load, verify_bundle, write_bundle
+from compile_capability import ROOT, canonical, digest, load, source_identity, verify_bundle, write_bundle
 from inspect_wasm import inspect_imports, inspect_memories, parse_sections
 
 sys.path.insert(0, str(ROOT / "benchmarks"))
@@ -19,6 +19,8 @@ from statistics_corpus import validate_rows
 def bind(bundle, artifact, corpus, core, revision):
     original = verify_bundle(bundle)
     profile = load((bundle / "profile.json").read_bytes())
+    if profile["bindings"]["core_revision"] != "sha256:" + source_identity():
+        raise ValueError("profile source identity differs from the checked-out runtime source")
     if profile["device_budget"]["target_profile"] != "no-import-wasm":
         raise ValueError("only no-import-wasm binding is implemented")
     if type(revision) is not int or revision <= profile["profile_revision"] or revision > 0xffffffff:
@@ -63,7 +65,7 @@ def bind(bundle, artifact, corpus, core, revision):
                                            "initial_memory_pages": initial, "maximum_memory_pages": maximum,
                                            "resident_bytes": None, "scratch_bytes": None},
                     conformance_core_sha256=digest(core.read_bytes()),
-                    source_match="source identity inherited; artifact behavior checked against gold, not build attestation")
+                    source_match="profile matches checkout; artifact behavior checked against gold, not build attestation")
     manifest["files"] = {name: digest(value) for name, value in sorted(files.items())}
     files["manifest.json"] = canonical(manifest)
     files["bundle-sha256.txt"] = (digest(files["manifest.json"]) + "\n").encode()

@@ -3,7 +3,7 @@
   "format": "exactscope.capability.profile",
   "format_version": "0.1-draft",
   "profile_id": "statistics-core-8-ai",
-  "profile_revision": 4,
+  "profile_revision": 6,
   "support": "experimental",
   "domain": "statistics",
   "task_families": [

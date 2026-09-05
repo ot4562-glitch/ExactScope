@@ -190,10 +190,13 @@ impl WorkRational {
         let right_num = rhs.numerator / gcd_right;
         let left_den = self.denominator / gcd_right;
 
-        Self::new(
-            left_num.checked_mul(right_num).ok_or(Status::OVERFLOW)?,
-            left_den.checked_mul(right_den).ok_or(Status::OVERFLOW)?,
-        )
+        // Inputs are normalized and the two cross GCDs cancel every possible
+        // common factor. Re-normalizing here would compute a third, always-one
+        // GCD over the largest intermediates on every multiplication.
+        Ok(Self {
+            numerator: left_num.checked_mul(right_num).ok_or(Status::OVERFLOW)?,
+            denominator: left_den.checked_mul(right_den).ok_or(Status::OVERFLOW)?,
+        })
     }
 
     /// Checked exact division with cross reduction.
@@ -231,7 +234,11 @@ impl WorkRational {
         }
         let right_num = i128::try_from(right_num_abs).map_err(|_| Status::OVERFLOW)?;
         let denominator = left_den.checked_mul(right_num).ok_or(Status::OVERFLOW)?;
-        Self::new(numerator, denominator)
+        // Same normalized-input/cross-cancellation invariant as checked_mul.
+        Ok(Self {
+            numerator,
+            denominator,
+        })
     }
 
     /// Checked negation.
@@ -618,6 +625,50 @@ mod tests {
         assert_eq!(
             one_half.checked_div(WorkRational::ZERO),
             Err(Status::DIVIDE_BY_ZERO)
+        );
+    }
+
+    #[test]
+    fn cross_reduced_products_and_quotients_are_already_canonical() {
+        for a in -12..=12_i128 {
+            for b in 1..=12_i128 {
+                for c in -12..=12_i128 {
+                    for d in 1..=12_i128 {
+                        let left = rational(a, b);
+                        let right = rational(c, d);
+                        assert_eq!(left.checked_mul(right), WorkRational::new(a * c, b * d));
+                        assert_eq!(left.checked_div(right), WorkRational::new(a * d, b * c));
+                    }
+                }
+            }
+        }
+        let maximum = rational(i128::MAX, 2);
+        assert_eq!(
+            maximum.checked_mul(rational(2, 1)),
+            Ok(rational(i128::MAX, 1))
+        );
+        let minimum = rational(i128::MIN, 3);
+        assert_eq!(
+            minimum.checked_mul(rational(3, 1)),
+            Ok(rational(i128::MIN, 1))
+        );
+        assert_eq!(
+            minimum.checked_div(rational(1, 3)),
+            Ok(rational(i128::MIN, 1))
+        );
+        assert_eq!(
+            rational(i128::MIN, 1).checked_mul(rational(-1, 1)),
+            Err(Status::OVERFLOW)
+        );
+        assert_eq!(
+            rational(1, i128::MAX).checked_mul(rational(1, 2)),
+            Err(Status::OVERFLOW)
+        );
+        // Preserve the existing bounded intermediate failure, even though the
+        // unbounded mathematical quotient would be one.
+        assert_eq!(
+            rational(i128::MIN, 1).checked_div(rational(i128::MIN, 1)),
+            Err(Status::OVERFLOW)
         );
     }
 

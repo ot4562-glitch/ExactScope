@@ -1,6 +1,6 @@
 {
   "profile_id": "statistics-core-8-ai",
-  "profile_revision": 4,
+  "profile_revision": 6,
   "domain": "statistics",
   "task_families": [
     "descriptive-aggregation",

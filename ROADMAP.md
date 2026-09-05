@@ -100,12 +100,12 @@ The draft profile defines fields/ceilings for the static parts; benchmark toolin
 - [x] prompt/schema/grammar byte budget fields;
 - [x] maximum generated-request-token field;
 - [x] normal inference-turn budget field;
-- [ ] tokenizer-specific prompt token counts;
-- [ ] actual structurally valid-call rate;
-- [ ] actual core-accepted-call rate;
+- [x] tokenizer-specific prompt token counts (local Qwen3 0.6B/1.7B runs);
+- [x] actual structurally valid-call rate;
+- [x] actual core-accepted-call rate;
 - [ ] correct plan/operation selection rate;
-- [ ] argument extraction rate;
-- [ ] result/failure-fidelity rate.
+- [x] ordered semantic argument extraction rate (plan extraction is separately unmeasured);
+- [x] one-turn host-renderer result/failure-fidelity rate (not second-turn model copying).
 
 Success criterion: widening a domain catalog cannot silently make the product unusable for the 0.5B-1B class.
 
@@ -129,7 +129,7 @@ For the first slice:
 - [ ] freeze exact operation/profile bindings and provenance digests;
 - [x] implement the checked-in 240-case target corpus/gold generator with independent oracle and actual-runtime validation;
 - [ ] add/verify golden, negative, and boundary vectors for the benchmark corpus;
-- [ ] create a reproducible benchmark mapping/result bundle;
+- [x] create reproducible benchmark mapping/result bundles, including negative interface evidence;
 - [ ] measure marginal artifact, prompt, and runtime cost versus `xs_calc` alone.
 
 Success criterion: the slice is demonstrably a **Statistics capability upgrade**, not merely a collection of statistics functions.

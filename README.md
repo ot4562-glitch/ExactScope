@@ -101,12 +101,12 @@ xs_plan_result_v1   48 bytes
 
 The `wasm32v1-none` profile exposes `xs_wire_request`. [examples/javascript/wasm-xs-calc.mjs](examples/javascript/wasm-xs-calc.mjs) shows the complete dependency-free host flow: instantiate, write the request, call `xs_wire_request`, and read the response.
 
-The current clean local release build with `xs_calc` is 102,971 bytes, has zero imports, and declares 17 initial memory pages. The release gate is less than 128 KiB and zero imports. Artifact measurements can vary when toolchain or source changes, so release notes and manifests must record the released artifact's own bytes and SHA-256.
+The recorded RC build with `xs_calc` is 102,971 bytes, has zero imports, and declares 17 initial memory pages. The release gate is less than 128 KiB and zero imports. Artifact measurements can vary when toolchain or source changes, so release notes and manifests must record the released artifact's own bytes and SHA-256.
 
 The subsequent development build shares the Statistics dispatch across vector
-transports and measures **85,671 bytes**, 17,300 bytes below that RC baseline,
+transports and measures **85,742 bytes**, 17,229 bytes below that RC baseline,
 with zero imports and 17 initial pages. Its SHA-256 is
-`9d2407fb38417e8d8ffb9ac6c81a2a15314158da79e10a0146505d30ed7cfa41`.
+`dc7f6623f388f131def7f97a29c78fa6db1a0542c294fae2502a12d21ff4ad54`.
 The published RC artifact remains unchanged. All 225 Statistics gold calls also
 pass through the development Wasm with `tools/check_statistics_wasm.mjs`.
 
