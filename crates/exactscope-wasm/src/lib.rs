@@ -1,4 +1,5 @@
 #![cfg_attr(target_arch = "wasm32", no_std)]
+#![deny(unsafe_op_in_unsafe_fn)]
 #![doc = "No-import fused WebAssembly wrapper for `ExactScope`."]
 
 //! The release artifact targets `wasm32v1-none`. It owns no calculation
@@ -6,20 +7,40 @@
 //! in turn delegates to the same fused registry and deterministic kernel used
 //! by the native C ABI.
 
+#[cfg(all(feature = "econ-specialized", feature = "stats-specialized"))]
+compile_error!("ExactScope Wasm can contain only one domain specialization per artifact");
+#[cfg(all(feature = "econ-specialized", not(feature = "econ-ped-mid")))]
+compile_error!("econ-specialized requires at least one reviewed Economics operation feature");
+#[cfg(all(
+    feature = "selected-calc",
+    not(any(feature = "econ-specialized", feature = "stats-specialized"))
+))]
+compile_error!("selected-calc is valid only inside one selected domain specialization");
+
 pub use exactscope_kernel::{DESIGN_ABI_MAJOR, DESIGN_ABI_MINOR};
 
-#[cfg(any(target_arch = "wasm32", test))]
+#[cfg(all(
+    any(target_arch = "wasm32", test),
+    not(any(feature = "stats-specialized", feature = "econ-specialized"))
+))]
 mod tinywire;
 
 #[cfg(target_arch = "wasm32")]
 mod wasm32 {
     use core::{arch::wasm32, ptr, slice};
 
+    #[cfg(all(not(feature = "econ-specialized"), feature = "stats-specialized"))]
+    use exactscope_kernel::statistics_selected_operation_by_id;
+    use exactscope_kernel::Status;
+    #[cfg(not(feature = "econ-specialized"))]
     use exactscope_kernel::{
-        evaluate_statistics_operation, Decimal64, DecimalVector, EvaluationResult, Status,
-        ARGUMENT_INDEX_NONE, MAX_STATS_VECTOR_LEN, VALUE_FLAGS_V1,
+        evaluate_statistics_operation, Decimal64, DecimalVector, EvaluationResult,
+        StatisticsOperationDecl, ARGUMENT_INDEX_NONE, MAX_STATS_VECTOR_LEN, VALUE_FLAGS_V1,
     };
-    use exactscope_pack::{StatisticsRegistry, STATISTICS_CORE_PACK_SLOT};
+    #[cfg(all(not(feature = "econ-specialized"), not(feature = "stats-specialized")))]
+    use exactscope_pack::StatisticsRegistry;
+    #[cfg(not(feature = "econ-specialized"))]
+    use exactscope_pack::STATISTICS_CORE_PACK_SLOT;
 
     const ABI_VERSION: u32 = 0x0001_0000;
     const MEMORY_ALIGNMENT: u32 = 8;
@@ -28,7 +49,9 @@ mod wasm32 {
     const META_FLAG_OUTPUT_WRITTEN: u16 = 0x0001;
     const WIRE_FORMAT_TINY_JSON: u32 = 1;
     const WIRE_FORMAT_TINY_CBOR: u32 = 2;
+    #[cfg(not(feature = "econ-specialized"))]
     const DECIMAL_SIZE: u32 = 16;
+    #[cfg(not(feature = "econ-specialized"))]
     const RESULT_SIZE: u32 = 112;
 
     unsafe extern "C" {
@@ -96,11 +119,28 @@ mod wasm32 {
         MEMORY_ALIGNMENT
     }
 
+    #[cfg(all(not(feature = "econ-specialized"), not(feature = "stats-specialized")))]
+    fn statistics_operation_by_id(
+        operation_id: u32,
+    ) -> Result<&'static StatisticsOperationDecl, Status> {
+        StatisticsRegistry::new()
+            .lookup_id(operation_id)
+            .map(|operation| operation.operation)
+    }
+
+    #[cfg(all(not(feature = "econ-specialized"), feature = "stats-specialized"))]
+    fn statistics_operation_by_id(
+        operation_id: u32,
+    ) -> Result<&'static StatisticsOperationDecl, Status> {
+        statistics_selected_operation_by_id(operation_id).ok_or(Status::UNKNOWN_OPERATION)
+    }
+
     /// Evaluates one fused statistics operation over zero-copy decimal vectors.
     ///
     /// `x` and optional `y` are arrays of the 16-byte little-endian
     /// `xs_decimal_v1` layout. `result_offset` points to a 112-byte
     /// `xs_result_v1` record whose `struct_size` is initialized by the host.
+    #[cfg(not(feature = "econ-specialized"))]
     #[unsafe(no_mangle)]
     pub extern "C" fn xs_wasm_eval_statistics(
         operation_id: u32,
@@ -123,8 +163,8 @@ mod wasm32 {
             return Status::INVALID_REQUEST.code();
         }
 
-        let operation = match StatisticsRegistry::new().lookup_id(operation_id) {
-            Ok(operation) => operation.operation,
+        let operation = match statistics_operation_by_id(operation_id) {
+            Ok(operation) => operation,
             Err(status) => {
                 write_result(
                     result_offset,
@@ -190,11 +230,25 @@ mod wasm32 {
         status.code()
     }
 
+    /// Keeps the public direct-statistics export stable in Economics-only
+    /// artifacts without retaining the Statistics execution surface.
+    #[cfg(feature = "econ-specialized")]
+    #[unsafe(no_mangle)]
+    pub extern "C" fn xs_wasm_eval_statistics(
+        _operation_id: u32,
+        _x_offset: u32,
+        _x_len: u32,
+        _y_offset: u32,
+        _y_len: u32,
+        _result_offset: u32,
+    ) -> u16 {
+        Status::UNSUPPORTED_OPERATION.code()
+    }
+
     /// Processes one Tiny JSON/TinyWire request from exported linear memory.
     ///
-    /// The first implementation slice supports Tiny JSON only. Tiny CBOR is a
-    /// recognized future wire format and therefore fails with
-    /// `UNSUPPORTED_OPERATION` rather than being misparsed.
+    /// General builds support Tiny CBOR and feature-enabled Tiny JSON. Selected
+    /// domain artifacts omit Tiny CBOR and return `UNSUPPORTED_OPERATION` for it.
     #[unsafe(no_mangle)]
     pub extern "C" fn xs_wire_request(
         wire_format: u32,
@@ -265,6 +319,11 @@ mod wasm32 {
         } else {
             unsafe { output_slice(output) }
         };
+        #[cfg(feature = "econ-specialized")]
+        let result = exactscope_tinyjson::request_economics_selected(input, output);
+        #[cfg(feature = "stats-specialized")]
+        let result = exactscope_tinyjson::request_statistics_selected(input, output);
+        #[cfg(not(any(feature = "stats-specialized", feature = "econ-specialized")))]
         let result = exactscope_tinyjson::request(input, output);
 
         if result.status == Status::BUFFER_TOO_SMALL {
@@ -287,6 +346,7 @@ mod wasm32 {
         Status::UNSUPPORTED_OPERATION.code()
     }
 
+    #[cfg(not(any(feature = "stats-specialized", feature = "econ-specialized")))]
     fn process_tiny_cbor(input: Region, output: Region, meta_offset: u32) -> u16 {
         let input = unsafe { input_slice(input) };
         let output = if output.len == 0 {
@@ -309,6 +369,12 @@ mod wasm32 {
         result.status.code()
     }
 
+    #[cfg(any(feature = "stats-specialized", feature = "econ-specialized"))]
+    fn process_tiny_cbor(_input: Region, _output: Region, meta_offset: u32) -> u16 {
+        initialize_meta(meta_offset, Status::UNSUPPORTED_OPERATION, 0, 0, 0);
+        Status::UNSUPPORTED_OPERATION.code()
+    }
+
     fn valid_nonempty_region(region: Region, reserved: u32, memory_bytes: u64) -> bool {
         if region.len == 0 || region.offset < reserved {
             return false;
@@ -316,6 +382,7 @@ mod wasm32 {
         region.end().is_some_and(|end| end <= memory_bytes)
     }
 
+    #[cfg(not(feature = "econ-specialized"))]
     fn decimal_vector_region(
         offset: u32,
         count: u32,
@@ -345,11 +412,13 @@ mod wasm32 {
         Ok(region)
     }
 
+    #[cfg(not(feature = "econ-specialized"))]
     #[derive(Clone, Copy)]
     struct WasmDecimalVector {
         region: Region,
     }
 
+    #[cfg(not(feature = "econ-specialized"))]
     impl DecimalVector for WasmDecimalVector {
         fn len(&self) -> usize {
             usize::try_from(self.region.len / DECIMAL_SIZE).unwrap_or(0)
@@ -396,6 +465,7 @@ mod wasm32 {
         }
     }
 
+    #[cfg(not(feature = "econ-specialized"))]
     fn statistics_failure(
         operation: &exactscope_kernel::StatisticsOperationDecl,
         status: Status,
@@ -411,12 +481,14 @@ mod wasm32 {
         result
     }
 
+    #[cfg(not(feature = "econ-specialized"))]
     fn read_u32_at(offset: u32) -> Option<u32> {
         let offset = usize::try_from(offset).ok()?;
         let bytes = unsafe { slice::from_raw_parts(offset as *const u8, 4) };
         Some(u32::from_le_bytes(bytes.try_into().ok()?))
     }
 
+    #[cfg(not(feature = "econ-specialized"))]
     fn write_result(offset: u32, result: EvaluationResult) {
         let Ok(offset) = usize::try_from(offset) else {
             return;
@@ -446,10 +518,12 @@ mod wasm32 {
         }
     }
 
+    #[cfg(not(feature = "econ-specialized"))]
     fn put_u16(bytes: &mut [u8], offset: usize, value: u16) {
         bytes[offset..offset + 2].copy_from_slice(&value.to_le_bytes());
     }
 
+    #[cfg(not(feature = "econ-specialized"))]
     fn put_u32(bytes: &mut [u8], offset: usize, value: u32) {
         bytes[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
     }

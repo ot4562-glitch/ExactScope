@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.org/spec/schemas/reproducible-build-comparison.schema.json",
+  "title": "ExactScope reproducible-build comparison record v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "format_version", "build_input_sha256", "release_profile", "target", "artifact_kind", "builders", "byte_identical", "status", "claim"],
+  "properties": {
+    "format": {"const": "exactscope.reproducible-build.comparison"},
+    "format_version": {"const": "0.1"},
+    "build_input_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "release_profile": {"type": "string", "enum": ["native-static", "no-import-wasm"]},
+    "target": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[^\\s]+$"},
+    "artifact_kind": {"type": "string", "enum": ["static-library", "wasm-module"]},
+    "builders": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "artifact_sha256", "size_bytes"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[^\\r\\n]+$"},
+          "artifact_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "size_bytes": {"type": "integer", "minimum": 1}
+        }
+      }
+    },
+    "byte_identical": {"type": "boolean"},
+    "status": {"type": "string", "enum": ["MATCH", "MISMATCH"]},
+    "claim": {
+      "type": "string",
+      "enum": [
+        "Two caller-identified build outputs are byte-identical for the recorded inputs; builder independence and runtime qualification are not implied.",
+        "Build outputs differ; reproducible-build proof is not established."
+      ]
+    }
+  }
+}

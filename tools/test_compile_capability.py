@@ -5,14 +5,15 @@ import unittest
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
-from compile_capability import (ROOT, canonical, compile_profile, load, validate,
-                                verify_bundle, write_bundle)
+from compile_capability import (ROOT, canonical, compile_profile, load, specialization_features,
+                                statistics_specialization_features, validate, verify_bundle,
+                                write_bundle)
 
 
 class CompilerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.source = load((ROOT / "spec/examples/statistics-capability-profile.json").read_bytes())
+        cls.source = load((ROOT / "spec/examples/statistics-capability-profile-r27.json").read_bytes())
         executable = "exactscope-packc.exe" if __import__("os").name == "nt" else "exactscope-packc"
         cls.packc = ROOT / "target/debug" / executable
         cls.bundle = compile_profile(canonical(cls.source), cls.packc)
@@ -74,6 +75,24 @@ class CompilerTests(unittest.TestCase):
                      {"op": "stats.mean", "a": [[1]]}]:
             self.assertFalse(validator.is_valid(call), call)
 
+    def test_model_surface_contract_is_explicit_and_digest_bound(self):
+        contract = load(self.bundle["surface-contract.json"])
+        profile = load(self.bundle["profile.json"])
+        self.assertEqual(contract["format"], "exactscope.model-surface.contract")
+        self.assertEqual(contract["format_version"], "0.1")
+        self.assertEqual(contract["negotiation"], "exact-version-and-digest")
+        self.assertEqual(contract["profile"], {
+            "id": profile["profile_id"],
+            "revision": profile["profile_revision"],
+            "domain": profile["domain"],
+        })
+        self.assertEqual(contract["abi_revision"], profile["bindings"]["abi_revision"])
+        self.assertEqual(contract["hotset"]["binding_sha256"], profile["bindings"]["hotset_sha256"])
+        self.assertEqual(
+            [asset["path"] for asset in contract["assets"]],
+            ["prompt-fragment.txt", "xs-calc.gbnf", "xs-calc.tool.json", "xs-eval.gbnf", "xs-eval.tool.json"],
+        )
+
     def test_immutable_write_and_tamper(self):
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "bundle"
@@ -86,13 +105,27 @@ class CompilerTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 write_bundle(self.bundle, output)
 
-    def test_checked_in_drift(self):
-        output = ROOT / "adapters/capabilities/statistics-core-8-ai-r6"
-        self.assertEqual(self.bundle, {p.name: p.read_bytes() for p in output.iterdir()})
+    def test_clean_source_generation_is_reproducible(self):
+        # Release source intentionally excludes mutable generated capability bundles.
+        # Reproducibility therefore has to be proven from reviewed inputs and the
+        # compiler, not by comparing against a checked-in generated directory.
+        rebuilt = compile_profile(canonical(copy.deepcopy(self.source)), self.packc)
+        self.assertEqual(self.bundle, rebuilt)
+        self.assertIn("surface-contract.json", self.bundle)
+        profile = load(self.bundle["profile.json"])
+        self.assertRegex(profile["bindings"]["surface_contract_sha256"], r"^[a-f0-9]{64}$")
+        self.assertRegex(profile["bindings"]["core_revision"], r"^sha256:[a-f0-9]{64}$")
+        manifest = load(self.bundle["manifest.json"])
+        self.assertRegex(manifest["generator_sha256"], r"^[a-f0-9]{64}$")
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "bundle"
+            write_bundle(self.bundle, output)
+            verify_bundle(output)
 
     def test_requirements_select_minimal_task_surface(self):
-        request = load((ROOT / "spec/examples/statistics-capability-request.json").read_bytes())
+        request = load((ROOT / "spec/examples/statistics-capability-request-r27.json").read_bytes())
         request["task_families"] = ["weighted-mean"]
+        request["specialization"] = "host-limited"
         bundle = compile_profile(canonical(request), self.packc)
         profile = load(bundle["profile.json"])
         self.assertEqual(profile["runtime_surface"]["xs_eval"]["operations"], ["stats.mean.weighted"])
@@ -101,6 +134,114 @@ class CompilerTests(unittest.TestCase):
         request["task_families"] = ["unknown"]
         with self.assertRaises(ValueError):
             compile_profile(canonical(request), self.packc)
+
+    def test_position_aware_calc_grammar_preserves_history_and_budget(self):
+        grammar = self.bundle["xs-calc.gbnf"].decode()
+        self.assertIn('v0 ::= dec', grammar)
+        self.assertIn('v1 ::= v0 | "\\\"#0\\\""', grammar)
+        self.assertIn('v7 ::= v6 | "\\\"#6\\\""', grammar)
+        self.assertNotIn('#7', grammar)
+        self.assertIn("xs-calc.grammar-source.json", self.bundle)
+        total = len(self.bundle["xs-calc.gbnf"]) + len(self.bundle["xs-eval.gbnf"])
+        self.assertLessEqual(total, self.source["model_budget"]["grammar_bytes_max"])
+
+        historical = load((ROOT / "spec/examples/statistics-capability-profile.json").read_bytes())
+        old_bundle = compile_profile(canonical(historical), self.packc)
+        self.assertEqual(old_bundle["xs-calc.gbnf"],
+                         (ROOT / "adapters/xs-calc-v0.1/xs-calc.gbnf").read_bytes())
+        # Historical source inputs remain reviewable, but generated capability
+        # directories are deliberately absent from the clean release source.
+        self.assertEqual(old_bundle, compile_profile(canonical(copy.deepcopy(historical)), self.packc))
+
+    def test_binary_specialization_derives_operation_features_and_memory_budget(self):
+        profile = load(self.bundle["profile.json"])
+        self.assertEqual(profile["runtime_surface"]["specialization"], "statistics-selected-wasm")
+        self.assertEqual(profile["device_budget"]["wasm_stack_bytes_max"], 16384)
+        self.assertEqual(profile["device_budget"]["wasm_initial_pages_max"], 1)
+        self.assertEqual(profile["device_budget"]["wasm_maximum_pages_max"], 1)
+        features = statistics_specialization_features(profile)
+        self.assertEqual(features[:4], ("fused", "tinyjson", "stats-specialized", "selected-calc"))
+        self.assertIn("stats-mean-weighted", features)
+        self.assertNotIn("stats-cov-pop", features)
+        for field, value in (("wasm_stack_bytes_max", 4096), ("wasm_initial_pages_max", 2),
+                             ("wasm_maximum_pages_max", 2)):
+            source = copy.deepcopy(self.source)
+            source["device_budget"][field] = value
+            with self.assertRaises(ValueError):
+                validate(source)
+
+        request = load((ROOT / "spec/examples/statistics-weighted-mean-capability-request-r5.json").read_bytes())
+        weighted = load(compile_profile(canonical(request), self.packc)["profile.json"])
+        self.assertEqual(weighted["runtime_surface"]["xs_eval"]["operations"], ["stats.mean.weighted"])
+        self.assertEqual(
+            statistics_specialization_features(weighted),
+            ("fused", "tinyjson", "stats-specialized", "selected-calc", "stats-mean-weighted"),
+        )
+
+        legacy = copy.deepcopy(weighted)
+        legacy["runtime_surface"]["specialization"] = "statistics-core-8-wasm"
+        with self.assertRaisesRegex(ValueError, "exact reviewed eight-operation"):
+            validate(legacy)
+
+    def test_calc_only_specialized_baseline_has_no_semantic_assets(self):
+        request = load((ROOT / "spec/examples/statistics-calc-only-capability-request-r2.json").read_bytes())
+        bundle = compile_profile(canonical(request), self.packc)
+        profile = load(bundle["profile.json"])
+        self.assertEqual(profile["runtime_surface"]["xs_eval"]["operations"], [])
+        self.assertEqual(profile["model_budget"]["semantic_operation_count"], 0)
+        self.assertEqual(
+            statistics_specialization_features(profile),
+            ("fused", "tinyjson", "stats-specialized", "selected-calc"),
+        )
+        self.assertIn("xs-calc.tool.json", bundle)
+        self.assertNotIn("xs-eval.tool.json", bundle)
+        self.assertNotIn("xs-eval.gbnf", bundle)
+        self.assertEqual(load(bundle["manifest.json"])["measurements"]["top_level_tool_count"], 1)
+
+        for key, value in (
+            ("specialization", "host-limited"),
+            ("xs_calc", False),
+            ("task_families", ["arithmetic-baseline", "weighted-mean"]),
+        ):
+            bad = copy.deepcopy(request)
+            bad[key] = value
+            with self.assertRaises(ValueError):
+                compile_profile(canonical(bad), self.packc)
+
+    def test_economics_second_domain_compiles_minimal_and_explicit_combined_surfaces(self):
+        request = load((ROOT / "spec/examples/economics-ped-capability-request-r5.json").read_bytes())
+        bundle = compile_profile(canonical(request), self.packc)
+        profile = load(bundle["profile.json"])
+        self.assertEqual(profile["domain"], "economics")
+        self.assertEqual(profile["runtime_surface"]["xs_eval"]["operations"], ["econ.ped.mid"])
+        self.assertFalse(profile["runtime_surface"]["xs_calc"]["enabled"])
+        self.assertEqual(specialization_features(profile),
+                         ("fused", "tinyjson", "econ-specialized", "econ-ped-mid"))
+        measurements = load(bundle["manifest.json"])["measurements"]
+        self.assertEqual(measurements["top_level_tool_count"], 1)
+        self.assertEqual(measurements["visible_semantic_operation_count"], 1)
+        self.assertEqual(measurements["prompt_fragment_bytes"], 129)
+        self.assertEqual(measurements["schema_bytes"], 811)
+        self.assertEqual(measurements["grammar_bytes"], 407)
+        self.assertNotIn("xs-calc.tool.json", bundle)
+
+        combined = copy.deepcopy(request)
+        combined["profile_revision"] += 1
+        combined["xs_calc"] = True
+        combined["model_visible_tools_max"] = 2
+        combined["model_budget"]["plan_steps_max"] = 8
+        combined_bundle = compile_profile(canonical(combined), self.packc)
+        combined_profile = load(combined_bundle["profile.json"])
+        self.assertEqual(
+            specialization_features(combined_profile),
+            ("fused", "tinyjson", "econ-specialized", "selected-calc", "econ-ped-mid"),
+        )
+        self.assertIn("xs-calc.tool.json", combined_bundle)
+
+        wrong_domain_specialization = copy.deepcopy(request)
+        wrong_domain_specialization["specialization"] = "statistics-selected-wasm"
+        with self.assertRaises(ValueError):
+            compile_profile(canonical(wrong_domain_specialization), self.packc)
 
     def test_release_size_gate_matches_declared_device_budget(self):
         from inspect_wasm import MAX_FUSED_BYTES

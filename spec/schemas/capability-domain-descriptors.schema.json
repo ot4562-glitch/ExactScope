@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.dev/schemas/capability-domain-descriptors.schema.json",
+  "title": "ExactScope capability domain descriptors",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "format_version", "domains"],
+  "properties": {
+    "format": {"const": "exactscope.capability.domain-descriptors"},
+    "format_version": {"const": "0.1"},
+    "domains": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["fused_pack", "semantic_source", "task_families", "implementation_bindings", "specialization", "specialization_feature"],
+        "properties": {
+          "fused_pack": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$", "maxLength": 96},
+          "semantic_source": {"type": "string", "pattern": "^[A-Za-z0-9_./-]+\\.json$", "maxLength": 240},
+          "task_families": {"type": "string", "pattern": "^[A-Za-z0-9_./-]+\\.json$", "maxLength": 240},
+          "implementation_bindings": {"type": "string", "pattern": "^[A-Za-z0-9_./-]+\\.json$", "maxLength": 240},
+          "specialization": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$", "maxLength": 96},
+          "specialization_feature": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$", "maxLength": 96}
+        }
+      }
+    }
+  }
+}

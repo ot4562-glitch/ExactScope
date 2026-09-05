@@ -52,10 +52,12 @@ pub struct HotsetBundle {
     pub binding_sha256: String,
     /// Digest-bound compact catalog used by hosts and benchmarks.
     pub catalog_json: String,
-    /// `OpenAI`-compatible direct `xs_eval` tool definition.
-    pub xs_eval_tool_json: String,
-    /// llama.cpp-compatible GBNF for direct hot-set evaluation.
-    pub xs_eval_gbnf: String,
+    /// Optional `OpenAI`-compatible direct `xs_eval` tool definition.
+    /// Absent when the hot set intentionally contains no semantic operations.
+    pub xs_eval_tool_json: Option<String>,
+    /// Optional llama.cpp-compatible GBNF for direct hot-set evaluation.
+    /// Absent when the hot set intentionally contains no semantic operations.
+    pub xs_eval_gbnf: Option<String>,
     /// Compact model policy fragment.
     pub prompt_fragment: String,
     /// Optional `OpenAI`-compatible `xs_find` fallback definition.
@@ -386,15 +388,19 @@ pub fn generate_hotset_with_fused(
         "operations": binding_payload["operations"].clone(),
     });
 
-    let xs_eval_tool = eval_tool_json(&selected);
+    let xs_eval_tool = (!selected.is_empty()).then(|| eval_tool_json(&selected));
     let xs_find_tool = include_find.then(find_tool_json);
 
     Ok(HotsetBundle {
         binding_sha256,
         catalog_json: pretty_json(&catalog)?,
-        xs_eval_tool_json: pretty_json(&xs_eval_tool)?,
-        xs_eval_gbnf: eval_gbnf(&selected),
-        prompt_fragment: prompt_fragment(),
+        xs_eval_tool_json: xs_eval_tool.as_ref().map(pretty_json).transpose()?,
+        xs_eval_gbnf: (!selected.is_empty()).then(|| eval_gbnf(&selected)),
+        prompt_fragment: if selected.is_empty() {
+            String::new()
+        } else {
+            prompt_fragment()
+        },
         xs_find_tool_json: xs_find_tool.as_ref().map(pretty_json).transpose()?,
         xs_find_gbnf: include_find.then(find_gbnf),
     })
@@ -948,9 +954,9 @@ fn validate_name(name: &str) -> Result<(), HotsetError> {
 }
 
 fn validate_operation_keys(operation_keys: &[String]) -> Result<(), HotsetError> {
-    if operation_keys.is_empty() || operation_keys.len() > MAX_HOTSET_OPERATIONS {
+    if operation_keys.len() > MAX_HOTSET_OPERATIONS {
         return Err(HotsetError::Invalid(format!(
-            "operation count must be between 1 and {MAX_HOTSET_OPERATIONS}"
+            "operation count must be at most {MAX_HOTSET_OPERATIONS}"
         )));
     }
     ensure_unique(operation_keys, "operation key")?;
@@ -1052,6 +1058,7 @@ mod tests {
         generate_hotset, generate_hotset_with_fused, parse_hotset_manifest, sha256_hex,
         HotsetSource,
     };
+    use exactscope_kernel::{statistics_kernel_output_names, OFFICIAL_STATS_OPERATIONS};
 
     const ECON: &str = include_str!("../../../spec/examples/econ-undergrad-minimal.xsp.json");
     const STATS: &str = include_str!("../../../packs/statistics-core.xsp.json");
@@ -1062,6 +1069,112 @@ mod tests {
             sha256_hex(b"abc"),
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
+    }
+
+    #[test]
+    fn economics_selected_source_and_fused_model_contracts_match() {
+        let keys = vec!["econ.ped.mid".to_owned()];
+        let source = generate_hotset(
+            "econ-parity",
+            &[HotsetSource {
+                label: "econ.json",
+                source: ECON,
+            }],
+            &keys,
+            false,
+        )
+        .expect("source metadata");
+        let fused = generate_hotset_with_fused(
+            "econ-parity",
+            &[],
+            &["econ-undergrad".to_owned()],
+            &keys,
+            false,
+        )
+        .expect("fused metadata");
+        assert_eq!(source.xs_eval_tool_json, fused.xs_eval_tool_json);
+        assert_eq!(source.xs_eval_gbnf, fused.xs_eval_gbnf);
+        let mut operations = [&source, &fused].map(|bundle| {
+            let catalog: serde_json::Value = serde_json::from_str(&bundle.catalog_json).unwrap();
+            catalog["operations"][0].clone()
+        });
+        for operation in &mut operations {
+            // Source packs and fused registries intentionally have distinct digests.
+            operation
+                .as_object_mut()
+                .unwrap()
+                .remove("pack_binding_sha256");
+        }
+        assert_eq!(operations[0], operations[1]);
+    }
+
+    #[test]
+    fn fused_statistics_metadata_matches_reviewed_scope_pack() {
+        let source: serde_json::Value =
+            serde_json::from_str(STATS).expect("statistics source json");
+        let source_operations = source["operations"]
+            .as_array()
+            .expect("statistics operations array");
+        assert_eq!(source_operations.len(), OFFICIAL_STATS_OPERATIONS.len());
+
+        for (source_operation, runtime_operation) in source_operations
+            .iter()
+            .zip(OFFICIAL_STATS_OPERATIONS.iter())
+        {
+            let inputs = source_operation["inputs"]
+                .as_array()
+                .expect("statistics inputs array");
+            let outputs = source_operation["outputs"]
+                .as_array()
+                .expect("statistics outputs array");
+            let input_names = inputs
+                .iter()
+                .map(|input| input["name"].as_str().expect("input name"))
+                .collect::<Vec<_>>();
+            let output_names = outputs
+                .iter()
+                .map(|output| output["name"].as_str().expect("output name"))
+                .collect::<Vec<_>>();
+
+            assert_eq!(
+                source_operation["id"].as_u64(),
+                Some(u64::from(runtime_operation.id))
+            );
+            assert_eq!(
+                source_operation["key"].as_str(),
+                Some(runtime_operation.key)
+            );
+            assert_eq!(
+                source_operation["revision"].as_u64(),
+                Some(u64::from(runtime_operation.revision))
+            );
+            assert_eq!(
+                source_operation["method"].as_str(),
+                Some(runtime_operation.method)
+            );
+            assert_eq!(
+                runtime_operation.signature,
+                format!("{}({})", runtime_operation.key, input_names.join(","))
+            );
+            assert_eq!(inputs.len(), usize::from(runtime_operation.input_count));
+            assert!(inputs.iter().all(|input| {
+                input["shape"].as_str() == Some("vector")
+                    && input["semantic"].as_str() == Some("number")
+            }));
+            assert_eq!(outputs.len(), usize::from(runtime_operation.output_count));
+            assert_eq!(
+                output_names.as_slice(),
+                statistics_kernel_output_names(runtime_operation.kernel_id)
+            );
+            assert_eq!(
+                source_operation["output_policy"]["scale"].as_u64(),
+                Some(u64::from(runtime_operation.output_scale))
+            );
+            assert_eq!(
+                source_operation["output_policy"]["rounding"].as_str(),
+                Some("half_even")
+            );
+        }
     }
 
     #[test]
@@ -1078,6 +1191,21 @@ mod tests {
         let second = parse_hotset_manifest(text).expect("parse manifest again");
         assert_eq!(first, second);
         assert_eq!(first.operation_keys, ["econ.ped.mid"]);
+    }
+
+    #[test]
+    fn empty_operation_hotset_emits_catalog_without_eval_assets() {
+        let fused = vec!["statistics-core".to_owned()];
+        let bundle = generate_hotset_with_fused("calc-only-baseline", &[], &fused, &[], false)
+            .expect("generate empty semantic hot set");
+        let catalog: serde_json::Value =
+            serde_json::from_str(&bundle.catalog_json).expect("catalog json");
+        assert_eq!(catalog["operations"].as_array().unwrap().len(), 0);
+        assert_eq!(catalog["packs"].as_array().unwrap().len(), 0);
+        assert!(bundle.xs_eval_tool_json.is_none());
+        assert!(bundle.xs_eval_gbnf.is_none());
+        assert!(bundle.prompt_fragment.is_empty());
+        assert!(bundle.xs_find_tool_json.is_none());
     }
 
     #[test]
@@ -1125,7 +1253,10 @@ mod tests {
         assert_eq!(catalog["operations"].as_array().unwrap().len(), 8);
         assert_eq!(catalog["packs"][0]["source"], "fused:econ-undergrad");
         assert!(first.xs_find_tool_json.is_some());
-        assert!(first.xs_eval_gbnf.contains("econ.gdp.deflator100"));
+        assert!(first
+            .xs_eval_gbnf
+            .as_deref()
+            .is_some_and(|grammar| grammar.contains("econ.gdp.deflator100")));
     }
 
     #[test]
@@ -1151,11 +1282,19 @@ mod tests {
         assert_eq!(catalog["operations"].as_array().unwrap().len(), 8);
         assert_eq!(catalog["packs"][0]["source"], "fused:statistics-core");
         assert_eq!(catalog["operations"][1]["args"][0]["shape"], "vector");
-        assert!(first.xs_eval_gbnf.contains("decimal-vector"));
-        assert!(first.xs_eval_gbnf.contains("op-0 ::="));
-        assert!(!first.xs_eval_gbnf.contains("decimal_vector"));
-        assert!(!first.xs_eval_gbnf.contains("op_0"));
-        assert!(first.xs_eval_tool_json.contains("stats.corr.pearson"));
+        let grammar = first
+            .xs_eval_gbnf
+            .as_deref()
+            .expect("statistics eval grammar");
+        let tool = first
+            .xs_eval_tool_json
+            .as_deref()
+            .expect("statistics eval tool");
+        assert!(grammar.contains("decimal-vector"));
+        assert!(grammar.contains("op-0 ::="));
+        assert!(!grammar.contains("decimal_vector"));
+        assert!(!grammar.contains("op_0"));
+        assert!(tool.contains("stats.corr.pearson"));
     }
 
     #[test]
@@ -1191,8 +1330,14 @@ mod tests {
                 .len(),
             64
         );
-        assert!(first.xs_eval_tool_json.contains("\"enum\": ["));
-        assert!(first.xs_eval_gbnf.contains("econ.ped.mid"));
+        assert!(first
+            .xs_eval_tool_json
+            .as_deref()
+            .is_some_and(|tool| tool.contains("\"enum\": [")));
+        assert!(first
+            .xs_eval_gbnf
+            .as_deref()
+            .is_some_and(|grammar| grammar.contains("econ.ped.mid")));
         assert!(first.xs_find_tool_json.is_none());
     }
 
@@ -1258,8 +1403,14 @@ mod tests {
         let catalog: serde_json::Value =
             serde_json::from_str(&bundle.catalog_json).expect("catalog json");
         assert_eq!(catalog["operations"][0]["args"][0]["shape"], "vector");
-        assert!(bundle.xs_eval_tool_json.contains("\"maxItems\": 64"));
-        assert!(bundle.xs_eval_gbnf.contains("decimal-vector"));
+        assert!(bundle
+            .xs_eval_tool_json
+            .as_deref()
+            .is_some_and(|tool| tool.contains("\"maxItems\": 64")));
+        assert!(bundle
+            .xs_eval_gbnf
+            .as_deref()
+            .is_some_and(|grammar| grammar.contains("decimal-vector")));
     }
 
     #[test]

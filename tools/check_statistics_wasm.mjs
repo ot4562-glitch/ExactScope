@@ -19,7 +19,8 @@ const meta = align(output + 512);
 if (xs.memory.buffer.byteLength < meta + 16) xs.memory.grow(Math.ceil((meta + 16 - xs.memory.buffer.byteLength) / 65536));
 const memory = new Uint8Array(xs.memory.buffer);
 const view = new DataView(xs.memory.buffer);
-const rows = corpus.toString("utf8").trim().split(/\r?\n/).map(JSON.parse);
+const corpusText = corpus.toString("utf8").trim();
+const rows = corpusText ? corpusText.split(/\r?\n/).map(JSON.parse) : [];
 const results = [];
 for (const row of rows) {
   if (row.call === null) continue;

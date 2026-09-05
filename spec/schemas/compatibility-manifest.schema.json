@@ -103,6 +103,37 @@
       ],
       "additionalProperties": false
     },
+    "release_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_format",
+        "release_format_version",
+        "release_archive_sha256",
+        "release_manifest_sha256",
+        "release_profile",
+        "abi_revision",
+        "runtime_sha256",
+        "capability_bundle_sha256",
+        "capability_profile_id",
+        "capability_profile_revision",
+        "model_surface_sha256"
+      ],
+      "properties": {
+        "release_format": {"const": "exactscope.release.bundle"},
+        "release_format_version": {"const": "0.1"},
+        "release_archive_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "release_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "release_profile": {"type": "string", "enum": ["native-static", "no-import-wasm"]},
+        "abi_revision": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+        "runtime_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "capability_bundle_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "capability_profile_id": {"type": "string", "minLength": 1, "maxLength": 96},
+        "capability_profile_revision": {"type": "integer", "minimum": 1},
+        "model_surface_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "build_input_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
     "artifact": {
       "type": "object",
       "properties": {
@@ -171,6 +202,9 @@
         },
         "runtime": {
           "$ref": "#/$defs/runtime"
+        },
+        "release_identity": {
+          "$ref": "#/$defs/release_identity"
         },
         "notes": {
           "type": "string",

@@ -1,0 +1,88 @@
+{
+  "format": "exactscope.benchmark-model-matrix",
+  "format_version": "0.1",
+  "as_of": "2026-09-05",
+  "policy": {
+    "core_model_count": 5,
+    "download_root_default": "C:/AIModels/ExactScopeBench",
+    "resolve_repository_revision_before_run": true,
+    "record_sha256_after_download": true,
+    "benchmark_or_qualification_results_in_source_release": false
+  },
+  "core": [
+    {
+      "id": "gemma3-270m-it-q8",
+      "family": "Gemma 3",
+      "parameters": "270M",
+      "role": "extreme-small independent architecture / lower-bound selection-extraction stress",
+      "runtime": "llama.cpp",
+      "repository": "ggml-org/gemma-3-270m-it-GGUF",
+      "file": "gemma-3-270m-it-Q8_0.gguf",
+      "quantization": "Q8_0",
+      "approx_download": "292 MB",
+      "license_note": "Gemma-derived model; review and accept applicable Google Gemma terms before use where required."
+    },
+    {
+      "id": "lfm25-350m-q4km",
+      "family": "LFM2.5",
+      "parameters": "350M",
+      "role": "edge-first / on-device lower-bound representative",
+      "runtime": "llama.cpp",
+      "repository": "LiquidAI/LFM2.5-350M-GGUF",
+      "file": "LFM2.5-350M-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "approx_download": "229 MB",
+      "license_note": "LFM Open License v1.0; review upstream terms before product use."
+    },
+    {
+      "id": "qwen35-08b-q4",
+      "family": "Qwen3.5",
+      "parameters": "0.8B",
+      "role": "modern mainstream sub-1B representative",
+      "runtime": "llama.cpp",
+      "repository": "ggml-org/Qwen3.5-0.8B-GGUF",
+      "file": "Qwen3.5-0.8B-Q4_0.gguf",
+      "quantization": "Q4_0",
+      "approx_download": "563 MB",
+      "license_note": "Apache-2.0 according to the upstream GGUF repository."
+    },
+    {
+      "id": "qwen35-2b-q4km",
+      "family": "Qwen3.5",
+      "parameters": "2B",
+      "role": "mid-size same-family scaling reference and widely used local-model class",
+      "runtime": "llama.cpp",
+      "repository": "lmstudio-community/Qwen3.5-2B-GGUF",
+      "file": "Qwen3.5-2B-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "approx_download": "1.27 GB",
+      "license_note": "Apache-2.0 upstream model lineage; community quantization must be digest-pinned for the run."
+    },
+    {
+      "id": "phi4-mini-38b-q4km",
+      "family": "Phi-4 mini",
+      "parameters": "3.8B",
+      "role": "independent upper-small reasoning reference",
+      "runtime": "llama.cpp",
+      "repository": "bartowski/microsoft_Phi-4-mini-instruct-GGUF",
+      "file": "microsoft_Phi-4-mini-instruct-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "approx_download": "2.49 GB",
+      "license_note": "Derived from Microsoft's MIT-licensed Phi-4-mini-instruct; digest-pin the community quantization."
+    }
+  ],
+  "optional_product_profile": [
+    {
+      "id": "gemma3n-e2b-it",
+      "family": "Gemma 3n",
+      "parameters": "E2B effective / 6B raw",
+      "role": "explicit low-resource-device multimodal product representative; run separately from the GGUF core matrix",
+      "runtime": "Transformers or another explicitly qualified Gemma 3n runtime",
+      "repository": "google/gemma-3n-E2B-it",
+      "file": null,
+      "quantization": null,
+      "approx_download": "runtime-dependent",
+      "license_note": "Gated Gemma model; requires accepting Google's usage terms before download."
+    }
+  ]
+}

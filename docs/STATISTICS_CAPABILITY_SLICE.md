@@ -1,6 +1,6 @@
 # ExactScope Statistics flagship capability slice
 
-Status: **product/benchmark design draft**. This document defines the first flagship semantic capability proof built from the existing `statistics-core-8` operation set. It does not claim that the slice has already passed the benchmark gates below.
+Status: **code-side capability slice implemented; v1.0.0-rc.2 model/target qualification unmeasured**. This document defines the flagship Statistics task families and evidence contract built from the reviewed eight-operation set. The compiler/specialization/runtime plumbing exists, but the exact public rc2 release must still pass the benchmark and target gates below before the slice is called qualified.
 
 Implemented corpus: `benchmarks/statistics_corpus.py` emits the checked-in
 `statistics-v0.1.jsonl` from an explicit 32-bit LCG seed and five presentation
@@ -193,32 +193,32 @@ Every case must contain machine-readable gold data separate from model output:
 
 Before model evaluation, every supported gold call must execute through the actual ExactScope artifact and match the stored expected result. No model answer may influence compatibility selection or gold generation.
 
-## 8. Five required benchmark arms
+## 8. rc2 benchmark arms
 
-For the same prompt corpus and model configuration, compare:
+For the same prompt corpus and model configuration, use the minimum comparison that answers the product question:
 
 | Arm | Surface | Purpose |
 |---|---|---|
 | A | model only | baseline capability and wrong-number behavior |
-| B | model + `xs_calc` only | isolates generic exact arithmetic value |
 | C | model + Statistics semantic slice only | isolates reviewed domain-method value |
-| D | model + `xs_calc` + Statistics slice | target combined product profile |
-| E | larger-model reference | measures the capability gap that might otherwise motivate a model/hardware upgrade |
+| D | model + `xs_calc` + Statistics slice, only when the selected profile contains both | target combined product profile |
+| B | model + `xs_calc` only, optional diagnostic | isolates generic exact-arithmetic value when needed |
 
-Arm E is used only where the reference model meaningfully outperforms the small-model baseline and can be evaluated fairly. It does not need to fit the original device; its deployment cost must be reported separately.
+A larger-model comparison is handled by the model matrix rather than creating an automatic E arm for every run. Phi-4-mini 3.8B is the default upper-small independent reference; add a still-larger reference only when it answers a specific product decision and the comparison contract is fair.
 
-## 9. Target model classes
+## 9. rc2 target model matrix
 
-The first public flagship matrix should cover multiple weak-model classes rather than one favorable model:
+The rc2 qualification matrix is frozen in [`../benchmarks/NEXT_MODEL_MATRIX.md`](../benchmarks/NEXT_MODEL_MATRIX.md). Its five core models deliberately cover multiple sizes/vendors/use cases without becoming a large leaderboard sweep:
 
-- approximately 0.5B-0.8B;
-- approximately 1B;
-- approximately 1.5B-2B;
-- approximately 3B;
-- optional sub-0.5B stress model;
-- at least one larger-model reference where fair.
+- Gemma 3 270M IT Q8_0;
+- LFM2.5 350M Q4_K_M;
+- Qwen3.5 0.8B Q4_0;
+- Qwen3.5 2B Q4_K_M;
+- Phi-4-mini-instruct 3.8B Q4_K_M.
 
-Exact model revision, quantization, tokenizer, context, runtime revision, prompt, grammar/schema, sampling, thread count, and hardware must be immutable benchmark metadata.
+Gemma 3n E2B IT is optional and separately reported as a low-resource-device product profile because it is gated/multimodal and may use a different runtime path.
+
+Exact model repository revision, file SHA-256, quantization, tokenizer, context, runtime revision, prompt, grammar/schema, sampling, thread count, and hardware must be immutable benchmark metadata.
 
 ## 10. Required quality metrics
 
@@ -291,22 +291,19 @@ A high ratio created by a tiny absolute gain must not be presented without the r
 
 ## 14. Capability Recovery Ratio
 
-Where Arm E beats Arm A, compute the task-family-specific Capability Recovery Ratio:
+When a separately justified larger-model reference meaningfully beats the chosen small-model A baseline on the same frozen task contract, compute the task-family-specific Capability Recovery Ratio:
 
 ```text
-CRR = (D - A) / (E - A)
+CRR = (small + ExactScope - small)
+      ----------------------------
+      (larger reference - small)
 ```
 
-where the score is the predeclared primary successful-answer metric for that benchmark slice.
+Use the preregistered primary successful-answer metric for that benchmark slice.
 
-Report CRR together with:
+Report CRR together with all three raw scores, ExactScope artifact/RAM/token/latency/energy cost, larger-reference deployment cost where measurable, and the exact task-family/corpus scope.
 
-- A, D, and E raw scores;
-- ExactScope artifact/RAM/token/latency/energy cost;
-- larger-model storage/RAM/latency/energy cost where measurable;
-- the exact task family/corpus scope.
-
-A CRR near or above 1 on a narrow deterministic task does **not** mean the small model is generally equivalent or superior to the larger model.
+A CRR near or above 1 on a narrow deterministic task does **not** mean the small model is generally equivalent or superior to the larger model. Do not compute CRR when the larger reference fails to beat the small baseline.
 
 ## 15. Internal product gates
 
@@ -336,8 +333,8 @@ The flagship result should let a device/AI team answer four practical questions:
 
 If those answers are weak, ExactScope should improve the slice/interface/evidence before expanding the domain catalog.
 
-## Experimental compiler implementation
+## Implemented compiler / rc2 evidence boundary
 
-The build-time [capability compiler](CAPABILITY_COMPILER.md) now validates Statistics task selections, binds actual operation revisions and canonical model assets, enforces static budgets, and checks reproducibility. The draft profile format remains experimental. This currently restricts the host/model surface; it does not specialize the fused runtime binary or establish model/target qualification.
+The build-time [capability compiler](CAPABILITY_COMPILER.md) validates Statistics/Economics task selections, binds operation revisions and canonical model assets, enforces static budgets, emits exact model-surface negotiation metadata, and drives operation-selected no-import Wasm specialization. The active Statistics metadata generation/dispatch plumbing is code-side complete.
 
-The [five-arm Statistics runner](../benchmarks/CAPABILITY_BENCHMARK.md) now records raw model replies, tokenizer-specific counts, stage metrics, paired tool penalties, capability density and conditional CRR. The initial 1,200-record local-model experiment exposed an error-only tool surface; it is retained as negative interface evidence, not a successful capability claim.
+Existing capability benchmark runners remain useful implementation/evidence tooling, and older local-model experiments remain historical interface evidence. They are **not** the rc2 benchmark result. The rc2 qualification session must start from the immutable public release, use the frozen minimum model matrix/preregistration contract, and create new evidence identities under [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md).

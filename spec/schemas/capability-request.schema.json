@@ -163,6 +163,27 @@
             "null"
           ],
           "minimum": 0
+        },
+        "wasm_stack_bytes_max": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1024
+        },
+        "wasm_initial_pages_max": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "wasm_maximum_pages_max": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
         }
       }
     },
@@ -179,6 +200,10 @@
       "type": "integer",
       "minimum": 1,
       "maximum": 2
+    },
+    "specialization": {
+      "type": "string",
+      "enum": ["host-limited", "statistics-core-8-wasm", "statistics-selected-wasm", "economics-selected-wasm"]
     }
   }
 }

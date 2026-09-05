@@ -13,8 +13,40 @@ env:
   RUST_TOOLCHAIN: "1.98.0"
 
 jobs:
+  preflight:
+    name: Clean-source release preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install validation dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Install pinned Rust and Wasm target
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt --component clippy --target wasm32v1-none
+
+      - name: Verify generated metadata and design contracts
+        run: |
+          python tools/generate_statistics_metadata.py --check
+          python tools/generate_domain_metadata.py --check
+          python tools/validate_design.py
+          python tools/audit_security_surface.py
+
+      - name: Verify Rust workspace
+        run: |
+          cargo "+$RUST_TOOLCHAIN" fmt --all -- --check
+          cargo "+$RUST_TOOLCHAIN" check --workspace --all-targets
+          cargo "+$RUST_TOOLCHAIN" clippy --workspace --all-targets -- -D warnings
+          cargo "+$RUST_TOOLCHAIN" test --workspace --lib
+
+      - name: Verify clean-source Python and benchmark harnesses
+        run: |
+          python -m unittest discover -s tools -p 'test_*.py'
+          python -m unittest discover -s benchmarks -p 'test_*.py'
+
   evaluation-sdk:
     name: Evaluation SDK / ${{ matrix.native_target }}
+    needs: preflight
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -30,6 +62,10 @@ jobs:
             core: target/release/exactscope-core.exe
     steps:
       - uses: actions/checkout@v7
+
+      - name: Install packaging dependencies
+        shell: bash
+        run: python -m pip install -r requirements-dev.txt
 
       - name: Install pinned Rust and Wasm target
         shell: bash
@@ -81,8 +117,8 @@ jobs:
       - name: Verify evaluation SDK
         shell: bash
         run: |
-          python tools/package_evaluation_bundle.py verify dist/exactscope-eval-1.0.0-rc.1-${{ matrix.native_target }}.tar.gz
-          python tools/test_evaluation_bundle.py dist/exactscope-eval-1.0.0-rc.1-${{ matrix.native_target }}.tar.gz
+          python tools/package_evaluation_bundle.py verify dist/exactscope-eval-*-${{ matrix.native_target }}.tar.gz
+          python tools/test_evaluation_bundle.py dist/exactscope-eval-*-${{ matrix.native_target }}.tar.gz
 
       - name: Upload evaluation SDK
         uses: actions/upload-artifact@v7
@@ -92,28 +128,37 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
-  linux-arm64-sdk:
-    name: Linux ARM64 static SDK
+  arm64-sdks:
+    name: Android + Linux ARM64 static SDKs
+    needs: preflight
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install target and cross compiler
+      - name: Install packaging dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Install ARM64 targets
         run: |
-          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target aarch64-unknown-linux-musl
-          sudo apt-get update
-          sudo apt-get install --yes gcc-aarch64-linux-gnu
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+          rustup target add --toolchain "$RUST_TOOLCHAIN" aarch64-linux-android aarch64-unknown-linux-musl
+
+      - name: Build and package Android ARM64 SDK
+        run: |
+          cargo "+$RUST_TOOLCHAIN" rustc --release --target aarch64-linux-android --package exactscope-cabi --lib --features dynamic-packs,standalone-staticlib --crate-type staticlib
+          python tools/package_wearable_sdk.py --target aarch64-linux-android --library target/aarch64-linux-android/release/libexactscope_cabi.a --output-dir dist --source-commit "$GITHUB_SHA" --toolchain "rustc-$RUST_TOOLCHAIN-aarch64-android"
+          python tools/package_wearable_sdk.py --verify dist/exactscope-wearable-sdk-*-aarch64-linux-android.tar.gz --target aarch64-linux-android
 
       - name: Build and package Linux ARM64 SDK
         run: |
           cargo "+$RUST_TOOLCHAIN" rustc --release --target aarch64-unknown-linux-musl --package exactscope-cabi --lib --features dynamic-packs,standalone-staticlib --crate-type staticlib
           python tools/package_wearable_sdk.py --target aarch64-unknown-linux-musl --library target/aarch64-unknown-linux-musl/release/libexactscope_cabi.a --output-dir dist --source-commit "$GITHUB_SHA" --toolchain "rustc-$RUST_TOOLCHAIN-aarch64-musl"
-          python tools/package_wearable_sdk.py --verify dist/exactscope-wearable-sdk-1.0.0-rc.1-aarch64-unknown-linux-musl.tar.gz --target aarch64-unknown-linux-musl
+          python tools/package_wearable_sdk.py --verify dist/exactscope-wearable-sdk-*-aarch64-unknown-linux-musl.tar.gz --target aarch64-unknown-linux-musl
 
-      - name: Upload Linux ARM64 SDK
+      - name: Upload ARM64 SDKs
         uses: actions/upload-artifact@v7
         with:
-          name: sdk-aarch64-unknown-linux-musl
+          name: sdk-arm64
           path: dist/*.tar.gz
           if-no-files-found: error
           compression-level: 0
@@ -121,7 +166,7 @@ jobs:
   publish-prerelease:
     name: Publish GitHub prerelease
     if: github.event_name == 'push'
-    needs: [evaluation-sdk, linux-arm64-sdk]
+    needs: [evaluation-sdk, arm64-sdks]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -155,13 +200,20 @@ jobs:
           (root / "SHA256SUMS").write_text("".join(lines), encoding="ascii")
           PY
 
-      - name: Publish v1.0.0-rc.1 as a prerelease
+      - name: Verify tag matches Cargo project version
+        shell: bash
+        run: |
+          PROJECT_VERSION="$(python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')"
+          test "$GITHUB_REF_NAME" = "v$PROJECT_VERSION"
+          test -f "RELEASE_NOTES_${GITHUB_REF_NAME}.md"
+
+      - name: Publish prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
           gh release create "$GITHUB_REF_NAME"
           --prerelease
           --verify-tag
-          --title "ExactScope $GITHUB_REF_NAME"
-          --notes-file RELEASE_NOTES_v1.0.0-rc.1.md
+          --title "ExactScope $GITHUB_REF_NAME — Integration & Qualification Candidate"
+          --notes-file "RELEASE_NOTES_${GITHUB_REF_NAME}.md"
           dist/*.tar.gz dist/SHA256SUMS dist/release-manifest.json

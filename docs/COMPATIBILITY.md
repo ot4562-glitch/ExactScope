@@ -1,5 +1,7 @@
 # Compatibility contract
 
+Release context: **v1.0.0-rc.2 integration & qualification candidate**. No rc2 path is promoted to Tier 1/Tier 2 until evidence is produced against the exact published artifact.
+
 Compatibility is evidence attached to a released artifact, not a statement that the source code compiled somewhere.
 
 The current product strategy deliberately separates **primary v0.1 release profiles** from broader experimental architecture so universal platform/profile parity does not delay the first product proof.
@@ -37,14 +39,18 @@ The invariant is that any profile exposing the same operation uses the same shar
 
 | Path | Current evidence | Current claim |
 |---|---|---|
-| Native scalar/statistics C ABI | unit/conformance tests; zero-copy vector path; CI | implemented runtime path |
+| Native scalar/statistics C ABI | source/unit/conformance coverage; zero-copy vector path; rc2 evaluation packaging | implemented candidate path; not Tier 1/Tier 2 yet |
 | Dynamic statistics `.xsp` path | shared kernel and fused/dynamic parity tests for implemented slice | implemented secondary path |
-| No-import Wasm | zero-import inspection; Tiny JSON/TinyWire runtime tests; scalar/vector evaluation | implemented primary candidate, not stable Tier 1 yet |
-| Android AArch64 experimental SDK | CI cross-build, packaging, CMake target, doctor | Experimental |
-| Linux AArch64 musl experimental SDK | CI cross-build, packaging, doctor/ELF checks | Experimental |
+| No-import Wasm | source/build inspection and runtime/component tests; rc2 evaluation packaging | implemented candidate path; not Tier 1/Tier 2 yet |
+| Android AArch64 static SDK | cross-build/package workflow, CMake target, doctor/reference host infrastructure | Experimental rc2 candidate until published artifact/target evidence exists |
+| Linux AArch64 musl static SDK | cross-build/package workflow, doctor/ELF/reference host infrastructure | Experimental rc2 candidate until published artifact/target evidence exists |
 | Wearable reference | C host, A/B, benchmark/qualification framework | integration reference, not generic device support |
-| Real constrained-target performance | incomplete | no performance Tier claim |
-| Stable release artifacts | not yet published | prerelease project |
+| Real constrained-target performance | unmeasured for rc2 | no performance Tier claim |
+| GitHub prerelease assets | rc2 workflow configured with manifest/checksum publication | candidate distribution only; actual release page is authoritative |
+
+`tools/record_release_compatibility.py` can now create an **experimental** compatibility record for one deterministic release-shaped archive. The record binds the archive digest, release-manifest digest, exact runtime digest, capability bundle/profile revision, ABI, model-surface digest, target and toolchain. The tool deliberately refuses Tier 1/Tier 2 output; it is an identity/evidence container, not support promotion.
+
+The legacy planned example in `spec/examples/compatibility-manifest.json` remains a design placeholder. A current release record is meaningful only when produced from the exact verified release archive it names. Target/runtime execution, conformance, resource evidence, and support promotion remain separate requirements below.
 
 ## 4. What a supported artifact must prove
 
@@ -243,6 +249,8 @@ A published model benchmark must record the exact:
 - benchmark dataset revision.
 
 See [BENCHMARK.md](BENCHMARK.md).
+
+Operation-revision compatibility is governed by [OPERATION_REVISION_POLICY_V0_1.md](../spec/OPERATION_REVISION_POLICY_V0_1.md). Transparent upgrades of one capability profile can be checked statically with `tools/check_operation_revision_compat.py`; revision upgrades require explicit review and never inherit benchmark/qualification evidence automatically.
 
 ## 17. Release promotion rule
 

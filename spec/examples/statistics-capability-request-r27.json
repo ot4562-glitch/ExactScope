@@ -1,0 +1,35 @@
+{
+  "profile_id": "statistics-core-8-ai",
+  "profile_revision": 27,
+  "domain": "statistics",
+  "task_families": [
+    "descriptive-aggregation",
+    "weighted-mean",
+    "variance-standard-deviation-method-selection",
+    "pearson-correlation"
+  ],
+  "model_budget": {
+    "prompt_fragment_bytes_max": 1024,
+    "schema_bytes_max": 4096,
+    "grammar_bytes_max": 4096,
+    "generated_request_tokens_max": 256,
+    "request_bytes_max": 512,
+    "plan_steps_max": 8,
+    "normal_model_turns_max": 1
+  },
+  "device_budget": {
+    "target_profile": "no-import-wasm",
+    "artifact_bytes_max": 131072,
+    "resident_bytes_max": null,
+    "scratch_bytes_max": null,
+    "imports_max": 0,
+    "wasm_stack_bytes_max": 16384,
+    "wasm_initial_pages_max": 1,
+    "wasm_maximum_pages_max": 1
+  },
+  "format": "exactscope.capability.request",
+  "format_version": "0.1",
+  "xs_calc": true,
+  "model_visible_tools_max": 2,
+  "specialization": "statistics-selected-wasm"
+}

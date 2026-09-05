@@ -1,6 +1,6 @@
 # Security policy
 
-ExactScope is currently design-only. No runtime release is available, so there is no supported production version yet.
+ExactScope `v1.0.0-rc.2` is an integration & qualification candidate, not a stable supported production runtime. Code-side security boundaries and release packaging can be checked before publication, but exact built-artifact, fuzz/sanitizer and representative target evidence still control any Tier 1/Tier 2 or production-security claim.
 
 ## Reporting a vulnerability
 
@@ -89,19 +89,23 @@ Unsafe Rust is limited to reviewed ABI and memory adapters. Every unsafe block m
 
 Core numeric, VM, constraint, and pack-semantic modules should forbid unsafe code.
 
+The current source enforces this boundary mechanically: kernel, pack, Tiny JSON, packc, and conformance crates use `#![forbid(unsafe_code)]`; native C ABI and Wasm memory-boundary crates use `#![deny(unsafe_op_in_unsafe_fn)]`. `tools/audit_security_surface.py` additionally checks the public native/Wasm export registry, C header/Rust `no_mangle` parity, and `# Safety` contracts on every public unsafe C entry point. This is a source-boundary audit, not a substitute for sanitizer/fuzz/target testing.
+
 ## Release security gates
 
-Before the first runtime release:
+Before the first stable runtime release:
 
 - parser/ABI fuzz targets exist;
 - malformed-input regression corpus passes;
 - native sanitizers or equivalent memory tooling run where available;
 - Wasm malformed-input tests produce no unexpected traps;
-- exported native symbols are allowlisted;
+- the **built** native artifact symbol table matches the reviewed export allowlist;
 - dependency and license inventory is published;
 - release artifacts have checksums;
-- dynamic and fused packs produce identical results;
+- dynamic and fused packs produce identical results for any shipped dynamic path;
 - support claims match recorded compatibility evidence.
+
+Current code-side groundwork includes strict Tiny JSON/TinyWire/parser regressions, source/header export allowlisting, capability/release archive malformed-file rejection, dependency attribution checks, deterministic checksums, and explicit build-input identity metadata. The full release security review remains open until fuzzing, sanitizer/equivalent memory checks, exact built-artifact symbol inspection, malformed runtime execution, and release-artifact evidence are completed for the artifact being promoted.
 
 ## Out of scope
 

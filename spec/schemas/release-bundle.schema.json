@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.org/spec/schemas/release-bundle.schema.json",
+  "title": "ExactScope release-shaped integration bundle v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "format_version", "release_version", "support", "qualification", "profile", "target", "source_commit", "toolchain", "capability", "runtime", "files"],
+  "properties": {
+    "format": {"const": "exactscope.release.bundle"},
+    "format_version": {"const": "0.1"},
+    "release_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "support": {"const": "experimental"},
+    "qualification": {"const": "unqualified"},
+    "profile": {"type": "string", "enum": ["native-static", "no-import-wasm"]},
+    "target": {"type": "string", "minLength": 1, "maxLength": 96, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "source_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "toolchain": {"type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[^\\r\\n]+$"},
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "profile_id", "profile_revision", "domain", "abi_revision", "bundle_sha256", "surface_contract_sha256", "surface_negotiation"],
+      "properties": {
+        "path": {"const": "capability"},
+        "profile_id": {"type": "string", "minLength": 1, "maxLength": 96, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+        "profile_revision": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "domain": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+        "abi_revision": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+        "bundle_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "surface_contract_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "surface_negotiation": {"const": "exact-version-and-digest"}
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "size_bytes", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"},
+        "size_bytes": {"type": "integer", "minimum": 1},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "build_inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "source_identity_sha256"],
+      "properties": {
+        "path": {"const": "build-inputs.json"},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "source_identity_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "files": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"},
+      "additionalProperties": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+    }
+  }
+}

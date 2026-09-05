@@ -12,6 +12,33 @@ publish = false
 
 [features]
 default = []
+selected-calc = []
+econ-specialized = ["exactscope-kernel/econ-specialized"]
+econ-ped-mid = ["exactscope-kernel/econ-ped-mid"]
+stats-specialized = ["exactscope-kernel/stats-specialized"]
+stats-sum = ["exactscope-kernel/stats-sum"]
+stats-mean = ["exactscope-kernel/stats-mean"]
+stats-mean-weighted = ["exactscope-kernel/stats-mean-weighted"]
+stats-var-pop = ["exactscope-kernel/stats-var-pop"]
+stats-var-sample = ["exactscope-kernel/stats-var-sample"]
+stats-sd-pop = ["exactscope-kernel/stats-sd-pop"]
+stats-sd-sample = ["exactscope-kernel/stats-sd-sample"]
+stats-cov-pop = ["exactscope-kernel/stats-cov-pop"]
+stats-cov-sample = ["exactscope-kernel/stats-cov-sample"]
+stats-corr-pearson = ["exactscope-kernel/stats-corr-pearson"]
+stats-regression-linear = ["exactscope-kernel/stats-regression-linear"]
+statistics-core-8 = [
+    "selected-calc",
+    "stats-specialized",
+    "stats-sum",
+    "stats-mean",
+    "stats-mean-weighted",
+    "stats-var-pop",
+    "stats-var-sample",
+    "stats-sd-pop",
+    "stats-sd-sample",
+    "stats-corr-pearson",
+]
 
 [dependencies]
 exactscope-kernel = { path = "../exactscope-kernel", default-features = false }

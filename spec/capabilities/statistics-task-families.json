@@ -1,0 +1,18 @@
+{
+  "format": "exactscope.capability.task-family-map",
+  "format_version": "0.1",
+  "domain": "statistics",
+  "families": {
+    "arithmetic-baseline": [],
+    "descriptive-aggregation": ["stats.sum", "stats.mean"],
+    "weighted-mean": ["stats.mean.weighted"],
+    "variance-standard-deviation-method-selection": [
+      "stats.var.pop",
+      "stats.var.sample",
+      "stats.sd.pop",
+      "stats.sd.sample"
+    ],
+    "pearson-correlation": ["stats.corr.pearson"],
+    "ambiguity-failure-preservation": []
+  }
+}

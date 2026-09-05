@@ -1,8 +1,6 @@
-//! Immutable operation declarations for the first fused slice.
+//! Immutable operation declarations for the fused scalar slice.
 
-use crate::{
-    Instruction, RoundingMode, WorkRational, SEMANTIC_ELASTICITY, SEMANTIC_PRICE, SEMANTIC_QUANTITY,
-};
+use crate::{Instruction, RoundingMode, WorkRational};
 
 /// Scalar constraint kind used by the first slice.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -133,45 +131,6 @@ impl InputDecl {
     };
 }
 
-const PED_INPUTS: [InputDecl; 4] = [
-    InputDecl {
-        name: "p1",
-        semantic_kind: SEMANTIC_PRICE,
-        same_unit_group: 1,
-        unit_required: false,
-        constraint: ConstraintKind::GreaterThan,
-        constraint_value: WorkRational::ZERO,
-        detail_id: 1,
-    },
-    InputDecl {
-        name: "p2",
-        semantic_kind: SEMANTIC_PRICE,
-        same_unit_group: 1,
-        unit_required: false,
-        constraint: ConstraintKind::GreaterThan,
-        constraint_value: WorkRational::ZERO,
-        detail_id: 2,
-    },
-    InputDecl {
-        name: "q1",
-        semantic_kind: SEMANTIC_QUANTITY,
-        same_unit_group: 2,
-        unit_required: false,
-        constraint: ConstraintKind::GreaterOrEqual,
-        constraint_value: WorkRational::ZERO,
-        detail_id: 3,
-    },
-    InputDecl {
-        name: "q2",
-        semantic_kind: SEMANTIC_QUANTITY,
-        same_unit_group: 2,
-        unit_required: false,
-        constraint: ConstraintKind::GreaterOrEqual,
-        constraint_value: WorkRational::ZERO,
-        detail_id: 4,
-    },
-];
-
 const PED_CONSTANTS: [WorkRational; 2] =
     [WorkRational::from_integer(2), WorkRational::from_integer(1)];
 
@@ -222,39 +181,7 @@ const CLASS_ELASTIC_PROGRAM: [Instruction; 5] = [
     Instruction::new(0, 0),
 ];
 
-const PED_CLASSIFICATIONS: [ClassificationDecl; 3] = [
-    ClassificationDecl {
-        id: 1,
-        key: "inelastic",
-        program: &CLASS_INELASTIC_PROGRAM,
-    },
-    ClassificationDecl {
-        id: 2,
-        key: "unit_elastic",
-        program: &CLASS_UNIT_PROGRAM,
-    },
-    ClassificationDecl {
-        id: 3,
-        key: "elastic",
-        program: &CLASS_ELASTIC_PROGRAM,
-    },
-];
-
-/// First fused implementation operation.
-pub static PED_MID_OPERATION: OperationDecl = OperationDecl {
-    id: 301,
-    revision: 1,
-    key: "econ.ped.mid",
-    signature: "econ.ped.mid(p1,p2,q1,q2)",
-    method: "midpoint",
-    inputs: &PED_INPUTS,
-    constants: &PED_CONSTANTS,
-    program: &PED_PROGRAM,
-    classifications: &PED_CLASSIFICATIONS,
-    output_semantic_kind: SEMANTIC_ELASTICITY,
-    output_scale: 6,
-    rounding_mode: RoundingMode::HalfEven,
-};
+include!("economics_selection.generated.rs");
 
 /// Returns a classification machine key from an operation-local ID.
 #[must_use]

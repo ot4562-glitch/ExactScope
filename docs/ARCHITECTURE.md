@@ -151,19 +151,62 @@ transport type into two borrowed trait-object references. Its large operation
 dispatch and arithmetic calls are emitted once, avoiding separate generic copies
 for typed Wasm, CBOR and Tiny JSON readers. No allocator or copied vector is added;
 numeric order, failure precedence and the public Rust/C contracts remain intact.
-The measured development Wasm is 85,671 bytes versus the RC baseline 102,971 bytes
-(17,300 bytes smaller), with zero imports and 17 initial pages. This is a size
-measurement; indirect vector calls have not established a latency improvement.
+Older development builds measured size changes from this refactor, but those byte
+counts are historical measurements tied to their exact source/toolchain identities.
+They are not rc2 release measurements and are therefore not restated as a current
+artifact claim here.
 
 Subsequent rational multiplication/division avoid a third GCD after complete
 cross-cancellation of normalized inputs. The normalized-input invariant proves
 the resulting numerator/denominator are already coprime. Numeric grid and i128
-boundary tests preserve existing overflow behavior. This adds 71 artifact bytes
-(85,742 total) and reduced the three measured desktop wire microbench medians by
-about 6–10%; raw samples are in
-[`statistics-rational-microbench.json`](../benchmarks/results/statistics-rational-microbench.json).
-The microbenchmark includes wire parsing/formatting but excludes model inference;
-it is not physical-device energy or end-to-end model latency evidence.
+boundary tests preserve existing overflow behavior. Historical desktop wire
+microbenchmarks were useful during development, but mutable raw benchmark payloads
+are intentionally not carried forward in the rc2 clean source. Any rc2 latency
+measurement must be rerun and bound to the exact public release artifact; desktop
+microbenchmarks remain distinct from physical-device and model end-to-end evidence.
+
+### Experimental profile-derived Statistics specialization
+
+The Statistics capability compiler lowers the profile's selected reviewed operations
+to operation-level build features. `stats-specialized` is the common serving boundary;
+individual features select `sum`, `mean`, weighted mean, population/sample variance and
+standard deviation, covariance, Pearson correlation, or linear regression. Feature names
+are derived from the reviewed Statistics scope-pack keys. Selected key/ID lookup is
+centralized in the kernel and reused by Tiny JSON and the direct typed Wasm Statistics
+export; kernel contract/compute dispatch remains the final shared execution authority.
+Packc parity tests reject reviewed scope-pack/fused Rust metadata drift. TinyWire, scalar
+economics and runtime discovery are disabled in these specialized artifacts.
+
+The specialization machinery has already demonstrated that reviewed Statistics subsets
+change real binary reachability rather than merely hiding tools from the model. Historical
+post-r20 development revisions measured a full eight-operation slice, a weighted-mean-only
+slice, and a same-boundary `xs_calc`-only baseline under one source/toolchain line. Those
+measurements remain development history; the clean rc2 source does not carry their generated
+capability directories forward or relabel their byte counts as current release evidence.
+
+For rc2, the important architectural fact is that the compiler derives selected Statistics
+operation features from reviewed metadata, selected key/ID lookup is centralized in the
+kernel, and specialized Tiny JSON/direct Wasm dispatch rejects excluded operations. The
+exact rc2 artifact size, digest, imports, memory declaration, conformance result, and marginal
+semantic cost must be measured again from the immutable public release candidate in the
+qualification session.
+
+The frozen r20 model-evidence chain remains bound to the earlier 45,804-byte r17 runtime.
+Neither that model evidence nor later pre-rc2 footprint proofs are inherited by rc2. This
+preserves the distinction between an implemented specialization mechanism and evidence for
+one exact released artifact.
+
+The specialized link policy replaces the generic roughly 1 MiB default Wasm stack
+reservation with a 16 KiB stack and sets maximum linear memory to 64 KiB. Local stress
+found 2 KiB insufficient and 4 KiB sufficient for the current stress suite; 16 KiB
+retains a 4x margin. Specialized modules declare memory `1..1` pages. This is a hard
+component linear-memory ceiling, not a measurement of process resident RAM, host VM
+memory, model memory, energy, or target qualification.
+
+The generalization boundary is explicit: new subsets of the currently reviewed
+Statistics vocabulary can be compiled from profiles without Rust edits. A genuinely
+new operation, domain, or semantic kernel still needs implementation, operation-level
+feature plumbing, review and conformance before it can participate in this mechanism.
 
 ## 7. `exactscope-pack`
 
@@ -369,4 +412,20 @@ Work that only broadens internal elegance or platform count is secondary until t
 
 ## Experimental compiler implementation
 
-The build-time [capability compiler](CAPABILITY_COMPILER.md) now validates Statistics task selections, binds actual operation revisions and canonical model assets, enforces static budgets, and checks reproducibility. The draft profile format remains experimental. This currently restricts the host/model surface; it does not specialize the fused runtime binary or establish model/target qualification.
+The build-time [capability compiler](CAPABILITY_COMPILER.md) validates Statistics and
+Economics task selections through shared domain descriptors, binds operation revisions
+and canonical model assets, and enforces static budgets. Selected Wasm artifacts use
+operation Cargo features to remove excluded serving paths, including optional `xs_calc`.
+Discovery and TinyWire remain outside selected serving slices. The draft profile stays
+experimental; implementation completion does not establish model/target qualification.
+
+Statistics operation declarations, stable kernel IDs, arity/output contracts, selected
+lookups and compute-call wiring come from reviewed source plus explicit implementation
+bindings. Handwritten numeric functions remain the sole algorithms. Packc reuses the
+generated kernel-name lookup. Scalar Economics selection is generated, and its handwritten
+identity/output policy is drift-checked against the source. Both domains use the same
+descriptor-driven Cargo forwarding checks. CI rejects stale generated metadata.
+
+The JavaScript capability host verifies the detached manifest hash, exact file inventory,
+regular-file payloads and every payload digest before loading Wasm. These checks establish
+bundle integrity, not publisher authentication. OEM update trust remains host-owned.

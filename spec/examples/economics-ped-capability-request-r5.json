@@ -1,0 +1,32 @@
+{
+  "profile_id": "economics-ped-mid-ai",
+  "profile_revision": 5,
+  "domain": "economics",
+  "task_families": [
+    "price-elasticity-midpoint"
+  ],
+  "model_budget": {
+    "prompt_fragment_bytes_max": 512,
+    "schema_bytes_max": 2048,
+    "grammar_bytes_max": 2048,
+    "generated_request_tokens_max": 128,
+    "request_bytes_max": 512,
+    "plan_steps_max": 0,
+    "normal_model_turns_max": 1
+  },
+  "device_budget": {
+    "target_profile": "no-import-wasm",
+    "artifact_bytes_max": 65536,
+    "resident_bytes_max": null,
+    "scratch_bytes_max": null,
+    "imports_max": 0,
+    "wasm_stack_bytes_max": 16384,
+    "wasm_initial_pages_max": 1,
+    "wasm_maximum_pages_max": 1
+  },
+  "format": "exactscope.capability.request",
+  "format_version": "0.1",
+  "xs_calc": false,
+  "model_visible_tools_max": 1,
+  "specialization": "economics-selected-wasm"
+}

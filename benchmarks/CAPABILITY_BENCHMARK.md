@@ -1,67 +1,106 @@
-# Five-arm Statistics runner
+# Historical Statistics multi-arm runner
 
-Build `exactscope-core`, install `requirements-dev.txt`, then run:
+Release context: **historical development tooling; not the v1.0.0-rc.2 benchmark plan**
 
-```sh
-python benchmarks/test_capability_benchmark.py
-python benchmarks/capability_benchmark.py --config local-model-config.json --output benchmarks/output/my-run
+`benchmarks/capability_benchmark.py` was built during the pre-rc2 Statistics evidence chain. It can still be useful for reproducing or inspecting that historical benchmark contract, but its old bundle defaults, five-arm A/B/C/D/E layout, token-budget compatibility knobs, and historical artifact-cost assumptions must not be treated as rc2 evidence.
+
+For new rc2 qualification, start with:
+
+1. [`../docs/QUALIFICATION_HANDOFF.md`](../docs/QUALIFICATION_HANDOFF.md)
+2. [`NEXT_MODEL_MATRIX.md`](NEXT_MODEL_MATRIX.md)
+3. [`../docs/BENCHMARK.md`](../docs/BENCHMARK.md)
+4. [`../docs/NEXT_SESSION_PROMPT.md`](../docs/NEXT_SESSION_PROMPT.md)
+
+## Historical purpose
+
+The runner was designed to separate:
+
+- A — model only;
+- B — `xs_calc` only;
+- C — selected Statistics `xs_eval` only;
+- D — combined `xs_calc + xs_eval`;
+- E — a separately configured larger-model reference.
+
+It records raw model replies, operation/argument selection, tool validity, ExactScope responses, token counts, turns, model/bridge latency, tool penalty, capability-density denominators, and conditional CRR.
+
+That layout was useful during development because it exposed a key product fact: a wider surface could be worse for some weak models even when deterministic execution itself was correct. It also exposed cases where weak model-only or larger-model baselines were not credible enough for a headline CRR.
+
+## Historical reproduction only
+
+Older examples referred to generated bundles such as the r17 Statistics runtime and a calc-only baseline. The rc2 clean source intentionally does **not** ship those generated capability/evidence directories.
+
+To reproduce an old run, use an evidence checkout/archive that contains the exact historical bundles and model/runtime metadata, pass all bundle paths explicitly, and preserve the old configuration exactly. Do not regenerate a look-alike bundle from current source and call it the historical artifact.
+
+The historical r17 Statistics serving artifact was **45,804 bytes**. The model evidence accumulated through `statistics-core-8-ai-r20` belongs to that exact old runtime line. It is never an rc2 baseline.
+
+Historical result interpretation is kept in files such as:
+
+- `STATISTICS_R17_QWEN3_PRIMARY_RESULT.md`;
+- `STATISTICS_R17_LLAMA32_SECONDARY_RESULT.md`;
+- `STATISTICS_R17_QWEN25_STRESS_RESULT.md`.
+
+Those documents describe old experiments and limitations; they are not planned rc2 scores.
+
+## rc2 comparison policy
+
+The new rc2 evidence plan is deliberately simpler:
+
+- **A — model only**;
+- **C — selected semantic `xs_eval` only**;
+- **D — `xs_calc + xs_eval` only when the exact selected capability exposes both**;
+- **B — `xs_calc` only when needed as a diagnostic**.
+
+There is no automatic E arm. The frozen five-model matrix already contains multiple sizes/vendors and an upper-small independent reference. A still-larger model is added only when it answers a specific product decision and the comparison contract is fair.
+
+The rc2 core matrix is:
+
+- Gemma 3 270M IT Q8_0;
+- LFM2.5 350M Q4_K_M;
+- Qwen3.5 0.8B Q4_0;
+- Qwen3.5 2B Q4_K_M;
+- Phi-4-mini-instruct 3.8B Q4_K_M.
+
+Gemma 3n E2B IT is an optional separate product-oriented profile.
+
+## Rules that remain valid
+
+Several principles from the historical runner remain mandatory:
+
+- gold construction/admission is independent of model output;
+- identical comparable-item sets and generation budgets are used across arms;
+- syntax/tool failures never trigger hidden retries or semantic repair;
+- a wrong but valid operation/plan/argument call remains a model failure;
+- deterministic runtime success alone does not make the end-to-end answer correct;
+- partial output is never labeled complete;
+- duplicate `(arm,item_id)` records invalidate a supposedly complete run;
+- capability-density ratios retain raw numerator/denominator values;
+- CRR is used only when its larger-reference denominator is positive and meaningful;
+- desktop bridge/model latency is not target-device qualification;
+- declared Wasm memory bounds are not process RSS.
+
+## New-run identity
+
+Before using this or any other runner for rc2, freeze the exact:
+
+- GitHub release/tag/commit and release asset hashes;
+- capability/model-surface/runtime artifact hashes;
+- model repository revisions and file hashes;
+- model runtime/build/launch command;
+- corpus/generator/mapping hashes;
+- prompt/tool/schema/GBNF bytes;
+- generation settings and token budget;
+- scorer/failure taxonomy;
+- timeout/retry policy;
+- output directory and single-writer rule.
+
+If the current runner does not cleanly implement the frozen rc2 preregistration, adapt or replace the harness **before inference**, record that harness identity, and do not alter it after seeing results.
+
+## Output location
+
+New rc2 run payloads belong under ignored unique directories such as:
+
+```text
+benchmarks/output/rc2-<model-id>-<run-id>/
 ```
 
-The configuration contains `small` and optionally `larger` objects, each declaring
-`base_url` (llama.cpp `/v1` endpoint), `model`, `model_sha256`, `tokenizer_id`,
-`quantization`, `runtime_revision`, `hardware`, `context_size` and `threads`.
-Record additional launch settings such as GPU layers and reasoning mode too.
-Token counts use that server's `/tokenize` endpoint with special tokens disabled;
-full chat prompt/completion usage comes from its actual response. The exact model
-and launch configuration must be verified by the operator, not inferred by the runner.
-
-The runner validates all gold calls before querying models, then evaluates the
-same items in A (small only), B (calc), C (eval), D (combined), E (larger only).
-Tool arms require a permitted request or explicit failure. No-call arms return
-a decimal or failure. All paths are one model turn; a host renderer preserves
-the runtime response. Result/failure fidelity therefore measures host forwarding,
-not a second model's ability to copy a result. Plan selection/extraction have no
-unique gold decomposition and remain explicitly unmeasured; semantic operation
-selection and ordered argument extraction are measured separately.
-
-Scoring compares numbers at the predeclared six-place half-even Statistics
-precision. This is evaluation equivalence only: the host never changes the actual
-18-place `xs_calc` response. Error names must match exactly. Missing/ambiguous
-methods remain no-call cases, and mismatched/zero-denominator vectors remain typed
-runtime failure cases. Syntax failures never trigger retries or repair.
-
-Output includes raw per-item replies, core responses, tokens, model turns, plan
-length, model and bridge latency, each arm's actual prompt/grammar, and digest-bound
-metadata/summary. Bridge latency includes process startup and JSON transport; it is
-not a standalone kernel latency measurement. Partial raw results survive a failed
-run, but no complete paired summary is produced for missing items or duplicate IDs.
-
-Optional `incremental_costs` supplies measured D-minus-A `artifact_bytes`,
-`resident_bytes`, `prompt_tokens`, `added_ms`, and `joules`. Every density retains
-the raw numerator/denominator and scale; missing or non-positive denominators
-produce null with a reason. No budget ceiling is treated as measured RAM or energy.
-CRR uses `(D-A)/(E-A)` only when E exceeds A. The larger model's costs remain in
-its own configuration. These are controlled synthetic corpus results, not public
-dataset scores, general model equivalence, target qualification or energy evidence.
-
-## Initial interface experiment
-
-The first complete run used Qwen3 0.6B Q8_0 and a Qwen3 1.7B Q8_0 reference on
-the local desktop: 240 cases per arm, 1,200 raw records. It exposed a serious
-interface failure: tool arms emitted error objects on every case and never called
-the core. Correct outcomes were A 0/240, B 8/240, C 10/240, D 10/240, E 6/240.
-The few correct tool-arm outcomes are preserved errors, not recovered numeric
-capability. A positive arithmetic CRR from these tiny error-only counts must not
-be promoted as a useful capability upgrade. This is a prompt/surface failure to
-fix, with the complete original run retained for comparison.
-
-The second development run uses shorter request-translation prompts and shorter
-GBNF rule namespaces (actual combined grammar 3,444 bytes, within the 4,096-byte
-profile ceiling). Results: A 2/240, B 10/240, C 177/240, D 175/240, E 17/240.
-C made 231 calls and D 229, versus zero in the first experiment. C matched 215
-argument vectors but only 180 operation selections; sample/population method
-selection is a remaining weakness. B still made no calls and the answer-only
-A/E prompts are poor baselines. This is development-interface evidence with
-those limitations, not a credible larger-model substitution claim. The raw CRR
-11.5333 is retained mathematically, with its small 15/240 reference gap visible.
-No held-out accuracy claim is made after tuning on this corpus.
+Do not commit mutable rc2 raw results into the product source tree. Freeze publishable evidence separately with exact hashes and an explicit complete/invalid/aborted status.

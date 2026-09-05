@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.org/spec/schemas/statistics-kernel-bindings.schema.json",
+  "title": "ExactScope Statistics kernel implementation bindings v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "format_version",
+    "domain",
+    "operations"
+  ],
+  "properties": {
+    "format": {
+      "const": "exactscope.statistics.kernel-bindings"
+    },
+    "format_version": {
+      "const": "0.1"
+    },
+    "domain": {
+      "const": "statistics"
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "kernel_name",
+          "kernel_id",
+          "kernel_const",
+          "cargo_feature",
+          "rust_operation_symbol",
+          "rust_function",
+          "result_kind"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^stats\\.[a-z0-9.]+$",
+            "maxLength": 160
+          },
+          "kernel_name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "maxLength": 96
+          },
+          "kernel_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "kernel_const": {
+            "type": "string",
+            "pattern": "^STATS_KERNEL_[A-Z0-9_]+$",
+            "maxLength": 128
+          },
+          "cargo_feature": {
+            "type": "string",
+            "pattern": "^stats-[a-z0-9-]+$",
+            "maxLength": 128
+          },
+          "rust_operation_symbol": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "maxLength": 160
+          },
+          "rust_function": {
+            "type": "string",
+            "pattern": "^statistics_[a-z_]+$"
+          },
+          "result_kind": {
+            "enum": [
+              "rational",
+              "sqrt",
+              "regression"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

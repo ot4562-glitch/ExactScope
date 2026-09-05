@@ -18,6 +18,41 @@ default = []
 fused = []
 dynamic-packs = []
 tinyjson = ["dep:exactscope-tinyjson"]
+selected-calc = ["exactscope-tinyjson/selected-calc"]
+econ-specialized = [
+    "tinyjson",
+    "exactscope-kernel/econ-specialized",
+    "exactscope-tinyjson/econ-specialized",
+]
+econ-ped-mid = ["exactscope-kernel/econ-ped-mid", "exactscope-tinyjson/econ-ped-mid"]
+stats-specialized = [
+    "tinyjson",
+    "exactscope-kernel/stats-specialized",
+    "exactscope-tinyjson/stats-specialized",
+]
+stats-sum = ["exactscope-kernel/stats-sum", "exactscope-tinyjson/stats-sum"]
+stats-mean = ["exactscope-kernel/stats-mean", "exactscope-tinyjson/stats-mean"]
+stats-mean-weighted = ["exactscope-kernel/stats-mean-weighted", "exactscope-tinyjson/stats-mean-weighted"]
+stats-var-pop = ["exactscope-kernel/stats-var-pop", "exactscope-tinyjson/stats-var-pop"]
+stats-var-sample = ["exactscope-kernel/stats-var-sample", "exactscope-tinyjson/stats-var-sample"]
+stats-sd-pop = ["exactscope-kernel/stats-sd-pop", "exactscope-tinyjson/stats-sd-pop"]
+stats-sd-sample = ["exactscope-kernel/stats-sd-sample", "exactscope-tinyjson/stats-sd-sample"]
+stats-cov-pop = ["exactscope-kernel/stats-cov-pop", "exactscope-tinyjson/stats-cov-pop"]
+stats-cov-sample = ["exactscope-kernel/stats-cov-sample", "exactscope-tinyjson/stats-cov-sample"]
+stats-corr-pearson = ["exactscope-kernel/stats-corr-pearson", "exactscope-tinyjson/stats-corr-pearson"]
+stats-regression-linear = ["exactscope-kernel/stats-regression-linear", "exactscope-tinyjson/stats-regression-linear"]
+statistics-core-8 = [
+    "selected-calc",
+    "stats-specialized",
+    "stats-sum",
+    "stats-mean",
+    "stats-mean-weighted",
+    "stats-var-pop",
+    "stats-var-sample",
+    "stats-sd-pop",
+    "stats-sd-sample",
+    "stats-corr-pearson",
+]
 
 [dependencies]
 exactscope-kernel = { path = "../exactscope-kernel", default-features = false }

@@ -1,0 +1,117 @@
+{
+  "format": "exactscope.statistics.kernel-bindings",
+  "format_version": "0.1",
+  "domain": "statistics",
+  "operations": [
+    {
+      "key": "stats.sum",
+      "kernel_name": "sum",
+      "kernel_id": 1,
+      "kernel_const": "STATS_KERNEL_SUM",
+      "cargo_feature": "stats-sum",
+      "rust_operation_symbol": "STATS_SUM_OPERATION",
+      "rust_function": "statistics_sum",
+      "result_kind": "rational"
+    },
+    {
+      "key": "stats.mean",
+      "kernel_name": "mean",
+      "kernel_id": 2,
+      "kernel_const": "STATS_KERNEL_MEAN",
+      "cargo_feature": "stats-mean",
+      "rust_operation_symbol": "STATS_MEAN_OPERATION",
+      "rust_function": "statistics_mean",
+      "result_kind": "rational"
+    },
+    {
+      "key": "stats.mean.weighted",
+      "kernel_name": "weighted_mean",
+      "kernel_id": 3,
+      "kernel_const": "STATS_KERNEL_WEIGHTED_MEAN",
+      "cargo_feature": "stats-mean-weighted",
+      "rust_operation_symbol": "STATS_WEIGHTED_MEAN_OPERATION",
+      "rust_function": "statistics_weighted_mean",
+      "result_kind": "rational"
+    },
+    {
+      "key": "stats.var.pop",
+      "kernel_name": "variance_population",
+      "kernel_id": 4,
+      "kernel_const": "STATS_KERNEL_VARIANCE_POPULATION",
+      "cargo_feature": "stats-var-pop",
+      "rust_operation_symbol": "STATS_VARIANCE_POPULATION_OPERATION",
+      "rust_function": "statistics_population_variance",
+      "result_kind": "rational"
+    },
+    {
+      "key": "stats.var.sample",
+      "kernel_name": "variance_sample",
+      "kernel_id": 5,
+      "kernel_const": "STATS_KERNEL_VARIANCE_SAMPLE",
+      "cargo_feature": "stats-var-sample",
+      "rust_operation_symbol": "STATS_VARIANCE_SAMPLE_OPERATION",
+      "rust_function": "statistics_sample_variance",
+      "result_kind": "rational"
+    },
+    {
+      "key": "stats.sd.pop",
+      "kernel_name": "standard_deviation_population",
+      "kernel_id": 10,
+      "kernel_const": "STATS_KERNEL_STANDARD_DEVIATION_POPULATION",
+      "cargo_feature": "stats-sd-pop",
+      "rust_operation_symbol": "STATS_STANDARD_DEVIATION_POPULATION_OPERATION",
+      "rust_function": "statistics_population_standard_deviation",
+      "result_kind": "sqrt"
+    },
+    {
+      "key": "stats.sd.sample",
+      "kernel_name": "standard_deviation_sample",
+      "kernel_id": 11,
+      "kernel_const": "STATS_KERNEL_STANDARD_DEVIATION_SAMPLE",
+      "cargo_feature": "stats-sd-sample",
+      "rust_operation_symbol": "STATS_STANDARD_DEVIATION_SAMPLE_OPERATION",
+      "rust_function": "statistics_sample_standard_deviation",
+      "result_kind": "sqrt"
+    },
+    {
+      "key": "stats.cov.pop",
+      "kernel_name": "covariance_population",
+      "kernel_id": 6,
+      "kernel_const": "STATS_KERNEL_COVARIANCE_POPULATION",
+      "cargo_feature": "stats-cov-pop",
+      "rust_operation_symbol": "STATS_COVARIANCE_POPULATION_OPERATION",
+      "rust_function": "statistics_population_covariance",
+      "result_kind": "rational"
+    },
+    {
+      "key": "stats.cov.sample",
+      "kernel_name": "covariance_sample",
+      "kernel_id": 7,
+      "kernel_const": "STATS_KERNEL_COVARIANCE_SAMPLE",
+      "cargo_feature": "stats-cov-sample",
+      "rust_operation_symbol": "STATS_COVARIANCE_SAMPLE_OPERATION",
+      "rust_function": "statistics_sample_covariance",
+      "result_kind": "rational"
+    },
+    {
+      "key": "stats.corr.pearson",
+      "kernel_name": "correlation",
+      "kernel_id": 8,
+      "kernel_const": "STATS_KERNEL_CORRELATION",
+      "cargo_feature": "stats-corr-pearson",
+      "rust_operation_symbol": "STATS_CORRELATION_PEARSON_OPERATION",
+      "rust_function": "statistics_pearson_correlation",
+      "result_kind": "sqrt"
+    },
+    {
+      "key": "stats.regression.linear",
+      "kernel_name": "linear_regression",
+      "kernel_id": 9,
+      "kernel_const": "STATS_KERNEL_LINEAR_REGRESSION",
+      "cargo_feature": "stats-regression-linear",
+      "rust_operation_symbol": "STATS_LINEAR_REGRESSION_OPERATION",
+      "rust_function": "statistics_linear_regression",
+      "result_kind": "regression"
+    }
+  ]
+}

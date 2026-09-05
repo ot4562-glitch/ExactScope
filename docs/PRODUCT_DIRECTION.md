@@ -1,5 +1,7 @@
 # ExactScope product direction
 
+Release context: **v1.0.0-rc.2 integration & qualification candidate**. The active capability architecture described here is implemented code-side; the remaining adoption gates are exact public-release model evidence, representative target qualification and support promotion.
+
 This document defines what ExactScope is optimizing for. It supersedes any earlier product framing that treated broad platform parity or full catalog completion as more important than proving adoption value.
 
 ## 1. Product sentence
@@ -150,59 +152,52 @@ Offline is a capability, not the whole market. A network-connected device can st
 
 The strongest early adoption wedge may be **existing devices** whose hardware cannot be changed but whose AI software stack can still receive an update.
 
-## 8. Release scope
+## 8. rc2 release scope
 
-The internal architecture may support multiple execution profiles, but v0.1 product scope is intentionally narrow.
+The product scope remains intentionally narrow even though the internal architecture supports more paths.
 
-### Primary v0.1 candidates
+Primary rc2 integration candidates:
 
-1. **Native static C ABI**
-2. **No-import WebAssembly**
+1. **Native static C ABI** — packaged for Windows/Linux x86-64 evaluation and Android/Linux ARM64 OEM integration.
+2. **No-import WebAssembly** — packaged in the x86-64 evaluation SDK and intended for local embedding.
 
-Both profiles must preserve the tiny, embed-and-update retrofit model.
+Both profiles preserve the tiny embed/update model and remain qualification candidates rather than Tier 1/Tier 2 support promises.
 
-### Secondary/experimental
-
-- dynamic data packs;
-- dynamic discovery;
-- additional shared-library/platform wrappers;
-- broad OS/architecture parity;
-- domain-series breadth beyond the first evidence-backed packs.
-
-All paths exposing the same computation must use shared calculation semantics. v0.1 does not wait for universal platform parity.
+Secondary/experimental architecture includes dynamic data packs, dynamic discovery, convenience wrappers, broader OS/architecture parity, and additional domain breadth. All paths exposing the same computation must use shared calculation semantics. rc2 does not wait for universal platform parity.
 
 ## 9. Capability-first roadmap
 
-### P0 — prove one capability unit
+### P0 — rc2 public candidate and model evidence
 
-- preserve and drift-check the implemented bounded `xs_calc` surface;
-- define a machine-readable capability-profile format;
-- define model-difficulty and footprint budgets;
-- build one intentionally small Statistics flagship slice;
-- benchmark model-only, `xs_calc`, semantic slice, combined slice, and a larger-model reference where fair;
-- report wrong-number reduction, tool penalty, capability density, and Capability Recovery Ratio (CRR).
+Implemented before qualification: bounded `xs_calc`, selected Statistics/Economics semantic slices, deterministic capability compiler, model-surface identity, native/Wasm packaging and qualification tooling.
 
-### P1 — prove it on constrained hardware
+Remaining P0 evidence:
 
-- measure the same small model with and without the capability slice on a real target;
-- compare against a larger-model/newer-device path where useful;
-- record binary, resident RAM, scratch, latency, tokens, and energy where measurable;
-- document update/rollback and integration cost.
+- publish/verify the exact rc2 GitHub candidate and release assets;
+- freeze the five-model minimum matrix and preregistration identities;
+- run A model-only / C selected semantic / D combined comparisons, adding B calc-only only as a diagnostic;
+- report end-to-end correctness plus failure decomposition and exact interface/artifact cost;
+- bind all results to immutable release/model/runtime/corpus/scorer identities.
 
-### P2 — productize slice generation and qualification
+### P1 — prove the released candidate on constrained hardware
 
-- deterministic capability compiler/profile generator;
-- stable C ABI/no-import Wasm artifacts;
-- immutable manifests, model-surface digests, and self-test;
-- compatibility/qualification records;
-- update-safe integration guidance;
-- convenience platform packages only when validated by real consumers.
+- use the exact published Android ARM64 or embedded Linux ARM64 asset on a representative target;
+- record artifact/storage, RSS/heap, stack/scratch, latency distribution, energy method/results where credible, and thermal behavior where relevant;
+- exercise fail-closed malformed input plus update/rollback/power-loss behavior where applicable;
+- compare against a larger-model/newer-device path only where the product decision is real and fair.
+
+### P2 — support promotion
+
+- decide which exact artifacts/targets become supported rather than merely Experimental;
+- publish compatibility/qualification/reproducibility records appropriate to that claim;
+- define support/update/security/LTS policy;
+- add convenience platform wrappers only when validated by real integrators.
 
 ### P3 — expand reviewed domain sources after proof
 
-- one shared core;
-- Statistics first, then Economics, Finance, Physics/Engineering and other evidence-backed domains;
-- every domain adds reviewed contracts/provenance/tests and emits small target-specific slices rather than another runtime or a full-catalog prompt.
+- keep one shared core and one specialization/profile mechanism;
+- add Statistics/Economics breadth or Finance/Physics/Engineering only when a real capability profile justifies it;
+- every new domain adds reviewed contracts/provenance/tests and emits small target-specific slices rather than another runtime or a full-catalog prompt.
 
 See [`../ROADMAP.md`](../ROADMAP.md) for the detailed gates.
 
@@ -248,33 +243,28 @@ The business model must not require a proprietary cloud calculation service or i
 
 ## 13. Current implementation position
 
-Already implemented experimentally:
+Implemented code-side for rc2:
 
 - deterministic `no_std` numeric kernel and bounded scalar VM;
 - bounded `xs_calc` plan-v0.1 over `add/sub/mul/div/powi/sqrt`;
-- Tiny JSON decoding plus generated JSON Schema/GBNF/tool/prompt assets for `xs_calc`;
-- reviewed economics execution and bounded statistics vector kernels;
-- semantic `xs_eval` hot sets and optional cold/development `xs_find`;
-- native typed C ABI and zero-copy vectors;
-- current formula/kernel `.xsp` path;
-- no-import Wasm;
-- Tiny JSON and TinyWire;
-- llama.cpp reference integration and small multi-model smoke evidence;
-- FinQA/TAT-QA gold-derived `xs_calc` oracle/compatibility evidence;
-- prebuilt RC evaluation artifacts and GitHub release workflow;
-- wearable reference/A-B update reference;
-- experimental ARM64 SDK packaging;
-- relocatable CMake target, SDK doctor, and CI gates.
+- Tiny JSON/TinyWire plus generated JSON Schema/GBNF/tool/prompt assets;
+- reviewed Economics execution and bounded Statistics vector kernels;
+- selected semantic `xs_eval` and optional cold/development `xs_find`;
+- native typed C ABI and no-import Wasm;
+- pack/packc plus optional dynamic-pack architecture;
+- deterministic domain-general capability/profile compiler;
+- task-family-driven Statistics/Economics slices and model-difficulty budgets;
+- generated/drift-checked Statistics kernel/operation/dispatch metadata and Economics selection wiring;
+- operation-selected Wasm specialization and fail-closed model-surface identity;
+- strict llama.cpp reference envelopes for both normal lanes;
+- deterministic evaluation/OEM SDK packaging with manifest/checksum policy;
+- Windows/Linux x86-64 evaluation and Android/Linux ARM64 release-workflow paths;
+- wearable reference/A-B/update/qualification infrastructure;
+- relocatable CMake target, security/export audit and CI gates.
 
-Largest product gaps now:
+Historical model/oracle/smoke results remain design evidence only. They are not listed as rc2 implementation proof because the clean release requires new exact-artifact evidence.
 
-1. a frozen machine-readable capability-profile format and generator;
-2. a task-family-driven Statistics flagship slice with explicit model-difficulty budget;
-3. reproducible multi-arm capability evidence across multiple 0.5B-3B model classes;
-4. capability-density and CRR reporting against a larger-model reference where meaningful;
-5. per-slice binary/RAM/scratch/token/latency/energy evidence;
-6. target qualification and real-device measurements;
-7. long-term compatibility/LTS evidence strong enough to create a real build-vs-buy moat.
+Remaining product gates are public rc2 release verification, fresh revision-bound model evidence, resource/energy measurements, representative real-device qualification and long-term compatibility/LTS/support evidence. These are not missing numeric engines or compiler mechanisms. See `CODEX_CONTEXT.md` and `QUALIFICATION_HANDOFF.md`.
 
 ## 14. Decision test
 

@@ -1,8 +1,8 @@
 # ExactScope retrofit product strategy
 
-> **Design status: product direction. The bounded `xs_calc` plan-v0.1 path is now implemented experimentally; capability-slice/profile design, domain proof, and real-target qualification remain product work.**
+> **v1.0.0-rc.2 status:** the bounded `xs_calc` lane, selected semantic capability/profile compiler, Statistics/Economics specialization, model-surface identity and public packaging are implemented code-side. Model uplift and representative real-target qualification remain evidence work and are intentionally deferred to the external-user qualification session.
 >
-> See [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) for the next-stage product-unit and build-vs-buy architecture.
+> See [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) for the active product-unit/build-vs-buy architecture and [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md) for the rc2 evidence procedure.
 
 ## 1. Product thesis
 
@@ -232,12 +232,9 @@ The plan layer is therefore a restricted model-facing program representation, no
 
 Accuracy alone is insufficient. ExactScope only wins the retrofit position if the added software is materially cheaper than replacing the model/hardware path it is intended to avoid.
 
-During current development, local prerelease artifacts have been observed at approximately:
+Pre-rc2 development builds produced multiple local footprint measurements, but those values are tied to their exact source/toolchain/artifact identities. The rc2 clean source therefore does not present an old development byte count as the current product size.
 
-- no-import Wasm: 97,851 bytes;
-- Windows benchmark core executable: 180,736 bytes.
-
-These are development measurements, not universal release-size guarantees.
+Measure the exact public rc2 archive/runtime bytes and SHA-256 during qualification and bind every footprint comparison to that released artifact.
 
 The capability product should keep explicit footprint gates:
 

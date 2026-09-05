@@ -1507,20 +1507,8 @@ fn rounding_mode(value: &str) -> Result<RoundingMode, CompileError> {
 }
 
 fn kernel_id(value: &str) -> Result<u16, CompileError> {
-    match value {
-        "sum" => Ok(1),
-        "mean" => Ok(2),
-        "weighted_mean" => Ok(3),
-        "variance_population" => Ok(4),
-        "variance_sample" => Ok(5),
-        "covariance_population" => Ok(6),
-        "covariance_sample" => Ok(7),
-        "correlation" => Ok(8),
-        "linear_regression" => Ok(9),
-        "standard_deviation_population" => Ok(10),
-        "standard_deviation_sample" => Ok(11),
-        _ => Err(CompileError::Invalid("unknown statistics kernel")),
-    }
+    exactscope_kernel::statistics_kernel_id_by_name(value)
+        .ok_or(CompileError::Invalid("unknown statistics kernel"))
 }
 
 fn opcode_id(value: &str) -> Result<(u8, bool), CompileError> {

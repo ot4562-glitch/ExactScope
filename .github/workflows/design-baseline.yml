@@ -36,11 +36,45 @@ jobs:
       - name: Validate schemas, registries, examples, catalog, ABI constants, and links
         run: python tools/validate_design.py
 
+      - name: Test deterministic implementation metadata and feature drift rejection
+        run: python tools/test_generate_statistics_metadata.py
+
+      - name: Test model-surface contract negotiation without runtime execution
+        run: python tools/test_model_surface_compat.py
+
+      - name: Test release-shaped packaging without runtime execution
+        run: python tools/test_package_release_bundle.py
+
+      - name: Test operation-revision upgrade policy without runtime execution
+        run: python tools/test_operation_revision_compat.py
+
+      - name: Audit unsafe/public export security boundaries without runtime execution
+        run: python tools/audit_security_surface.py
+
+      - name: Test deterministic build-input identity without building runtime artifacts
+        run: python tools/test_build_input_identity.py
+
+      - name: Test reproducible-build comparison records without executing artifacts
+        run: python tools/test_compare_reproducible_builds.py
+
+      - name: Test exact experimental release compatibility records without execution
+        run: python tools/test_record_release_compatibility.py
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Test capability bundle file boundary without executing Wasm
+        run: node tools/test_capability_bundle_files.mjs
+
       - name: Check dependency attribution and SPDX inventory
         run: python tools/check_licenses.py
 
       - name: Validate llama.cpp direct-eval adapter envelope
         run: python adapters/llama-cpp/direct_eval_smoke.py --self-test
+
+      - name: Validate llama.cpp bounded xs_calc adapter envelope
+        run: python adapters/llama-cpp/calc_plan_smoke.py --self-test
 
       - name: Compile public headers as C11
         run: cc -std=c11 -Wall -Wextra -Werror -pedantic -Iinclude -fsyntax-only tests/abi/header_c.c
@@ -241,14 +275,14 @@ jobs:
           --output-dir target/evaluation-bundles
 
       - name: Verify evaluation archive integrity
-        run: python3 tools/package_evaluation_bundle.py verify target/evaluation-bundles/exactscope-eval-1.0.0-rc.1-x86_64-unknown-linux-gnu.tar.gz
+        run: python3 tools/package_evaluation_bundle.py verify target/evaluation-bundles/exactscope-eval-*-x86_64-unknown-linux-gnu.tar.gz
 
       - name: Run clean-room evaluation without Rust source/build access
-        run: python3 tools/test_evaluation_bundle.py target/evaluation-bundles/exactscope-eval-1.0.0-rc.1-x86_64-unknown-linux-gnu.tar.gz
+        run: python3 tools/test_evaluation_bundle.py target/evaluation-bundles/exactscope-eval-*-x86_64-unknown-linux-gnu.tar.gz
 
       - name: Upload prerelease evaluation bundle
         uses: actions/upload-artifact@v4
         with:
           name: exactscope-eval-linux-x86_64
-          path: target/evaluation-bundles/exactscope-eval-1.0.0-rc.1-x86_64-unknown-linux-gnu.tar.gz
+          path: target/evaluation-bundles/exactscope-eval-*-x86_64-unknown-linux-gnu.tar.gz
           if-no-files-found: error

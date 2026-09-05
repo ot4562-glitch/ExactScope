@@ -75,14 +75,9 @@ Implemented references now cover both lanes:
 - generated GBNF/tool assets and compact prompt fragments;
 - strict returned-call/plan validation with no semantic repair;
 - hot-set/profile identity propagation where applicable;
-- a recorded five-case three-model `xs_calc` integration smoke.
+- historical local `xs_calc` integration smokes retained only as adapter-development evidence.
 
-Still required for product benchmark completion:
-
-- larger reproducible task-family runs across the target 0.5B-3B classes;
-- the Statistics capability-slice arms defined in the benchmark contract;
-- larger-model reference comparisons where fair;
-- exact model-difficulty, resource-cost, capability-density, and CRR records.
+For rc2 product benchmark completion, ignore the old ad-hoc smoke matrix and use the frozen five-model plan in `../benchmarks/NEXT_MODEL_MATRIX.md`. The later qualification session must start from the immutable public release, preregister exact release/model/runtime/corpus/surface identities, and report model-difficulty/resource cost plus failure decomposition. Capability density/CRR are reported only where their denominators are meaningful.
 
 Neither primary lane requires `xs_find` before every calculation.
 

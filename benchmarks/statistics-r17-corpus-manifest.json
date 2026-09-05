@@ -1,0 +1,44 @@
+{
+  "format": "exactscope.statistics.corpus-manifest",
+  "format_version": "0.1",
+  "corpus_id": "statistics-r17-v0.1",
+  "status": "FROZEN_BEFORE_MODEL_RUN",
+  "corpus": {
+    "path": "benchmarks/statistics-r17-v0.1.jsonl",
+    "sha256": "87ecec59161f5b44aa406ae0ca15a0ad258a47aa24555adac0e685418ebd6f60",
+    "items": 144,
+    "runtime_calls": 132,
+    "family_layout": {
+      "S1": 24,
+      "S2": 24,
+      "S3": 24,
+      "S4": 24,
+      "S5": 24,
+      "S6": 24
+    },
+    "wording_revision": "r17-independent-wording-v1",
+    "seed": 20260917
+  },
+  "generator": {
+    "path": "benchmarks/statistics_r17_corpus.py",
+    "sha256": "020233cfd39b46e833849a94aeb5d96a245ae60b9651df9e4eea3cb4f5a8fdfd"
+  },
+  "oracle": {
+    "path": "benchmarks/statistics_corpus.py",
+    "sha256": "1dedeeeee9310b704830c0554092463dd348eabe3c123bac01b86ff8b0f3555f",
+    "kind": "Fraction/Decimal test oracle plus real ExactScope core validation"
+  },
+  "runtime_binding": {
+    "capability_profile_revision": 17,
+    "core_revision": "sha256:cf8e9630cc6c3a63b1086f59f39cb4e908e03a9e768d30a3e8796f8b919144fd",
+    "artifact_sha256": "5381a32831e3eea1f4134267e341f57136e4d35d405e6d460f26b6846c051592"
+  },
+  "provenance": {
+    "old_prompt_templates_reused": false,
+    "old_numeric_oracle_reused": true,
+    "model_outputs_used_to_construct_or_edit_corpus": false,
+    "model_results_observed_before_freeze": false,
+    "manual_review": "structural/readability spot review in the development session; not independent external human review",
+    "claim_boundary": "new frozen synthetic wording corpus for controlled r17 evaluation; not an official public dataset benchmark"
+  }
+}

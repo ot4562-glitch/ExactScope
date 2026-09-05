@@ -1,0 +1,5 @@
+{"call":{"a":["10000","12000","100","80"],"op":"econ.ped.mid"},"expected":{"c":"elastic","p":"econ-undergrad@0.1.0","r":1,"s":0,"v":"-1.222222"},"id":"econ-ped-v1-000"}
+{"call":{"a":["10","20","20","10"],"op":"econ.ped.mid"},"expected":{"c":"unit_elastic","p":"econ-undergrad@0.1.0","r":1,"s":0,"v":"-1"},"id":"econ-ped-v1-001"}
+{"call":{"a":["10","12","100","95"],"op":"econ.ped.mid"},"expected":{"c":"inelastic","p":"econ-undergrad@0.1.0","r":1,"s":0,"v":"-0.282051"},"id":"econ-ped-v1-002"}
+{"call":{"a":["10","10","100","80"],"op":"econ.ped.mid"},"expected":{"e":"DIVIDE_BY_ZERO","s":13},"id":"econ-ped-v1-003"}
+{"call":{"a":["-1","10","100","80"],"op":"econ.ped.mid"},"expected":{"d":1,"e":"CONSTRAINT_VIOLATION","i":0,"s":11},"id":"econ-ped-v1-004"}

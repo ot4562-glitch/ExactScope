@@ -2,6 +2,11 @@
 #![forbid(unsafe_code)]
 #![doc = "Deterministic, allocator-free `ExactScope` numeric kernel."]
 
+#[cfg(all(feature = "econ-specialized", feature = "stats-specialized"))]
+compile_error!("ExactScope domain specializations are mutually exclusive per runtime artifact");
+#[cfg(all(feature = "econ-specialized", not(feature = "econ-ped-mid")))]
+compile_error!("econ-specialized requires at least one reviewed Economics operation feature");
+
 #[cfg(test)]
 extern crate std;
 
@@ -30,6 +35,8 @@ pub use evaluate::{
     evaluate_operation, evaluate_runtime_operation, EvaluationResult, ResultValue,
     ARGUMENT_INDEX_NONE, MAX_RESULT_VALUES,
 };
+#[cfg(feature = "econ-specialized")]
+pub use operation::economics_selected_operation_by_key;
 pub use operation::{
     classification_key, ClassificationDecl, ConstraintKind, InputDecl, OperationDecl,
     RuntimeOperation, PED_MID_OPERATION,
@@ -47,11 +54,12 @@ pub use semantic::{
     VALUE_FLAG_INEXACT, VALUE_FLAG_ROUNDED,
 };
 pub use stats::{
-    evaluate_statistics_operation, statistics_kernel_contract, statistics_kernel_output_names,
-    statistics_linear_regression, statistics_mean, statistics_pearson_correlation,
-    statistics_population_covariance, statistics_population_standard_deviation,
-    statistics_population_variance, statistics_sample_covariance,
-    statistics_sample_standard_deviation, statistics_sample_variance, statistics_sum,
+    evaluate_statistics_operation, statistics_kernel_contract, statistics_kernel_id_by_name,
+    statistics_kernel_output_names, statistics_linear_regression, statistics_mean,
+    statistics_pearson_correlation, statistics_population_covariance,
+    statistics_population_standard_deviation, statistics_population_variance,
+    statistics_sample_covariance, statistics_sample_standard_deviation, statistics_sample_variance,
+    statistics_selected_operation_by_id, statistics_selected_operation_by_key, statistics_sum,
     statistics_weighted_mean, DecimalVector, LinearRegression, StatisticsKernelContract,
     StatisticsOperationDecl, MAX_STATS_VECTOR_LEN, OFFICIAL_STATS_OPERATIONS,
     STATS_CORRELATION_PEARSON_OPERATION, STATS_COVARIANCE_POPULATION_OPERATION,

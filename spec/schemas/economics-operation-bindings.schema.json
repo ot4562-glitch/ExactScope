@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.dev/schemas/economics-operation-bindings.schema.json",
+  "title": "ExactScope Economics implementation bindings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "format_version",
+    "domain",
+    "operations"
+  ],
+  "properties": {
+    "format": {
+      "const": "exactscope.economics.operation-bindings"
+    },
+    "format_version": {
+      "const": "0.1"
+    },
+    "domain": {
+      "const": "economics"
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "cargo_feature",
+          "rust_operation_symbol",
+          "rust_constants_symbol",
+          "rust_program_symbol",
+          "rust_classification_predicates"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^econ\\.[a-z0-9._-]+$",
+            "maxLength": 96
+          },
+          "cargo_feature": {
+            "type": "string",
+            "pattern": "^econ-[a-z0-9-]+$",
+            "maxLength": 96
+          },
+          "rust_operation_symbol": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "maxLength": 128
+          },
+          "rust_constants_symbol": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "maxLength": 128
+          },
+          "rust_program_symbol": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "maxLength": 128
+          },
+          "rust_classification_predicates": {
+            "type": "object",
+            "propertyNames": {
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]*$",
+              "maxLength": 128
+            }
+          }
+        }
+      }
+    }
+  }
+}

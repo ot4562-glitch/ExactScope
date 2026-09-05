@@ -57,30 +57,6 @@ impl DecimalVector for &[Decimal64] {
     }
 }
 
-/// Stable kernel ID for exact ordered sum.
-pub const STATS_KERNEL_SUM: u16 = 1;
-/// Stable kernel ID for arithmetic mean.
-pub const STATS_KERNEL_MEAN: u16 = 2;
-/// Stable kernel ID for weighted arithmetic mean.
-pub const STATS_KERNEL_WEIGHTED_MEAN: u16 = 3;
-/// Stable kernel ID for population variance.
-pub const STATS_KERNEL_VARIANCE_POPULATION: u16 = 4;
-/// Stable kernel ID for sample variance.
-pub const STATS_KERNEL_VARIANCE_SAMPLE: u16 = 5;
-/// Stable kernel ID for population covariance.
-pub const STATS_KERNEL_COVARIANCE_POPULATION: u16 = 6;
-/// Stable kernel ID for sample covariance.
-pub const STATS_KERNEL_COVARIANCE_SAMPLE: u16 = 7;
-/// Stable kernel ID for Pearson correlation. The implementation remains gated
-/// on deterministic square-root completion.
-pub const STATS_KERNEL_CORRELATION: u16 = 8;
-/// Stable kernel ID for simple linear regression.
-pub const STATS_KERNEL_LINEAR_REGRESSION: u16 = 9;
-/// Stable kernel ID for population standard deviation.
-pub const STATS_KERNEL_STANDARD_DEVIATION_POPULATION: u16 = 10;
-/// Stable kernel ID for sample standard deviation.
-pub const STATS_KERNEL_STANDARD_DEVIATION_SAMPLE: u16 = 11;
-
 /// Stable arity contract for one built-in statistics kernel.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StatisticsKernelContract {
@@ -90,53 +66,7 @@ pub struct StatisticsKernelContract {
     pub output_count: u8,
 }
 
-/// Returns the immutable v0.1 arity contract for a statistics kernel ID.
-#[must_use]
-pub const fn statistics_kernel_contract(kernel_id: u16) -> Option<StatisticsKernelContract> {
-    let input_count = match kernel_id {
-        STATS_KERNEL_SUM
-        | STATS_KERNEL_MEAN
-        | STATS_KERNEL_VARIANCE_POPULATION
-        | STATS_KERNEL_VARIANCE_SAMPLE
-        | STATS_KERNEL_STANDARD_DEVIATION_POPULATION
-        | STATS_KERNEL_STANDARD_DEVIATION_SAMPLE => 1,
-        STATS_KERNEL_WEIGHTED_MEAN
-        | STATS_KERNEL_COVARIANCE_POPULATION
-        | STATS_KERNEL_COVARIANCE_SAMPLE
-        | STATS_KERNEL_CORRELATION
-        | STATS_KERNEL_LINEAR_REGRESSION => 2,
-        _ => return None,
-    };
-    Some(StatisticsKernelContract {
-        input_count,
-        output_count: if kernel_id == STATS_KERNEL_LINEAR_REGRESSION {
-            2
-        } else {
-            1
-        },
-    })
-}
-
-/// Returns canonical output names for one stable statistics kernel ID.
-///
-/// These names are kernel semantics rather than pack-owned presentation text,
-/// so fused model-facing adapters and generated bindings can share the same
-/// deterministic result ordering without affecting dynamic numeric evaluation.
-#[must_use]
-pub const fn statistics_kernel_output_names(kernel_id: u16) -> &'static [&'static str] {
-    match kernel_id {
-        STATS_KERNEL_SUM => &["sum"],
-        STATS_KERNEL_MEAN | STATS_KERNEL_WEIGHTED_MEAN => &["mean"],
-        STATS_KERNEL_VARIANCE_POPULATION | STATS_KERNEL_VARIANCE_SAMPLE => &["variance"],
-        STATS_KERNEL_STANDARD_DEVIATION_POPULATION | STATS_KERNEL_STANDARD_DEVIATION_SAMPLE => {
-            &["standard_deviation"]
-        }
-        STATS_KERNEL_COVARIANCE_POPULATION | STATS_KERNEL_COVARIANCE_SAMPLE => &["covariance"],
-        STATS_KERNEL_CORRELATION => &["correlation"],
-        STATS_KERNEL_LINEAR_REGRESSION => &["slope", "intercept"],
-        _ => &[],
-    }
-}
+include!("statistics_kernels.generated.rs");
 
 /// Immutable fused statistics operation declaration.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -163,154 +93,7 @@ pub struct StatisticsOperationDecl {
     pub rounding_mode: RoundingMode,
 }
 
-const fn stats_operation(
-    id: u32,
-    key: &'static str,
-    signature: &'static str,
-    method: &'static str,
-    kernel_id: u16,
-    input_count: u8,
-    output_count: u8,
-) -> StatisticsOperationDecl {
-    StatisticsOperationDecl {
-        id,
-        revision: 1,
-        key,
-        signature,
-        method,
-        kernel_id,
-        input_count,
-        output_count,
-        output_scale: 6,
-        rounding_mode: RoundingMode::HalfEven,
-    }
-}
-
-/// `stats.sum(values)`.
-pub static STATS_SUM_OPERATION: StatisticsOperationDecl = stats_operation(
-    1,
-    "stats.sum",
-    "stats.sum(values)",
-    "exact_ordered",
-    STATS_KERNEL_SUM,
-    1,
-    1,
-);
-/// `stats.mean(values)`.
-pub static STATS_MEAN_OPERATION: StatisticsOperationDecl = stats_operation(
-    2,
-    "stats.mean",
-    "stats.mean(values)",
-    "arithmetic",
-    STATS_KERNEL_MEAN,
-    1,
-    1,
-);
-/// `stats.mean.weighted(values,weights)`.
-pub static STATS_WEIGHTED_MEAN_OPERATION: StatisticsOperationDecl = stats_operation(
-    3,
-    "stats.mean.weighted",
-    "stats.mean.weighted(values,weights)",
-    "weighted_arithmetic",
-    STATS_KERNEL_WEIGHTED_MEAN,
-    2,
-    1,
-);
-/// `stats.var.pop(values)`.
-pub static STATS_VARIANCE_POPULATION_OPERATION: StatisticsOperationDecl = stats_operation(
-    4,
-    "stats.var.pop",
-    "stats.var.pop(values)",
-    "two_pass_population",
-    STATS_KERNEL_VARIANCE_POPULATION,
-    1,
-    1,
-);
-/// `stats.var.sample(values)`.
-pub static STATS_VARIANCE_SAMPLE_OPERATION: StatisticsOperationDecl = stats_operation(
-    5,
-    "stats.var.sample",
-    "stats.var.sample(values)",
-    "two_pass_sample",
-    STATS_KERNEL_VARIANCE_SAMPLE,
-    1,
-    1,
-);
-/// `stats.sd.pop(values)`.
-pub static STATS_STANDARD_DEVIATION_POPULATION_OPERATION: StatisticsOperationDecl = stats_operation(
-    6,
-    "stats.sd.pop",
-    "stats.sd.pop(values)",
-    "population",
-    STATS_KERNEL_STANDARD_DEVIATION_POPULATION,
-    1,
-    1,
-);
-/// `stats.sd.sample(values)`.
-pub static STATS_STANDARD_DEVIATION_SAMPLE_OPERATION: StatisticsOperationDecl = stats_operation(
-    7,
-    "stats.sd.sample",
-    "stats.sd.sample(values)",
-    "sample",
-    STATS_KERNEL_STANDARD_DEVIATION_SAMPLE,
-    1,
-    1,
-);
-/// `stats.cov.pop(x,y)`.
-pub static STATS_COVARIANCE_POPULATION_OPERATION: StatisticsOperationDecl = stats_operation(
-    8,
-    "stats.cov.pop",
-    "stats.cov.pop(x,y)",
-    "population",
-    STATS_KERNEL_COVARIANCE_POPULATION,
-    2,
-    1,
-);
-/// `stats.cov.sample(x,y)`.
-pub static STATS_COVARIANCE_SAMPLE_OPERATION: StatisticsOperationDecl = stats_operation(
-    9,
-    "stats.cov.sample",
-    "stats.cov.sample(x,y)",
-    "sample",
-    STATS_KERNEL_COVARIANCE_SAMPLE,
-    2,
-    1,
-);
-/// `stats.corr.pearson(x,y)`.
-pub static STATS_CORRELATION_PEARSON_OPERATION: StatisticsOperationDecl = stats_operation(
-    10,
-    "stats.corr.pearson",
-    "stats.corr.pearson(x,y)",
-    "pearson",
-    STATS_KERNEL_CORRELATION,
-    2,
-    1,
-);
-/// `stats.regression.linear(x,y)`.
-pub static STATS_LINEAR_REGRESSION_OPERATION: StatisticsOperationDecl = stats_operation(
-    11,
-    "stats.regression.linear",
-    "stats.regression.linear(x,y)",
-    "least_squares",
-    STATS_KERNEL_LINEAR_REGRESSION,
-    2,
-    2,
-);
-
-/// Executable statistics operations in the first fused kernel slice.
-pub static OFFICIAL_STATS_OPERATIONS: [&StatisticsOperationDecl; 11] = [
-    &STATS_SUM_OPERATION,
-    &STATS_MEAN_OPERATION,
-    &STATS_WEIGHTED_MEAN_OPERATION,
-    &STATS_VARIANCE_POPULATION_OPERATION,
-    &STATS_VARIANCE_SAMPLE_OPERATION,
-    &STATS_STANDARD_DEVIATION_POPULATION_OPERATION,
-    &STATS_STANDARD_DEVIATION_SAMPLE_OPERATION,
-    &STATS_COVARIANCE_POPULATION_OPERATION,
-    &STATS_COVARIANCE_SAMPLE_OPERATION,
-    &STATS_CORRELATION_PEARSON_OPERATION,
-    &STATS_LINEAR_REGRESSION_OPERATION,
-];
+include!("statistics_operations.generated.rs");
 
 /// Exact result of simple linear regression `y = intercept + slope*x`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -580,84 +363,14 @@ pub fn evaluate_statistics_operation<V: DecimalVector>(
 }
 
 #[allow(clippy::too_many_lines)]
+#[cfg_attr(feature = "stats-specialized", allow(unused_mut, unused_variables))]
 fn evaluate_statistics_vectors(
     pack_slot: u16,
     operation: &StatisticsOperationDecl,
     arguments: [&dyn DecimalVector; 2],
 ) -> EvaluationResult {
-    let square_root_result = match operation.kernel_id {
-        STATS_KERNEL_STANDARD_DEVIATION_POPULATION => {
-            Some(statistics_population_standard_deviation(
-                arguments[0],
-                operation.output_scale,
-                operation.rounding_mode,
-            ))
-        }
-        STATS_KERNEL_STANDARD_DEVIATION_SAMPLE => Some(statistics_sample_standard_deviation(
-            arguments[0],
-            operation.output_scale,
-            operation.rounding_mode,
-        )),
-        STATS_KERNEL_CORRELATION => Some(statistics_pearson_correlation(
-            arguments[0],
-            arguments[1],
-            operation.output_scale,
-            operation.rounding_mode,
-        )),
-        _ => None,
-    };
-    if let Some(result) = square_root_result {
-        return match result {
-            Ok(result) => statistics_sqrt_success(pack_slot, operation, result),
-            Err(status) => statistics_failure(pack_slot, operation, status),
-        };
-    }
-
     let mut exact = [WorkRational::ZERO; 2];
-    let produced = match operation.kernel_id {
-        STATS_KERNEL_SUM => statistics_sum(arguments[0]).map(|value| {
-            exact[0] = value;
-            1usize
-        }),
-        STATS_KERNEL_MEAN => statistics_mean(arguments[0]).map(|value| {
-            exact[0] = value;
-            1
-        }),
-        STATS_KERNEL_WEIGHTED_MEAN => {
-            statistics_weighted_mean(arguments[0], arguments[1]).map(|value| {
-                exact[0] = value;
-                1
-            })
-        }
-        STATS_KERNEL_VARIANCE_POPULATION => {
-            statistics_population_variance(arguments[0]).map(|value| {
-                exact[0] = value;
-                1
-            })
-        }
-        STATS_KERNEL_VARIANCE_SAMPLE => statistics_sample_variance(arguments[0]).map(|value| {
-            exact[0] = value;
-            1
-        }),
-        STATS_KERNEL_COVARIANCE_POPULATION => {
-            statistics_population_covariance(arguments[0], arguments[1]).map(|value| {
-                exact[0] = value;
-                1
-            })
-        }
-        STATS_KERNEL_COVARIANCE_SAMPLE => statistics_sample_covariance(arguments[0], arguments[1])
-            .map(|value| {
-                exact[0] = value;
-                1
-            }),
-        STATS_KERNEL_LINEAR_REGRESSION => statistics_linear_regression(arguments[0], arguments[1])
-            .map(|value| {
-                exact[0] = value.slope;
-                exact[1] = value.intercept;
-                2
-            }),
-        _ => Err(Status::INTERNAL_ERROR),
-    };
+    let produced = include!("statistics_dispatch.generated.rs");
 
     let produced = match produced {
         Ok(produced) => produced,

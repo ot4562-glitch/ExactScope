@@ -1,0 +1,8 @@
+{
+  "format": "exactscope.capability.task-family-map",
+  "format_version": "0.1",
+  "domain": "economics",
+  "families": {
+    "price-elasticity-midpoint": ["econ.ped.mid"]
+  }
+}

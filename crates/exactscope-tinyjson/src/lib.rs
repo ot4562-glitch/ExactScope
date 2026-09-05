@@ -7,11 +7,25 @@
 //! `find` entry points, preserves exact decimal strings, and delegates every
 //! calculation and classification decision to `exactscope-kernel`.
 
+#[cfg(all(feature = "econ-specialized", feature = "stats-specialized"))]
+compile_error!("ExactScope Tiny JSON can expose only one domain specialization per artifact");
+#[cfg(all(feature = "econ-specialized", not(feature = "econ-ped-mid")))]
+compile_error!("econ-specialized requires at least one reviewed Economics operation feature");
+#[cfg(all(
+    feature = "selected-calc",
+    not(any(feature = "econ-specialized", feature = "stats-specialized"))
+))]
+compile_error!("selected-calc is valid only inside one selected domain specialization");
+
 pub use exactscope_kernel::{DESIGN_ABI_MAJOR, DESIGN_ABI_MINOR};
 
 #[cfg(test)]
 extern crate std;
 
+#[cfg(feature = "econ-specialized")]
+use exactscope_kernel::economics_selected_operation_by_key;
+#[cfg(feature = "stats-specialized")]
+use exactscope_kernel::statistics_selected_operation_by_key;
 use exactscope_kernel::{
     classification_key, evaluate_operation, evaluate_plan, evaluate_statistics_operation,
     statistics_kernel_output_names, Decimal64, EvaluationResult, PlanFailure, PlanOperation,
@@ -21,6 +35,15 @@ use exactscope_kernel::{
 use exactscope_pack::{
     empty_matches, empty_statistics_matches, FusedRegistry, Match, StatisticsMatch,
     StatisticsRegistry,
+};
+#[cfg(feature = "econ-specialized")]
+use exactscope_pack::{
+    OperationRef, ECON_UNDERGRAD_PACK_ID, ECON_UNDERGRAD_PACK_SLOT, ECON_UNDERGRAD_PROVENANCE,
+};
+#[cfg(feature = "stats-specialized")]
+use exactscope_pack::{
+    StatisticsOperationRef, STATISTICS_CORE_PACK_ID, STATISTICS_CORE_PACK_SLOT,
+    STATISTICS_CORE_PROVENANCE,
 };
 
 /// Hard v0.1 request-size cap.
@@ -130,6 +153,58 @@ pub fn request(input: &[u8], output: &mut [u8]) -> AdapterResult {
                 ))),
             },
         },
+    };
+    write_response(&response, output)
+}
+
+/// Processes the bounded arithmetic lane plus only the Statistics operations
+/// selected at build time. This specialization deliberately omits scalar economics
+/// and discovery from its reachable request path; it does not change the generic
+/// [`request`] contract or the underlying numeric semantics.
+#[cfg(feature = "stats-specialized")]
+#[must_use]
+pub fn request_statistics_selected(input: &[u8], output: &mut [u8]) -> AdapterResult {
+    #[cfg(feature = "selected-calc")]
+    let response = match parse_calc_request(input) {
+        Ok(request) => evaluate_calc_request(&request),
+        Err(calc_status) if calc_status != Status::INVALID_REQUEST => {
+            Response::Error(ErrorResponse::new(calc_status))
+        }
+        Err(_) => match parse_eval_request(input) {
+            Ok(request) => evaluate_statistics_selected_request(input, &request),
+            Err(eval_status) => Response::Error(ErrorResponse::new(eval_status)),
+        },
+    };
+    #[cfg(not(feature = "selected-calc"))]
+    let response = match parse_eval_request(input) {
+        Ok(request) => evaluate_statistics_selected_request(input, &request),
+        Err(eval_status) => Response::Error(ErrorResponse::new(eval_status)),
+    };
+    write_response(&response, output)
+}
+
+/// Processes the bounded arithmetic lane plus only Economics operations selected
+/// at build time. The selected path reuses the generic scalar evaluator, so
+/// constraints, rounding, classification, provenance, and typed failures remain
+/// byte-for-byte aligned with the fused registry path.
+#[cfg(feature = "econ-specialized")]
+#[must_use]
+pub fn request_economics_selected(input: &[u8], output: &mut [u8]) -> AdapterResult {
+    #[cfg(feature = "selected-calc")]
+    let response = match parse_calc_request(input) {
+        Ok(request) => evaluate_calc_request(&request),
+        Err(calc_status) if calc_status != Status::INVALID_REQUEST => {
+            Response::Error(ErrorResponse::new(calc_status))
+        }
+        Err(_) => match parse_eval_request(input) {
+            Ok(request) => evaluate_economics_selected_request(input, &request),
+            Err(eval_status) => Response::Error(ErrorResponse::new(eval_status)),
+        },
+    };
+    #[cfg(not(feature = "selected-calc"))]
+    let response = match parse_eval_request(input) {
+        Ok(request) => evaluate_economics_selected_request(input, &request),
+        Err(eval_status) => Response::Error(ErrorResponse::new(eval_status)),
     };
     write_response(&response, output)
 }
@@ -291,6 +366,44 @@ fn evaluate_request(input: &[u8], request: &EvalRequest) -> Response {
         },
         Err(status) => Response::Error(ErrorResponse::new(status)),
     }
+}
+
+#[cfg(feature = "econ-specialized")]
+fn evaluate_economics_selected_request(input: &[u8], request: &EvalRequest) -> Response {
+    match economics_selected_lookup(request.operation.resolve(input)) {
+        Ok(operation) => evaluate_scalar_request(input, request, operation),
+        Err(status) => Response::Error(ErrorResponse::new(status)),
+    }
+}
+
+#[cfg(feature = "econ-specialized")]
+fn economics_selected_lookup(key: &[u8]) -> Result<OperationRef, Status> {
+    let operation = economics_selected_operation_by_key(key).ok_or(Status::UNKNOWN_OPERATION)?;
+    Ok(OperationRef {
+        pack_slot: ECON_UNDERGRAD_PACK_SLOT,
+        pack_id: ECON_UNDERGRAD_PACK_ID,
+        provenance: ECON_UNDERGRAD_PROVENANCE,
+        operation,
+    })
+}
+
+#[cfg(feature = "stats-specialized")]
+fn evaluate_statistics_selected_request(input: &[u8], request: &EvalRequest) -> Response {
+    match statistics_selected_lookup(request.operation.resolve(input)) {
+        Ok(operation) => evaluate_statistics_request(input, request, operation),
+        Err(status) => Response::Error(ErrorResponse::new(status)),
+    }
+}
+
+#[cfg(feature = "stats-specialized")]
+fn statistics_selected_lookup(key: &[u8]) -> Result<StatisticsOperationRef, Status> {
+    let operation = statistics_selected_operation_by_key(key).ok_or(Status::UNKNOWN_OPERATION)?;
+    Ok(StatisticsOperationRef {
+        pack_slot: STATISTICS_CORE_PACK_SLOT,
+        pack_id: STATISTICS_CORE_PACK_ID,
+        provenance: STATISTICS_CORE_PROVENANCE,
+        operation,
+    })
 }
 
 fn evaluate_scalar_request(
@@ -1197,6 +1310,10 @@ impl<'a> Writer<'a> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "econ-specialized")]
+    use super::request_economics_selected;
+    #[cfg(feature = "statistics-core-8")]
+    use super::request_statistics_selected;
     use super::{calc, eval, find, request, MAX_TINY_JSON_REQUEST_BYTES};
     use exactscope_kernel::Status;
 
@@ -1240,6 +1357,28 @@ mod tests {
         )
     }
 
+    #[cfg(feature = "econ-specialized")]
+    fn call_economics_selected(input: &[u8]) -> (Status, std::string::String) {
+        let mut output = [0u8; 512];
+        let result = request_economics_selected(input, &mut output);
+        let len = usize::try_from(result.written_or_required).unwrap();
+        (
+            result.status,
+            std::string::String::from(core::str::from_utf8(&output[..len]).unwrap()),
+        )
+    }
+
+    #[cfg(feature = "statistics-core-8")]
+    fn call_statistics_core_8(input: &[u8]) -> (Status, std::string::String) {
+        let mut output = [0u8; 512];
+        let result = request_statistics_selected(input, &mut output);
+        let len = usize::try_from(result.written_or_required).unwrap();
+        (
+            result.status,
+            std::string::String::from(core::str::from_utf8(&output[..len]).unwrap()),
+        )
+    }
+
     #[test]
     fn request_dispatches_calc_eval_and_find() {
         let calc_input = br#"{"p":[{"o":"add","a":["2","3"]}]}"#;
@@ -1250,6 +1389,67 @@ mod tests {
 
         let find_input = br#"{"q":"midpoint price elasticity","n":3}"#;
         assert_eq!(call_request(find_input), call_find(find_input));
+    }
+
+    #[cfg(feature = "econ-specialized")]
+    #[test]
+    fn economics_selected_request_matches_generic_ped_and_rejects_other_surfaces() {
+        let calc_input = br#"{"p":[{"o":"add","a":["2","3"]}]}"#;
+        #[cfg(feature = "selected-calc")]
+        assert_eq!(call_economics_selected(calc_input), call_calc(calc_input));
+        #[cfg(not(feature = "selected-calc"))]
+        {
+            let (status, response) = call_economics_selected(calc_input);
+            assert_eq!(status, Status::INVALID_REQUEST);
+            assert!(!response.contains("\"v\":"));
+        }
+
+        for ped in [
+            br#"{"op":"econ.ped.mid","a":["10000","12000","100","80"]}"#.as_slice(),
+            br#"{"op":"econ.ped.mid","a":["10","20","20","10"]}"#,
+            br#"{"op":"econ.ped.mid","a":["10","12","100","95"]}"#,
+            br#"{"op":"econ.ped.mid","a":["10","10","100","80"]}"#,
+            br#"{"op":"econ.ped.mid","a":["-1","10","100","80"]}"#,
+        ] {
+            assert_eq!(call_economics_selected(ped), call_eval(ped));
+        }
+
+        for excluded in [
+            br#"{"op":"econ.gdp.deflator100","a":["120","100"]}"#.as_slice(),
+            br#"{"op":"stats.mean","a":[["1","2","3"]]}"#,
+            br#"{"q":"midpoint price elasticity","n":3}"#,
+        ] {
+            let (status, response) = call_economics_selected(excluded);
+            assert!(matches!(
+                status,
+                Status::UNKNOWN_OPERATION | Status::INVALID_REQUEST
+            ));
+            assert!(!response.contains("\"v\":"));
+        }
+    }
+
+    #[cfg(feature = "statistics-core-8")]
+    #[test]
+    fn statistics_core_8_request_exposes_only_calc_and_selected_statistics() {
+        let calc_input = br#"{"p":[{"o":"add","a":["2","3"]}]}"#;
+        assert_eq!(call_statistics_core_8(calc_input), call_calc(calc_input));
+
+        let mean = br#"{"op":"stats.mean","a":[["1","2","3"]]}"#;
+        assert_eq!(call_statistics_core_8(mean), call_eval(mean));
+
+        for excluded in [
+            br#"{"op":"econ.ped.mid","a":["10000","12000","100","80"]}"#.as_slice(),
+            br#"{"op":"stats.cov.pop","a":[["1","2"],["3","4"]]}"#,
+            br#"{"op":"stats.regression.linear","a":[["1","2"],["3","5"]]}"#,
+            br#"{"q":"mean","n":3}"#,
+        ] {
+            let (status, response) = call_statistics_core_8(excluded);
+            assert!(matches!(
+                status,
+                Status::UNKNOWN_OPERATION | Status::INVALID_REQUEST
+            ));
+            assert!(!response.contains("\"v\":"));
+        }
     }
 
     #[test]
@@ -1427,6 +1627,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(feature = "stats-specialized"))]
     #[test]
     fn eval_executes_statistics_vectors_and_multi_output_regression() {
         let (status, response) = call_eval(br#"{"op":"stats.mean","a":[["1","2","3"]]}"#);
@@ -1441,15 +1642,19 @@ mod tests {
         assert_eq!(status, Status::OK);
         assert!(response.contains("\"v\":\"0.981981\""));
 
-        let (status, response) =
-            call_eval(br#"{"op":"stats.regression.linear","a":[["1","2","3"],["3","5","7"]]}"#);
-        assert_eq!(status, Status::OK);
-        assert_eq!(
-            response,
-            r#"{"s":0,"v":["2","1"],"names":["slope","intercept"],"p":"statistics-core@0.1.0","r":1}"#
-        );
+        #[cfg(not(feature = "statistics-core-8"))]
+        {
+            let (status, response) =
+                call_eval(br#"{"op":"stats.regression.linear","a":[["1","2","3"],["3","5","7"]]}"#);
+            assert_eq!(status, Status::OK);
+            assert_eq!(
+                response,
+                r#"{"s":0,"v":["2","1"],"names":["slope","intercept"],"p":"statistics-core@0.1.0","r":1}"#
+            );
+        }
     }
 
+    #[cfg(not(feature = "stats-specialized"))]
     #[test]
     fn eval_statistics_shape_and_domain_failures_remain_typed() {
         let (status, response) = call_eval(br#"{"op":"stats.mean","a":["1"]}"#);
@@ -1515,6 +1720,7 @@ mod tests {
         }
     }
 
+    #[cfg(not(feature = "stats-specialized"))]
     #[test]
     fn eval_vector_parser_bounds_and_malformed_inputs_fail_closed() {
         let sixty_four = std::format!(

@@ -223,4 +223,4 @@ A larger profile is not automatically better. The default optimization target is
 
 ## Experimental compiler implementation
 
-The build-time [capability compiler](../docs/CAPABILITY_COMPILER.md) now validates Statistics task selections, binds actual operation revisions and canonical model assets, enforces static budgets, and checks reproducibility. The draft profile format remains experimental. This currently restricts the host/model surface; it does not specialize the fused runtime binary or establish model/target qualification.
+The build-time [capability compiler](../docs/CAPABILITY_COMPILER.md) now validates Statistics/Economics task selections, binds actual operation revisions and canonical model assets, enforces static budgets, emits exact model-surface negotiation metadata, and can drive operation-selected no-import Wasm specialization. The capability profile remains experimental; specialization and deterministic packaging do not establish model accuracy, target qualification, or stable support.

@@ -141,3 +141,184 @@ the existing i128 intermediate-overflow contract rather than expanding numerical
 acceptance. A 90,000-pair grid plus extreme-value tests and Wasm gold validate the
 change. The measured artifact tradeoff is +71 bytes for lower median times in
 three paired desktop wire microbenchmarks; no model or target-latency claim follows.
+
+## D-049: Reject impossible calc references in generation, not only at runtime
+
+Capability-profile revision 7 derives a position-aware `xs_calc` GBNF while retaining
+the historical public v0.1 grammar unchanged. Step 0 accepts decimal leaves only;
+step i can reference only `#0..#(i-1)`. Runtime validation remains authoritative, but
+self/forward references no longer consume weak-model generations in the derived
+profile. The calc grammar grows only to 1,241 bytes and the combined Statistics
+profile grammar is 2,514 bytes, below its 4,096-byte ceiling. Actual llama.cpp b10797
+runs exercised two-step and eight-step backward chains. This constrains syntax, not
+mathematical planning correctness.
+
+## D-050: Prove binary specialization with one narrow Statistics slice before generalizing it
+
+Add an experimental `statistics-core-8` build path that keeps `xs_calc` and exactly
+eight reviewed Statistics operations while making economics, covariance, regression,
+discovery and TinyWire serving paths unreachable. The Tiny JSON path, direct
+`xs_wasm_eval_statistics` export and kernel dispatcher all reject excluded operations;
+225 Statistics gold calls and dedicated rejection stress pass. The first proof measured
+45,834 bytes versus 85,743 bytes for its same-source full fused development build.
+This established that real binary slicing was worthwhile, but explicitly did not justify
+a hand-written feature matrix for every future domain/hot set. D-053 records the later
+profile-derived generalization.
+
+## D-051: Make the specialized Wasm memory ceiling explicit and fail closed
+
+The generic Wasm inherited a roughly 1 MiB default link stack and therefore declared
+17 initial pages even though the specialized Statistics path needs far less. Local
+stack-boundary stress found 2 KiB trapping and 4 KiB passing the current stress/gold
+suite. Use a conservative 16 KiB stack for the experimental Statistics-8 build and
+link with a hard `--max-memory=65536`. The resulting module declares one initial and
+one maximum 64 KiB page. This is a Wasm linear-memory ceiling for the component, not
+peak process resident RAM, host-runtime memory, model memory, or target qualification.
+
+## D-052: Bind build and model evidence to exact capability identity
+
+`tools/build_capability_wasm.py` records source/profile identity, target, feature set,
+toolchain versions, stack policy, artifact digest and validation results. The artifact
+binder verifies that provenance when present before producing a new immutable revision.
+`tools/attach_model_evidence.py` separately requires model-run corpus, bundle, runtime,
+profile revision, raw rows, metadata and summary digests to match before attachment.
+Historical r2/85,671-byte experiments therefore cannot be relabeled as evidence for
+a newer runtime such as the later frozen r17 benchmark-source flagship. Neither provenance nor successful
+binding is a signature, independent reproducible-build proof, model-equivalence proof,
+or target qualification.
+
+## D-053: Derive existing Statistics binary subsets from capability profiles
+
+Replace the hot-set-specific runtime branching with a shared `stats-specialized`
+boundary plus one build feature per reviewed Statistics operation. The capability
+compiler owns the stable operation-to-feature map and the builder derives the exact
+feature list from `runtime_surface.xs_eval.operations`. Tiny JSON lookup, direct typed
+Wasm op-ID dispatch and kernel dispatch all use those features, so omitting an operation
+removes its serving path rather than merely hiding its schema. Keep `statistics-core-8`
+as a compatibility alias only.
+
+On the current source, the eight-operation flagship is 45,804 bytes while a profile
+selecting only `stats.mean.weighted` is 38,932 bytes; both have zero imports and hard
+`1..1` Wasm memory pages. The same current full fused build is 85,749 bytes. The
+one-operation slice was produced by changing the capability profile/task family, not
+by editing Rust for a new hot set. This generalizes **subsets of the existing reviewed
+Statistics vocabulary** only. A new domain, new operation implementation, or new
+semantic kernel still requires implementation, feature plumbing, review and conformance.
+
+## D-054: Conformance evidence follows the selected binary surface
+
+A specialized subset cannot be validated by blindly replaying calls for operations that
+were intentionally removed. `tools/build_capability_wasm.py` therefore filters the
+source Statistics corpus to calls whose operation is selected, requires that every
+selected operation is covered, writes the filtered corpus beside build provenance, and
+binds both source-corpus and filtered-corpus digests. The flagship selects all eight
+reviewed operations and retains 225 calls; the weighted-mean-only proof retains 45 calls.
+The calc-only baseline selects zero semantic operations and therefore binds an intentionally
+empty semantic conformance corpus. `tools/test_selected_statistics_wasm.mjs` separately
+verifies that unselected operations, direct op-ID bypasses, economics, discovery and
+TinyWire fail closed. Filtered gold proves selected behavior; explicit negative
+reachability tests prove the slice boundary.
+
+## D-055: Measure semantic slice bytes against a same-boundary `xs_calc` baseline
+
+Do not use a complete specialized artifact's byte size as the incremental cost of one
+semantic domain capability. Add the reserved `arithmetic-baseline` task family, valid
+only for `xs_calc=true` with `statistics-selected-wasm`. The compiler emits zero semantic
+operations and omits `xs_eval` model assets; `exactscope-packc` supports a zero-operation
+catalog and represents the eval tool/grammar as absent rather than generating an
+unusable empty schema. The runtime still exports the stable Wasm ABI but rejects every
+Statistics operation through Tiny JSON and direct typed dispatch.
+
+At the D-055 benchmark-source revision this same-boundary baseline was **33,463 bytes**,
+zero imports, memory `1..1` pages. Weighted mean was **38,932 bytes**, so its marginal
+binary cost was **5,469 bytes**. The eight-operation flagship was **45,804 bytes**, so its
+marginal semantic-slice cost was **12,341 bytes**. All three used the same 16 KiB stack
+policy and 64 KiB maximum linear-memory policy. These frozen values remain the correct
+binary denominator for the r20 model-evidence chain; later source revisions must publish
+their own denominator rather than silently replacing it.
+
+## D-056: Derive adapter selection metadata from the reviewed scope-pack without renumbering kernels
+
+D-056 narrows D-053's statement that the capability compiler owns a hand-maintained
+operation-to-feature map. The reviewed Statistics scope-pack remains the semantic source
+for operation key, pack-local ID, revision, method, input/output shape and output policy.
+The compiler now derives the existing `stats.*` -> `stats-*` specialization feature name
+from that reviewed key set, while selected key/ID lookup is centralized in the kernel and
+reused by Tiny JSON and direct typed Wasm dispatch. A packc parity test fails if the
+scope-pack and fused Rust declarations drift in key, revision, method, signature, arity,
+output names, scale or rounding.
+
+This is **not** permission to equate pack-local operation IDs with stable internal kernel
+IDs. The two number spaces already differ for covariance/correlation/regression versus
+standard deviation. Existing ABI/kernel IDs therefore remain unchanged. The next metadata
+phase may generate or exactly validate Cargo feature declarations and Rust implementation
+bindings, but generated output must be deterministic/stale-checked and must preserve full
+fused behavior, numeric semantics and existing ABI identity.
+
+The post-change source starts a new immutable line: `statistics-core-8-ai-r21` is the
+artifact-unbound profile and r22 is its artifact/gold/provenance-bound runtime. r20 remains
+the frozen three-model evidence anchor for the earlier 45,804-byte r17 runtime; no model
+uplift result is inherited by r21/r22 without a new matching model run. On the post-r20
+source, calc-only / weighted-mean / Statistics-8 measure 33,463 / 38,932 / 45,832 bytes,
+so the current-source semantic deltas are +5,469 / +12,369 bytes.
+
+## D-057: Generate implementation plumbing and preserve frozen runtime identities
+
+Statistics reviewed source and minimal bindings now generate stable internal IDs,
+arity/output-name contracts, operation declarations, selected lookups and calls into
+handwritten numeric functions. Packc consumes the shared generated name-to-kernel-ID
+lookup. No numeric algorithm bodies, ABI revisions or operation/kernel IDs change.
+Domain descriptors drive Cargo forwarding validation for Statistics and Economics;
+scalar selected lookup is generated and scalar identity/output-policy drift is rejected.
+Both generators have deterministic checked-in output and CI stale checks.
+
+Allowed static builds of this implementation measured Statistics-8 at 45,833 bytes
+(SHA-256 `dac3d5f4ca542f8e1a9f50369132f1ff3ca48886b07eb8aee1bd076fea055d36`)
+and semantic-only Economics PED at 39,424 bytes
+(`302541c7ef80d22113455269efa64f5fce3b5564ff3b97b907c041d9c6ddb512`).
+Both declare zero imports and 1..1 memory pages. The +1/+7-byte changes versus
+stored r28/r6 artifacts are accepted for removing metadata drift. These local build
+measurements are not newly bound capability revisions, model evidence or qualification.
+Frozen directories remain unchanged; source changes require a new revision before binding.
+
+The JavaScript integration verifies manifest digest and exact regular-file inventory
+before loading a capability. File-only component tests exercise malformed bundles.
+Benchmarks, product E2E/gold execution, release and support promotion are excluded from
+this implementation pass. Optional minimal-C-ABI JSON helpers and selected discovery/
+TinyWire exclusions remain intentional non-goals.
+
+## D-058: Negotiate the model-facing surface by exact contract ID, version and bytes
+
+Tool schemas, grammars and prompt fragments are compatibility artifacts, but version ranges or semantic guessing would undermine the weak-model boundary. Newly generated capability bundles therefore carry `surface-contract.json`: every selected model-facing asset has an explicit contract ID/version and SHA-256, while the contract also binds profile identity, ABI and hot-set identity. The complete contract digest is stored in the capability profile. Host acceptance is fail-closed `exact ID + exact version + exact digest`; unsupported assets are not repaired, widened or substituted. The reference JavaScript host performs this check before compiling Wasm, and a Python checker provides the same static policy boundary. Frozen pre-D-058 capability revisions remain byte-for-byte immutable and may still pass their historical manifest verification, but absence of the new contract means they do not claim explicit v0.1 model-surface negotiation.
+
+## D-059: Keep release packaging off-target and bind one capability to one runtime identity
+
+Primary native/Wasm integration should not require an OEM to understand the Rust workspace, but packaging convenience must not add deployed runtime weight or blur artifact identity. `exactscope.release.bundle` v0.1 is therefore a deterministic outer archive around one explicit capability identity. Native packaging accepts only an unbound `host-limited` / `native-static` capability and binds the supplied static-library digest in the outer manifest; a Wasm artifact binding cannot be silently reused for native. Wasm packaging accepts only the already artifact-bound `no-import-wasm` capability and statically rechecks its digest, byte/import/memory declarations, exports and stored measurements. Verification rejects path traversal, links, duplicate archive members, oversized archives, unexpected outer payloads and contradictions between profile/task-map/catalog/model assets/measurements/bindings. These archives are always `experimental` / `unqualified`; deterministic packaging and static inspection are implementation properties, not target execution, product conformance, benchmark evidence or support promotion.
+
+## D-060: Treat operation revision as permanent semantic identity, not a mutable version label
+
+`canonical key + operation revision` is the semantic public identity. Argument names/order/shapes, semantic kinds, constraints, method, output contract, rounding/classification and observable error behavior cannot change within an existing revision. Internal refactors or optimizations may keep the revision only when exact observable semantics remain unchanged; they still produce new source/artifact identity. Materially different methods should normally use different keys. A supported release line, once one exists, must publish exact operation revisions and cannot silently replace/remove them in maintenance updates. `tools/check_operation_revision_compat.py` statically rejects transparent upgrades that remove baseline operations, roll revisions backward, change same-revision observable catalog metadata, reuse a changed capability at the same profile revision, or switch capability identity. A revision increase requires explicit opt-in review and never transfers old evidence automatically. This policy creates no retroactive stable/LTS claim for current experimental artifacts.
+
+## D-061: Make unsafe and export boundaries machine-auditable without moving policy into the tiny runtime
+
+Numeric, pack, Tiny JSON, compiler and conformance crates continue to forbid unsafe Rust. The C ABI and Wasm memory wrappers are the intentional unsafe boundaries and deny implicit unsafe operations inside unsafe functions. `spec/registries/public-exports.json` is the reviewed public native/Wasm export allowlist, and `tools/audit_security_surface.py` checks it against the C header, Rust `no_mangle` entry points, Wasm inspector, and `# Safety` contracts on public unsafe C calls. This closes source-level drift but does not claim the broader release security gate: fuzzing, sanitizer/equivalent checks, malformed artifact execution and built native symbol-table inspection remain artifact-level work.
+
+## D-062: Separate reproducible build inputs, byte comparison, and release-level reproducibility claims
+
+Reproducibility must not be inferred from a deterministic packager alone. `exactscope.build-input-identity` v0.1 records the exact current source identity, pinned toolchain/Cargo inputs, feature set, target and capability identity; stale-source capability reuse fails closed. Release bundles may embed and digest-bind that document. `exactscope.reproducible-build.comparison` v0.1 then records whether two caller-labeled outputs for one build-input identity are exactly byte-identical. A `MATCH` intentionally says only that those two files match; it does not prove that the labeled builders were genuinely independent or that the artifact is qualified. Actual supply-chain/reproducibility evidence therefore remains open until separate-builder/environment evidence is attached to the exact immutable release artifact.
+
+## D-063: Derive compatibility records from exact release identity, but never promote support statically
+
+The earlier compatibility manifest could describe planned targets without binding the new capability/release architecture. Extend its artifact record with an optional exact release identity covering release archive/manifest/runtime digests, release profile, ABI, capability bundle/profile revision, model-surface digest and optional build-input digest. `tools/record_release_compatibility.py` generates this stronger record only from a statically verified release archive and always emits `support=experimental`; it has no Tier 1/Tier 2 mode. The selected-toolchain/architecture roadmap item therefore remains evidence work until real immutable archives and target/runtime evidence exist, even though the record/verification machinery is now implemented.
+
+## D-064: Maintain weak-model adapters as exact one-tool capability envelopes, not broad hot-set helpers
+
+The llama.cpp reference path now has two deliberately separate one-tool envelopes: semantic-only `xs_eval` and calc-only `xs_calc`. Both require a verified capability bundle with explicit model-surface negotiation, use the compiler-generated prompt exactly once, reject unknown/widened surfaces, and validate model output without performing the calculation. The eval envelope enforces exact operation/arity/shape and decimal lexical form; the calc envelope additionally enforces the 1–8 step plan bound, backward-only result references, literal `powi` exponent constraints, and the 512-byte canonical request ceiling. The older `examples/llama.cpp/run_xs_calc.py` remains model/core/latency evaluation tooling and is not the maintained integration boundary. Offline envelope self-tests do not establish model accuracy or runtime compatibility evidence.
+
+## D-065: Publish rc2 as a clean integration/qualification candidate and collect evidence from the immutable public release
+
+The active Statistics/Economics product architecture is code-side complete enough to stop using a dirty development checkout as the benchmark input. `v1.0.0-rc.2` is therefore prepared from a separate clean release snapshot and labeled **integration & qualification candidate**, not stable/production-qualified. The source tag keeps reviewed implementation/specifications, deterministic generators, adapters, benchmark harnesses/preregistration inputs and historical result interpretation documents, while mutable generated capability/evidence revision directories and mutable benchmark result payloads are excluded from the product source. Historical frozen evidence remains preserved in its original developer/evidence location and is never rewritten merely to make a source tree look clean.
+
+The public release workflow binds the Git tag to the Cargo project version and packages x86-64 evaluation SDKs plus Android/Linux ARM64 static OEM SDK candidates with release manifests/checksums. Exact published assets remain authoritative: a configured workflow path is not a support claim until the asset actually exists and passes integrity/integration checks.
+
+rc2 model evidence is intentionally collected in a later external-user session starting from the immutable GitHub release. The minimum core matrix is five deliberately diverse models: Gemma 3 270M IT, LFM2.5 350M, Qwen3.5 0.8B, Qwen3.5 2B and Phi-4-mini-instruct 3.8B; Gemma 3n E2B is an optional separately reported low-resource-device profile. The default comparison is A model-only, C selected semantic-only and D combined where selected, with B calc-only only as a diagnostic. Repository/model/runtime/corpus/prompt/scorer identities are frozen before inference. Historical r20 evidence remains bound only to the older 45,804-byte r17 Statistics runtime and never transfers to rc2. Representative target RAM/latency/energy/support claims likewise wait for exact released-artifact qualification.

@@ -1,0 +1,19 @@
+{
+  "format": "exactscope.economics.operation-bindings",
+  "format_version": "0.1",
+  "domain": "economics",
+  "operations": [
+    {
+      "key": "econ.ped.mid",
+      "cargo_feature": "econ-ped-mid",
+      "rust_operation_symbol": "PED_MID_OPERATION",
+      "rust_constants_symbol": "PED_CONSTANTS",
+      "rust_program_symbol": "PED_PROGRAM",
+      "rust_classification_predicates": {
+        "inelastic": "CLASS_INELASTIC_PROGRAM",
+        "unit_elastic": "CLASS_UNIT_PROGRAM",
+        "elastic": "CLASS_ELASTIC_PROGRAM"
+      }
+    }
+  ]
+}

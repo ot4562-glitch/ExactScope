@@ -78,11 +78,11 @@ fn run_hotset(mut args: impl Iterator<Item = OsString>) -> Result<(), Box<dyn st
         output_dir.join("binding-sha256.txt"),
         format!("{}\n", bundle.binding_sha256),
     )?;
-    fs::write(
+    write_optional(
         output_dir.join("xs-eval.tool.json"),
         bundle.xs_eval_tool_json,
     )?;
-    fs::write(output_dir.join("xs-eval.gbnf"), bundle.xs_eval_gbnf)?;
+    write_optional(output_dir.join("xs-eval.gbnf"), bundle.xs_eval_gbnf)?;
     fs::write(
         output_dir.join("prompt-fragment.txt"),
         bundle.prompt_fragment,

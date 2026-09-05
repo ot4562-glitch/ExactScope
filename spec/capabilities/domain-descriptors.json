@@ -1,0 +1,22 @@
+{
+  "format": "exactscope.capability.domain-descriptors",
+  "format_version": "0.1",
+  "domains": {
+    "statistics": {
+      "fused_pack": "statistics-core",
+      "semantic_source": "packs/statistics-core.xsp.json",
+      "task_families": "spec/capabilities/statistics-task-families.json",
+      "implementation_bindings": "spec/implementation/statistics-kernel-bindings.json",
+      "specialization": "statistics-selected-wasm",
+      "specialization_feature": "stats-specialized"
+    },
+    "economics": {
+      "fused_pack": "econ-undergrad",
+      "semantic_source": "spec/examples/econ-undergrad-minimal.xsp.json",
+      "task_families": "spec/capabilities/economics-task-families.json",
+      "implementation_bindings": "spec/implementation/economics-operation-bindings.json",
+      "specialization": "economics-selected-wasm",
+      "specialization_feature": "econ-specialized"
+    }
+  }
+}

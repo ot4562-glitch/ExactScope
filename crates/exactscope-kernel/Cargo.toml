@@ -12,6 +12,31 @@ publish = false
 
 [features]
 default = []
+econ-specialized = []
+econ-ped-mid = []
+stats-specialized = []
+stats-sum = []
+stats-mean = []
+stats-mean-weighted = []
+stats-var-pop = []
+stats-var-sample = []
+stats-sd-pop = []
+stats-sd-sample = []
+stats-cov-pop = []
+stats-cov-sample = []
+stats-corr-pearson = []
+stats-regression-linear = []
+statistics-core-8 = [
+    "stats-specialized",
+    "stats-sum",
+    "stats-mean",
+    "stats-mean-weighted",
+    "stats-var-pop",
+    "stats-var-sample",
+    "stats-sd-pop",
+    "stats-sd-sample",
+    "stats-corr-pearson",
+]
 
 [lints]
 workspace = true

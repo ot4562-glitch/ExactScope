@@ -1,0 +1,36 @@
+{
+  "format": "exactscope.public-export-registry",
+  "format_version": "0.1",
+  "native_c_api": [
+    "xs_abi_version",
+    "xs_decimal_parse_ascii",
+    "xs_context_align",
+    "xs_context_size",
+    "xs_context_init",
+    "xs_context_reset",
+    "xs_pack_mount",
+    "xs_pack_unmount",
+    "xs_registry_freeze",
+    "xs_lookup",
+    "xs_find",
+    "xs_calc",
+    "xs_eval",
+    "xs_result_json",
+    "xs_match_json"
+  ],
+  "native_internal_symbols": [
+    "rust_eh_personality"
+  ],
+  "wasm_required_exports": {
+    "memory": 2,
+    "xs_abi_version": 0,
+    "xs_wasm_reserved_end": 0,
+    "xs_wasm_memory_alignment": 0,
+    "xs_wasm_eval_statistics": 0,
+    "xs_wire_request": 0
+  },
+  "wasm_allowed_toolchain_exports": {
+    "__heap_base": 3,
+    "__data_end": 3
+  }
+}

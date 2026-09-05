@@ -47,8 +47,9 @@ def main() -> int:
     parser.add_argument("--question", required=True)
     parser.add_argument("--expected")
     parser.add_argument("--threads", type=int, default=4)
+    parser.add_argument("--grammar-file", type=Path)
     args = parser.parse_args()
-    grammar = Path(__file__).resolve().parents[2] / "adapters" / "xs-calc-v0.1" / "xs-calc.gbnf"
+    grammar = args.grammar_file or (Path(__file__).resolve().parents[2] / "adapters" / "xs-calc-v0.1" / "xs-calc.gbnf")
     system_prompt = (
         "You translate arithmetic questions into the smallest correct xs_calc JSON plan. Return JSON only. "
         "Operations mean add(x,y)=x+y, sub(x,y)=x-y, mul(x,y)=x*y, div(x,y)=x/y, "

@@ -1,4 +1,5 @@
 #![no_std]
+#![deny(unsafe_op_in_unsafe_fn)]
 #![doc = "Stable fused `ExactScope` C ABI implementation."]
 
 //! This crate is the native portability boundary for the first implementation

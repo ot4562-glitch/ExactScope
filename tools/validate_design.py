@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
 import tomllib
 from decimal import Decimal, ROUND_HALF_EVEN, localcontext
@@ -45,6 +46,18 @@ REQUIRED_FILES = (
     "spec/SCOPEPACK_V0_1.md",
     "spec/TINYWIRE_V0_1.md",
     "spec/ERRORS_V0_1.md",
+    "spec/BUILD_INPUT_IDENTITY_V0_1.md",
+    "spec/MODEL_SURFACE_NEGOTIATION_V0_1.md",
+    "spec/OPERATION_REVISION_POLICY_V0_1.md",
+    "spec/RELEASE_BUNDLE_V0_1.md",
+    "spec/REPRODUCIBLE_BUILD_COMPARISON_V0_1.md",
+    "spec/schemas/build-input-identity.schema.json",
+    "spec/schemas/model-surface-contract.schema.json",
+    "spec/schemas/reproducible-build-comparison.schema.json",
+    "spec/schemas/model-surface-acceptance.schema.json",
+    "spec/schemas/release-bundle.schema.json",
+    "spec/examples/model-surface-acceptance-v0.1.json",
+    "spec/registries/public-exports.json",
     "spec/registries/status-codes.json",
     "spec/registries/semantic-kinds.json",
     "spec/registries/rounding-modes.json",
@@ -124,6 +137,10 @@ def validate_registries() -> dict[str, dict[str, int]]:
     registries: dict[str, dict[str, int]] = {}
     for path in sorted(REGISTRY_DIR.glob("*.json")):
         document = read_json(path)
+        if document.get("format") == "exactscope.public-export-registry":
+            # This registry is validated against source/header/inspector surfaces by
+            # tools/audit_security_surface.py; it is not a numeric ID registry.
+            continue
         if document.get("format") != "exactscope.registry" or document.get("format_version") != 1:
             raise ValidationFailure(f"{path.relative_to(ROOT)}: unsupported registry envelope")
         entries = document.get("entries")
@@ -188,9 +205,21 @@ def validate_examples(schemas: dict[str, Any]) -> int:
     json_documents = list(examples.glob("*.json"))
     json_documents.extend((ROOT / "packs").glob("*.xsp.json"))
     json_documents.extend((ROOT / "hotsets").glob("*.json"))
+    json_documents.extend((ROOT / "spec" / "capabilities").glob("*.json"))
+    json_documents.extend((ROOT / "spec" / "implementation").glob("*.json"))
     for path in sorted(json_documents):
         document = read_json(path)
         schema_name = explicit.get(path.name)
+        if schema_name is None and isinstance(document, dict):
+            format_name = document.get("format")
+            format_schemas = {
+                "exactscope.capability.request": "capability-request.schema.json",
+                "exactscope.capability.task-family-map": "capability-task-family-map.schema.json",
+                "exactscope.capability.domain-descriptors": "capability-domain-descriptors.schema.json",
+                "exactscope.statistics.kernel-bindings": "statistics-kernel-bindings.schema.json",
+                "exactscope.economics.operation-bindings": "economics-operation-bindings.schema.json",
+            }
+            schema_name = format_schemas.get(format_name)
         if schema_name is None:
             schema_ref = document.get("$schema") if isinstance(document, dict) else None
             if isinstance(schema_ref, str) and not schema_ref.startswith(("http://", "https://", "urn:")):
@@ -651,6 +680,15 @@ def validate_required_text_contracts() -> None:
         raise ValidationFailure("WASM_ABI_V0_1.md: abort-only panic contract is missing")
 
 
+def validate_generated_statistics_metadata() -> None:
+    for generator in ("generate_statistics_metadata.py", "generate_domain_metadata.py"):
+        command = [sys.executable, str(ROOT / "tools" / generator), "--check"]
+        completed = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).strip() or "unknown generator failure"
+            raise ValidationFailure(f"generated domain metadata drift: {detail}")
+
+
 def main() -> int:
     try:
         missing = [path for path in REQUIRED_FILES if not (ROOT / path).is_file()]
@@ -667,6 +705,7 @@ def main() -> int:
         operation_count = validate_catalog()
         workflow_count = validate_workflows()
         toml_count = validate_toml_workspace()
+        validate_generated_statistics_metadata()
         file_count, markdown_count = validate_repository_text()
         validate_required_text_contracts()
     except (OSError, UnicodeError, KeyError, TypeError, ValueError, ValidationFailure) as exc:

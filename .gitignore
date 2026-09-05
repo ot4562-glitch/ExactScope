@@ -25,6 +25,9 @@
 /fuzz/corpus/generated/
 /conformance/output/
 /benchmarks/output/
+/benchmarks/results/*
+!/benchmarks/results/README.md
+/adapters/capabilities/*/
 *.profraw
 *.profdata
 

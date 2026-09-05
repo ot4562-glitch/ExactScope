@@ -1,288 +1,263 @@
 # AI integration contract
 
-ExactScope is consumed by AI runtimes. This document defines the model-facing behavior that product integrations should optimize for.
+Release target: **ExactScope v1.0.0-rc.2**
+Status: **integration & qualification candidate**
 
-## 1. Current interaction model
+ExactScope is consumed by AI runtimes as a constrained deterministic capability component. The integration goal is not to expose a large tool catalog. It is to give a small model the **fewest reviewed choices necessary** and route accepted calls into one shared deterministic numeric core.
 
-ExactScope exposes two implemented experimental model-facing lanes: bounded `xs_calc` for short arithmetic plans and direct `xs_eval` for reviewed semantic methods. Both are intentionally small and share the same deterministic core.
-
-```text
-                         model
-                           |
-               +-----------+-----------+
-               |                       |
-               v                       v
-      short arithmetic plan     known semantic method
-               |                       |
-               v                       v
-        xs_calc(plan)              xs_eval(op,args)
-  IMPLEMENTED / EXPERIMENTAL     IMPLEMENTED / REVIEWED
-               |                       |
-               +-----------+-----------+
-                           |
-                           v
-                    ExactScope result
-```
-
-`xs_find` remains an optional discovery/setup path for unknown semantic operations. It is not a mandatory first step and should not be required for ordinary arithmetic retrofit use.
-
-## 2. Model-facing surface
-
-The logical surface contains three roles, but a deployed product should expose only what it needs:
-
-- `xs_calc` — implemented experimental one-call bounded arithmetic plan for generic short numerical execution;
-- `xs_eval` — implemented direct evaluation for reviewed semantic operations;
-- `xs_find` — optional cold/development discovery fallback.
-
-For ordinary arithmetic, the design goal is **one compact plan tool**, not six independent arithmetic tools and not hundreds of per-formula tools.
-
-For semantic methods, a product should expose only the selected **capability slice** through a compact `xs_eval` surface. The broad domain source catalog stays build-time/host-side and is not injected into a weak-model prompt.
-
-Plan v0.1 is limited to at most eight steps over `add/sub/mul/div/powi/sqrt`, exact decimal-string leaves, and backward-only prior-result references. Loops, arbitrary branches, variables, arbitrary functions, and arbitrary code are forbidden. The plan layer lowers to the shared bounded core semantics.
-
-## 3. Canonical eval request
-
-Logical form:
-
-```json
-{
-  "op": "econ.cpi.inflation",
-  "a": ["100", "103.2"]
-}
-```
-
-The checked-in schema is [`spec/schemas/xs-eval-tool.schema.json`](../spec/schemas/xs-eval-tool.schema.json).
-
-Scalar decimal values and every decimal leaf inside a vector are strings in the normative Tiny JSON profile, so ordinary JSON parsers cannot silently round large/precise values before the core sees them. Vectors are arrays of those strings; nested vectors and JSON numbers are rejected.
-
-## 4. Discovery request
-
-Logical fallback:
-
-```json
-{
-  "q": "midpoint price elasticity",
-  "n": 3
-}
-```
-
-The checked-in schema is [`spec/schemas/xs-find-tool.schema.json`](../spec/schemas/xs-find-tool.schema.json).
-
-A successful response returns canonical operation metadata. The host should cache/bind the result rather than forcing discovery on every repeated task.
-
-## 5. Capability-slice model assets
-
-The current hot-set generator is the starting point for capability-slice output. A production capability profile should bind the runtime surface and its model assets together:
+## 1. Choose one narrow serving surface
 
 ```text
-capability-slice/
-  profile.json
-  catalog.json
-  binding-sha256.txt
-  xs-calc.tool.json       # when xs_calc is enabled
-  xs-calc.gbnf
-  xs-eval.tool.json
-  xs-eval.gbnf
-  xs-find.tool.json       # only when include_find=true
-  xs-find.gbnf            # only when include_find=true
-  prompt-fragment.txt
+                         small model
+                              |
+                +-------------+-------------+
+                |                           |
+                v                           v
+       arithmetic decomposition       reviewed method known
+                |                           |
+                v                           v
+          xs_calc(plan)                xs_eval(op,args)
+                |                           |
+                +-------------+-------------+
+                              |
+                              v
+                 ExactScope deterministic core
+                              |
+                              v
+                 canonical value / typed failure
 ```
 
-The deployed slice contains only compact immutable metadata needed to select and call the supported capability:
+`xs_find` is optional discovery for setup/development or a genuinely unknown semantic operation. It is not a mandatory extra hop.
 
-- target task families;
-- canonical operation keys and revisions;
-- compact signatures/method cues;
-- argument semantic names/order;
-- registry/pack/profile digest bindings;
-- model-surface and footprint budgets.
+### `xs_calc`
 
-The complete domain source catalog remains available to build tooling but should not be placed in a small-model prompt by default.
+Use when the model can decompose the task into short arithmetic. Plan v0.1 is deliberately bounded:
 
-## 6. Model policy
+- maximum 8 steps;
+- `add/sub/mul/div/powi/sqrt` only;
+- exact decimal-string leaves;
+- backward-only prior-result references;
+- no loops, arbitrary branches, variables, general functions, or generated code execution.
 
-A compact system/tool policy should communicate:
+### `xs_eval`
+
+Use when method identity itself matters. A generated capability slice exposes only selected reviewed operations and their exact argument contracts.
+
+### `xs_find`
+
+Use only as an optional cold/development path. Do not inject the broad domain catalog into a weak model's normal prompt.
+
+## 2. Start from an immutable capability/model-surface identity
+
+A serious integration should not build tool definitions by hand and hope they match the binary. Bind the model-visible assets to the exact capability profile/runtime identity.
+
+Generated capability assets can include:
+
+```text
+profile.json
+catalog.json
+binding-sha256.txt
+model-surface-contract.json
+model-surface-sha256.txt
+xs-calc.tool.json        # only if selected
+xs-calc.gbnf             # only if selected
+xs-eval.tool.json        # only if selected
+xs-eval.gbnf             # only if selected
+xs-find.tool.json        # only if explicitly selected
+xs-find.gbnf             # only if explicitly selected
+prompt-fragment.txt
+```
+
+The host must fail closed when the expected capability/profile/model-surface identity does not match the files/runtime it is about to expose.
+
+The broad operation catalog is a build-time maintenance asset. Do not copy it wholesale into the model context.
+
+## 3. Canonical Tiny JSON boundary
+
+Decimal values are lexical strings so ordinary JSON parsing does not silently round them before ExactScope receives them.
+
+Example semantic request:
+
+```json
+{"op":"econ.ped.mid","a":["10","12","100","90"]}
+```
+
+Example scalar/vector conventions:
+
+```json
+{"op":"stats.mean","a":[["1","2","3.5"]]}
+```
+
+The Tiny JSON boundary is strict and bounded. JSON numeric values, nested vectors, unbounded objects, and semantic guessing are rejected when outside the declared contract.
+
+Schemas:
+
+- [`spec/schemas/xs-calc-tool.schema.json`](../spec/schemas/xs-calc-tool.schema.json)
+- [`spec/schemas/xs-eval-tool.schema.json`](../spec/schemas/xs-eval-tool.schema.json)
+- [`spec/schemas/xs-find-tool.schema.json`](../spec/schemas/xs-find-tool.schema.json)
+
+## 4. Model policy
+
+A compact model/system policy should communicate the actual boundary, not teach the model a full numeric library.
+
+Recommended substance:
 
 ```text
 Use ExactScope for supported deterministic quantitative calculations.
-Use xs_calc for supported short arithmetic plans.
-Use xs_eval directly for a known reviewed semantic method in the bound capability slice.
-Use xs_find only when the required semantic operation is genuinely unknown and discovery is enabled.
-Pass arguments in the declared order and obey backward-reference rules.
-Use exact base-10 values; never invent missing values, units, or methods.
-Do not recompute an ExactScope result.
-Preserve ExactScope errors instead of guessing a number.
+Use xs_calc only for a supported short arithmetic plan.
+Use xs_eval directly for a reviewed method present in the bound capability.
+Use xs_find only when discovery is explicitly enabled and the operation is genuinely unknown.
+Pass exact values in the declared argument order.
+Never invent missing values, units, conversions, methods, or rounding rules.
+Do not recompute or repair an ExactScope result.
+Preserve a typed ExactScope failure instead of guessing a numeric answer.
 ```
 
-The prompt should not enumerate the full catalog.
+Use the generated `prompt-fragment.txt` once. Do not duplicate the same operation catalog in system text, schema descriptions, and an extra prompt table.
 
-## 7. Fail-closed and adapter normalization
+## 5. Adapter normalization rules
 
-The core stays strict for semantics. Adapters are permitted to normalize **syntax/transport**, not meaning.
+Adapters may normalize **syntax/transport**, not meaning.
 
-### Allowed
+Allowed examples:
 
-- unwrap OpenAI-compatible/tag-wrapped/raw JSON envelopes;
+- unwrap a known OpenAI-compatible/tag-wrapped JSON envelope;
 - trim protocol whitespace;
-- map known outer field names to the canonical schema;
-- convert a host numeric token to an exact decimal lexical value only if the host representation preserves that exact value;
-- enforce array/field caps;
-- reorder protocol object fields without reordering operation arguments.
+- reorder JSON object fields;
+- map a known outer protocol field to the canonical one;
+- enforce byte/array/field caps;
+- preserve an exact lexical number when the host representation is lossless.
 
-### Forbidden
+Forbidden examples:
 
-- infer that `5%` should become `0.05` when the operation contract did not specify that conversion;
-- remove currency/unit symbols and continue as if semantics were unchanged;
-- invent a missing value;
-- swap arguments based on a guess;
-- choose a population method when the request implies sample data or vice versa;
-- change an ExactScope error into a plausible numeric answer;
-- calculate, round, convert, or classify independently of the core.
+- assume `5%` means `0.05` when the operation contract did not specify it;
+- strip currency/unit symbols and continue as if semantics were unchanged;
+- invent a missing operand;
+- swap arguments because another order “looks likely”;
+- silently choose sample vs population statistics;
+- silently choose an economics method variant;
+- calculate independently in the adapter;
+- replace an ExactScope error with a plausible number.
 
-The benchmark must measure whether constrained decoding and syntactic normalization keep core-rejected calls low enough for real use.
+## 6. llama.cpp reference integration
 
-## 8. Canonical decimal profile
-
-Accepted lexical examples include:
-
-```text
-0
--12
-12.50
-0.05
-1000000
-1e-6
-```
-
-Rejected unless an outer adapter has an explicit lossless lexical normalization rule:
+The maintained strict reference adapters are:
 
 ```text
-1,000
-5%
-$12
-NaN
-Infinity
-approximately 4
-12 meters
+adapters/llama-cpp/direct_eval_smoke.py
+adapters/llama-cpp/calc_plan_smoke.py
 ```
 
-Percent/rate/unit meaning belongs to the operation signature and semantic metadata, not to string guessing.
+Their source-level/self-test role is to validate the integration envelope without running a model:
 
-## 9. Adapter responsibilities
+- exact capability/model-surface negotiation;
+- strict duplicate-key handling;
+- arity and shape checks;
+- decimal lexical checks;
+- resource limits;
+- backward-only `xs_calc` references;
+- no calculation or semantic repair inside the adapter.
 
-An adapter must:
+For actual model inference, use the frozen generated tool/GBNF/prompt assets from the exact release/capability being qualified. A model run becomes evidence only when its model/runtime/artifact/corpus identities are recorded as described in [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md).
 
-- validate the model/tool envelope;
-- cap request bytes and array lengths;
-- preserve exact lexical values;
-- resolve/bind operation keys against the installed registry;
-- preserve operation argument order;
-- preserve core status/provenance;
-- avoid calculation and semantic repair;
-- record or expose the registry/pack digest when auditability is required.
+## 7. OpenAI-compatible tool envelopes
 
-An adapter may:
+“OpenAI-compatible” here means a common tool-call JSON shape. It does **not** require cloud use or the OpenAI API.
 
-- translate outer tool-call protocols;
-- apply allowed syntax normalization;
-- provide generated hot-set metadata;
-- cache immutable operation metadata by digest;
-- provide locale aliases before discovery;
-- render a deterministic result after the core call.
+A product may expose one tool at a time:
 
-## 10. OpenAI-compatible adapter surface
+- an `xs_calc` function whose arguments contain the bounded plan;
+- an `xs_eval` function whose arguments contain a selected operation key and ordered values.
 
-The current generic adapter surface should remain compact:
+The generated tool JSON and grammar are the source of truth. Protocol wrappers should not independently widen types or descriptions.
 
-- conservative OpenAI-style `xs_calc` tool definition plus bounded JSON Schema/GBNF;
-- conservative `xs_eval` definition for the selected capability slice;
-- optional `xs_find` definition outside the normal hot path;
-- capability-slice/hot-set generation from installed operation metadata;
-- examples for one-turn bounded-plan and direct semantic eval;
-- fixtures for error/status preservation;
-- no calculation logic in the protocol wrapper.
+## 8. Native and Wasm host choices
 
-Cloud use is not required. "OpenAI-compatible" describes a widely used tool-call envelope format.
+### Native typed host
 
-## 11. llama.cpp reference
+A fixed embedded product can bypass model-facing JSON after the model adapter and call the C ABI with caller-owned structures. This is preferable when the target has a static operation set and wants the smallest runtime boundary.
 
-The repository now contains a one-turn `xs_calc` llama.cpp reference path and small multi-model smoke evidence. The reference surface includes:
+### Wasm host
 
-- generated/checked-in GBNF for the bounded `xs_calc` plan;
-- matching JSON Schema/tool asset;
-- strict bounded request/runtime validation;
-- compact system/user prompt policy;
-- raw plan extraction without semantic repair;
-- a sample runner showing one-turn bounded-plan use;
-- preserved direct semantic `xs_eval` integration patterns;
-- benchmark integration points for selected small GGUF instruct/tool models.
+The evaluation SDK includes a no-import Wasm artifact for local embedding. `examples/javascript/capability-host.mjs` demonstrates identity checking and a strict local host boundary.
 
-The current smoke is integration evidence, not a general model-quality benchmark. Any grammar/schema used for public benchmark claims must be checked in or reproducibly generated and digest-recorded together with exact model/runtime/prompt/artifact identities.
+A selected capability build should not retain excluded serving paths merely because the fused development runtime has them.
 
-## 12. TinyWire and typed hosts
+### TinyWire
 
-TinyWire is the compact deterministic CBOR transport for scalar/vector calls where JSON is undesirable. Typed native hosts may bypass model-facing JSON entirely and call the C ABI directly.
+TinyWire provides a compact deterministic binary transport where JSON is undesirable. It is not required for every integration.
 
-A product with fixed operations may omit discovery and generic JSON from the runtime path completely. A fixed appliance may also construct a bounded plan through typed host structures rather than model-generated JSON.
+## 9. Integration failure taxonomy
 
-## 13. Benchmark stages
+Keep these separate in logs and benchmark output:
 
-The capability benchmark separates:
+1. model did not recognize a supported task;
+2. wrong serving lane/tool selected;
+3. wrong semantic operation selected;
+4. argument extraction/order failure;
+5. malformed tool/plan syntax;
+6. model-surface/identity mismatch;
+7. bounded-plan semantic/resource rejection;
+8. typed deterministic runtime failure;
+9. final answer rendering/mismatch after a valid tool result;
+10. token limit/timeout/runtime transport failure.
 
-1. recognition of a supported deterministic task;
-2. plan/semantic-operation selection;
-3. argument extraction and prior-result reference formation;
-4. tool/plan syntax validity;
-5. plan semantic/resource validity;
-6. core acceptance/rejection;
-7. final answer accuracy;
-8. incorrect numeric answer rate;
-9. tool penalty rate;
-10. result fidelity;
-11. failure fidelity.
+This decomposition matters because ExactScope can guarantee deterministic execution of an accepted call but cannot make an arbitrarily weak model select the right call.
 
-See [BENCHMARK.md](BENCHMARK.md).
+## 10. Recommended qualification arms
 
-## 14. Required comparison paths
+For `v1.0.0-rc.2`, the later qualification session should use the minimum useful comparison:
 
-For the implemented generic arithmetic lane, serious evaluation should compare:
+- **A — model only**;
+- **C — selected semantic `xs_eval` only**;
+- **D — `xs_calc + xs_eval` only when the exact selected profile contains both**;
+- **B — `xs_calc` only** when needed as a diagnostic.
 
-- model only;
-- model -> unconstrained `xs_calc` -> ExactScope;
-- model -> constrained `xs_calc` -> ExactScope;
-- gold plan -> ExactScope deterministic ceiling;
-- optional larger-model reference with separately reported resource cost.
+Do not automatically expose `xs_find` or a larger catalog as another normal arm. Surface complexity itself can change weak-model behavior.
 
-For semantic-operation workloads, retain direct/constrained `xs_eval` comparison and optional `xs_find -> xs_eval` cold-path measurement.
+The current planned models and fairness rules are in [`../benchmarks/NEXT_MODEL_MATRIX.md`](../benchmarks/NEXT_MODEL_MATRIX.md).
 
-This keeps discovery overhead visible without making discovery the headline product path.
+## 11. Model download inventory
 
-## 15. Tiny-model acceptance cases
+The release includes a download helper that does **not** run inference:
 
-Before a capability profile is considered usable on a weak model, cover at least:
+```powershell
+py -3 -m pip install -r requirements-benchmark.txt
+py -3 tools/fetch_benchmark_models.py --list
+py -3 tools/fetch_benchmark_models.py core --root C:\AIModels\ExactScopeBench
+```
 
-- one-step plan;
-- maximum-length valid plan;
-- multi-step backward references;
-- invalid forward reference;
-- invalid/missing argument;
-- negative/decimal values;
-- division by zero;
-- invalid power/domain case;
-- overflow/precision/resource failure;
-- malformed JSON/envelope;
-- grammar whitespace/output-tail termination;
-- exact result copied without model recomputation;
-- model-only-correct task regressed by tool use;
-- reviewed semantic `xs_eval` operation;
-- optional discovery ambiguity for `xs_find` tooling.
+It resolves the remote model repository revision, downloads the selected file at that revision, computes a local SHA-256 digest, and writes `model-inventory.json`. Preserve that file as part of preregistration/evidence.
 
-## 16. Human-facing surfaces
+Model terms/licenses remain independent from ExactScope's source license.
 
-A host application may render, speak, or display results. That UI is outside ExactScope core. A wrapper must not become a second calculation authority.
+## 12. Historical evidence boundary
 
-## Experimental compiler implementation
+The old Statistics evidence accumulated through `statistics-core-8-ai-r20` belongs to a 45,804-byte r17 serving runtime. It demonstrated both potential value and a critical limitation: different weak models preferred different selected surfaces and very weak models could still fail semantic selection/argument extraction.
 
-The build-time [capability compiler](CAPABILITY_COMPILER.md) now validates Statistics task selections, binds actual operation revisions and canonical model assets, enforces static budgets, and checks reproducibility. The draft profile format remains experimental. This currently restricts the host/model surface; it does not specialize the fused runtime binary or establish model/target qualification.
+Do not copy those scores onto rc2. Re-running the same model against rc2 is a new evidence run.
 
-The [five-arm Statistics runner](../benchmarks/CAPABILITY_BENCHMARK.md) now records raw model replies, tokenizer-specific counts, stage metrics, paired tool penalties, capability density and conditional CRR. The initial 1,200-record local-model experiment exposed an error-only tool surface; it is retained as negative interface evidence, not a successful capability claim.
+## 13. Integration completion checklist
+
+Before calling one host integration technically complete:
+
+- [ ] the release archive checksum was verified;
+- [ ] exact release/tag/commit identity is recorded;
+- [ ] expected capability/profile/model-surface digests match;
+- [ ] only intended tools/operations are model-visible;
+- [ ] decimal lexicals and argument order are preserved;
+- [ ] resource caps are enforced before the core boundary;
+- [ ] typed failures survive the adapter unchanged;
+- [ ] no semantic repair/calculation exists in the protocol wrapper;
+- [ ] integration logs distinguish model, adapter, core, and host failures;
+- [ ] benchmark/qualification is still treated separately from this code-level checklist.
+
+## 14. Next step
+
+For a real end-to-end model benchmark and ARM64 target qualification, use:
+
+- [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md)
+- [`NEXT_SESSION_PROMPT.md`](NEXT_SESSION_PROMPT.md)
+- [`../benchmarks/NEXT_MODEL_MATRIX.md`](../benchmarks/NEXT_MODEL_MATRIX.md)
+
+`v1.0.0-rc.2` remains a prerelease until those exact public artifacts are independently qualified.

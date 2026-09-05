@@ -4,7 +4,7 @@ ExactScope is a tiny deterministic quantitative coprocessor for small/on-device 
 
 ## Current project phase
 
-The runtime foundation is already substantial. The current priority is no longer “finish every subsystem before users can evaluate it.”
+`v1.0.0-rc.2` is a code-side-complete **integration & qualification candidate** for the active Statistics/Economics architecture. The current priority is to keep the public candidate reproducible and small while external-user model/target qualification is performed from the immutable release. New feature breadth is not a substitute for that evidence.
 
 Read this order first:
 
@@ -25,16 +25,15 @@ Read this order first:
 
 Before proposing a large feature, ask whether it improves one of these:
 
-- direct one-hop `xs_eval` integration;
-- hot-set/schema/GBNF generation;
-- local-AI runtime adoption;
-- benchmark evidence;
-- five-minute/prebuilt evaluation;
-- reviewed benchmark hot-set quality;
-- release/target qualification;
-- deterministic correctness/security.
+- correctness/security of the deterministic core and public boundaries;
+- `xs_calc` / selected `xs_eval` model-surface simplicity;
+- capability/model-surface identity and fail-closed compatibility;
+- five-minute release-asset integration;
+- reproducible model/target qualification evidence;
+- exact release packaging, compatibility, update and rollback behavior;
+- measured product value on a real constrained workload.
 
-Broad platform support, dynamic-profile polish, and catalog expansion are secondary until the product proof exists.
+Broad platform support, dynamic-profile polish, catalog expansion, and new domains are secondary until the rc2 candidate is independently qualified.
 
 ## Core invariants
 
@@ -84,16 +83,11 @@ Forbidden examples:
 
 ## Benchmark changes
 
-Benchmark contributions should follow `docs/BENCHMARK.md` and preserve the required comparison arms:
+Benchmark contributions should follow `docs/BENCHMARK.md` and `docs/QUALIFICATION_HANDOFF.md`. For the rc2 flagship qualification, the primary arms are A model-only, C selected semantic-only, and D combined where the exact selected profile contains both lanes. Add B `xs_calc`-only only when it answers a diagnostic question; discovery is an optional ablation, not a required hot path.
 
-- model only;
-- direct ExactScope hot path;
-- discovery path;
-- constrained direct path.
+Do not publish a single blended score without stage-level failures and cost metrics. Do not run a public rc2 comparison from a modified developer checkout and call it release evidence.
 
-Do not publish a single blended score without stage-level failures and cost metrics.
-
-Any comparative claim must identify exact model/runtime/hardware and ExactScope/hot-set/adapter artifact digests.
+Any comparative claim must identify exact release/capability/model-surface/model/runtime/hardware/corpus/scorer identities and digests.
 
 ## Runtime changes
 

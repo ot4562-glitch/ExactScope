@@ -1,6 +1,6 @@
 # ExactScope capability product architecture
 
-Status: product architecture target for the next ExactScope design phase. This document defines the product unit, small-model interface principles, domain-slice strategy, build-vs-buy thesis, benchmark KPIs, and adoption path. It does not by itself create a new stable ABI or release claim.
+Status: **active product architecture implemented code-side for v1.0.0-rc.2; qualification evidence still pending**. This document defines the product unit, small-model interface principles, domain-slice strategy, build-vs-buy thesis, benchmark KPIs, and adoption path. The capability compiler, selected Statistics/Economics slices, bounded `xs_calc`, model-surface identity and specialization machinery described here now exist; this document still does not by itself create a stable/support/accuracy/device claim.
 
 ## 1. Product boundary
 
@@ -215,9 +215,9 @@ Adopt ExactScope:
 
 The moat is therefore not one Rust implementation. It is the accumulated reviewed domain semantics, weak-model interface engineering, profile compiler, benchmark evidence, and qualification history.
 
-## 10. Capability compiler target
+## 10. Capability compiler
 
-The long-term developer product should include a build-time **capability compiler** that turns a broad reviewed domain source into a minimal deployed slice.
+The rc2 codebase includes a deterministic build-time **capability compiler** that turns reviewed domain/task-family metadata into a minimal selected deployment surface. The conceptual input/output below remains the product contract direction; future work is evidence, additional reviewed domains, and supported-release policy rather than inventing a second compiler mechanism.
 
 Conceptual input:
 
@@ -348,24 +348,24 @@ Before adding a feature, ask:
 
 If the answer to the first three is no, it should not enter the core product path.
 
-## 17. Immediate next design/implementation milestones
+## 17. Immediate rc2 evidence milestones
 
-The product architecture now has a design-draft capability profile, JSON Schema, Statistics example, and flagship Statistics slice/benchmark plan. The next work should be:
+The compiler/profile/specialization/corpus/harness architecture described above is implemented code-side. The next work is evidence and support promotion, not another implementation phase:
 
-1. implement deterministic capability-profile validation/generation from existing hot-set/domain metadata;
-2. emit measured model-difficulty metadata (bytes plus tokenizer-specific counts/results) rather than only design ceilings;
-3. add Capability Recovery Ratio and capability-density reporting to the benchmark aggregation path;
-4. implement the checked-in Statistics flagship corpus/gold generator described in [`STATISTICS_CAPABILITY_SLICE.md`](STATISTICS_CAPABILITY_SLICE.md);
-5. benchmark that slice across multiple weak model classes using the five required arms;
-6. compare the measured gain with a larger-model reference and the exact added device cost;
-7. only then widen Statistics or start the next domain series.
+1. publish and independently verify the immutable `v1.0.0-rc.2` GitHub candidate;
+2. freeze the five-model minimum matrix and exact release/model/runtime/corpus/scorer identities;
+3. benchmark A model-only / C selected semantic / D combined surfaces, adding B calc-only only when diagnostically useful;
+4. report failure decomposition and model-interface/artifact cost, with capability density/CRR only when their denominators are meaningful;
+5. qualify the exact Android ARM64 or embedded Linux ARM64 release asset on a representative real target;
+6. decide support/stable promotion only from those exact evidence records;
+7. widen Statistics or add domains only when a measured product workload justifies it.
 
 The core product question remains:
 
 > Can a tiny ExactScope capability slice recover enough narrow-domain ability on an existing constrained model that keeping the current model and hardware becomes the better engineering choice?
 
-## Experimental compiler implementation
+## Implemented compiler / historical benchmark boundary
 
-The build-time [capability compiler](CAPABILITY_COMPILER.md) now validates Statistics task selections, binds actual operation revisions and canonical model assets, enforces static budgets, and checks reproducibility. The draft profile format remains experimental. This currently restricts the host/model surface; it does not specialize the fused runtime binary or establish model/target qualification.
+The build-time [capability compiler](CAPABILITY_COMPILER.md) validates Statistics/Economics task selections, binds operation revisions and canonical model assets, enforces static budgets, emits exact model-surface negotiation metadata, and drives operation-selected no-import Wasm specialization.
 
-The [five-arm Statistics runner](../benchmarks/CAPABILITY_BENCHMARK.md) now records raw model replies, tokenizer-specific counts, stage metrics, paired tool penalties, capability density and conditional CRR. The initial 1,200-record local-model experiment exposed an error-only tool surface; it is retained as negative interface evidence, not a successful capability claim.
+Existing multi-arm benchmark runners and the older 1,200-record local-model experiment remain implementation/historical interface evidence. They are not the rc2 benchmark result. Follow [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md) for new rc2 evidence.

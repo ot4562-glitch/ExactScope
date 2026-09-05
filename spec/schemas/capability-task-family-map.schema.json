@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.org/spec/schemas/capability-task-family-map.schema.json",
+  "title": "ExactScope capability task-family map v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "format_version", "domain", "families"],
+  "properties": {
+    "format": {"const": "exactscope.capability.task-family-map"},
+    "format_version": {"const": "0.1"},
+    "domain": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "families": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+      "additionalProperties": {
+        "type": "array",
+        "maxItems": 128,
+        "uniqueItems": true,
+        "items": {"type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"}
+      }
+    }
+  }
+}

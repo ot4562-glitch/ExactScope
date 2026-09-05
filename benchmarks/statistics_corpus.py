@@ -162,8 +162,11 @@ def main():
         "exactscope-core.exe" if os.name == "nt" else "exactscope-core"))
     parser.add_argument("--output", type=Path, default=DEFAULT)
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--seed", type=int, default=SEED)
     args = parser.parse_args()
-    rows = validate_rows(templates(), CoreBridge(args.core))
+    if not 0 <= args.seed <= 0xffffffff:
+        parser.error("seed must fit u32")
+    rows = validate_rows(templates(args.seed), CoreBridge(args.core))
     data = b"".join(canonical(row) for row in rows)
     if args.check:
         if args.output.read_bytes() != data:
