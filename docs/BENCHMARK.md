@@ -1,5 +1,11 @@
 # ExactScope benchmark contract
 
+The Statistics corpus is now reproducible with
+`python benchmarks/statistics_corpus.py --check`: 240 seeded synthetic cases,
+225 runtime-verified gold calls and 15 explicit no-call semantic failures.
+Its independent Fraction/Decimal oracle is test-only and never serves as an
+adapter fallback. See [Statistics corpus scope](STATISTICS_CAPABILITY_SLICE.md).
+
 ExactScope must earn adoption with measured evidence, not with the claim that deterministic code is obviously better than model arithmetic.
 
 The core product question is:

@@ -127,7 +127,7 @@ For the first slice:
 - [x] keep the normal model-facing surface to `xs_calc` + one compact `xs_eval` tool, with `xs_find` disabled;
 - [x] define draft model/device budgets in the capability profile;
 - [ ] freeze exact operation/profile bindings and provenance digests;
-- [ ] implement the checked-in 240-case target corpus/gold generator or revise the target with documented coverage evidence;
+- [x] implement the checked-in 240-case target corpus/gold generator with independent oracle and actual-runtime validation;
 - [ ] add/verify golden, negative, and boundary vectors for the benchmark corpus;
 - [ ] create a reproducible benchmark mapping/result bundle;
 - [ ] measure marginal artifact, prompt, and runtime cost versus `xs_calc` alone.

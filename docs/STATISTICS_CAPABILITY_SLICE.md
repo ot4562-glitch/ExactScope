@@ -2,6 +2,19 @@
 
 Status: **product/benchmark design draft**. This document defines the first flagship semantic capability proof built from the existing `statistics-core-8` operation set. It does not claim that the slice has already passed the benchmark gates below.
 
+Implemented corpus: `benchmarks/statistics_corpus.py` emits the checked-in
+`statistics-v0.1.jsonl` from an explicit 32-bit LCG seed and five presentation
+templates. The 240 cases retain the S1..S6 allocation below: 208 numeric successes,
+17 typed failures (including two constant-vector Pearson cases), and 15 explicit
+ambiguity/missing-information/unsupported-method cases. All 225 gold calls must
+match both a test-only Fraction/Decimal oracle and the real Tiny JSON runtime.
+Negative weights are permitted by the existing weighted-mean revision; the oracle
+does not add an unstated nonnegative-weight constraint. The corpus is synthetic
+controlled evidence, not a representative public Statistics dataset or model score.
+
+Regenerate/verify with `python benchmarks/statistics_corpus.py --check` after building
+`exactscope-core`. No generated model output influences gold or case admission.
+
 See [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) for the product model and [`../spec/CAPABILITY_PROFILE_V0_1.md`](../spec/CAPABILITY_PROFILE_V0_1.md) for the draft profile format.
 
 ## 1. Why Statistics is first
