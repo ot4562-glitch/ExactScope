@@ -72,3 +72,7 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **
 - AI-facing Tiny JSON is an adapter protocol.
 - TinyWire CBOR is a transport protocol.
 - None of these formats contains native executable plugin code.
+
+## Experimental compiler implementation
+
+The build-time [capability compiler](../docs/CAPABILITY_COMPILER.md) now validates Statistics task selections, binds actual operation revisions and canonical model assets, enforces static budgets, and checks reproducibility. The draft profile format remains experimental. This currently restricts the host/model surface; it does not specialize the fused runtime binary or establish model/target qualification.

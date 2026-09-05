@@ -83,7 +83,7 @@ The design-draft profile/schema now records:
 - [x] runtime/profile binding fields;
 - [x] conformance/golden evidence identity fields;
 - [x] benchmark mapping/result identity fields;
-- [ ] implement deterministic validation/generation from repository source metadata;
+- [x] implement deterministic validation/generation from repository source metadata (experimental Statistics compiler);
 - [ ] replace experimental null bindings/evidence with released immutable identities before a benchmarked claim;
 - [ ] freeze the format only after real benchmark/integration evidence.
 

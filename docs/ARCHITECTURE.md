@@ -347,3 +347,7 @@ New architecture work should first answer one of these needs:
 - improve target qualification.
 
 Work that only broadens internal elegance or platform count is secondary until the product proof exists.
+
+## Experimental compiler implementation
+
+The build-time [capability compiler](CAPABILITY_COMPILER.md) now validates Statistics task selections, binds actual operation revisions and canonical model assets, enforces static budgets, and checks reproducibility. The draft profile format remains experimental. This currently restricts the host/model surface; it does not specialize the fused runtime binary or establish model/target qualification.

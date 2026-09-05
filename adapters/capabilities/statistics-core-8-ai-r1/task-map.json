@@ -1,0 +1,1 @@
+{"descriptive-aggregation":["stats.sum","stats.mean"],"pearson-correlation":["stats.corr.pearson"],"variance-standard-deviation-method-selection":["stats.var.pop","stats.var.sample","stats.sd.pop","stats.sd.sample"],"weighted-mean":["stats.mean.weighted"]}

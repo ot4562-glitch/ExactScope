@@ -363,3 +363,7 @@ The product architecture now has a design-draft capability profile, JSON Schema,
 The core product question remains:
 
 > Can a tiny ExactScope capability slice recover enough narrow-domain ability on an existing constrained model that keeping the current model and hardware becomes the better engineering choice?
+
+## Experimental compiler implementation
+
+The build-time [capability compiler](CAPABILITY_COMPILER.md) now validates Statistics task selections, binds actual operation revisions and canonical model assets, enforces static budgets, and checks reproducibility. The draft profile format remains experimental. This currently restricts the host/model surface; it does not specialize the fused runtime binary or establish model/target qualification.

@@ -214,3 +214,7 @@ If this design is promoted to a machine-validated schema, at minimum enforce:
 A capability profile is successful only when its linked benchmark shows that the target weak model gains a useful task-family capability at an acceptable tool penalty and at a sufficiently small device/model cost.
 
 A larger profile is not automatically better. The default optimization target is the **smallest profile that closes the required capability gap**.
+
+## Experimental compiler implementation
+
+The build-time [capability compiler](../docs/CAPABILITY_COMPILER.md) now validates Statistics task selections, binds actual operation revisions and canonical model assets, enforces static budgets, and checks reproducibility. The draft profile format remains experimental. This currently restricts the host/model surface; it does not specialize the fused runtime binary or establish model/target qualification.

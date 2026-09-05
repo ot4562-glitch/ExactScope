@@ -153,3 +153,7 @@ See [docs/CAPABILITY_PRODUCT_ARCHITECTURE.md](docs/CAPABILITY_PRODUCT_ARCHITECTU
 ## Contributing and license
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development and evidence requirements. ExactScope is dual-licensed under the existing [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE) terms; this release candidate does not change that licensing model. Dependency and evaluation attribution is recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Experimental compiler implementation
+
+The build-time [capability compiler](docs/CAPABILITY_COMPILER.md) now validates Statistics task selections, binds actual operation revisions and canonical model assets, enforces static budgets, and checks reproducibility. The draft profile format remains experimental. This currently restricts the host/model surface; it does not specialize the fused runtime binary or establish model/target qualification.

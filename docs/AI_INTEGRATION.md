@@ -280,3 +280,7 @@ Before a capability profile is considered usable on a weak model, cover at least
 ## 16. Human-facing surfaces
 
 A host application may render, speak, or display results. That UI is outside ExactScope core. A wrapper must not become a second calculation authority.
+
+## Experimental compiler implementation
+
+The build-time [capability compiler](CAPABILITY_COMPILER.md) now validates Statistics task selections, binds actual operation revisions and canonical model assets, enforces static budgets, and checks reproducibility. The draft profile format remains experimental. This currently restricts the host/model surface; it does not specialize the fused runtime binary or establish model/target qualification.

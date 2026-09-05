@@ -109,3 +109,7 @@ A replacement decision must state:
 6. whether product claims/documentation must change.
 
 Convenience or feature count alone is not sufficient reason to weaken deterministic-core invariants.
+
+## D-045: Compose capability compilation at build time
+
+Reuse Rust hotset generation from a Python build orchestrator; do not add profile metadata or JSON Schema dependencies to the deterministic runtime. Canonical bundles bind source, operation revisions and actual model assets, reject static budget excess, and remain experimental until artifact and evidence bindings exist. Schema specialization groups equal argument shapes to reduce structural invalid calls without changing arithmetic or the RC ABI. See [compiler contract](CAPABILITY_COMPILER.md).

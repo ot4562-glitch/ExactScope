@@ -322,3 +322,7 @@ The flagship result should let a device/AI team answer four practical questions:
 4. **How much of the measured larger-model advantage does this tiny software slice recover?**
 
 If those answers are weak, ExactScope should improve the slice/interface/evidence before expanding the domain catalog.
+
+## Experimental compiler implementation
+
+The build-time [capability compiler](CAPABILITY_COMPILER.md) now validates Statistics task selections, binds actual operation revisions and canonical model assets, enforces static budgets, and checks reproducibility. The draft profile format remains experimental. This currently restricts the host/model surface; it does not specialize the fused runtime binary or establish model/target qualification.
