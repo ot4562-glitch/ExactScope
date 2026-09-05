@@ -9,8 +9,8 @@ or public ABI changes are introduced.
 
 ```sh
 cargo build -p exactscope-packc
-python tools/compile_capability.py spec/examples/statistics-capability-profile.json adapters/capabilities/statistics-core-8-ai-r2
-python tools/compile_capability.py --verify adapters/capabilities/statistics-core-8-ai-r2
+python tools/compile_capability.py spec/examples/statistics-capability-profile.json adapters/capabilities/statistics-core-8-ai-r4
+python tools/compile_capability.py --verify adapters/capabilities/statistics-core-8-ai-r4
 python tools/test_compile_capability.py
 ```
 
@@ -19,6 +19,16 @@ a smaller surface. Unknown families, duplicate JSON keys, unsupported revisions,
 inconsistent counts/bounds, discovery, fabricated bindings/evidence and unsupported
 support promotions fail closed. Existing identical output is idempotent; different
 output requires a new directory and, for a published identity, a new revision.
+
+For task-driven selection without listing operation names, supply
+`spec/examples/statistics-capability-request.json` to the same compiler. Its
+request schema contains task families, `xs_calc` enablement and model/device
+budgets. The compiler derives the unique minimal operation union and operation
+count, constructs the profile, then performs the same registry/revision/budget
+checks. Selecting only `weighted-mean`, for example, emits only
+`stats.mean.weighted` through `xs_eval`. The broad catalog stays build-time-only.
+The arithmetic lane also verifies every digest in the checked-in plan contract
+and includes its revision-bound contract in the capability bundle.
 
 Canonical JSON uses sorted keys, ASCII escaping, compact separators and one LF.
 Task families and selected operations are sorted; argument order is preserved.
@@ -52,7 +62,7 @@ released immutable identity management remain separate work.
 Wasm and independently checked Statistics gold evidence:
 
 ```sh
-python tools/bind_capability.py --bundle adapters/capabilities/statistics-core-8-ai-r2 --artifact target/wasm32v1-none/release/exactscope_wasm.wasm --corpus benchmarks/statistics-v0.1.jsonl --core target/debug/exactscope-core --revision 3 --output target/capabilities/statistics-core-8-ai-r3
+python tools/bind_capability.py --bundle adapters/capabilities/statistics-core-8-ai-r4 --artifact target/wasm32v1-none/release/exactscope_wasm.wasm --corpus benchmarks/statistics-v0.1.jsonl --core target/debug/exactscope-core --revision 5 --output target/capabilities/statistics-core-8-ai-r5
 python tools/test_bind_capability.py
 ```
 

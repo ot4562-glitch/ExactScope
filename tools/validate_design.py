@@ -183,6 +183,7 @@ def validate_examples(schemas: dict[str, Any]) -> int:
     examples = ROOT / "spec" / "examples"
     explicit = {
         "compatibility-manifest.json": "compatibility-manifest.schema.json",
+        "statistics-capability-request.json": "capability-request.schema.json",
     }
     json_documents = list(examples.glob("*.json"))
     json_documents.extend((ROOT / "packs").glob("*.xsp.json"))

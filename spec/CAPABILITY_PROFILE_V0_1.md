@@ -2,6 +2,12 @@
 
 Status: **design draft**. This document defines the proposed machine-readable identity for a deployed ExactScope capability slice. It is not yet a stable runtime ABI or release-format promise.
 
+The profile remains a draft format, but an experimental compiler and artifact/gold
+binder now implement it. A separate `capability-request.schema.json` accepts task
+and budget requirements without operation lists. The compiler derives operations,
+verifies the plan contract, and emits canonical profiles and assets. See
+[implementation and binding rules](../docs/CAPABILITY_COMPILER.md).
+
 See [`../docs/CAPABILITY_PRODUCT_ARCHITECTURE.md`](../docs/CAPABILITY_PRODUCT_ARCHITECTURE.md) for the product rationale and [`schemas/capability-profile.schema.json`](schemas/capability-profile.schema.json) for the matching design-draft machine-readable shape.
 
 ## 1. Purpose

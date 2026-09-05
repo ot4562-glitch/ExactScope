@@ -102,6 +102,43 @@ def validate(profile):
     return profile
 
 
+def from_requirements(request):
+    """Lower task/budget requirements without asking the integrator to list operations."""
+    schema = load((ROOT / "spec/schemas/capability-request.schema.json").read_bytes())
+    Draft202012Validator(schema).validate(request)
+    required = {"format", "format_version", "profile_id", "profile_revision", "domain",
+                "task_families", "xs_calc", "model_visible_tools_max", "model_budget", "device_budget"}
+    if not isinstance(request, dict) or set(request) != required:
+        raise ValueError("capability request fields are missing or unknown")
+    if request["format"] != "exactscope.capability.request" or request["format_version"] != "0.1":
+        raise ValueError("unsupported capability request format")
+    if type(request["xs_calc"]) is not bool:
+        raise ValueError("xs_calc must be boolean")
+    families = request["task_families"]
+    if not isinstance(families, list) or any(not isinstance(f, str) or f not in FAMILIES for f in families):
+        raise ValueError("unknown task family")
+    selected = sorted({op for family in families for op in FAMILIES[family]})
+    budget = dict(request["model_budget"])
+    if "semantic_operation_count" in budget:
+        raise ValueError("semantic count is compiler-derived in a requirements request")
+    budget["semantic_operation_count"] = len(selected)
+    return {"format": "exactscope.capability.profile", "format_version": "0.1-draft",
+            "profile_id": request["profile_id"], "profile_revision": request["profile_revision"],
+            "support": "experimental", "domain": request["domain"], "task_families": families,
+            "runtime_surface": {"xs_calc": {"enabled": request["xs_calc"],
+                "plan_revision": "plan-v0.1" if request["xs_calc"] else None},
+                "xs_eval": {"operations": selected}, "xs_find": {"enabled": False},
+                "model_visible_tools_max": request["model_visible_tools_max"],
+                "normal_model_turns_max": budget.get("normal_model_turns_max")},
+            "model_budget": budget, "device_budget": request["device_budget"],
+            "bindings": {key: None for key in (
+                "core_revision", "abi_revision", "registry_sha256", "hotset_sha256",
+                "tool_schema_sha256", "grammar_sha256", "prompt_sha256", "artifact_sha256", "profile_generator")},
+            "evidence": {"conformance_suite": None, "conformance_sha256": None,
+                "benchmark_mapping": None, "benchmark_mapping_sha256": None,
+                "qualification_records": [], "model_result_bundles": []}}
+
+
 def strict_tool(catalog, tool):
     # Group equal argument shapes to avoid repeating an entire schema per operation.
     groups = {}
@@ -125,7 +162,10 @@ def strict_tool(catalog, tool):
 
 
 def compile_profile(source, packc):
-    profile = validate(load(source))
+    source = load(source)
+    if isinstance(source, dict) and source.get("format") == "exactscope.capability.request":
+        source = from_requirements(source)
+    profile = validate(source)
     manifest = {"format": "exactscope.hotset.source", "format_version": "0.1",
                 "name": profile["profile_id"], "fused_packs": ["statistics-core"],
                 "operations": profile["runtime_surface"]["xs_eval"]["operations"],
@@ -144,6 +184,14 @@ def compile_profile(source, packc):
     prompt = "Pass exact decimal strings in signature order. Never guess missing values or methods. Preserve errors.\n"
     prompt += "\n".join(op["sig"] for op in catalog["operations"]) + "\n"
     if profile["runtime_surface"]["xs_calc"]["enabled"]:
+        contract = load((ROOT / "adapters/xs-calc-v0.1/contract.json").read_bytes())
+        if (contract.get("plan_id"), contract.get("plan_revision"), contract.get("max_steps")) != ("plan-v0.1", 1, 8):
+            raise ValueError("unsupported arithmetic contract")
+        for relative, expected in contract["files"].items():
+            path = (ROOT / relative).resolve()
+            if not path.is_relative_to(ROOT) or digest(path.read_text(encoding="utf-8").encode()) != expected:
+                raise ValueError(f"arithmetic contract drift: {relative}")
+        files["xs-calc.contract.json"] = canonical(contract)
         for name in ("xs-calc.tool.json", "xs-calc.gbnf"):
             data = (ROOT / "adapters/xs-calc-v0.1" / name).read_text(encoding="utf-8").encode()
             files[name] = canonical(load(data)) if name.endswith("json") else data

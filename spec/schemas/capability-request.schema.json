@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.org/spec/schemas/capability-request.schema.json",
+  "title": "Experimental capability compiler requirements v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "profile_id",
+    "profile_revision",
+    "domain",
+    "task_families",
+    "model_budget",
+    "device_budget",
+    "format",
+    "format_version",
+    "xs_calc",
+    "model_visible_tools_max"
+  ],
+  "properties": {
+    "profile_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 96,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "profile_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4294967295
+    },
+    "domain": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "task_families": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 96,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+      }
+    },
+    "model_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prompt_fragment_bytes_max",
+        "schema_bytes_max",
+        "grammar_bytes_max",
+        "generated_request_tokens_max",
+        "request_bytes_max",
+        "plan_steps_max",
+        "normal_model_turns_max"
+      ],
+      "properties": {
+        "prompt_fragment_bytes_max": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        },
+        "schema_bytes_max": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 262144
+        },
+        "grammar_bytes_max": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 262144
+        },
+        "generated_request_tokens_max": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "request_bytes_max": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        },
+        "plan_steps_max": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8
+        },
+        "normal_model_turns_max": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "tokenizer_measurements": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "tokenizer_id",
+              "prompt_tokens"
+            ],
+            "properties": {
+              "tokenizer_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "prompt_tokens": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 65536
+              }
+            }
+          }
+        }
+      }
+    },
+    "device_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_profile",
+        "artifact_bytes_max",
+        "resident_bytes_max",
+        "scratch_bytes_max",
+        "imports_max"
+      ],
+      "properties": {
+        "target_profile": {
+          "type": "string",
+          "enum": [
+            "native-static",
+            "no-import-wasm",
+            "other-experimental"
+          ]
+        },
+        "artifact_bytes_max": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "resident_bytes_max": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "scratch_bytes_max": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "imports_max": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "format": {
+      "const": "exactscope.capability.request"
+    },
+    "format_version": {
+      "const": "0.1"
+    },
+    "xs_calc": {
+      "type": "boolean"
+    },
+    "model_visible_tools_max": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2
+    }
+  }
+}

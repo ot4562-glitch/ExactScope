@@ -87,8 +87,20 @@ class CompilerTests(unittest.TestCase):
                 write_bundle(self.bundle, output)
 
     def test_checked_in_drift(self):
-        output = ROOT / "adapters/capabilities/statistics-core-8-ai-r2"
+        output = ROOT / "adapters/capabilities/statistics-core-8-ai-r4"
         self.assertEqual(self.bundle, {p.name: p.read_bytes() for p in output.iterdir()})
+
+    def test_requirements_select_minimal_task_surface(self):
+        request = load((ROOT / "spec/examples/statistics-capability-request.json").read_bytes())
+        request["task_families"] = ["weighted-mean"]
+        bundle = compile_profile(canonical(request), self.packc)
+        profile = load(bundle["profile.json"])
+        self.assertEqual(profile["runtime_surface"]["xs_eval"]["operations"], ["stats.mean.weighted"])
+        self.assertEqual(profile["model_budget"]["semantic_operation_count"], 1)
+        self.assertIn("xs-calc.contract.json", bundle)
+        request["task_families"] = ["unknown"]
+        with self.assertRaises(ValueError):
+            compile_profile(canonical(request), self.packc)
 
 
 if __name__ == "__main__":
