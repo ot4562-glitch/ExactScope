@@ -94,10 +94,20 @@ jobs:
           cl /nologo /std:c11 /W4 /WX /Iinclude examples\c\xs_calc.c target\release\exactscope_cabi.lib /Fe:target\release\xs-calc.exe
           target\release\xs-calc.exe
 
-      - name: Build and validate no-import Wasm
+      - name: Build and validate no-import Wasm on Linux
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           cargo "+$RUST_TOOLCHAIN" build --release --package exactscope-wasm --target wasm32v1-none --no-default-features --features fused,tinyjson
+          python tools/inspect_wasm.py target/wasm32v1-none/release/exactscope_wasm.wasm
+          node tools/test_wasm.mjs target/wasm32v1-none/release/exactscope_wasm.wasm
+          node examples/javascript/wasm-xs-calc.mjs target/wasm32v1-none/release/exactscope_wasm.wasm
+
+      - name: Build and validate no-import Wasm on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cargo "+$env:RUST_TOOLCHAIN" build --release --package exactscope-wasm --target wasm32v1-none --no-default-features --features fused,tinyjson
           python tools/inspect_wasm.py target/wasm32v1-none/release/exactscope_wasm.wasm
           node tools/test_wasm.mjs target/wasm32v1-none/release/exactscope_wasm.wasm
           node examples/javascript/wasm-xs-calc.mjs target/wasm32v1-none/release/exactscope_wasm.wasm
