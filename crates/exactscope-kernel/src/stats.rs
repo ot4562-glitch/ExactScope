@@ -554,7 +554,6 @@ where
 /// adapters remain responsible for shape, semantic-kind, unit, pointer, and
 /// caller-storage validation before invoking this function.
 #[must_use]
-#[allow(clippy::too_many_lines)]
 pub fn evaluate_statistics_operation<V: DecimalVector>(
     pack_slot: u16,
     operation: &StatisticsOperationDecl,
@@ -572,22 +571,36 @@ pub fn evaluate_statistics_operation<V: DecimalVector>(
         return statistics_failure(pack_slot, operation, Status::ARGUMENT_COUNT);
     }
 
+    // Erase only the transport type after validating arity. Keeping the numeric
+    // dispatch non-generic avoids cloning every statistics kernel for the C,
+    // Tiny JSON, CBOR and Wasm vector readers. Storage remains caller-owned.
+    let first: &dyn DecimalVector = &arguments[0];
+    let second: &dyn DecimalVector = arguments.get(1).map_or(first, |value| value);
+    evaluate_statistics_vectors(pack_slot, operation, [first, second])
+}
+
+#[allow(clippy::too_many_lines)]
+fn evaluate_statistics_vectors(
+    pack_slot: u16,
+    operation: &StatisticsOperationDecl,
+    arguments: [&dyn DecimalVector; 2],
+) -> EvaluationResult {
     let square_root_result = match operation.kernel_id {
         STATS_KERNEL_STANDARD_DEVIATION_POPULATION => {
             Some(statistics_population_standard_deviation(
-                &arguments[0],
+                arguments[0],
                 operation.output_scale,
                 operation.rounding_mode,
             ))
         }
         STATS_KERNEL_STANDARD_DEVIATION_SAMPLE => Some(statistics_sample_standard_deviation(
-            &arguments[0],
+            arguments[0],
             operation.output_scale,
             operation.rounding_mode,
         )),
         STATS_KERNEL_CORRELATION => Some(statistics_pearson_correlation(
-            &arguments[0],
-            &arguments[1],
+            arguments[0],
+            arguments[1],
             operation.output_scale,
             operation.rounding_mode,
         )),
@@ -602,49 +615,47 @@ pub fn evaluate_statistics_operation<V: DecimalVector>(
 
     let mut exact = [WorkRational::ZERO; 2];
     let produced = match operation.kernel_id {
-        STATS_KERNEL_SUM => statistics_sum(&arguments[0]).map(|value| {
+        STATS_KERNEL_SUM => statistics_sum(arguments[0]).map(|value| {
             exact[0] = value;
             1usize
         }),
-        STATS_KERNEL_MEAN => statistics_mean(&arguments[0]).map(|value| {
+        STATS_KERNEL_MEAN => statistics_mean(arguments[0]).map(|value| {
             exact[0] = value;
             1
         }),
         STATS_KERNEL_WEIGHTED_MEAN => {
-            statistics_weighted_mean(&arguments[0], &arguments[1]).map(|value| {
+            statistics_weighted_mean(arguments[0], arguments[1]).map(|value| {
                 exact[0] = value;
                 1
             })
         }
         STATS_KERNEL_VARIANCE_POPULATION => {
-            statistics_population_variance(&arguments[0]).map(|value| {
+            statistics_population_variance(arguments[0]).map(|value| {
                 exact[0] = value;
                 1
             })
         }
-        STATS_KERNEL_VARIANCE_SAMPLE => statistics_sample_variance(&arguments[0]).map(|value| {
+        STATS_KERNEL_VARIANCE_SAMPLE => statistics_sample_variance(arguments[0]).map(|value| {
             exact[0] = value;
             1
         }),
         STATS_KERNEL_COVARIANCE_POPULATION => {
-            statistics_population_covariance(&arguments[0], &arguments[1]).map(|value| {
+            statistics_population_covariance(arguments[0], arguments[1]).map(|value| {
                 exact[0] = value;
                 1
             })
         }
-        STATS_KERNEL_COVARIANCE_SAMPLE => {
-            statistics_sample_covariance(&arguments[0], &arguments[1]).map(|value| {
+        STATS_KERNEL_COVARIANCE_SAMPLE => statistics_sample_covariance(arguments[0], arguments[1])
+            .map(|value| {
                 exact[0] = value;
                 1
-            })
-        }
-        STATS_KERNEL_LINEAR_REGRESSION => {
-            statistics_linear_regression(&arguments[0], &arguments[1]).map(|value| {
+            }),
+        STATS_KERNEL_LINEAR_REGRESSION => statistics_linear_regression(arguments[0], arguments[1])
+            .map(|value| {
                 exact[0] = value.slope;
                 exact[1] = value.intercept;
                 2
-            })
-        }
+            }),
         _ => Err(Status::INTERNAL_ERROR),
     };
 
@@ -1050,5 +1061,31 @@ mod tests {
             statistics_sum(too_many.as_slice()),
             Err(Status::RESOURCE_LIMIT)
         );
+    }
+
+    #[test]
+    fn shared_dispatch_preserves_transport_failures_and_arity_precedence() {
+        struct FailingVector;
+        impl super::DecimalVector for FailingVector {
+            fn len(&self) -> usize {
+                2
+            }
+            fn value_at(&self, _index: usize) -> Result<Decimal64, Status> {
+                Err(Status::INVALID_DECIMAL)
+            }
+        }
+        for operation in super::OFFICIAL_STATS_OPERATIONS {
+            let sources = [FailingVector, FailingVector];
+            let result = evaluate_statistics_operation(
+                2,
+                operation,
+                &sources[..usize::from(operation.input_count)],
+            );
+            assert_eq!(result.status, Status::INVALID_DECIMAL);
+            assert_eq!(result.value_count, 0);
+            assert!(result.values.iter().all(|v| v.decimal == Decimal64::ZERO));
+            let wrong_arity = evaluate_statistics_operation::<FailingVector>(2, operation, &[]);
+            assert_eq!(wrong_arity.status, Status::ARGUMENT_COUNT);
+        }
     }
 }

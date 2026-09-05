@@ -146,6 +146,15 @@ Responsibilities:
 
 Caller-owned vectors are read through bounded source abstractions in deterministic index order. The C ABI fused statistics path is zero-copy and does not copy an entire vector into scratch.
 
+The Statistics evaluator validates each caller's arity before erasing the vector
+transport type into two borrowed trait-object references. Its large operation
+dispatch and arithmetic calls are emitted once, avoiding separate generic copies
+for typed Wasm, CBOR and Tiny JSON readers. No allocator or copied vector is added;
+numeric order, failure precedence and the public Rust/C contracts remain intact.
+The measured development Wasm is 85,671 bytes versus the RC baseline 102,971 bytes
+(17,300 bytes smaller), with zero imports and 17 initial pages. This is a size
+measurement; indirect vector calls have not established a latency improvement.
+
 ## 7. `exactscope-pack`
 
 Scope packs are data only.

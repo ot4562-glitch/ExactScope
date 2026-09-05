@@ -9,8 +9,8 @@ or public ABI changes are introduced.
 
 ```sh
 cargo build -p exactscope-packc
-python tools/compile_capability.py spec/examples/statistics-capability-profile.json adapters/capabilities/statistics-core-8-ai-r1
-python tools/compile_capability.py --verify adapters/capabilities/statistics-core-8-ai-r1
+python tools/compile_capability.py spec/examples/statistics-capability-profile.json adapters/capabilities/statistics-core-8-ai-r2
+python tools/compile_capability.py --verify adapters/capabilities/statistics-core-8-ai-r2
 python tools/test_compile_capability.py
 ```
 

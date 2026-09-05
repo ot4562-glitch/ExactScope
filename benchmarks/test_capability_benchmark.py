@@ -11,7 +11,7 @@ from statistics_corpus import load, oracle, templates, validate_rows
 class CapabilityTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.bundle = ROOT / "adapters/capabilities/statistics-core-8-ai-r1"
+        cls.bundle = ROOT / "adapters/capabilities/statistics-core-8-ai-r2"
         cls.core = CoreBridge(ROOT / "target/debug" / ("exactscope-core.exe" if os.name == "nt" else "exactscope-core"))
 
     def test_corpus_matches_seed_and_real_runtime(self):

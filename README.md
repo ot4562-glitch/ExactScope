@@ -103,6 +103,13 @@ The `wasm32v1-none` profile exposes `xs_wire_request`. [examples/javascript/wasm
 
 The current clean local release build with `xs_calc` is 102,971 bytes, has zero imports, and declares 17 initial memory pages. The release gate is less than 128 KiB and zero imports. Artifact measurements can vary when toolchain or source changes, so release notes and manifests must record the released artifact's own bytes and SHA-256.
 
+The subsequent development build shares the Statistics dispatch across vector
+transports and measures **85,671 bytes**, 17,300 bytes below that RC baseline,
+with zero imports and 17 initial pages. Its SHA-256 is
+`9d2407fb38417e8d8ffb9ac6c81a2a15314158da79e10a0146505d30ed7cfa41`.
+The published RC artifact remains unchanged. All 225 Statistics gold calls also
+pass through the development Wasm with `tools/check_statistics_wasm.mjs`.
+
 ## Model integration
 
 Use grammar-constrained generation for plan structure, then let ExactScope validate semantics and execute. [examples/llama.cpp](examples/llama.cpp) contains the reference runner. A structurally valid but mathematically wrong model plan is a planning failure; the host and ExactScope do not repair it.

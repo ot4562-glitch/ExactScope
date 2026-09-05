@@ -3,7 +3,7 @@
   "format": "exactscope.capability.profile",
   "format_version": "0.1-draft",
   "profile_id": "statistics-core-8-ai",
-  "profile_revision": 1,
+  "profile_revision": 2,
   "support": "experimental",
   "domain": "statistics",
   "task_families": [
@@ -71,5 +71,5 @@
     "qualification_records": [],
     "model_result_bundles": []
   },
-  "notes": "Design example only. Null evidence/binding values must be replaced by released artifact identities before any benchmarked or target-qualified claim."
+  "notes": "Experimental Statistics source profile. Compiler derives bindings; model and target evidence are separate gates."
 }

@@ -193,6 +193,9 @@ jobs:
       - name: Execute public dependency-free xs_calc Wasm example
         run: node examples/javascript/wasm-xs-calc.mjs target/wasm32v1-none/release/exactscope_wasm.wasm
 
+      - name: Execute Statistics gold through actual Wasm
+        run: node tools/check_statistics_wasm.mjs target/wasm32v1-none/release/exactscope_wasm.wasm benchmarks/statistics-v0.1.jsonl
+
   evaluation-bundle:
     name: Prerelease evaluation bundle / Linux x86-64
     runs-on: ubuntu-latest

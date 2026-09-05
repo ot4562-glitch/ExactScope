@@ -113,3 +113,13 @@ Convenience or feature count alone is not sufficient reason to weaken determinis
 ## D-045: Compose capability compilation at build time
 
 Reuse Rust hotset generation from a Python build orchestrator; do not add profile metadata or JSON Schema dependencies to the deterministic runtime. Canonical bundles bind source, operation revisions and actual model assets, reject static budget excess, and remain experimental until artifact and evidence bindings exist. Schema specialization groups equal argument shapes to reduce structural invalid calls without changing arithmetic or the RC ABI. See [compiler contract](CAPABILITY_COMPILER.md).
+
+## D-046: Share Statistics dispatch across borrowed vector transports
+
+Keep the public generic entry as a small validating adapter and use one internal
+non-generic evaluator over borrowed `DecimalVector` trait objects. This reduces
+the measured no-import Wasm from 102,971 to 85,671 bytes without changing numeric
+algorithms, vector ownership, error order, operation revisions or the C ABI.
+All existing conformance tests and 225 Statistics Wasm gold calls pass. Latency
+benefit is not claimed. The source-bound profile advances to revision 2; the
+revision-1 bundle is retained unchanged with its original benchmark evidence.

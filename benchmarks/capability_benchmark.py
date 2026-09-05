@@ -232,7 +232,7 @@ def tokenize(base_url, text):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
-    parser.add_argument("--bundle", type=Path, default=ROOT / "adapters/capabilities/statistics-core-8-ai-r1")
+    parser.add_argument("--bundle", type=Path, default=ROOT / "adapters/capabilities/statistics-core-8-ai-r2")
     parser.add_argument("--corpus", type=Path, default=DEFAULT)
     parser.add_argument("--core", type=Path, default=ROOT / "target/debug" / ("exactscope-core.exe" if os.name == "nt" else "exactscope-core"))
     parser.add_argument("--output", type=Path, required=True)
