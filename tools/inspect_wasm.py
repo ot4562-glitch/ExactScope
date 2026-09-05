@@ -10,7 +10,7 @@ from pathlib import Path
 
 MAGIC = b"\x00asm"
 VERSION = b"\x01\x00\x00\x00"
-MAX_FUSED_BYTES = 256 * 1024
+MAX_FUSED_BYTES = 128 * 1024
 REQUIRED_EXPORTS = {
     "memory": 2,
     "xs_abi_version": 0,

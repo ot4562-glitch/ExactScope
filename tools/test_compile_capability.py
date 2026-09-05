@@ -102,6 +102,10 @@ class CompilerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             compile_profile(canonical(request), self.packc)
 
+    def test_release_size_gate_matches_declared_device_budget(self):
+        from inspect_wasm import MAX_FUSED_BYTES
+        self.assertEqual(MAX_FUSED_BYTES, self.source["device_budget"]["artifact_bytes_max"])
+
 
 if __name__ == "__main__":
     unittest.main()
