@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = ROOT / "grounding/reference-profile-v0.1"
 PROVIDER_ID = "local-exact-lexical"
 SCOPE = "benchmark-synthetic-public"
-GENERATION_REVISION = "r3"
+GENERATION_REVISION = "r4"
 
 
 def sha256(data: bytes) -> str:

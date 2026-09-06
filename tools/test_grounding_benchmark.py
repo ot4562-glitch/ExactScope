@@ -56,8 +56,7 @@ def make_records(candidate: Path, serving_records: Path, *, a_mode: str = "perfe
                 "model_output": a_reply,
                 "input_tokens": 50,
                 "output_tokens": 8,
-                "model_latency_ms": 10.0,
-                "retrieval_latency_ms": 0.0,
+                "model_latency_us": 10_000,
                 "projection_bytes": 0,
                 "frame": None,
             }
@@ -70,8 +69,8 @@ def make_records(candidate: Path, serving_records: Path, *, a_mode: str = "perfe
                 "model_output": good,
                 "input_tokens": 70,
                 "output_tokens": 8,
-                "model_latency_ms": 12.0,
-                "retrieval_latency_ms": 0.5,
+                "model_latency_us": 12_000,
+                "retrieval_latency_us": 500,
                 "projection_bytes": dry[item_id]["projection_bytes"],
                 "frame": dry[item_id]["frame"],
             }

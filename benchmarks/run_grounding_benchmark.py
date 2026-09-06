@@ -198,7 +198,7 @@ def request_model(prereg: dict[str, Any], generation: dict[str, Any], messages: 
         raise BenchmarkRunError(f"llama.cpp HTTP {exc.code}: {detail}") from exc
     except (urllib.error.URLError, TimeoutError) as exc:
         raise BenchmarkRunError(f"llama.cpp request failed: {exc}") from exc
-    latency_ms = (time.perf_counter_ns() - started) / 1_000_000
+    latency_us = (time.perf_counter_ns() - started + 500) // 1_000
     raw = json.loads(raw_bytes)
     choices = raw.get("choices") if isinstance(raw, dict) else None
     if not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict):
@@ -214,7 +214,7 @@ def request_model(prereg: dict[str, Any], generation: dict[str, Any], messages: 
         "model_output": parsed,
         "input_tokens": usage.get("prompt_tokens") if isinstance(usage.get("prompt_tokens"), int) else None,
         "output_tokens": usage.get("completion_tokens") if isinstance(usage.get("completion_tokens"), int) else None,
-        "model_latency_ms": latency_ms,
+        "model_latency_us": latency_us,
         "finish_reason": choices[0].get("finish_reason") if isinstance(choices[0].get("finish_reason"), str) else None,
     }
 
@@ -285,7 +285,7 @@ def execute(prereg_path: Path, output: Path) -> None:
                     }
                     retrieval_started = time.perf_counter_ns()
                     grounding = run_grounding(bundle, envelope, FaultProvider(bundle, faults.get(item_id)))
-                    retrieval_ms = (time.perf_counter_ns() - retrieval_started) / 1_000_000
+                    retrieval_us = (time.perf_counter_ns() - retrieval_started + 500) // 1_000
                     policy = grounding["projection"]["policy"].decode("utf-8")
                     evidence = grounding["projection"]["evidence"].decode("utf-8")
                     g_messages = [
@@ -298,7 +298,7 @@ def execute(prereg_path: Path, output: Path) -> None:
                         "item_id": item_id,
                         "arm": "G",
                         **g_reply,
-                        "retrieval_latency_ms": retrieval_ms,
+                        "retrieval_latency_us": retrieval_us,
                         "projection_bytes": len(grounding["projection"]["evidence"]),
                         "projection_sha256": sha256_bytes(grounding["projection"]["evidence"]),
                         "frame": grounding["frame"],
