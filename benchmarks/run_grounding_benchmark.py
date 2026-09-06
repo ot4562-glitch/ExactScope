@@ -225,6 +225,17 @@ def write_sums(output: Path) -> None:
     (output / "SHA256SUMS").write_text(text, encoding="utf-8", newline="\n")
 
 
+def stop_server(process: subprocess.Popen[bytes] | None) -> None:
+    if process is None or process.poll() is not None:
+        return
+    process.terminate()
+    try:
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=5)
+
+
 def execute(prereg_path: Path, output: Path) -> None:
     prereg, candidate_path, generation, _ = verify_frozen_inputs(prereg_path, output)
     manifest, bundle, questions, faults = load_serving(candidate_path)
@@ -323,6 +334,8 @@ def execute(prereg_path: Path, output: Path) -> None:
             "preregistration_sha256": file_sha(prereg_path),
         }
         run_status_path.write_text(json.dumps(status, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+        stop_server(process)
+        process = None
         write_sums(output)
         print(json.dumps(status, indent=2, sort_keys=True))
     except KeyboardInterrupt:
@@ -335,6 +348,8 @@ def execute(prereg_path: Path, output: Path) -> None:
             "resume_permitted": False,
         }
         run_status_path.write_text(json.dumps(status, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+        stop_server(process)
+        process = None
         write_sums(output)
         raise
     except Exception as exc:
@@ -347,16 +362,12 @@ def execute(prereg_path: Path, output: Path) -> None:
             "resume_permitted": False,
         }
         run_status_path.write_text(json.dumps(status, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+        stop_server(process)
+        process = None
         write_sums(output)
         raise
     finally:
-        if process is not None and process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=5)
+        stop_server(process)
 
 
 def main() -> int:

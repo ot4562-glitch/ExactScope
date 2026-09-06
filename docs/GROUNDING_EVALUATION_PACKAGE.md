@@ -2,7 +2,7 @@
 
 Status: **rc4 pre-inference evaluation/qualification package contract**.
 
-The previous pre-inference r3 package at source `125ad9403f22eece7f552701d4c7376bba3b697f` is superseded for model evidence: its first real request exposed a raw-record serialization defect because the runner emitted float latency values into a canonical JSON format that forbids floats. A replacement r4 package must bind the corrected integer-microsecond runner/scorer and complete the same zero-inference gate before inference resumes.
+The previous r3 package at source `125ad9403f22eece7f552701d4c7376bba3b697f` is excluded because the runner emitted float latency values into the canonical raw-record format. The r4 package at source `aac351644f8c6059721ede4c10c6ac2c0a6c7b54` corrected that defect and completed all five model runs, but post-run integrity checking showed that `SHA256SUMS` was written before `llama-server` termination, allowing the shutdown log append to invalidate `logs/llama-server.log`. r4 scores are diagnostic only. The replacement r5 package must bind the corrected integer-microsecond runner/scorer **and** stop/wait for the server before run checksums are written, then complete the same pre-inference and five-model evidence gates.
 
 This package exists to let an independent session reach the first model request without using a developer checkout. It is not a production deployment package and does not claim that grounding improves model accuracy before the A/G benchmark is run.
 

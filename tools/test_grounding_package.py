@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -105,6 +106,33 @@ class GroundingPackageTests(unittest.TestCase):
         self.assertEqual(cache_dirs, [])
         self.assertEqual(pyc_files, [])
         self.assertEqual(verify_mod.verify(package_root)["status"], "ok")
+
+    def test_run_checksums_are_written_after_server_shutdown_log(self):
+        output = self.work / "run-sums"
+        log_dir = output / "logs"
+        log_dir.mkdir(parents=True)
+        log_path = log_dir / "llama-server.log"
+        code = (
+            "import signal,sys,time\n"
+            "def stop(*_):\n"
+            " print('shutdown', flush=True)\n"
+            " raise SystemExit(0)\n"
+            "signal.signal(signal.SIGTERM, stop)\n"
+            "print('running', flush=True)\n"
+            "time.sleep(60)\n"
+        )
+        with log_path.open("wb") as log_handle:
+            process = subprocess.Popen([sys.executable, "-c", code], stdout=log_handle, stderr=subprocess.STDOUT)
+            time.sleep(0.1)
+            runner_mod.stop_server(process)
+        self.assertIn(b"shutdown", log_path.read_bytes())
+        (output / "run-status.json").write_text('{"state":"complete"}\n', encoding="utf-8")
+        runner_mod.write_sums(output)
+        expected = {}
+        for line in (output / "SHA256SUMS").read_text(encoding="utf-8").splitlines():
+            digest, relative = line.split("  ", 1)
+            expected[relative] = digest
+        self.assertEqual(expected["logs/llama-server.log"], hashlib.sha256(log_path.read_bytes()).hexdigest())
 
     def make_dummy_identity(self):
         model_root = self.work / "models"
