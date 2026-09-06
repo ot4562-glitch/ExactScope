@@ -1,13 +1,34 @@
 # Installation and embedding profiles
 
-Release target: **ExactScope v1.0.0-rc.3**
-Status: **integration & qualification candidate**
+Release target: **rc4 grounding source candidate is implemented through the pre-inference package/preregistration gate; v1.0.0-rc.3 remains the latest frozen public prerelease artifact and is primarily the quantitative SDK**
 
-ExactScope is loaded as a component of another AI runtime. The runtime consumer is the AI system; a developer/OEM engineer is the integrator. It is not a human-facing calculator and does not require a daemon, account, database, or network service.
+> rc4 grounding change: the common everyday path is original-question prefetch into a compact Grounding Frame. Retrieval providers are replaceable behind one contract, and native model tool calls are not required. The first exact/lexical reference profile and grounding evaluation-package format are implemented for benchmark qualification, but no rc4 grounding release or accuracy claim is public yet.
+Status: **final source-bound clean-room/benchmark-ready freeze in progress; legacy `xs_recall`/fact-pack prototypes are not the installable product contract**
 
-## 1. Prefer a published release asset
+ExactScope is loaded as a component of another AI runtime. The runtime consumer is the AI system; a developer/OEM engineer is the integrator. The planned grounding layer does not require a human-facing tool workflow. A fully local profile need not require a daemon, account or network service; a host may optionally adapt application/network providers under explicit source/privacy policy.
 
-For external evaluation, use the immutable GitHub release rather than a developer checkout.
+## rc4 grounding installation contract — implemented reference package, provider-neutral behavior
+
+The pre-inference grounding evaluation package binds **behavior**, not merely a search index. A future supported product package must preserve the same principle:
+
+```text
+verify source/provider/profile manifests
+  -> bind user/application/source scope
+  -> bind authoritative vs supplemental policy
+  -> bind freshness/revision/conflict/ambiguity policy
+  -> bind retrieval provider + index/preprocessing identity
+  -> bind evidence top-k/byte/token budget
+  -> run provider/policy self-test
+  -> prefetch Grounding Frame before existing model answer call
+```
+
+A local lexical profile, a frozen embedding/vector profile, and an application-native provider may have different files/dependencies while remaining compatible with the same logical Grounding Contract. Therefore the final package format must not assume every provider is a single ExactScope fact-pack file or that every provider executes inside the no-import Wasm core.
+
+The target host must keep private/user/tenant scope outside unauthorized providers and must record `unavailable` separately from a true no-hit.
+
+## 1. Prefer a published rc3 release asset for quantitative evaluation
+
+For external evaluation of the current public quantitative runtime, use the immutable GitHub release rather than a developer checkout.
 
 Expected rc3 asset shapes:
 

@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.org/spec/schemas/grounding-target-plan-v0.1.schema.json",
+  "title": "ExactScope grounding-target-plan v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "target_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "target_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "namespace": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "authority": {
+      "enum": [
+        "authoritative",
+        "supplemental"
+      ]
+    },
+    "bindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "provider_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "source_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "required": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "provider_id",
+          "source_ids",
+          "required"
+        ]
+      },
+      "minItems": 1
+    },
+    "sufficiency_rule_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    }
+  },
+  "required": [
+    "target_key",
+    "target_label",
+    "namespace",
+    "authority",
+    "bindings",
+    "sufficiency_rule_id"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "authority": {
+            "const": "authoritative"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "bindings": {
+            "contains": {
+              "properties": {
+                "required": {
+                  "const": true
+                }
+              },
+              "required": [
+                "required"
+              ]
+            },
+            "minContains": 1
+          }
+        }
+      }
+    }
+  ]
+}

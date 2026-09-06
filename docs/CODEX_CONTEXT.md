@@ -1,154 +1,304 @@
-# Codex / agent context — ExactScope v1.0.0-rc.3
+# Codex / agent context — ExactScope rc4 grounding implementation
 
-Date: 2026-09-05
-Release role: **integration & qualification candidate**
+Date: 2026-09-06
+Current branch intent: **implement the frozen grounding contract through READY_FOR_GROUNDING_BENCHMARK, without model inference**
 
-Read this before modifying ExactScope. For the next evidence session also read `docs/QUALIFICATION_HANDOFF.md` and `docs/NEXT_SESSION_PROMPT.md`.
+Read this before modifying ExactScope. The current authority order is:
 
-## Product thesis
+1. `docs/PRODUCT_DIRECTION.md`
+2. `docs/GROUNDING_ARCHITECTURE.md`
+3. `spec/GROUNDING_CONTRACT_V0_1.md`
+4. `docs/BENCHMARK.md`
+5. `docs/AI_INTEGRATION.md`
+6. `ROADMAP.md`
+7. `docs/ARCHITECTURE.md`
+8. `docs/DECISIONS.md`
+9. `SECURITY.md`
+10. `docs/RC3_QUALIFICATION_CLOSEOUT.md` for historical rc3 findings
 
-ExactScope is a tiny deterministic quantitative capability retrofit for constrained/on-device AI. The buyer/integrator is an OEM, device maker, embedded-AI team, or local-inference developer. It is not a human calculator, chatbot, hosted API, daemon, arbitrary Python replacement, or broad scientific runtime.
+`docs/MODEL_INTERFACE_RC4.md`, `docs/CAPABILITY_PRODUCT_ARCHITECTURE.md`, `docs/DOMAIN_EXPANSION.md`, and the capability compiler documents remain valid **quantitative-subsystem** references. They no longer define the flagship rc4 product path.
 
-The win condition is narrow: `existing small model + tiny ExactScope slice` should recover a useful deterministic capability without forcing a larger model/hardware change when the task does not otherwise need one.
+`docs/QUALIFICATION_HANDOFF.md` and the older model-matrix/procedure records are historical rc3 material. Do not resume rc3 inference from them. The active future validation instructions are `docs/GROUNDING_BENCHMARK_HANDOFF.md` and `docs/NEXT_SESSION_PROMPT.md`.
 
-## Serving lanes
+## Current instruction: finish the immutable pre-inference gate
 
-- `xs_calc`: bounded generic arithmetic plan, maximum 8 steps over `add/sub/mul/div/powi/sqrt`.
-- `xs_eval`: reviewed selected semantic operations.
-- `xs_find`: optional cold/development discovery, not a mandatory hot path.
+The logical Grounding Contract v0.1 is **FROZEN_FOR_IMPLEMENTATION** after a final read-only Codex review reported `NO_P0_BLOCKERS`. The freeze record is `docs/GROUNDING_IMPLEMENTATION_FREEZE.md`.
 
-Fewer model-visible choices are a feature.
+P1-P3 are implemented and no-inference tested:
 
-## Hard invariants
+- machine-readable profile/schemas/canonical encodings are frozen for the reference candidate;
+- provider-neutral host/provider/policy/frame/projection behavior is implemented;
+- the exact/lexical implementation is isolated as a **reference provider**, not the universal product contract;
+- serving/gold benchmark inputs, scorer, zero-inference dry-run, package tooling, five-model identity inventory, runtime identity, preregistration and benchmark runner exist;
+- runner `--verify-only` checks all frozen inputs without launching inference;
+- retained quantitative Rust/C/Wasm regressions remain green.
 
-- deterministic semantics;
-- exact base-10/rational semantics where defined;
-- fail-closed behavior;
-- bounded memory/work;
-- stable status/ABI/operation revisions;
-- no arbitrary generated code execution;
-- no hidden semantic repair;
-- one shared numeric core;
-- pack-local operation IDs and internal kernel IDs are separate namespaces;
-- never renumber stable internal kernel IDs casually;
-- generated metadata must be deterministic and drift-detectable;
-- specialized artifacts must not retain excluded serving paths accidentally.
+Current work is the final P4/P5 gate only:
 
-Correctness/determinism/fail-closed/ABI come before a small byte reduction. If a performance change threatens the tiny-runtime niche with large binary growth, prefer the smaller implementation unless evidence justifies the trade.
+1. keep docs and implementation aligned with the grounding-first product boundary;
+2. commit the final source state;
+3. regenerate the candidate from that exact state;
+4. build and clean-room verify the deterministic grounding evaluation package;
+5. create five actual zero-inference preregistrations from the extracted package using the already-downloaded model files and frozen llama.cpp executable;
+6. run `--verify-only` for each preregistration;
+7. stop at `READY_FOR_GROUNDING_BENCHMARK` with no rc4 model inference.
 
-## Active code-side state
+Do not expand Finance/Physics/other academic domains. Do not change frozen authority, coverage, state precedence, security-scope, evidence-identity, deterministic merge, Model Projection, or benchmark-isolation semantics merely to make implementation easier. If implementation discovers a genuine semantic defect, explicitly revise the contract/candidate identity rather than silently repairing it.
 
-The active Statistics/Economics product architecture is code-side complete for rc3.
+The earlier `RecallIndex`, `xs_recall`, and fact-pack experiments are non-normative reference/prototype material. The provider-neutral host contract, not those prototype APIs, defines the flagship product.
 
-Rust crates:
+## Flagship product thesis
 
-- `exactscope-kernel`: deterministic decimal/rational core, plans/VM, reviewed Statistics/Economics semantics.
-- `exactscope-pack`: pack identity, fused registries, optional dynamic `.xsp`, lookup/discovery, shared-kernel execution.
-- `exactscope-tinyjson`: strict bounded allocation-free JSON boundary.
-- `exactscope-wasm`: no-import Wasm wrapper and selected specialization.
-- `exactscope-cabi`: stable native C ABI with pointer/buffer checks.
-- `exactscope-packc`: canonical pack compiler/hot-set assets.
-- `exactscope-conformance`: cross-path parity and local core bridge.
+ExactScope is becoming a **tiny provider-neutral grounding layer plus a retained deterministic quantitative subsystem** for constrained/on-device AI.
 
-Build/generation tooling:
+The flagship question is:
 
-- `tools/compile_capability.py`: domain-general capability compiler driven by `spec/capabilities/domain-descriptors.json`.
-- `tools/generate_statistics_metadata.py`: deterministic Statistics operation/kernel/dispatch metadata and Cargo checks.
-- `tools/generate_domain_metadata.py`: domain selection/Cargo wiring metadata including Economics selection.
-- `tools/package_evaluation_bundle.py`: deterministic evaluation SDK packaging.
-- `tools/package_wearable_sdk.py`: deterministic ARM64 OEM SDK packaging.
-- `tools/build_input_identity.py`, model-surface compatibility, operation revision, reproducibility, and compatibility-record tooling implement evidence identity/support plumbing.
+> Can a small local evidence layer make an existing small model more correct and less confidently wrong on ordinary factual questions at low enough storage, context, token, latency, energy and integration cost to be preferable to a larger model, much larger context, heavyweight RAG stack or hardware upgrade?
 
-D-057 metadata phase 2 is complete: Statistics stable kernel IDs, arity/output contracts, operation declarations, selected lookup, dispatch-call plumbing, packc kernel-name lookup, and Cargo forwarding are generated or drift-checked. Economics selected lookup/scalar wiring is drift-checked. Numeric algorithms remain handwritten/reviewed.
+The normal user should not need to know or invoke an ExactScope tool.
 
-## rc3 clean-source policy
+## Default serving path
 
-The release source keeps reviewed source/specs, deterministic generators, benchmark harnesses/preregistration inputs, and historical interpretation documents. It does **not** carry forward mutable generated capability/evidence revision directories or mutable benchmark output payloads as product source.
+The default consumer/embedded path is **original-question prefetch**, not model-generated retrieval/tool calling:
 
-- `adapters/capabilities/` contains only policy/readme in a clean tag; new capability revisions are generated per exact candidate.
-- `benchmarks/output/` is ignored.
-- `benchmarks/results/` keeps policy/readme only in the clean source; frozen evidence should be published separately/immutably rather than overwritten.
+```text
+user question
+    |
+    v
+Grounding Router
+    |
+    v
+configured Retrieval Providers
+    |
+    v
+Evidence Policy
+    |
+    v
+compact Grounding Frame
+    |
+    v
+small/local model -- one answer-generation call
+    |
+    v
+final answer
+```
 
-Never delete or rewrite historical frozen evidence in a developer checkout just to make a source release look clean. The rc3 release was prepared in a separate clean clone.
+A model-generated retrieval rewrite is optional and belongs to a separate profile/benchmark arm because it adds inference, tokens and failure modes.
 
-## Evidence boundary
+Native tool calls are never a universal grounding requirement.
 
-Historical `statistics-core-8-ai-r20` model evidence belongs to an older 45,804-byte r17 Statistics serving runtime. It does not transfer to rc3.
+## Provider-neutral architecture
 
-Do not claim for rc3 without new matching evidence:
+The product contract is:
 
-- model accuracy uplift;
-- current specialized artifact byte measurements as if they were old r20 numbers;
-- target latency or RAM;
-- energy savings;
-- hardware-life extension;
-- production readiness;
-- stable target qualification.
+```text
+Source -> Retrieval Provider -> ProviderOutcome
+       -> Evidence Policy -> grouped GroundingFrame
+       -> deterministic Model Projection -> Model
+```
 
-A 64 KiB Wasm linear-memory ceiling is not process RSS/device RAM.
+Retrieval Provider may be:
 
-## rc3 public packaging intent
+- exact key / alias;
+- compact lexical/inverted index;
+- deterministic ranked lexical search;
+- n-gram/prefix search;
+- frozen embedding/vector retrieval;
+- application-native memory/search;
+- captured host/network/search evidence.
 
-The release workflow is configured to produce:
+The provider is replaceable. The model receives a deterministic evidence projection, not retrieval internals.
 
-- Windows x86-64 evaluation SDK;
-- Linux x86-64 evaluation SDK;
-- Android ARM64 OEM SDK;
-- Linux ARM64 musl OEM SDK;
-- release manifest and SHA256SUMS.
+Every provider used for qualification must expose enough immutable identity to explain/reproduce behavior. Semantic/vector providers additionally bind embedding model/tokenizer/index/configuration identity. Live network evidence must be captured/replayable for reproducible benchmark evidence.
 
-Evaluation SDKs include native library, local core bridge, no-import Wasm, model-facing/generated adapter assets, examples, benchmark/model-download tooling, qualification runbook, licenses, manifests and checksums.
+## Target-scoped authority and coverage
 
-Tag and Cargo version must match. Do not hardcode future release filenames in workflows.
+Authority is assigned by the host/profile per **TargetPlan source binding**, not globally per frame and never by provider/evidence text.
 
-## Next model qualification
+### `authoritative`
 
-`benchmarks/NEXT_MODEL_MATRIX.md` defines the minimal diverse core matrix:
+Examples: private saved memory, device/application state, installed manual revision, organization record for a specific factual target.
 
-1. Gemma 3 270M IT Q8_0;
-2. LFM2.5 350M Q4_K_M;
-3. Qwen3.5 0.8B Q4_0;
-4. Qwen3.5 2B Q4_K_M;
-5. Phi-4-mini-instruct 3.8B Q4_K_M;
-6. optional separate Gemma 3n E2B product profile.
+- `grounded` -> use current evidence for that target;
+- `none` -> legal only after required/sufficient authoritative coverage completed with no usable evidence;
+- `ambiguous` -> do not silently select a sibling entity/value;
+- `conflict` -> do not hide incompatible current records;
+- `unavailable` -> required coverage/provider/source failure is distinct from a true no-hit.
 
-`tools/fetch_benchmark_models.py` downloads and hashes models only; it does not run inference.
+A supplemental source cannot silently fill an unresolved authoritative target.
 
-The later qualification session should start from the immutable GitHub rc3 release, preregister exact identities, use A model-only / C selected semantic / D combined as the primary arms, add B calc-only only for diagnostics, then perform representative ARM64 target qualification.
+### `supplemental`
+
+Examples: partial local reference cache, optional FAQ subset, search snippets.
+
+- useful evidence may improve the target answer;
+- no hit does **not** mean the model must refuse or that the fact is false;
+- normal model knowledge may remain available under host policy.
+
+This distinction prevents a tiny partial knowledge source from causing blanket refusal.
+
+## GroundingFrame and Model Projection
+
+The host-side logical frame is provider-independent and grouped by factual target.
+
+Top-level fields include:
+
+- contract version;
+- `qid`;
+- exact `profile_sha256`;
+- `groups[]`.
+
+Each group preserves:
+
+- stable `target_key` and compact non-answer-bearing `target_label`;
+- target authority;
+- state: `grounded | none | ambiguous | conflict | unavailable`;
+- policy-approved Evidence Items only when grounded.
+
+Evidence Items use source-local identity such as `source_id`, `item_id`, opaque `source_revision`, typed content, optional canonical `content_sha256`, and optional validity metadata.
+
+The model receives a deterministic **Model Projection** of those groups. Provider scores, vectors, internal indexes, security/tenant/access metadata, rejected candidates and verbose audit provenance remain host-side. Renderer/template bytes are part of candidate identity.
+
+## Privacy and trust boundary
+
+Grounding data may be more sensitive than model weights.
+
+Hard rules:
+
+- host scopes user/tenant/application sources before retrieval;
+- no implicit cross-user/tenant evidence merge;
+- private query/evidence is not sent to a network provider unless explicitly authorized;
+- evidence is data, not higher-priority model instruction;
+- provider similarity score is not truth authority;
+- `unavailable` must not collapse into `none`;
+- false grounding is a first-class correctness/security failure.
+
+See `SECURITY.md` for the expanded grounding trust boundary.
+
+## Benchmark contract
+
+The flagship comparison is:
+
+- **A** — model only, one answer-generation call;
+- **G** — original-question prefetch -> Grounding Frame -> same model, one answer-generation call;
+- **Q** — optional bounded query rewrite, separate diagnostic arm with extra model call/cost;
+- **L** — optional justified larger-model reference.
+
+A and G should use the same model revision/runtime/sampling/output budget and the same answer-generation call count. G is allowed its preregistered evidence context because that is the product intervention; added bytes/tokens/latency are measured explicitly.
+
+Primary workload strata:
+
+1. stable public everyday facts;
+2. synthetic/private/device memory;
+3. product/manual support facts;
+4. stale/revision override;
+5. distractor/entity confusion;
+6. authoritative no-answer after complete coverage;
+7. provider unavailable / partial required coverage;
+8. ambiguity and conflict;
+9. multilingual/paraphrase;
+10. adversarial evidence / prompt injection;
+11. supplemental no-hit / over-abstention;
+12. quantitative corpora only as a secondary subsystem benchmark.
+
+Primary metrics:
+
+- end-to-end factual accuracy;
+- wrong-confident-answer rate;
+- authoritative unsupported-assertion rate;
+- useful-answer rate;
+- correct abstention / over-abstention;
+- grounding recovery and grounding penalty;
+- hit@1/hit@k and precision@k;
+- false-grounding rate;
+- stale/revision and distractor accuracy;
+- grounding adherence;
+- evidence/index bytes, RAM, retrieval latency and token/context overhead.
+
+Do not tune aliases/index/reranking/freshness/authority after seeing model results and keep the same run identity.
+
+## Accepted rc3 findings
+
+rc3 evidence remains immutable historical input.
+
+The five-model A/C/D matrix showed:
+
+- Gemma 3 270M and Phi-4-mini 3.8B almost never produced usable native tool calls under the frozen llama.cpp templates;
+- LFM2.5 350M saw tool information but lacked a complete assistant tool-call path;
+- Qwen3.5 0.8B and 2B recognized tools frequently but still had substantial selection/schema failures;
+- the largest tested model was not the strongest tool caller;
+- valid requests reaching ExactScope were much stronger than end-to-end model selection.
+
+Representative Qwen3.5 prompt-token observations were roughly A ~86, semantic native-tool C ~613, combined D ~1047 input tokens.
+
+Therefore native OpenAI-style tool serialization is not the universal product baseline. This finding motivates one-call grounding prefetch even more strongly.
+
+## Retained quantitative subsystem
+
+The following remain valuable and should not be casually broken:
+
+- deterministic `no_std` decimal/rational kernel and bounded VM;
+- `xs_calc` bounded arithmetic plan;
+- selected reviewed `xs_eval` operations;
+- optional quantitative `xs_find` discovery;
+- strict Tiny JSON/TinyWire boundaries;
+- native C ABI and no-import Wasm;
+- operation/ABI revision stability;
+- capability/profile compiler and specialization machinery;
+- constrained JSON/GBNF compatibility for model-generated quantitative calls;
+- native tools only when runtime support is proven before inference;
+- packaging, conformance, security/export and qualification infrastructure.
+
+The quantitative subsystem is secondary to the current grounding product proof, not discarded.
+
+## Current code/prototype boundary
+
+Mature quantitative crates/tooling include:
+
+- `exactscope-kernel`;
+- `exactscope-pack`;
+- `exactscope-tinyjson`;
+- `exactscope-wasm`;
+- `exactscope-cabi`;
+- `exactscope-packc`;
+- `exactscope-conformance`;
+- capability compiler/evaluation packaging and rc3 qualification tooling.
+
+Earlier rc4 experimentation also introduced recall/fact-pack/provider-adjacent code and benchmark scripts. Treat these as prototypes until the logical Grounding Contract/profile serialization is frozen. Do not cite prototype self-tests as evidence that everyday model accuracy improved.
+
+## Current next work
+
+**Implementation is now authorized under the frozen logical contract. Do not launch model inference.**
+
+1. define/freeze concrete machine-readable GroundingProfile, QueryEnvelope, RoutingPlan, ProviderOutcome, EvidenceItem, GroundingFrame, source/provider identity and preregistration schemas;
+2. define the first reference profile and deterministic Model Projection bytes;
+3. implement provider-neutral host types, one minimum local provider, Evidence Policy, grouped frame builder and audit records;
+4. build physically separated serving/gold benchmark fixtures plus scorer and zero-inference preregistration/dry-run tooling;
+5. run deterministic/security/regression tests and clean package/clean-room checks;
+6. prepare/freeze model inventory inputs without starting model requests;
+7. stop at `READY_FOR_GROUNDING_BENCHMARK` and write the next-session validation handoff.
+
+## Evidence/claim boundary
+
+Still unmeasured/unsupported as broad claims:
+
+- rc4 everyday factual-accuracy uplift;
+- rc4 hallucination/wrong-confident-answer reduction;
+- rc4 false-grounding rate on a frozen candidate;
+- universal small-model uplift;
+- physical ARM64 process RAM/latency/energy/thermal behavior;
+- battery/hardware-life savings;
+- production readiness / stable Tier support.
+
+Package/doctor checks for Android/Linux ARM64 passed in rc3, but no physical target was available. Preserve those physical-target metrics as **NOT MEASURED**.
 
 ## Modification rules
 
-- Preserve dirty/unrelated developer work; never reset/clean/stash/discard it without explicit user intent.
-- Do not overwrite frozen capability/evidence revisions.
+- Preserve unrelated developer work; never reset/clean/stash/discard it without explicit user intent.
+- Do not overwrite frozen rc3 evidence or capability identities.
 - Do not change ABI/kernel IDs casually.
-- Treat `UNSUPPORTED_OPERATION` in deliberate specialization/fail-closed paths as a contract, not an implementation TODO.
-- New domains/new operations are reviewed product breadth, not missing rc3 plumbing.
-- Keep generated metadata and checked-in outputs in deterministic sync.
-- A product/public ABI/surface/corpus/scorer change after rc3 creates a new candidate for evidence purposes.
-
-## Validation classes
-
-Code-side release preparation may use:
-
-- source/schema/generator drift checks;
-- compiler/type checking;
-- `cargo fmt/check/clippy`;
-- ordinary unit/component tests;
-- Python syntax/unit tests that do not launch model evaluation;
-- static linkage/cross-build checks;
-- static Wasm import/memory/export inspection;
-- ABI/header compilation;
-- bundle integrity/digest checks.
-
-Model inference, benchmark scoring, real-device qualification, energy/latency claims, model-evidence attachment, and stable support promotion belong to the separate qualification session.
-
-## Handoff
-
-For external-user evaluation, use:
-
-- `docs/QUALIFICATION_HANDOFF.md`
-- `docs/NEXT_SESSION_PROMPT.md`
-- `benchmarks/NEXT_MODEL_MATRIX.md`
-- `benchmarks/model-downloads.json`
-
-The correct description before that work is: **rc3 code-side implementation and release packaging candidate, not yet model/target qualified.**
+- Do not promote prototype retrieval choices into normative contracts without design review.
+- Do not add model-name-specific routing hacks.
+- Do not expose private evidence to a wider provider scope silently.
+- Keep historical rc3 quantitative records historical rather than rewriting them as grounding evidence.
+- When implementation resumes, any provider/policy/prompt/index change creates a new candidate identity for model evidence.

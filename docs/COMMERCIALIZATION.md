@@ -1,12 +1,12 @@
 # ExactScope commercialization direction
 
-Release context: **v1.0.0-rc.3 integration & qualification candidate**. Commercial claims about accuracy, device cost, latency, energy or support must wait for exact release-bound evidence; the current public asset is designed to let an evaluator measure those properties independently.
+Release context: **rc4 grounding-contract design after completed v1.0.0-rc.3 qualification**. rc3 evidence showed that portability across small models depends materially on chat-template/tool-protocol compatibility and interface token cost. Commercial value therefore shifts toward a product that improves ordinary factual reliability **without requiring a model-visible tool turn**: provider-neutral prefetch, compact Grounding Frames, scoped authoritative/supplemental evidence, and measurable false-grounding/hallucination reduction. Accuracy/device/latency/energy/support claims remain candidate-bound and must not exceed measured evidence.
 
-ExactScope core is open infrastructure. Commercial value, if pursued, should come from **maintained AI capability products**: reviewed domain semantics, weak-model interface engineering, capability-slice/profile generation, benchmark evidence, qualification, long-term revision support, and integration assistance.
+ExactScope core is open infrastructure. Commercial value, if pursued, should come from **maintained grounding and deterministic capability products**: source/provider integration, evidence-policy engineering, compact index/profile generation, privacy/freshness/revision handling, benchmark evidence, qualification, long-term revision support, and integration assistance. Reviewed quantitative domain semantics remain an optional secondary product family.
 
-It should not come from hiding arithmetic behind a proprietary runtime.
+It should not come from hiding arithmetic, private memory, or search access behind a proprietary runtime.
 
-See [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) for the product-unit definition.
+See [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md) and [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md) for the flagship product contract. [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) remains the quantitative-subsystem product-unit reference.
 
 ## 1. Customer and runtime user
 
@@ -21,38 +21,36 @@ The consumer of the product is not a person typing equations into an ExactScope 
 
 The core runtime remains permissively licensed under Apache-2.0/MIT and should include enough public infrastructure for a vendor to prove the mechanism before any commercial relationship:
 
-- deterministic numeric kernel;
-- bounded `xs_calc` model-facing arithmetic path;
-- stable/native C ABI direction and no-import Wasm path;
-- public scope-pack/source formats where applicable;
-- baseline official semantic operation metadata;
-- constrained model-interface assets;
-- conformance tooling;
-- benchmark methodology;
-- reference integrations.
+- provider-neutral Grounding Contract and reference Evidence Policy;
+- at least one small local retrieval-provider baseline;
+- compact Grounding Frame integration examples;
+- source/provider/index identity and evidence-budget manifests;
+- benchmark methodology for everyday factual accuracy, false grounding and wrong-confident answers;
+- deterministic numeric kernel and bounded `xs_calc`/selected `xs_eval` subsystem;
+- stable/native C ABI direction and no-import Wasm path where applicable;
+- conformance tooling and reference integrations.
 
-A large vendor must be able to answer "does this actually improve our small model cheaply enough?" before buying anything.
+A large vendor must be able to answer "does this actually improve our small model cheaply enough, without creating a false-grounding/privacy problem?" before buying anything.
 
 ## 3. Why a large vendor should adopt instead of rebuild
 
-A large vendor can implement arithmetic, variance, correlation, elasticity, or other individual formulas internally. Formula implementation alone is therefore not a defensible commercial wedge.
+A large vendor can build a simple keyword search, vector index, RAG prompt, or individual arithmetic formula internally. Any one of those primitives alone is therefore not a defensible commercial wedge.
 
-The build-vs-buy value is the maintained system around those formulas:
+The build-vs-buy value is the maintained **small-model grounding system** around those primitives:
 
-- weak-model-friendly tool-surface design;
-- minimal prompts and operation-choice surfaces;
-- generated JSON Schema/GBNF/typed bindings;
-- deterministic exact numeric behavior;
-- explicit semantic/method/unit contracts;
-- provenance and operation revision history;
-- golden, negative, malformed-input, and boundary corpora;
-- binary/RAM/scratch optimization;
-- native C ABI and no-import Wasm portability;
-- digest-bound immutable artifacts;
-- model-by-model benchmark evidence;
-- target qualification;
-- update/rollback compatibility;
-- long-term maintenance of the above as models, runtimes, and devices change.
+- provider-neutral source/retrieval contracts;
+- authoritative vs supplemental source behavior;
+- revision/freshness/conflict/ambiguity policy;
+- compact evidence/context budgeting;
+- privacy/scope isolation;
+- provider/index identity and reproducible evidence snapshots;
+- high-precision retrieval and false-grounding evaluation;
+- one-call prefetch integration that avoids model tool-protocol dependency;
+- model-by-model everyday accuracy / wrong-confident-answer evidence;
+- binary/RAM/index/token/latency optimization;
+- target qualification and update/rollback compatibility;
+- maintained deterministic calculation capability where required;
+- long-term maintenance as models, runtimes, sources and devices change.
 
 The commercial question should become:
 
@@ -71,7 +69,23 @@ The moat is cumulative engineering and evidence, not formula secrecy.
 
 ## 4. Commercial product layers
 
-### 4.1 Verified domain source catalogs
+### 4.1 Grounding source/provider assurance
+
+The strongest near-term commercial layer is not an academic formula catalog. It is a maintained grounding profile for a target product:
+
+- source inventory and authority classification;
+- private/application/manual/public source adapters;
+- retrieval-provider selection and index construction;
+- compact evidence/profile budgets for the target tokenizer/model;
+- freshness/revision/conflict policy;
+- privacy and tenant/user scope review;
+- false-grounding and everyday-accuracy qualification;
+- immutable provider/index/profile manifests;
+- update/rollback and evidence drift reporting.
+
+A vendor may keep its data fully private while using the same Grounding Contract and qualification tooling.
+
+### 4.2 Verified domain source catalogs — quantitative subsystem
 
 A commercial or enterprise-supported domain source may provide:
 
@@ -88,7 +102,7 @@ Possible future domains include Statistics, Economics, Finance, Physics, Enginee
 
 A broad source catalog is a maintained build-time asset. It is not automatically exposed to the small model.
 
-### 4.2 Capability-slice/profile engineering
+### 4.3 Capability-slice/profile engineering
 
 A higher-value offering is the production of **minimal capability slices** for a target model/device/runtime budget.
 
@@ -106,7 +120,7 @@ This may include:
 
 This directly addresses the vendor problem: "give this exact weak model the capability we need without spending more flash, RAM, tokens, latency, or engineering time than necessary."
 
-### 4.3 Enterprise LTS and SLA
+### 4.4 Enterprise LTS and SLA
 
 Potential offering:
 
@@ -118,7 +132,7 @@ Potential offering:
 - maintained target/toolchain/runtime matrix;
 - support response targets.
 
-### 4.4 OEM/device qualification
+### 4.5 OEM/device qualification
 
 A device/vendor engagement may cover:
 
@@ -133,7 +147,7 @@ A device/vendor engagement may cover:
 
 The value is not merely that "the formula is correct." It is evidence that a specific ExactScope artifact, capability profile, model/runtime, and target behave within a defined product contract.
 
-### 4.5 Custom domain capability engineering
+### 4.6 Custom domain capability engineering
 
 Customers may need deterministic capabilities that do not belong in a public academic source catalog. These should still reuse the same shared bounded core and capability-profile machinery rather than creating customer-specific calculation forks.
 

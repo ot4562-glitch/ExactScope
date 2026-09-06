@@ -1,0 +1,17 @@
+{
+  "type": "function",
+  "function": {
+    "name": "xs_recall",
+    "description": "Retrieve installed factual evidence from an ExactScope fact pack. Return no evidence when the pack does not support the requested fact.",
+    "strict": true,
+    "parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["q", "k"],
+      "properties": {
+        "q": {"type": "string", "minLength": 1, "maxLength": 192},
+        "k": {"type": "integer", "minimum": 1, "maximum": 4}
+      }
+    }
+  }
+}

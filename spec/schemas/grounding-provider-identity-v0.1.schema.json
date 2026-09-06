@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.org/spec/schemas/grounding-provider-identity-v0.1.schema.json",
+  "title": "ExactScope grounding-provider-identity v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "v": {
+      "const": 1
+    },
+    "provider_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "provider_type": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "implementation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "encoding": {
+          "enum": [
+            "raw",
+            "grounding-cjson-v0.1"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "sha256",
+        "encoding"
+      ]
+    },
+    "preprocessing": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "encoding": {
+          "enum": [
+            "raw",
+            "grounding-cjson-v0.1"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "sha256",
+        "encoding"
+      ]
+    },
+    "ranking": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "encoding": {
+          "enum": [
+            "raw",
+            "grounding-cjson-v0.1"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "sha256",
+        "encoding"
+      ]
+    },
+    "source_snapshot_sha256": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      "minItems": 1
+    },
+    "index": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "encoding": {
+          "enum": [
+            "raw",
+            "grounding-cjson-v0.1"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "sha256",
+        "encoding"
+      ]
+    },
+    "profile_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "semantic": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "embedding_repository": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "embedding_revision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "embedding_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "tokenizer_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "dimension": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "precision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "distance_metric": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "index_build_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "top_k": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "reranking_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "embedding_repository",
+        "embedding_revision",
+        "embedding_sha256",
+        "tokenizer_sha256",
+        "dimension",
+        "precision",
+        "distance_metric",
+        "index_build_sha256",
+        "top_k",
+        "reranking_sha256"
+      ]
+    },
+    "remote": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "endpoint_identity": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "request_options_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "replay_snapshot_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "outcome_decisions_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "endpoint_identity",
+        "request_options_sha256",
+        "replay_snapshot_sha256",
+        "outcome_decisions_sha256"
+      ]
+    }
+  },
+  "required": [
+    "v",
+    "provider_id",
+    "provider_type",
+    "implementation",
+    "preprocessing",
+    "ranking",
+    "source_snapshot_sha256",
+    "index",
+    "profile_id"
+  ]
+}

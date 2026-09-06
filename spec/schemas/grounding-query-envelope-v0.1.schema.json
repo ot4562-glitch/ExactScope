@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.org/spec/schemas/grounding-query-envelope-v0.1.schema.json",
+  "title": "ExactScope grounding-query-envelope v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "v": {
+      "const": 1
+    },
+    "qid": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "profile_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "security_scope_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "q": {
+      "type": "string",
+      "minLength": 1
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    }
+  },
+  "required": [
+    "v",
+    "qid",
+    "profile_sha256",
+    "security_scope_id",
+    "q"
+  ]
+}

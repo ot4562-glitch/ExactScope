@@ -452,11 +452,11 @@ def constrained_request_grammar(eval_grammar=None, calc_grammar=None):
     roots = []
     documents = []
     if eval_grammar is not None:
-        documents.append(namespace_gbnf(eval_grammar, "eval"))
-        roots.append("eval-root")
+        documents.append(namespace_gbnf(eval_grammar, "e"))
+        roots.append("e-root")
     if calc_grammar is not None:
-        documents.append(namespace_gbnf(calc_grammar, "calc"))
-        roots.append("calc-root")
+        documents.append(namespace_gbnf(calc_grammar, "c"))
+        roots.append("c-root")
     roots.append("no-call")
     header = (
         "root ::= " + " | ".join(roots) + "\n"
@@ -464,6 +464,63 @@ def constrained_request_grammar(eval_grammar=None, calc_grammar=None):
         "request-ws ::= [ \\t\\n\\r]{0,2}\n"
     )
     return (header + "".join(documents)).encode("utf-8")
+
+
+def constrained_request_prompt(catalog, *, include_calc):
+    """Build the compact model-agnostic request policy shared by product and evaluation bundles."""
+    operations = catalog.get("operations") if isinstance(catalog, dict) else None
+    if not isinstance(operations, list):
+        raise ValueError("constrained request prompt requires a catalog operations array")
+    lines = [
+        "Emit exactly one constrained JSON request; do not calculate the answer yourself.",
+    ]
+    if operations:
+        lines.append(
+            "For a supported reviewed method with all required inputs, emit its exact xs_eval object with decimal strings in signature order."
+        )
+    if include_calc:
+        if operations:
+            lines.append(
+                "Use an xs_calc plan only for generic arithmetic that does not require one of the reviewed semantic methods below."
+            )
+        else:
+            lines.append("Use the bounded xs_calc plan only when all required arithmetic inputs are explicit.")
+    lines.append(
+        "If no valid call can be made because information is missing, unsupported, or ambiguous, emit {\"n\":true}."
+    )
+    if operations:
+        lines.append("Bound semantic operations:")
+        lines.extend(operation["sig"] for operation in operations)
+    return ("\n".join(lines) + "\n").encode("ascii")
+
+
+def model_surface_measurements(files, catalog):
+    """Measure package bytes and active-envelope difficulty without double-counting alternate envelopes."""
+    tool_names = sorted(name for name in files if name.endswith(".tool.json"))
+    lane_grammar_names = sorted(
+        name for name in files if name.endswith(".gbnf") and name != "xs-request.gbnf"
+    )
+    native_prompt_bytes = len(files.get("prompt-fragment.txt", b""))
+    constrained_prompt_bytes = len(files.get("constrained-prompt.txt", b""))
+    native_grammar_bytes = sum(len(files[name]) for name in lane_grammar_names)
+    constrained_grammar_bytes = len(files.get("xs-request.gbnf", b""))
+    schema_bytes = sum(len(files[name]) for name in tool_names)
+    return {
+        "prompt_fragment_bytes": max(native_prompt_bytes, constrained_prompt_bytes),
+        "native_prompt_bytes": native_prompt_bytes,
+        "constrained_prompt_bytes": constrained_prompt_bytes,
+        "schema_bytes": schema_bytes,
+        "grammar_bytes": max(native_grammar_bytes, constrained_grammar_bytes),
+        "native_grammar_bytes": native_grammar_bytes,
+        "constrained_request_grammar_bytes": constrained_grammar_bytes,
+        "model_surface_bytes_total": sum(
+            len(files[name])
+            for name in files
+            if name in MODEL_SURFACE_ASSETS
+        ),
+        "top_level_tool_count": len(tool_names),
+        "visible_semantic_operation_count": len(catalog["operations"]),
+    }
 
 
 def compile_profile(source, packc):
@@ -519,15 +576,19 @@ def compile_profile(source, packc):
             files["xs-calc.gbnf"] = (ROOT / "adapters/xs-calc-v0.1/xs-calc.gbnf").read_bytes()
         prompt += "xs_calc: 1-8 add/sub/mul/div/powi/sqrt steps; backward # references only.\n"
     files["prompt-fragment.txt"] = prompt.encode()
+    files["constrained-prompt.txt"] = constrained_request_prompt(
+        catalog,
+        include_calc=profile["runtime_surface"]["xs_calc"]["enabled"],
+    )
+    files["xs-request.gbnf"] = constrained_request_grammar(
+        files.get("xs-eval.gbnf"),
+        files.get("xs-calc.gbnf"),
+    )
     files["surface-contract.json"] = canonical(model_surface_contract(profile, catalog, files))
     categories = {"tool_schema": sorted(n for n in files if n.endswith(".tool.json")),
                   "grammar": sorted(n for n in files if n.endswith(".gbnf")),
-                  "prompt": ["prompt-fragment.txt"]}
-    measures = {"prompt_fragment_bytes": len(files["prompt-fragment.txt"]),
-                "schema_bytes": sum(len(files[n]) for n in categories["tool_schema"]),
-                "grammar_bytes": sum(len(files[n]) for n in categories["grammar"]),
-                "top_level_tool_count": len(categories["tool_schema"]),
-                "visible_semantic_operation_count": len(catalog["operations"])}
+                  "prompt": sorted(n for n in ("prompt-fragment.txt", "constrained-prompt.txt") if n in files)}
+    measures = model_surface_measurements(files, catalog)
     for key in ("prompt_fragment_bytes", "schema_bytes", "grammar_bytes"):
         if measures[key] > profile["model_budget"][key + "_max"]:
             raise ValueError(f"{key}={measures[key]} exceeds budget")
@@ -672,12 +733,13 @@ def verify_bundle_internal_consistency(path, manifest, profile):
         "xs-calc.tool.json": calc_enabled,
         "xs-calc.gbnf": calc_enabled,
         "xs-calc.contract.json": calc_enabled,
+        "prompt-fragment.txt": True,
+        "constrained-prompt.txt": True,
+        "xs-request.gbnf": True,
     }
     for name, expected in expected_presence.items():
         if (path / name).is_file() != expected:
             raise ValueError(f"capability model-surface file mismatch: {name}")
-    if not (path / "prompt-fragment.txt").is_file():
-        raise ValueError("capability prompt fragment is missing")
 
     bindings = profile["bindings"]
     if not isinstance(bindings, dict):
@@ -689,7 +751,10 @@ def verify_bundle_internal_consistency(path, manifest, profile):
     categories = {
         "tool_schema": sorted(name for name in manifest["files"] if name.endswith(".tool.json")),
         "grammar": sorted(name for name in manifest["files"] if name.endswith(".gbnf")),
-        "prompt": ["prompt-fragment.txt"],
+        "prompt": sorted(
+            name for name in ("prompt-fragment.txt", "constrained-prompt.txt")
+            if name in manifest["files"]
+        ),
     }
     for category, names in categories.items():
         expected = digest(canonical({name: digest((path / name).read_bytes()) for name in names}))
@@ -702,13 +767,12 @@ def verify_bundle_internal_consistency(path, manifest, profile):
     measurements = manifest.get("measurements")
     if not isinstance(measurements, dict):
         raise ValueError("capability measurements are missing")
-    measured = {
-        "prompt_fragment_bytes": (path / "prompt-fragment.txt").stat().st_size,
-        "schema_bytes": sum((path / name).stat().st_size for name in categories["tool_schema"]),
-        "grammar_bytes": sum((path / name).stat().st_size for name in categories["grammar"]),
-        "top_level_tool_count": len(categories["tool_schema"]),
-        "visible_semantic_operation_count": len(catalog_operations),
+    model_files = {
+        name: (path / name).read_bytes()
+        for name in manifest["files"]
+        if name in MODEL_SURFACE_ASSETS
     }
+    measured = model_surface_measurements(model_files, catalog)
     if any(measurements.get(key) != value for key, value in measured.items()):
         raise ValueError("capability model-surface measurements mismatch")
     budget = profile["model_budget"]

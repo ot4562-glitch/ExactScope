@@ -1,6 +1,6 @@
 # ExactScope Statistics flagship capability slice
 
-Status: **code-side capability slice implemented; v1.0.0-rc.3 model/target qualification unmeasured**. This document defines the flagship Statistics task families and evidence contract built from the reviewed eight-operation set. The compiler/specialization/runtime plumbing exists, but the exact public rc3 release must still pass the benchmark and target gates below before the slice is called qualified.
+Status: **code-side capability slice implemented; rc3 model qualification completed/frozen, physical target qualification still NOT MEASURED**. This document defines the flagship Statistics task families and evidence contract built from the reviewed eight-operation set. rc4 does not change the reviewed Statistics semantics; it changes the model-facing envelope so the selected slice can be reached through a constrained request baseline even when native tool calls are unavailable.
 
 Implemented corpus: `benchmarks/statistics_corpus.py` emits the checked-in
 `statistics-v0.1.jsonl` from an explicit 32-bit LCG seed and five presentation

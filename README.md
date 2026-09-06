@@ -2,18 +2,18 @@
 
 # ExactScope
 
-### Tiny deterministic quantitative capability layers for small and on-device AI
+### Tiny grounding and deterministic capability layers for small and on-device AI
 
-**Add reviewed quantitative capability without replacing the model.**
+**Make small models more useful on everyday factual questions without replacing the model.**
 
 [![Release](https://img.shields.io/badge/release-v1.0.0--rc.3-orange)](https://github.com/ot4562-glitch/ExactScope/releases/tag/v1.0.0-rc.3)
-![Status](https://img.shields.io/badge/status-integration%20%26%20qualification%20candidate-yellow)
+![Status](https://img.shields.io/badge/status-rc4%20grounding%20benchmark--ready%20work-blue)
 ![ABI](https://img.shields.io/badge/C%20ABI-1.0-informational)
 ![Wasm](https://img.shields.io/badge/Wasm-no--import-success)
 
-**Code-side implementation is complete for the active Statistics/Economics architecture. Model and real-device qualification for rc.3 are intentionally unmeasured until the public release is evaluated as an external user.**
+**v1.0.0-rc.3 external-user qualification is complete and frozen. Active rc4 work implements the provider-neutral everyday-grounding pivot through a frozen logical contract, machine-readable profile, deterministic reference provider/policy/projection path, physically separated serving/gold benchmark candidate, scorer, evaluation-package tooling and zero-inference preregistration. Quantitative `xs_calc`/`xs_eval` remains supported as a secondary deterministic capability subsystem. No rc4 model-accuracy or hallucination-reduction result is claimed before the frozen A/G benchmark runs.**
 
-[Quickstart](docs/QUICKSTART.md) · [AI integration](docs/AI_INTEGRATION.md) · [Qualification handoff](docs/QUALIFICATION_HANDOFF.md) · [한국어 요약](#한국어-요약)
+[Grounding architecture](docs/GROUNDING_ARCHITECTURE.md) · [Grounding contract](spec/GROUNDING_CONTRACT_V0_1.md) · [AI integration](docs/AI_INTEGRATION.md) · [Benchmark contract](docs/BENCHMARK.md) · [rc3 qualification closeout](docs/RC3_QUALIFICATION_CLOSEOUT.md) · [한국어 요약](#한국어-요약)
 
 </div>
 
@@ -21,53 +21,59 @@
 
 ## What ExactScope is
 
-ExactScope is a **small model-adjacent quantitative coprocessor** for constrained/local AI. It is intended for OEMs, device makers, embedded-AI teams, and local-inference developers who already have a small model but need a narrow deterministic numerical capability without replacing the whole model or hardware stack.
+ExactScope is a **small model-adjacent grounding and deterministic capability layer** for constrained/local AI. It is intended for OEMs, device makers, embedded-AI teams, and local-inference developers who want a small model to answer ordinary factual questions more reliably without replacing the whole model or hardware stack.
 
-It is not a chatbot, hosted API, general scientific runtime, or human calculator application.
+It is not a chatbot, hosted API, universal web search engine, general RAG framework, or human calculator application.
 
-The product idea is:
+The flagship rc4 product idea is:
 
 ```text
-existing small model
-      |
-      | tiny constrained request
-      v
-+--------------------+
-| ExactScope surface |
-|  xs_calc / xs_eval |
-+--------------------+
+user question
       |
       v
-bounded deterministic core
+provider-neutral grounding prefetch
       |
       v
-canonical decimal result or typed failure
+compact Grounding Frame
+      |
+      v
+existing small model -- one answer call
+      |
+      v
+more evidence-grounded everyday answer
 ```
 
-The important constraint is **small surface, not broad catalog**. A weak model should see the fewest choices needed for its task family.
+Sources may be private memory, device/application state, product manuals, local reference data, a frozen semantic index, or host-provided search. They all map into the same provider-neutral Grounding Contract.
 
-## v1.0.0-rc.3 status
+The important constraint is **small evidence, not broad context**. A weak model should receive only the few evidence items it needs, with explicit `authoritative` versus `supplemental` behavior. Existing `xs_calc`/`xs_eval` deterministic calculation remains available for quantitative tasks without forcing ordinary factual questions through an academic/tool catalog.
 
-`v1.0.0-rc.3` is an **integration & qualification candidate**.
+## Current status: rc3 closed, rc4 grounding implementation/package gate active
 
-| Area | rc.3 state |
+`v1.0.0-rc.3` remains the latest frozen public prerelease. Its external-user model/install qualification is complete; its raw evidence is historical and immutable. It is **not** promoted to stable support.
+
+| Area | Current state |
 |---|---|
-| Deterministic numeric core | implemented |
-| Native C ABI | implemented |
-| No-import Wasm adapter | implemented |
-| Tiny JSON bounded boundary | implemented |
-| `xs_calc` bounded plan lane | implemented |
-| Selected `xs_eval` semantic lane | implemented |
-| Statistics specialization metadata | generated/drift-checked |
-| Economics PED selected specialization | implemented/drift-checked |
-| Model-surface identity negotiation | implemented, fail closed |
-| Release-shaped packaging | implemented |
-| Android/Linux ARM64 SDK packaging | implemented in release workflow |
-| rc.3 model benchmark | **not run yet** |
-| rc.3 real-device RAM/latency/energy qualification | **not run yet** |
+| Deterministic numeric core | retained / implemented |
+| Native C ABI | retained / implemented |
+| No-import Wasm adapter | retained / implemented |
+| Tiny JSON bounded boundary | retained / implemented |
+| `xs_calc` bounded plan lane | retained / implemented |
+| Selected `xs_eval` semantic lane | retained / implemented |
+| Model-surface identity negotiation | retained, fail closed |
+| rc3 five-model A/C/D qualification | **completed / frozen historical evidence** |
+| Linux/Windows clean-room install qualification | **completed for rc3** |
+| Android/Linux ARM64 package/doctor checks | **completed for rc3** |
+| Physical ARM64 latency/RAM/energy/thermal qualification | **NOT MEASURED** |
+| rc4 Grounding Architecture / logical Grounding Contract | **frozen for implementation / provider-neutral** |
+| rc4 machine-readable profile/reference path | **implemented and no-inference conformance tested** |
+| rc4 default everyday path | **original-question prefetch -> compact Grounding Frame -> one model answer call** |
+| rc4 benchmark candidate/scorer | **implemented; serving/gold physically separated; zero-inference dry-run 30/30** |
+| rc4 retrieval provider choice | **product-neutral; exact/lexical reference provider is frozen only for the first benchmark candidate, while vector/application/host providers remain contract-compatible options** |
+| rc4 evaluation package/preregistration | **implemented; final source-bound clean-room freeze still required before model benchmark** |
+| rc4 constrained/native quantitative envelope work | retained infrastructure / secondary subsystem |
 | Stable support claim | **not made** |
 
-That separation is deliberate: the candidate is packaged first, then benchmarked and qualified from the immutable public release so results are not attached to a moving development tree.
+The accepted rc3 finding is that native tool-call reliability is not a simple function of model size. Chat-template/tool-protocol compatibility and model-facing surface/token cost matter materially. rc4 therefore avoids making tool use the common consumer path: ordinary factual grounding is prefetched before the model call. Constrained JSON/GBNF and native-tool negotiation remain useful for the quantitative subsystem and optional retrieval-rewrite profiles, not as a requirement for everyday answering.
 
 ## Pick the right release asset
 
@@ -90,7 +96,15 @@ Every published archive is accompanied by release-level `SHA256SUMS` and `releas
 4. Attach the selected model-facing surface using [AI integration](docs/AI_INTEGRATION.md).
 5. For real benchmark/qualification, start a clean session with [the qualification handoff](docs/QUALIFICATION_HANDOFF.md) and [copy-paste prompt](docs/NEXT_SESSION_PROMPT.md).
 
-## Model-facing lanes
+## Product lanes
+
+### Grounding — default everyday factual path
+
+The host queries configured sources/providers using the original user question, applies authority/freshness/conflict/budget policy, and gives the model one compact Grounding Frame before its normal answer call. Native tool support is not required.
+
+Provider choices are deliberately open: exact/alias, lexical/ranked text, frozen embedding/vector indexes, application memory, and captured host/search providers can all implement the same Grounding Contract. The first exact/lexical prototype is not the product definition.
+
+`authoritative` sources fail closed on missing/ambiguous/conflicting evidence; `supplemental` sources may fall back to normal model knowledge when no useful evidence exists.
 
 ### `xs_calc` — bounded generic arithmetic
 
@@ -156,7 +170,17 @@ They validate model-surface identity and output shape and do not contain alterna
 
 ## Fail-closed design
 
-Adapters may normalize syntax and transport. They must not:
+For grounding, fail-closed behavior is **target scoped**:
+
+- authority comes from the frozen TargetPlan/source binding, never provider/evidence text;
+- authoritative `none` requires completed/sufficient required coverage;
+- timeout/error/denied/budget/incomplete search stays `unavailable`;
+- ambiguous or conflicting authoritative evidence is not silently resolved;
+- supplemental evidence does not silently fill an unresolved authoritative target;
+- evidence is untrusted data and cannot grant permissions, broaden scope, or rewrite authority;
+- one unresolved authoritative target does not force unrelated supplemental targets to abstain.
+
+For the quantitative subsystem, adapters may normalize syntax and transport but must not:
 
 - invent missing operands;
 - guess unit/percentage/currency conversions;
@@ -203,9 +227,16 @@ node examples/javascript/wasm-xs-calc.mjs target/wasm32v1-none/release/exactscop
 
 Source/unit/static checks are not model or hardware qualification evidence.
 
-## Next benchmark: minimum diverse model matrix
+## Next benchmark: grounding A/G after candidate freeze
 
-The rc.3 benchmark plan intentionally uses **five core models**, not a giant leaderboard sweep:
+The next model evidence is a **new rc4 grounding candidate**, not a continuation of rc3. The flagship comparison is:
+
+- **A:** model only, exactly one answer-generation call;
+- **G:** original-question prefetch -> target-grouped Grounding Frame/Model Projection -> the same model, exactly one answer-generation call.
+
+A model-generated query rewrite and a larger-model reference are optional separately preregistered diagnostics; they are not merged into G.
+
+The same diverse five-model set used historically in rc3 may be reused under a new grounding preregistration:
 
 | Model | Role |
 |---|---|
@@ -213,19 +244,11 @@ The rc.3 benchmark plan intentionally uses **five core models**, not a giant lea
 | LFM2.5 350M | edge/on-device-first lower bound |
 | Qwen3.5 0.8B | primary modern sub-1B model |
 | Qwen3.5 2B | same-family scale comparison |
-| Phi-4-mini-instruct 3.8B | independent upper-small reasoning reference |
+| Phi-4-mini-instruct 3.8B | independent upper-small reference |
 
-Optional: Gemma 3n E2B as a separate low-resource-device product profile.
+No rc3 score transfers to rc4 grounding. Before any model request, the new candidate must freeze GroundingProfile/source/provider/index/Model Projection/corpus/scorer/model/runtime identities and pass the no-inference gate in [`docs/BENCHMARK.md`](docs/BENCHMARK.md).
 
-The repository includes a downloader that **only downloads and inventories model weights**; it does not run inference:
-
-```powershell
-py -3 -m pip install -r requirements-benchmark.txt
-py -3 tools/fetch_benchmark_models.py --list
-py -3 tools/fetch_benchmark_models.py core --root C:\AIModels\ExactScopeBench
-```
-
-See [`benchmarks/NEXT_MODEL_MATRIX.md`](benchmarks/NEXT_MODEL_MATRIX.md). New rc.3 scores remain **unmeasured** until a separate qualification session freezes exact release/model/runtime/corpus/scoring identities and runs them.
+The current implementation task intentionally stops at **READY_FOR_GROUNDING_BENCHMARK**; actual A/G inference belongs to a separate validation session.
 
 ## Historical model evidence — do not transfer to rc.3
 
@@ -250,7 +273,7 @@ Before calling ExactScope production-qualified for a target, bind results to the
 
 A selected Wasm linear-memory ceiling is **not** total process/device RAM.
 
-Use [`docs/QUALIFICATION_HANDOFF.md`](docs/QUALIFICATION_HANDOFF.md) as the evidence contract.
+For future rc4 grounding evidence use [`docs/BENCHMARK.md`](docs/BENCHMARK.md) and the frozen GroundingProfile/preregistration contract. [`docs/QUALIFICATION_HANDOFF.md`](docs/QUALIFICATION_HANDOFF.md) is historical rc3 audit material, not the next grounding procedure.
 
 ## Repository hygiene and evidence policy
 
@@ -288,16 +311,22 @@ ExactScope is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APA
 
 # 한국어 요약
 
-ExactScope는 **작은 온디바이스/로컬 AI에 필요한 좁은 정량 계산 능력을 작은 deterministic component로 붙이는 제품**입니다. 모델 전체를 키우거나 하드웨어를 바꾸기 전에, 필요한 통계·경제·일반 산술 능력만 제한된 도구 표면으로 추가하는 것이 목적입니다.
+ExactScope의 rc4 주력 방향은 **작은 온디바이스/로컬 모델의 일상 사실 질문 정확도를 높이고, 근거가 없는데도 자신 있게 값을 지어내는 오류를 줄이는 작은 grounding layer**입니다. 학문별 계산기를 늘리거나 모델에게 큰 tool catalog를 보여주는 것이 중심이 아닙니다.
 
-`v1.0.0-rc.3`는 **제품 코드 구현과 공개 패키징을 끝내고 실제 사용자 방식의 검증을 시작하기 위한 릴리즈 후보**입니다. 아직 rc3에 대한 모델 성능·실기기 RAM/지연시간/에너지 결과는 만들지 않았습니다. 그 검증은 공개된 동일한 GitHub 릴리즈를 새 세션에서 내려받아 수행합니다.
+기본 경로는 `원문 질문 -> 보안/앱 scope -> Grounding Router -> Retrieval Provider -> Evidence Policy -> target별 GroundingFrame -> 작은 Model Projection -> 모델 1회 응답`입니다. 모델이 `xs_recall` 같은 검색 도구를 먼저 호출할 필요가 없습니다. 검색 구현도 하나로 고정하지 않고 exact/lexical, frozen embedding/vector, 앱 내장 검색, 캡처된 host/search provider가 동일한 Grounding Contract 뒤에 붙을 수 있습니다.
+
+각 사실 target은 `authoritative` 또는 `supplemental` 정책을 가집니다. authoritative target에서 `none`은 필요한 authoritative source 검색이 정상 완료된 경우에만 의미가 있으며, timeout/error/denied/부분 검색은 `unavailable`로 남깁니다. `ambiguous`와 `conflict`도 별도로 보존합니다. 반대로 supplemental source에 답이 없다는 이유만으로 일반 상식 질문 전체를 거절해서는 안 됩니다.
+
+`v1.0.0-rc.3` 외부 사용자 검증은 **종료·동결**됐습니다. Linux/Windows 설치·패키징과 5개 소형 모델 A/C/D 검증은 rc3의 역사적 정량/도구 인터페이스 증거입니다. 실물 ARM64 장치가 없어 실제 RAM/지연시간/에너지/열은 **NOT MEASURED**입니다. rc3에서 native tool-call 성공률이 모델 크기에 단순 비례하지 않고 chat-template/protocol과 prompt 비용에 크게 좌우된다는 점이 확인됐기 때문에, rc4 일상 grounding은 native tool call을 필수 경로로 사용하지 않습니다.
+
+다음 검증은 새로운 rc4 grounding candidate에서 **A=model only 1회 응답 vs G=원문 질문 prefetch + 같은 모델 1회 응답**으로 수행합니다. false grounding, authoritative unsupported assertion, grounding penalty, useful-answer/abstention, retrieval precision과 정확한 token/latency/storage 비용을 함께 측정합니다. 현재 작업은 실제 inference 직전인 `READY_FOR_GROUNDING_BENCHMARK` 상태에서 멈춥니다.
 
 가장 먼저 읽을 문서:
 
-1. [`docs/QUICKSTART.md`](docs/QUICKSTART.md) — 설치/실행
-2. [`docs/AI_INTEGRATION.md`](docs/AI_INTEGRATION.md) — AI 모델에 붙이는 방법
-3. [`benchmarks/NEXT_MODEL_MATRIX.md`](benchmarks/NEXT_MODEL_MATRIX.md) — 최소 5개 모델 검증 설계
-4. [`docs/QUALIFICATION_HANDOFF.md`](docs/QUALIFICATION_HANDOFF.md) — 실제 benchmark/target qualification 절차
-5. [`docs/NEXT_SESSION_PROMPT.md`](docs/NEXT_SESSION_PROMPT.md) — 다음 세션에 그대로 붙여넣을 프롬프트
+1. [`docs/PRODUCT_DIRECTION.md`](docs/PRODUCT_DIRECTION.md) — 현재 제품 방향
+2. [`docs/GROUNDING_ARCHITECTURE.md`](docs/GROUNDING_ARCHITECTURE.md) — grounding 시스템 설계
+3. [`spec/GROUNDING_CONTRACT_V0_1.md`](spec/GROUNDING_CONTRACT_V0_1.md) — normative 논리 계약
+4. [`docs/BENCHMARK.md`](docs/BENCHMARK.md) — 다음 A/G 검증 계약
+5. [`ROADMAP.md`](ROADMAP.md) — benchmark 직전까지의 구현 순서
 
-과거 r20 모델 성능은 이전 45,804 B r17 runtime의 역사적 증거이며 rc3에 상속하지 않습니다.
+기존 `xs_calc`/`xs_eval` 정량 계산 코어는 버리지 않고 2차 subsystem으로 유지합니다. 과거 r20과 rc3 성능 결과는 각각 해당 runtime/release identity에 묶인 역사적 증거이며 rc4 grounding 결과로 복사하거나 덮어쓰지 않습니다.

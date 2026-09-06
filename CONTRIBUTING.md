@@ -1,23 +1,25 @@
 # Contributing to ExactScope
 
-ExactScope is a tiny deterministic quantitative coprocessor for small/on-device AI. Contributions are evaluated by **product leverage, deterministic correctness, integration simplicity, footprint, portability, and evidence**—not by raw feature count.
+ExactScope is a tiny grounding and deterministic capability layer for small/on-device AI. The flagship rc4 objective is **everyday factual accuracy and hallucination reduction at low token/latency/footprint cost**; quantitative `xs_calc`/`xs_eval` remains a secondary deterministic subsystem. Contributions are evaluated by **product leverage, grounding precision, deterministic correctness, integration simplicity, footprint, portability, privacy and evidence**—not by raw feature count.
 
 ## Current project phase
 
-`v1.0.0-rc.3` is a code-side-complete **integration & qualification candidate** for the active Statistics/Economics architecture. The current priority is to keep the public candidate reproducible and small while external-user model/target qualification is performed from the immutable release. New feature breadth is not a substitute for that evidence.
+`v1.0.0-rc.3` qualification is closed and its evidence is immutable. The current branch is in **rc4 grounding contract/design freeze**. Do not keep changing product code while the provider-neutral grounding contract is still being reviewed. Original-question prefetch, compact Grounding Frames, authority modes and retrieval-provider identity are the active product design; constrained/native quantitative interfaces remain supporting infrastructure.
 
 Read this order first:
 
 1. `docs/PRODUCT_DIRECTION.md`
-2. `docs/QUICKSTART.md`
-3. `docs/AI_INTEGRATION.md`
-4. `docs/BENCHMARK.md`
-5. `ROADMAP.md`
-6. `docs/IMPLEMENTATION_PLAN.md`
+2. `docs/GROUNDING_ARCHITECTURE.md`
+3. `spec/GROUNDING_CONTRACT_V0_1.md`
+4. `docs/AI_INTEGRATION.md`
+5. `docs/BENCHMARK.md`
+6. `ROADMAP.md`
 7. `docs/ARCHITECTURE.md`
-8. `docs/COMPATIBILITY.md`
-9. `docs/DECISIONS.md`
-10. `SECURITY.md`
+8. `docs/QUICKSTART.md`
+9. `docs/COMPATIBILITY.md`
+10. `docs/DECISIONS.md`
+11. `SECURITY.md`
+12. `docs/IMPLEMENTATION_PLAN.md` for the quantitative subsystem/history
 
 `docs/FIRST_IMPLEMENTATION_SLICE.md` is historical implementation context, not the current priority plan.
 
@@ -25,15 +27,17 @@ Read this order first:
 
 Before proposing a large feature, ask whether it improves one of these:
 
-- correctness/security of the deterministic core and public boundaries;
-- `xs_calc` / selected `xs_eval` model-surface simplicity;
-- capability/model-surface identity and fail-closed compatibility;
-- five-minute release-asset integration;
-- reproducible model/target qualification evidence;
-- exact release packaging, compatibility, update and rollback behavior;
-- measured product value on a real constrained workload.
+- everyday factual accuracy or wrong-confident-answer reduction;
+- retrieval precision / false-grounding avoidance;
+- provider-neutral Grounding Contract simplicity;
+- authoritative/supplemental, freshness, ambiguity and conflict correctness;
+- evidence token/byte/latency efficiency for small models;
+- private-source scope and isolation;
+- correctness/security of the deterministic quantitative core and public boundaries;
+- five-minute integration and reproducible model/target qualification evidence;
+- exact release packaging, compatibility, update and rollback behavior.
 
-Broad platform support, dynamic-profile polish, catalog expansion, and new domains are secondary until the rc3 candidate is independently qualified.
+Broad platform support, academic catalog expansion, per-domain feature work, and retrieval-algorithm novelty are secondary until the grounding contract is frozen and the everyday benchmark proves product value.
 
 ## Core invariants
 
@@ -53,18 +57,22 @@ Do not casually weaken:
 
 ## AI integration changes
 
-The product has two normal hot paths: bounded `xs_calc` for short arithmetic and direct `xs_eval` for reviewed semantic operations in the selected capability slice. `xs_find` is fallback discovery.
+The normal rc4 hot path is **grounding prefetch before the answer model call**. Quantitative `xs_calc`/`xs_eval` remains available when the task actually needs deterministic calculation; `xs_find` is quantitative cold-path discovery.
 
-Adapter/capability-slice contributions should therefore prefer:
+Grounding contributions should prefer:
 
-- one compact bounded `xs_calc` tool rather than per-arithmetic-operation tools;
-- the smallest semantic operation selection that covers the target task families, not a fixed operation-count target;
-- OpenAI-compatible tool assets and constrained GBNF/JSON Schema where useful;
-- llama.cpp fixtures/reference integration;
-- digest/revision/profile-bound caching;
-- measurable model-difficulty cost: prompt/schema/grammar size, tool/operation selection, invalid/accepted calls, extraction, turns, and fidelity.
+- provider-neutral interfaces rather than coupling the product to one lexical/vector/search implementation;
+- original-question prefetch before adding a model-generated query turn;
+- explicit authoritative/supplemental source policy;
+- precision and false-grounding prevention over aggressive recall for authoritative sources;
+- compact Grounding Frames with minimal model-visible metadata;
+- frozen source/provider/index/freshness/policy identity;
+- measured evidence bytes/tokens, retrieval latency, index/RAM footprint, grounding adherence and wrong-confident-answer reduction;
+- privacy/scope enforcement before retrieval.
 
-Adapters may normalize syntax/transport but not semantics.
+Quantitative adapter contributions should still prefer one compact bounded `xs_calc` surface, the smallest selected `xs_eval` slice, constrained JSON/GBNF compatibility, and native tools only where proven useful.
+
+Adapters may normalize syntax/transport but not semantics or source authority.
 
 Allowed examples:
 
@@ -83,11 +91,11 @@ Forbidden examples:
 
 ## Benchmark changes
 
-Benchmark contributions should follow `docs/BENCHMARK.md` and `docs/QUALIFICATION_HANDOFF.md`. For the rc3 flagship qualification, the primary arms are A model-only, C selected semantic-only, and D combined where the exact selected profile contains both lanes. Add B `xs_calc`-only only when it answers a diagnostic question; discovery is an optional ablation, not a required hot path.
+Benchmark contributions should follow `docs/BENCHMARK.md`. The flagship rc4 comparison is **A model-only vs G original-question-prefetch grounding**, with one answer-generation model call per arm. Optional query rewrite/tool profiles are separate ablations because they spend extra inference/tokens. Historical quantitative A/B/C/D arms remain valid only for the quantitative subsystem.
 
-Do not publish a single blended score without stage-level failures and cost metrics. Do not run a public rc3 comparison from a modified developer checkout and call it release evidence.
+Do not publish one blended score without retrieval/policy/model failure stages and cost metrics. Report false grounding, wrong-confident answers, correct abstention, grounding penalties and useful-answer rate together.
 
-Any comparative claim must identify exact release/capability/model-surface/model/runtime/hardware/corpus/scorer identities and digests.
+Any comparative claim must identify exact release/source/provider/index/policy/model/runtime/hardware/corpus/scorer identities and digests. Do not tune aliases, indexes, reranking, authority or freshness rules after seeing model results and keep the same run identity.
 
 ## Runtime changes
 

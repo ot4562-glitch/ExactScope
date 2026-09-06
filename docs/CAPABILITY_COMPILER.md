@@ -1,9 +1,11 @@
 # ExactScope capability compiler
 
-Release context: **v1.0.0-rc.3 integration & qualification candidate**
-Status: **implemented build-time infrastructure; generated capability revisions are evidence-bound outputs, not permanent product source**
+Release context: **retained quantitative-subsystem compiler after the rc4 grounding-first product pivot**
+Status: **implemented quantitative build-time infrastructure; not the flagship grounding compiler/profile contract**
 
-`tools/compile_capability.py` turns reviewed domain/task-family metadata into the smallest deterministic model-facing capability surface requested by a profile. Python/jsonschema are workstation build dependencies only; they are not target runtime dependencies.
+> The active rc4 flagship grounding contract is provider-neutral and is defined by `GROUNDING_ARCHITECTURE.md` plus `../spec/GROUNDING_CONTRACT_V0_1.md`. This compiler remains authoritative for quantitative `xs_calc`/`xs_eval` capability slices only. Do not extend it with grounding semantics merely because prototype recall code exists.
+
+`tools/compile_capability.py` turns reviewed quantitative domain/task-family metadata into the smallest deterministic model-facing capability surface requested by a profile. Python/jsonschema are workstation build dependencies only; they are not target runtime dependencies.
 
 The compiler currently supports reviewed Statistics and Economics metadata through `spec/capabilities/domain-descriptors.json` and related implementation bindings.
 
@@ -16,8 +18,9 @@ Given a task-family request/profile, it:
 - verifies `xs_calc` enablement and plan-contract identity when selected;
 - enforces model-visible tool/operation and prompt/schema/grammar budgets;
 - derives Statistics specialization Cargo features from reviewed operation metadata;
-- emits deterministic tool/schema/GBNF/prompt assets;
-- emits exact capability/model-surface contracts and digests;
+- emits deterministic native-tool/schema/lane-GBNF/prompt assets when selected;
+- emits `constrained-prompt.txt` plus composed `xs-request.gbnf` as the universal model-facing compatibility baseline;
+- emits exact capability/model-surface contracts and digests binding both model envelopes to one semantic/runtime identity;
 - binds source/profile/registry/asset identities;
 - fails closed on unknown families, duplicate JSON keys, unsupported revisions, inconsistent counts/bounds, fabricated evidence, or unsupported support promotion.
 
@@ -70,9 +73,11 @@ A generated capability can bind:
 
 ## 5. Model-surface contract
 
-Generated `surface-contract.json` assigns exact ID/version/digest identity to selected tool schemas, grammars, and prompt fragments. `tools/check_model_surface_compat.py` can compare this against a host acceptance policy without running model inference.
+Generated `surface-contract.json` assigns exact ID/version/digest identity to the complete model-facing surface. For rc4 that surface includes the constrained compatibility assets (`constrained-prompt.txt`, `xs-request.gbnf`) and, when present, native tool schemas, lane grammars and `prompt-fragment.txt`. `tools/check_model_surface_compat.py` can compare this against a host acceptance policy without running model inference.
 
-A host must fail closed on an identity mismatch. It must not silently expose a wider catalog or substitute another method because operation names happen to look compatible.
+The constrained request grammar is composed from the exact selected `xs_eval`/`xs_calc` lane grammars plus an explicit fail-closed no-call sentinel. It is not a second semantic implementation.
+
+A host must fail closed on an identity mismatch. It must not silently expose a wider catalog, substitute another method because operation names happen to look compatible, or repair a failed native-tool output by switching envelopes after inference.
 
 Frozen pre-contract historical bundles remain historical evidence; they do not acquire a new surface-contract claim retroactively.
 
@@ -114,9 +119,9 @@ The specialization mechanism has historically demonstrated real reachability/foo
 - a weighted-mean-only slice;
 - an `xs_calc`-only same-boundary baseline.
 
-Those pre-rc3 byte/digest measurements are development history tied to their exact source/toolchain identities. They are **not rc3 release measurements** and the clean source does not carry the generated revision directories forward.
+Those pre-rc3 byte/digest measurements are development history tied to their exact source/toolchain identities. The completed rc3 qualification likewise remains bound to its exact release artifacts and is not inherited by rc4.
 
-The exact rc3 size, SHA-256, import/memory declaration, conformance result, and marginal semantic cost must be measured again from the immutable public candidate during qualification.
+Any rc4 capability/compiler change creates a new model-surface identity. Artifact size, SHA-256, import/memory declaration, conformance result and marginal semantic/interface cost must be measured from that exact new candidate if evidence is produced.
 
 ## 8. Build and bind an artifact
 
@@ -129,7 +134,7 @@ py -3 tools/build_capability_wasm.py --bundle adapters/capabilities/<source-revi
 py -3 tools/bind_capability.py --bundle adapters/capabilities/<source-revision> --artifact target/<build-id>/runtime.wasm --build-provenance target/<build-id>/build-provenance.json --corpus benchmarks/statistics-v0.1.jsonl --core target/debug/exactscope-core.exe --revision <new-revision> --output adapters/capabilities/<new-bound-revision>
 ```
 
-These commands are intentionally **not** used to create rc3 benchmark evidence in the release-preparation session. They may execute product/gold paths and belong to the later exact-artifact qualification workflow when evidence is being frozen.
+These commands are product build/bind tools, not permission to rewrite frozen rc3 evidence. For rc4 development they may be used to create new candidate artifacts; any later benchmark must freeze those exact artifacts before inference.
 
 A historical source profile cannot be rebound to current runtime source just because operation names or byte counts look similar.
 
@@ -145,9 +150,9 @@ Model evidence must bind the exact:
 - runtime/hardware/configuration;
 - raw rows and summary.
 
-Historical `statistics-core-8-ai-r20` remains frozen to its older **45,804-byte r17 Statistics serving runtime**. It cannot be inherited by rc3 or by a newly generated capability revision.
+Historical `statistics-core-8-ai-r20` and the completed rc3 qualification remain frozen to their exact runtime/model/surface identities. Neither can be inherited by rc4 or by a newly generated capability revision.
 
-Re-running a historical model against rc3 creates new evidence.
+Re-running any historical model after changing the candidate creates new evidence.
 
 ## 10. Release packaging boundary
 

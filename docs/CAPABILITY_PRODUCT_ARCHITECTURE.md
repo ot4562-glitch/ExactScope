@@ -1,12 +1,12 @@
 # ExactScope capability product architecture
 
-Status: **active product architecture implemented code-side for v1.0.0-rc.3; qualification evidence still pending**. This document defines the product unit, small-model interface principles, domain-slice strategy, build-vs-buy thesis, benchmark KPIs, and adoption path. The capability compiler, selected Statistics/Economics slices, bounded `xs_calc`, model-surface identity and specialization machinery described here now exist; this document still does not by itself create a stable/support/accuracy/device claim.
+Status: **active quantitative-subsystem architecture, but no longer the flagship rc4 product architecture**. The flagship rc4 design is provider-neutral everyday grounding in [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md) and [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md). The capability compiler, selected Statistics/Economics slices, bounded `xs_calc`, model-surface identity, constrained-request baseline and specialization machinery remain valid for deterministic quantitative tasks. This document does not by itself create a stable/support/accuracy/device claim.
 
 ## 1. Product boundary
 
-ExactScope is not human-facing software. The runtime consumer is an AI system, especially a small or resource-constrained on-device model. A developer or OEM engineer is an integrator, not the end user of the calculation surface.
+This document covers the **quantitative subsystem**, not the whole rc4 product. The runtime consumer is an AI system, especially a small or resource-constrained on-device model. A developer or OEM engineer is an integrator, not the end user of the calculation surface.
 
-The product exists to let an already-deployed or physically constrained AI device gain narrow, high-value quantitative capability through a very small software addition when replacing the model or hardware is expensive, impossible, or disproportionate to the capability gap.
+Within that subsystem, ExactScope lets an already-deployed or physically constrained AI device gain narrow, high-value deterministic quantitative capability through a very small software addition when replacing the model or hardware is expensive, impossible, or disproportionate to the capability gap. Ordinary factual accuracy now follows the separate grounding architecture.
 
 ```text
 human / sensor input
@@ -47,15 +47,15 @@ ExactScope should be designed as four cooperating layers.
 
 ```text
 +--------------------------------------------------+
-|  1. Small-model surface                         |
-|  xs_calc / compact xs_eval hot set              |
-|  schema + grammar + minimal prompt policy       |
+|  1. Small-model envelope                        |
+|  constrained JSON/GBNF baseline                 |
+|  optional native tools when proven compatible   |
 +---------------------------+----------------------+
                             |
 +---------------------------v----------------------+
 |  2. Capability slice                            |
-|  selected reviewed operations + semantics       |
-|  model/runtime-specific binding metadata        |
+|  xs_calc / compact xs_eval semantics            |
+|  selected reviewed operations + bindings        |
 +---------------------------+----------------------+
                             |
 +---------------------------v----------------------+
@@ -71,7 +71,7 @@ ExactScope should be designed as four cooperating layers.
 +--------------------------------------------------+
 ```
 
-The domain source catalog may be broad. The model-facing surface must remain small.
+The domain source catalog may be broad. The model-facing surface must remain small. New academic/technical disciplines must follow the admission, units and sequencing rules in [`DOMAIN_EXPANSION.md`](DOMAIN_EXPANSION.md).
 
 ## 4. Domain source versus deployed capability slice
 
@@ -108,15 +108,17 @@ ExactScope should assume the target model may be bad at tool selection, JSON gen
 ### Required principles
 
 1. **No full catalog in the hot prompt.**
-2. **One generic arithmetic lane.** `xs_calc` remains one bounded plan tool rather than many arithmetic tools.
-3. **Small semantic hot sets.** A deployed `xs_eval` surface should normally expose only a compact selected set.
-4. **Constrained generation where available.** JSON Schema/GBNF or an equivalent typed binding should prevent structural errors before runtime.
-5. **Canonical compact names.** Operation names and argument order should be stable and short enough for weak models.
-6. **No required discovery turn.** `xs_find` remains cold/development functionality, not the normal serving path.
-7. **No semantic repair by the adapter.** The system may normalize transport syntax but may not guess methods, values, percentages, units, or missing assumptions.
-8. **No model recomputation.** Returned ExactScope values are authoritative for the supported deterministic task.
-9. **Bounded requests.** Prompt, request bytes, operation count, plan length, and result size stay explicitly capped.
-10. **One-turn preference.** A capability slice should be usable in one model generation and one ExactScope execution whenever possible.
+2. **Constrained JSON is the compatibility baseline.** Every AI-facing slice carries a short prompt plus a bound request grammar, even when native tool assets are also shipped.
+3. **Native tools are conditional, not universal.** Use them only when the active runtime/chat template proves support before inference.
+4. **One generic arithmetic lane.** `xs_calc` remains one bounded plan surface rather than many arithmetic tools.
+5. **Small semantic hot sets.** A deployed `xs_eval` surface should normally expose only a compact selected set.
+6. **Canonical compact names.** Operation names and argument order should be stable and short enough for weak models; future bound aliases may shorten the wire further without changing semantics.
+7. **No required discovery turn.** `xs_find` remains cold/development functionality, not the normal serving path.
+8. **No semantic repair by the adapter.** The system may normalize transport syntax but may not guess methods, values, percentages, units, or missing assumptions.
+9. **No model recomputation.** Returned ExactScope values are authoritative for the supported deterministic task.
+10. **Bounded requests.** Prompt, request bytes, operation count, plan length, and result size stay explicitly capped.
+11. **One-turn preference.** A capability slice should be usable in one model generation and one ExactScope execution whenever possible.
+12. **No post-output envelope fallback.** `auto` selects an envelope from runtime capability metadata before inference; a failed model output is not retried through another interface.
 
 ## 6. Model difficulty budget
 
@@ -124,18 +126,22 @@ Every capability slice should publish a **model difficulty budget** in addition 
 
 The initial report should include at least:
 
-- number of model-visible tools;
+- requested and resolved model-envelope mode (`auto`, `native_tools`, `constrained_json`);
+- runtime capability record used to resolve `auto`;
+- number of model-visible native tools;
 - number of visible semantic operations;
-- prompt-fragment bytes and measured tokens for each benchmarked tokenizer;
-- schema/grammar bytes;
+- native prompt/schema bytes and measured prompt tokens for each benchmarked tokenizer;
+- constrained-prompt bytes and request-grammar bytes;
 - maximum generated request tokens;
 - maximum plan steps;
 - number of model inference turns in the normal hot path;
 - structurally valid-call rate;
 - core-accepted-call rate;
-- correct operation/plan selection rate;
+- correct lane/operation/plan selection rate;
 - argument extraction rate;
-- result-fidelity rate.
+- result-fidelity rate;
+- input-token and model-latency deltas versus model-only;
+- correctness uplift per added prompt token, surface byte, and model-latency millisecond.
 
 A domain feature that is mathematically correct but substantially increases choice entropy for a 0.5B-1B model is not automatically a product improvement.
 
@@ -240,10 +246,12 @@ Conceptual output:
 exactscope slice artifact
   + selected fused semantic operations
   + xs_calc if enabled
-  + compact xs_eval tool definition
-  + GBNF / JSON Schema
-  + minimal prompt fragment
-  + manifest and digests
+  + constrained-prompt.txt
+  + xs-request.gbnf compatibility baseline
+  + compact native xs_eval/xs_calc tool definitions when selected
+  + per-lane GBNF / JSON Schema
+  + native prompt fragment
+  + manifest and model-surface digests
   + conformance vectors
   + capability/difficulty metadata
   + benchmark mapping
@@ -348,24 +356,25 @@ Before adding a feature, ask:
 
 If the answer to the first three is no, it should not enter the core product path.
 
-## 17. Immediate rc3 evidence milestones
+## 17. Immediate rc4 implementation milestones
 
-The compiler/profile/specialization/corpus/harness architecture described above is implemented code-side. The next work is evidence and support promotion, not another implementation phase:
+The rc3 external-user qualification phase is closed and preserved in [`RC3_QUALIFICATION_CLOSEOUT.md`](RC3_QUALIFICATION_CLOSEOUT.md). The active work is product implementation:
 
-1. publish and independently verify the immutable `v1.0.0-rc.3` GitHub candidate;
-2. freeze the five-model minimum matrix and exact release/model/runtime/corpus/scorer identities;
-3. benchmark A model-only / C selected semantic / D combined surfaces, adding B calc-only only when diagnostically useful;
-4. report failure decomposition and model-interface/artifact cost, with capability density/CRR only when their denominators are meaningful;
-5. qualify the exact Android ARM64 or embedded Linux ARM64 release asset on a representative real target;
-6. decide support/stable promotion only from those exact evidence records;
-7. widen Statistics or add domains only when a measured product workload justifies it.
+1. emit `constrained-prompt.txt` and `xs-request.gbnf` from the normal capability compiler for every AI-facing slice;
+2. share one deterministic constrained-prompt/grammar generator between ordinary capability builds and evaluation bundles;
+3. add a maintained llama.cpp-compatible runtime capability probe and deterministic `auto` envelope selector;
+4. freeze requested/resolved envelope identity and runtime capability metadata in qualification preregistration before inference;
+5. add tests proving that incompatible native tool templates select constrained JSON without a post-output retry;
+6. report model-interface token/latency deltas and correctness uplift per added token/byte/model millisecond;
+7. freeze a new candidate only after product tests pass; never rewrite rc3 evidence in place;
+8. retain representative ARM64 target qualification as a later support/production gate because it remains NOT MEASURED.
 
 The core product question remains:
 
 > Can a tiny ExactScope capability slice recover enough narrow-domain ability on an existing constrained model that keeping the current model and hardware becomes the better engineering choice?
 
-## Implemented compiler / historical benchmark boundary
+## Implemented compiler / qualification boundary
 
 The build-time [capability compiler](CAPABILITY_COMPILER.md) validates Statistics/Economics task selections, binds operation revisions and canonical model assets, enforces static budgets, emits exact model-surface negotiation metadata, and drives operation-selected no-import Wasm specialization.
 
-Existing multi-arm benchmark runners and the older 1,200-record local-model experiment remain implementation/historical interface evidence. They are not the rc3 benchmark result. Follow [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md) for new rc3 evidence.
+The completed rc3 five-model and clean-room results are historical design evidence for rc4. Any rc4 prompt, grammar, selector, runtime or capability-surface change requires a new immutable candidate identity if model qualification is run again. The old `QUALIFICATION_HANDOFF.md` and `NEXT_SESSION_PROMPT.md` are retained as historical rc3 procedure records, not active work instructions.

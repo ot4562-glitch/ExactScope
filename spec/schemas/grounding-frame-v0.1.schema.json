@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.org/spec/schemas/grounding-frame-v0.1.schema.json",
+  "title": "ExactScope grounding-frame v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "v": {
+      "const": 1
+    },
+    "qid": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "profile_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "target_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "target_label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "authority": {
+            "enum": [
+              "authoritative",
+              "supplemental"
+            ]
+          },
+          "state": {
+            "enum": [
+              "grounded",
+              "none",
+              "ambiguous",
+              "conflict",
+              "unavailable"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "grounding-evidence-item-v0.1.schema.json"
+            },
+            "minItems": 0
+          }
+        },
+        "required": [
+          "target_key",
+          "target_label",
+          "authority",
+          "state",
+          "items"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "state": {
+                  "const": "grounded"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "items": {
+                  "minItems": 1
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "items": {
+                  "maxItems": 0
+                }
+              }
+            }
+          }
+        ]
+      },
+      "minItems": 0
+    }
+  },
+  "required": [
+    "v",
+    "qid",
+    "profile_sha256",
+    "groups"
+  ]
+}

@@ -11,6 +11,7 @@ pub use exactscope_kernel::{DESIGN_ABI_MAJOR, DESIGN_ABI_MINOR};
 
 mod dynamic;
 pub mod format;
+pub mod recall;
 
 pub use dynamic::{DynamicInputMeta, DynamicOperation, PackView};
 

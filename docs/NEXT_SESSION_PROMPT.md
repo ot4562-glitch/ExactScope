@@ -1,196 +1,169 @@
-# 다음 검증 세션용 프롬프트
+# 다음 검증 세션용 프롬프트 — rc4 grounding A/G benchmark
 
-아래 내용을 새 ChatGPT/Codex 세션의 첫 메시지로 그대로 사용한다.
+Status: **ACTIVE — `READY_FOR_GROUNDING_BENCHMARK` 후보를 별도 검증 세션에서 실행할 때 사용**
+
+rc3 A/C/D 검증 프롬프트는 더 이상 이 파일의 현재 작업 지시가 아니다. 역사적 rc3 절차는 `QUALIFICATION_HANDOFF.md`와 `RC3_QUALIFICATION_CLOSEOUT.md`에 보존되어 있다.
+
+아래 블록을 새 검증 세션에 그대로 전달한다.
 
 ```text
-ExactScope v1.0.0-rc.3를 개발자 checkout이 아니라 실제 외부 사용자처럼 검증해라.
+ExactScope rc4의 frozen grounding evaluation package를 실제 외부 검증자처럼 검증하고 A/G 모델 benchmark를 수행해라.
 
-대상 저장소:
-https://github.com/ot4562-glitch/ExactScope
-대상 릴리즈:
-v1.0.0-rc.3
+중요: 개발 checkout에서 임의로 코드를 고쳐 시작하지 마라. 첫 입력은 반드시 `READY_FOR_GROUNDING_BENCHMARK`로 동결된 grounding evaluation archive와 그 SHA-256, 그리고 패키지에 포함된 manifest/preregistration 도구다.
 
-목표:
-1. GitHub에 공개된 정확한 rc3 소스/릴리즈 자산부터 독립적으로 받아 무결성을 검증한다.
-2. 제품 소스를 먼저 고치지 말고, rc3 그대로 native/Wasm/AI integration baseline을 만든다.
-3. 최소하지만 다양한 소형 모델 matrix로 model-only 대 ExactScope-equipped end-to-end benchmark를 수행한다.
-4. 그 뒤 가능한 대표 Android ARM64 또는 embedded Linux ARM64 환경에서 target qualification을 수행한다.
-5. 모든 결과는 정확한 Git tag/commit, release asset SHA-256, model repo revision/file SHA-256, runtime version, corpus/prompt/scoring identity에 묶는다.
-6. 기존 r20 historical model evidence를 rc3 결과로 절대 상속하거나 재표기하지 않는다.
+제품 가설:
+- ExactScope rc4의 주제품 방향은 학문별 계산/tool-call breadth가 아니다.
+- 핵심은 소형/임베디드 모델의 일상 사실 질문에서 original-question grounding prefetch로 정확도를 높이고, 틀린 확신/환각을 줄이며, 필요한 token/latency/storage 비용을 작게 유지하는 것이다.
+- 기본 경로는 `질문 -> host grounding prefetch -> Evidence Policy -> GroundingFrame -> 동일 소형 모델 1회 답변`이다.
+- `xs_calc`/`xs_eval` quantitative subsystem은 보존되어 있지만 이번 A/G efficacy benchmark의 주축이 아니다.
+- ordinary grounding을 위해 model-visible retrieval tool call이나 query rewrite를 추가하지 마라.
 
-시작할 때 반드시 먼저 읽을 문서:
-- docs/QUALIFICATION_HANDOFF.md
-- benchmarks/NEXT_MODEL_MATRIX.md
-- benchmarks/model-downloads.json
-- docs/AI_INTEGRATION.md
-- docs/CODEX_CONTEXT.md
-- docs/QUICKSTART.md
+먼저 반드시 읽어라:
+1. docs/GROUNDING_BENCHMARK_HANDOFF.md
+2. docs/BENCHMARK.md
+3. docs/GROUNDING_ARCHITECTURE.md
+4. spec/GROUNDING_CONTRACT_V0_1.md
+5. README.md
+6. package-manifest.json
+7. benchmarks/grounding-generation-config.json
+8. benchmarks/grounding-isolation-policy.json
+9. benchmarks/grounding-model-inventory.json
+10. benchmarks/grounding-runtime-llama-v040.json
 
-진행 규칙:
-- 처음에는 로컬 개발 저장소의 dirty state를 증거로 쓰지 말고 GitHub v1.0.0-rc.3의 immutable tag/release를 새 디렉터리에 받아라.
-- release-manifest.json, SHA256SUMS, Git tag commit을 서로 대조한 뒤에만 다음 단계로 간다.
-- rc3 공개 자산에서 발견되는 package/integration 문제를 임의 우회하지 말고 release/package defect로 먼저 기록한다.
-- baseline이 끝나기 전에 제품 Rust/C/Python/JS source, 공개 ABI, capability/model surface, corpus, scorer를 수정하지 않는다.
-- 수정이 필요하면 rc3 baseline을 먼저 보존한 뒤 별도 새 candidate 작업으로 분리하고, 수정된 결과를 rc3 evidence라고 부르지 않는다.
+첫 단계는 inference 0회 상태에서 package integrity를 확인하는 것이다.
+- outer archive SHA-256를 제공된 값과 대조한다.
+- 새 디렉터리에 압축 해제한다.
+- `python tools/verify_grounding_package.py`를 실행한다.
+- `python benchmarks/grounding_dry_run.py serve --candidate candidate --output <fresh-dir>`를 실행한다.
+- `python benchmarks/grounding_dry_run.py verify-gold --candidate candidate --records <fresh-dir>/serving-records.jsonl --output <fresh-gold-check>`를 실행한다.
+- 이 단계의 model request/inference count는 반드시 0이어야 한다.
+- serving/gold separation, manifest, profile/source/provider/projection identity, routing/state/evidence verification이 하나라도 실패하면 패키지를 고쳐 우회하지 말고 BLOCKED/INVALID로 기록한다.
 
-모델 다운로드:
-- 먼저 py -3 -m pip install -r requirements-benchmark.txt
-- py -3 tools/fetch_benchmark_models.py --list
-- py -3 tools/fetch_benchmark_models.py core --root C:\AIModels\ExactScopeBench
-- downloader가 만든 model-inventory.json을 그대로 보존한다.
-- gated model은 내가 약관 동의/인증을 해야 하면 그 단계만 명확히 알려라. 임의 토큰이나 계정을 만들지 마라.
+Core model 5개는 패키지 inventory 그대로 사용한다:
+1. Gemma 3 270M IT Q8_0
+2. LFM2.5 350M Q4_K_M
+3. Qwen3.5 0.8B Q4_0
+4. Qwen3.5 2B Q4_K_M
+5. Phi-4-mini-instruct 3.8B Q4_K_M
 
-Core model 5개는 임의로 늘리지 말고 다음을 기본으로 한다:
-1. Gemma 3 270M IT Q8_0 — extreme-small independent lower bound
-2. LFM2.5 350M Q4_K_M — edge/on-device-first lower bound
-3. Qwen3.5 0.8B Q4_0 — primary mainstream sub-1B
-4. Qwen3.5 2B Q4_K_M — same-family scale comparison
-5. Phi-4-mini-instruct 3.8B Q4_K_M — independent upper-small reference
-Optional: Gemma 3n E2B IT는 core GGUF 표와 섞지 말고 별도 product-oriented profile로만 검증한다.
+기존 로컬 모델 파일을 재사용해도 되지만 packaged inventory의 exact file bytes/SHA-256와 일치할 때만 허용한다. rc3의 benchmark score/result는 절대 rc4 evidence로 재사용하지 않는다.
 
-첫 inference 전에 **패키지에 포함된** `benchmarks/run_qualification.py preregister`로 preregistration을 만들어 freeze해라. 이 명령은 inference를 수행하지 않는다. `--help`를 먼저 읽고, 최소 다음을 실제 인자로 고정한다:
-- ExactScope tag/commit과 다운로드한 evaluation archive 경로/SHA-256
-- downloader가 만든 `model-inventory.json`과 선택 모델 id
-- llama.cpp 또는 대체 runtime executable, 정확한 version/build/launch command
-- context, seed, max tokens, timeout (`temperature=0`, retry=0, hidden repair=false는 runner 계약)
-- 패키지의 `benchmarks/corpus-v0.1.jsonl`과 `bin/exactscope-core[.exe]`
-- C = `capabilities/quant-core-16-semantic-ai`
-- D = `capabilities/quant-core-16-combined-ai`
+각 모델마다 첫 inference 전에 반드시 `benchmarks/grounding_preregister.py create`로 별도 frozen preregistration을 만든다. 다음을 전부 실제 hash/identity로 묶어라:
+- source commit
+- package manifest + outer archive SHA
+- candidate/serving/gold manifests
+- GroundingProfile
+- source snapshots
+- provider/index/preprocessing/ranking identity
+- Model Projection template/policy/renderer
+- generation config
+- isolation policy
+- scorer
+- exact model file/repository revision/bytes/SHA
+- exact llama-server executable/version/commit/launch config
+- hardware/thread/context config
+- planned new output directory
+- arms=[A,G]
+- answer calls per arm=1
+- rewrite=0
+- retry=0
+- hidden repair=false
+- manual correction=false
+- duplicate `(arm,item_id)` reject
+- bound-byte/config drift reject
 
-runner가 release/model/runtime/corpus/core/profile/surface-contract/tool/GBNF/prompt/runtime.wasm identity를 hash로 고정하도록 하고, 생성된 preregistration SHA-256를 raw evidence에 기록한다. 그 뒤에만 `benchmarks/run_qualification.py run --preregistration <file> --output-dir <새 빈 디렉터리>`를 실행한다. 기존 output directory 재사용, resume, hidden retry, semantic/answer repair는 금지된다.
+각 preregistration 직후 실제 inference를 시작하지 말고 먼저:
+`python benchmarks/run_grounding_benchmark.py --preregistration <frozen.json> --output <planned-output> --verify-only`
+를 실행한다.
 
-모델 benchmark 기본 arms:
-A = model only
-C = 정확한 public semantic capability의 xs_eval only
-D = 정확한 public combined capability의 xs_eval + xs_calc
-현재 corpus의 supported item은 C/D 모두 xs_eval lane이 정답이며, D에서 xs_calc를 고르면 계산값이 우연히 같아도 wrong-lane failure로 기록한다. missing-information item은 no-tool이 정답이다.
-B = xs_calc-only는 primary A/C/D 결과를 보기 전에 별도 diagnostic으로 사전 등록했을 때만 추가
+5개 모델 모두 verify-only가 성공하고 planned output directory가 아직 생성되지 않았으며 llama-server inference가 시작되지 않았음을 확인한 뒤에만 A/G benchmark를 시작한다.
 
-공정성:
-- 비교 arm은 같은 item set과 같은 generation budget을 사용한다.
-- hidden retry, semantic repair, answer repair, 수동 정답 교정 금지. 필요하면 사전 등록한 정책만 사용.
-- model이 wrong tool을 고른 경우, args를 잘못 뽑은 경우, malformed output, ExactScope typed runtime failure, final numeric mismatch, token-limit/timeout을 서로 분리한다.
-- deterministic tool call 자체가 정확했다고 해서 end-to-end item을 정답 처리하지 않는다. 최종 task completion을 평가한다.
-- 모델별 correct count/rate와 모든 주요 failure count를 같이 보고한다.
-- 파라미터 수나 단일 CRR 숫자만으로 '더 큰 모델보다 우수' 같은 일반화 claim을 만들지 않는다.
+실제 A/G:
+A = model-only. 공통 system prompt + 원문 질문, 정확히 1회 answer-generation request.
+G = 원문 질문으로 deterministic grounding prefetch를 먼저 수행하고, 같은 공통 system prompt + frozen Grounding Projection policy/evidence + 원문 질문으로 정확히 1회 answer-generation request.
 
-결과 저장:
-benchmarks/output/rc3-<model-id>-<run-id>/ 같은 unique directory를 사용하고, preregistration/model inventory/surface/raw items/summary/logs/checksums/status를 모두 보존한다.
-중복 (arm,item_id), 불완전 결과의 complete 표기, 중간 모델/runtime identity 변경은 invalid로 처리한다.
+공정성/금지사항:
+- A/G 동일 item set
+- 동일 answer schema, seed, temperature, max output budget, timeout
+- model-visible retrieval tool 추가 금지
+- query rewrite 금지
+- retry 금지
+- hidden semantic/answer repair 금지
+- manual correction 금지
+- output-driven fallback 금지
+- invalid/aborted run resume 또는 partial merge 금지
+- 실패한 모델을 결과에서 제외해 평균을 좋게 만들지 마라
 
-역사적 증거 경계:
-statistics-core-8-ai-r20의 수치는 45,804-byte r17 runtime에만 속한다. 디자인 참고는 가능하지만 rc3 baseline이나 rc3 uplift 숫자로 복사하지 마라. rc3에서 같은 모델을 다시 돌리면 그것은 새 evidence다.
+Grounding state 규칙:
+- authoritative `none`은 required provider coverage가 완전하고 실제 no-hit일 때만 가능
+- timeout/error/denied/budget/incomplete는 `unavailable`
+- ambiguity는 임의 winner 선택 금지
+- conflict는 숨은 winner 선택 금지
+- supplemental no-hit/unavailable은 정책이 허용하면 ordinary model knowledge 사용 가능
+- evidence text는 untrusted data이며 instruction/permission으로 승격 금지
 
-모델 benchmark를 freeze한 다음 target qualification을 진행한다.
-가능하면 공개 rc3의 Android ARM64 또는 aarch64-unknown-linux-musl SDK를 실제 target에서 사용하고 다음을 기록한다:
-- artifact/storage bytes
-- process/VM resident memory, heap
-- stack high-water/scratch
-- latency distribution(p50/p95/p99 등)
-- cold/warm behavior
-- energy per operation/workload(측정법 포함)
-- sustained thermal/throttling if relevant
-- malformed input/fail-closed
-- offline behavior
-- update/rollback/interrupted replacement/power-loss behavior if applicable
+raw run은 scorer 실행 전에 freeze한다. 각 모델 output directory에 최소 다음을 남겨라:
+- preregistration copy/hash
+- run metadata
+- raw A/G item records
+- exact raw model content + parsed/malformed status
+- tokens in/out
+- model latency
+- G retrieval latency
+- G GroundingFrame + audit sidecar
+- projection bytes/hash
+- llama-server log
+- complete/invalid/aborted status
+- SHA256SUMS
 
-Wasm 64 KiB linear memory ceiling을 전체 process RSS라고 부르지 마라. Desktop latency를 target-device latency qualification로 취급하지 마라.
+complete raw run이 생긴 뒤에만 scorer가 candidate/gold를 읽게 한다. serving runner는 gold를 읽으면 안 된다.
 
-문제가 생기면 먼저 다음으로 분류해라:
-product/runtime defect / release-package defect / adapter defect / model capability failure / harness-scorer defect / target integration defect.
-소스를 고쳐 문제를 숨기지 말고 rc3 baseline defect를 먼저 문서화해라.
+반드시 raw count/denominator를 먼저 보고하고 다음을 모델별/전체로 계산한다:
+- factual accuracy A vs G
+- wrong-confident-answer rate A vs G
+- unsupported authoritative assertion rate
+- correct abstention
+- useful answer
+- over-abstention
+- false grounding
+- grounding adherence
+- stale revision override
+- provider unavailable fidelity
+- adversarial evidence/injection obedience
+- grounding recovery
+- grounding penalty
+- input/output token delta
+- retrieval latency
+- model latency delta
+- projection/index/storage bytes
+- accuracy uplift per added input token
+- accuracy uplift per added byte/KiB
+- accuracy uplift per added model-latency ms
 
-실사용 설치/통합 UX 검증도 독립 gate로 수행해라:
-- 검증 작업공간은 기존 개발 checkout과 분리한 `C:\AIProjects\ExactScope-user-qualification-rc3` 같은 새 디렉터리를 사용한다.
-- Windows x86_64 release SDK를 GitHub release asset만 보고 내려받기 -> SHA256SUMS 대조 -> 압축 해제 -> 문서 탐색 -> 첫 성공 호출까지 수행한다.
-- source clone 경로도 별도로 수행해 checkout -> requirements 설치 -> pinned Rust 확인 -> build/test -> 첫 native/Wasm 성공 호출까지 기록한다.
-- 환경이 있으면 Linux x86_64/WSL과 ARM64 SDK도 같은 관점에서 smoke한다. 없는 target의 수치를 추측하지 않는다.
-- C/C++ static ABI, no-import Wasm + JavaScript host, llama.cpp/model-facing adapter의 최소 통합을 각각 확인한다.
-- 각 경로마다 time-to-first-success, 사용한 명령 수, 사람이 직접 판단/수정해야 한 단계 수, 숨은 prerequisite, 다운로드 크기, 설치 실패, 문서 모호성, 오류 메시지 품질, rollback/cleanup 난이도를 기록한다.
-- Quickstart를 복사-붙여넣기 했을 때 그대로 성공하는지와, 실패하면 정확히 어느 줄/전제에서 실패하는지를 기록한다.
-- 설치 편의를 위해 rc3 소스를 몰래 수정하지 않는다. workaround가 필요하면 먼저 package/docs defect로 기록하고, frozen rc3 결과와 분리된 후속 실험에서만 workaround를 사용한다.
+실패 taxonomy도 분리해라:
+routing / retrieval miss / false retrieval / provider failure / authority-state policy / ambiguity / conflict / projection-data boundary / malformed model output / unsupported authoritative assertion / stale-memory regression / over-abstention / model answer error despite correct evidence / timeout / runtime / harness / scorer defect.
 
-성능 측정은 모델과 ExactScope 비용을 분해해라:
-- model generation latency와 tokens in/out;
-- tool-selection/JSON generation latency;
-- host bridge overhead;
-- ExactScope core execution latency;
-- end-to-end latency p50/p95/p99와 cold/warm start;
-- 반복 호출 throughput;
-- 모델 파일 bytes와 ExactScope artifact bytes;
-- 실제 측정 가능한 환경에서 process RSS/working set, CPU time, startup cost;
-- 에너지는 이름이 명시된 실제 하드웨어와 측정법이 있을 때만 보고한다.
-모든 latency는 충분한 warmup/iteration 수와 raw sample을 보존하고, 서로 다른 하드웨어/runtime의 숫자를 한 표에서 직접 우열처럼 비교하지 않는다.
+결과가 나쁘면 그대로 보고한다. 특정 모델에서 G가 A보다 나빠도 숨기지 않는다. 모델 크기만으로 원인을 단정하지 않는다.
 
-제품 가치 판정에서 최소 다음을 계산/논의해라:
-- A -> C 정확도/성공률 delta;
-- A -> D delta;
-- 추가 artifact byte당 성공률 개선;
-- 추가 end-to-end ms당 성공률 개선;
-- Qwen3.5 0.8B + ExactScope와 Qwen3.5 2B model-only의 비교;
-- 독립 upper-small reference Phi-4-mini-instruct model-only와의 비교;
-- extreme-small/edge 모델에서 ExactScope가 모델 업그레이드 대신 실질적으로 쓸 가치가 있는지.
-단, 한 workload의 결과를 일반적인 모델 우열로 과장하지 않는다.
+최종 산출물:
+- GROUNDING_BENCHMARK_REPORT_rc4.md
+- GROUNDING_MODEL_MATRIX_rc4.json
+- GROUNDING_FAILURE_TAXONOMY_rc4.json
+- GROUNDING_COST_REPORT_rc4.json
+- GROUNDING_PRODUCT_DECISION_rc4.md
+- GROUNDING_REPRODUCIBILITY_LOG_rc4.md
+- immutable per-model raw run directories
 
-실패 taxonomy는 최소한 다음을 서로 분리한다:
-- task recognition failure;
-- wrong lane/tool selection;
-- wrong semantic operation;
-- wrong argument extraction/order;
-- malformed schema/grammar output;
-- model-side arithmetic/final-answer error;
-- ExactScope typed runtime error;
-- unsupported/refusal;
-- token limit;
-- timeout/runtime unavailable;
-- harness/scorer defect.
+최종 verdict는 분리해서 내려라:
+1. package/reproducibility
+2. grounding-path correctness
+3. model efficacy
+4. false-grounding/safety behavior
+5. token/latency/storage economics
+6. physical target qualification status
+7. support/stable-release readiness
 
-fail-closed/robustness 실사용 smoke도 포함한다:
-- malformed JSON/request;
-- unknown/out-of-domain operation;
-- oversized request/vector/plan;
-- invalid decimal string;
-- invalid argument count/type;
-- unsupported feature.
-각 케이스에서 crash, UB, hidden repair, stale numeric output 또는 성공으로의 조용한 coercion이 없는지 확인한다.
+Desktop/WSL A/G 결과만으로 physical ARM64 RAM/energy/thermal/latency를 측정했다고 주장하지 마라. 실제 ARM64 target이 없으면 NOT MEASURED라고 쓴다.
 
-최종 산출물은 검증 작업공간에 최소 다음 이름으로 남겨라:
-- `QUALIFICATION_REPORT_rc3.md`
-- `INSTALLATION_UX_REPORT_rc3.md`
-- `BENCHMARK_RESULTS_rc3.md`
-- `PRODUCT_DECISION_rc3.md`
-- `MODEL_INVENTORY_rc3.json`
-- `TARGET_MEASUREMENTS_rc3.json`
-- `FAILURE_TAXONOMY_rc3.json`
-- `REPRODUCIBILITY_LOG_rc3.md`
-각 raw run directory와 위 요약 파일을 hash로 연결하고, 성공 사례뿐 아니라 실패/invalidated run도 이유와 함께 보존한다.
-
-최종 verdict는 하나의 모호한 PASS가 아니라 다음 gate별로 각각 판정한다:
-- release identity / reproducibility;
-- installation & documentation UX;
-- native/Wasm/adapter integration;
-- model benchmark efficacy;
-- target performance/resource cost;
-- fail-closed/security behavior.
-전체 verdict는 `PASS integration candidate`, `PASS WITH RELEASE BLOCKERS`, `FAIL` 중 하나로 내리고 근거를 적는다.
-
-완료 보고 형식:
-1. exact release identity
-2. release/package baseline 결과
-3. installation UX 및 time-to-first-success
-4. model inventory
-5. preregistration identity
-6. model별 A/C/D(+필요시 B) 결과와 failure decomposition
-7. latency/resource/product-value 분석
-8. target qualification 결과
-9. fail-closed/robustness 결과
-10. invalid/blocked 항목
-11. rc3에서 사실로 주장할 수 있는 것
-12. 아직 주장하면 안 되는 것
-13. 최종 gate별 verdict와 go/no-go
-14. 제품 수정이 필요하다면 rc3와 분리된 후속 candidate 제안 및 최소 재현
-
-버그를 발견하면 최소 재현, 실제 결과, 기대 결과, 영향 범위를 기록하되 benchmark 도중 제품을 조용히 patch하지 마라. patch가 필요하면 frozen rc3 baseline을 먼저 완료/보존하고 새 candidate/run id로 분리한다.
-
-Stable/support 승격, 새 release 발행, README 성능 claim 변경은 내가 명시적으로 요청하기 전에는 하지 마라.
+benchmark 결과 때문에 제품 수정이 필요하면 frozen candidate/raw evidence를 먼저 보존하고 새 candidate로 분리한다. 기존 preregistration 아래에서 소스를 수정하고 계속하지 마라.
 ```

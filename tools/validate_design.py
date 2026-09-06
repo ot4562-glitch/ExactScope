@@ -218,6 +218,7 @@ def validate_examples(schemas: dict[str, Any]) -> int:
                 "exactscope.capability.domain-descriptors": "capability-domain-descriptors.schema.json",
                 "exactscope.statistics.kernel-bindings": "statistics-kernel-bindings.schema.json",
                 "exactscope.economics.operation-bindings": "economics-operation-bindings.schema.json",
+                "exactscope.fact-pack.source": "fact-pack-source.schema.json",
             }
             schema_name = format_schemas.get(format_name)
         if schema_name is None:
@@ -545,7 +546,13 @@ def validate_repository_text() -> tuple[int, int]:
         except UnicodeDecodeError:
             continue
         relative = path.relative_to(ROOT)
-        if text and not text.endswith("\n"):
+        grounding_canonical_json = (
+            len(relative.parts) >= 3
+            and relative.parts[0] == "grounding"
+            and relative.parts[1] == "reference-profile-v0.1"
+            and path.suffix == ".json"
+        )
+        if text and not text.endswith("\n") and not grounding_canonical_json:
             raise ValidationFailure(f"{relative}: missing final newline")
         for line_number, line in enumerate(text.splitlines(), start=1):
             if line.rstrip(" \t") != line:

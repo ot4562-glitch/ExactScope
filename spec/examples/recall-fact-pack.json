@@ -1,0 +1,51 @@
+{
+  "format": "exactscope.fact-pack.source",
+  "format_version": "0.1",
+  "pack_id": "org.exactscope.recall-demo",
+  "pack_revision": 1,
+  "authority": "authoritative",
+  "languages": ["en", "ko"],
+  "source_set_sha256": null,
+  "facts": [
+    {
+      "id": "demo.author",
+      "evidence": "The fictional handbook Red Glass was written by Mira Venn.",
+      "source": "recall-demo@1",
+      "revision": 1,
+      "aliases": ["red glass author", "red glass writer"],
+      "source_sha256": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "id": "demo.korean.capital",
+      "evidence": "테스트 국가 아람의 수도는 누리다.",
+      "source": "recall-demo@1",
+      "revision": 1,
+      "aliases": ["아람 수도", "아람의 수도"],
+      "source_sha256": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "id": "demo.orbit.altitude",
+      "evidence": "Project Aster's nominal orbital altitude is 620 km.",
+      "source": "recall-demo@1",
+      "revision": 1,
+      "aliases": ["aster orbital altitude", "project aster orbit altitude"],
+      "source_sha256": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "id": "demo.orbit.period",
+      "evidence": "Project Aster's orbital period is 37 hours.",
+      "source": "recall-demo@1",
+      "revision": 2,
+      "aliases": ["aster orbital period", "project aster orbit period"],
+      "source_sha256": null,
+      "valid_from": null,
+      "valid_until": null
+    }
+  ]
+}

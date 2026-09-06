@@ -1,6 +1,6 @@
-# ExactScope v1.0.0-rc.3 quickstart
+# ExactScope quickstart
 
-ExactScope is a tiny deterministic quantitative capability component for small and on-device AI. `v1.0.0-rc.3` is an **integration & qualification candidate**: code-side implementation and packaging are intended to be usable, while model and real-device qualification are deliberately performed from the published release in a later session.
+ExactScope is evolving into a tiny grounding and deterministic capability layer for small and on-device AI. `v1.0.0-rc.3` remains the latest frozen **public** prerelease and its external-user qualification is complete; that public asset is primarily the quantitative runtime/package. The rc4 grounding contract/reference path/candidate/scorer/evaluation-package tooling are now implemented in the rc4 source candidate, but no rc4 grounding SDK or model-uplift result is public yet. The flagship path is original-question prefetch -> compact Grounding Frame -> one model answer call, with provider-neutral retrieval and explicit authoritative/supplemental policy.
 
 ## 1. Prefer the release asset when evaluating as a user
 
@@ -19,19 +19,54 @@ The prebuilt evaluation SDK is designed to avoid a Rust build requirement for fi
 
 See [EVALUATION_BUNDLE.md](EVALUATION_BUNDLE.md) for archive details.
 
-## 2. Pick the smallest AI-facing lane
+## 2. rc4 grounding path — implemented source candidate, benchmark not yet run
+
+For the current rc4 source candidate, start from [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md), [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md), [`BENCHMARK.md`](BENCHMARK.md), and [`GROUNDING_EVALUATION_PACKAGE.md`](GROUNDING_EVALUATION_PACKAGE.md):
+
+```text
+user question
+  -> configured source/provider prefetch
+  -> Evidence Policy
+  -> compact Grounding Frame
+  -> one small-model answer call
+```
+
+Choose source authority and privacy scope before choosing a retrieval algorithm. The first benchmark candidate freezes a small offline exact/lexical provider for reproducibility; that provider is **not** the universal product definition. A frozen semantic/vector provider, application memory, or captured host/search provider may implement the same ProviderOutcome/GroundingFrame contract later. Do not build a model-visible tool catalog merely to retrieve ordinary evidence.
+
+Before any model inference, the source-candidate workflow is:
+
+```powershell
+py -3 tools/test_grounding_profile.py
+py -3 tools/test_grounding_runtime.py
+py -3 tools/test_grounding_benchmark.py
+py -3 tools/test_grounding_package.py
+py -3 tools/validate_design.py
+py -3 tools/audit_security_surface.py
+```
+
+The final benchmark-ready gate then builds the source-commit-bound grounding evaluation archive, verifies it from a fresh extraction, creates one zero-inference preregistration per frozen model identity, and runs `benchmarks/run_grounding_benchmark.py --verify-only`. **Do not invoke the runner without `--verify-only` during this pre-benchmark stage.**
+
+The remainder of this document describes the **currently published rc3 quantitative SDK** and remains valid for evaluating that release. Its A/C/D procedure is historical and separate from the rc4 A/G grounding benchmark.
+
+## 3. Public rc3 quantitative path: pick one model envelope, then the smallest semantic lane
 
 ```text
 small / on-device model
         |
-        +-- knows arithmetic decomposition --> xs_calc --> ExactScope
+        +-- native_tools ------ only when runtime /props proves support
         |
-        +-- needs reviewed method -----------> xs_eval --> ExactScope
-        |
-        `-- operation genuinely unknown -----> xs_find  (optional cold/dev path)
+        `-- constrained_json -- compatibility baseline
+                    |
+                    v
+             strict request validator
+                    |
+        +-----------+-----------+
+        |                       |
+      xs_calc                  xs_eval
+  bounded arithmetic       reviewed method
 ```
 
-Use fewer model-visible choices whenever possible. `xs_find` is not a mandatory serving hop.
+Use fewer model-visible choices whenever possible. `xs_find` remains optional cold/development discovery, not a mandatory serving hop. `auto` interface selection happens before inference and never retries a failed output through another envelope.
 
 ### `xs_calc`
 
@@ -57,7 +92,7 @@ Expected canonical result:
 
 Use a generated selected capability for reviewed domain methods. The model should see only operations needed by the task family, not the whole maintenance catalog. Decimal inputs are strings at the Tiny JSON boundary so host JSON parsing does not silently change the value.
 
-## 3. Native C integration
+## 4. Native C integration
 
 Public header:
 
@@ -79,7 +114,7 @@ Expected output: `16`.
 
 Windows consumers link the packaged `exactscope_cabi.lib`. Do not assume a native target is supported if no matching release archive exists.
 
-## 4. Wasm integration
+## 5. Wasm integration
 
 The evaluation SDK includes a no-import WebAssembly artifact and a dependency-free JavaScript example. The generic source-build path is:
 
@@ -107,28 +142,36 @@ node examples/capability-host.mjs \
 
 The source checkout path is `examples/javascript/capability-host.mjs`; the packaged path above is intentionally shorter and is the path to use when evaluating a GitHub release.
 
-## 5. llama.cpp / local-model qualification
+## 6. llama.cpp / local-model interface
 
-The evaluation archive includes `benchmarks/run_qualification.py` and its stdlib-only capability verifier. The qualification runner has two separate phases:
+Probe the runtime before inference:
+
+```sh
+python tools/llama_cpp_interface.py --base-url http://127.0.0.1:8080/v1 --model-interface auto
+```
+
+The probe reads `/props` only. `auto` chooses `native_tools` only when tool definitions, assistant tool calls and object arguments are all explicitly supported; otherwise it chooses `constrained_json`.
+
+The qualification runner freezes both the **requested** and **resolved** interface before inference:
 
 ```sh
 python benchmarks/run_qualification.py preregister --help
 python benchmarks/run_qualification.py run --help
 ```
 
-`preregister` performs **zero inference calls** and freezes the release archive SHA-256, model bytes/revision/SHA-256, llama.cpp executable SHA/version/launch command, corpus, core, semantic/combined capability identities, seed, generation budget, timeout, scoring rules, and no-retry policy. `run` refuses to start if any frozen byte identity has changed and writes one immutable single-writer evidence directory.
+`preregister` performs **zero inference calls**. With `auto` or `native_tools` it probes `/props`, resolves the interface, and freezes the normalized runtime capability/template identity together with release/model/runtime/corpus/capability/generation/scoring identities. With explicit `constrained_json`, the native-tool probe is skipped because that interface does not depend on native support. `run` rechecks whichever pre-inference selection inputs were frozen and never performs output-driven fallback.
 
-The frozen comparison is:
+The semantic arms remain:
 
-- **A** — model only, no ExactScope tool;
-- **C** — `capabilities/quant-core-16-semantic-ai`, exact `xs_eval` only;
-- **D** — `capabilities/quant-core-16-combined-ai`, exact `xs_eval + xs_calc` surface.
+- **A** — model only;
+- **C** — selected `xs_eval` capability through the frozen envelope;
+- **D** — selected `xs_eval + xs_calc` capability through the frozen envelope.
 
-The benchmark corpus is semantic, so D must choose `xs_eval` for supported corpus items; choosing `xs_calc` is preserved as a wrong-lane failure even if a coincidental arithmetic result is numerically correct. There are no hidden retries or answer repair.
+The summary also reports correctness uplift against added mean input tokens, model-surface bytes and added model latency. These are efficiency diagnostics, not permission to hide negative/no-uplift results.
 
-Developer checkouts still contain the narrower `adapters/llama-cpp/` protocol-adapter self-tests, but release qualification does not depend on those source-only paths. Follow [AI_INTEGRATION.md](AI_INTEGRATION.md) and [QUALIFICATION_HANDOFF.md](QUALIFICATION_HANDOFF.md). Do not reuse older model scores as rc3 evidence.
+The rc3 five-model qualification is complete and frozen. Any future rc4 benchmark is a new candidate-bound evidence run. Follow [MODEL_INTERFACE_RC4.md](MODEL_INTERFACE_RC4.md), [BENCHMARK.md](BENCHMARK.md), and [RC3_QUALIFICATION_CLOSEOUT.md](RC3_QUALIFICATION_CLOSEOUT.md).
 
-## 6. Source checkout sanity checks
+## 7. Source checkout sanity checks
 
 When developing rather than evaluating the published release:
 
@@ -144,9 +187,9 @@ py -3 tools/audit_security_surface.py
 
 These prove code/build contracts, not model uplift or target-device qualification.
 
-## 7. Download the planned benchmark models without running them
+## 8. Model inventory tooling
 
-Keep weights outside the repository:
+The model downloader remains available for a **new candidate-bound** benchmark and does not launch inference:
 
 ```powershell
 py -3 -m pip install -r requirements-benchmark.txt
@@ -154,25 +197,27 @@ py -3 tools/fetch_benchmark_models.py --list
 py -3 tools/fetch_benchmark_models.py core --root C:\AIModels\ExactScopeBench
 ```
 
-The downloader resolves repository revisions and records file SHA-256 values in `model-inventory.json`. It does not launch inference.
+It resolves repository revisions and records file SHA-256 values in `model-inventory.json`. The old [rc3 minimum model matrix](../benchmarks/NEXT_MODEL_MATRIX.md) is a historical completed plan; reuse those models only under a new preregistration/candidate identity.
 
-See [the minimum model matrix](../benchmarks/NEXT_MODEL_MATRIX.md) before adding more models.
+## 9. Fail closed
 
-## 8. Fail closed
+Grounding and quantitative adapters may normalize transport syntax. They may not:
 
-Adapters may normalize transport syntax. They may not:
-
+- widen private/user/tenant scope implicitly;
+- treat provider failure as a true no-hit;
+- treat supplemental evidence as authoritative;
+- silently choose between conflicting/ambiguous authoritative records;
+- pass evidence text as higher-priority instructions;
 - invent a missing value;
-- silently convert a percentage/unit/currency without a declared contract;
-- swap argument meaning;
+- silently convert a percentage/unit/currency without a declared quantitative contract;
 - choose a statistical/economic method by guess;
-- recompute or repair the deterministic result;
-- turn a typed failure into a plausible number.
+- recompute or repair a deterministic result;
+- turn a typed failure or authoritative `none/ambiguous/conflict/unavailable` state into a plausible factual value.
 
-The product boundary is valuable precisely because it can return a deterministic typed failure instead of guessing.
+The product boundary is valuable precisely because it can preserve missing/ambiguous/unavailable evidence rather than converting uncertainty into confident output.
 
-## 9. Before claiming the product is qualified
+## 10. Claim boundary
 
-Use [QUALIFICATION_HANDOFF.md](QUALIFICATION_HANDOFF.md). The next session must start from the immutable GitHub rc3 release, bind every result to exact artifact/model/runtime/corpus identities, and then measure a representative real ARM64 target before making target RAM/latency/energy claims.
+The rc3 external-user qualification is complete; its procedure is preserved in [QUALIFICATION_HANDOFF.md](QUALIFICATION_HANDOFF.md) only as historical audit material. The active conclusions are in [RC3_QUALIFICATION_CLOSEOUT.md](RC3_QUALIFICATION_CLOSEOUT.md).
 
-Historical r20 Statistics model evidence belongs to an older runtime and is not rc3 evidence.
+Do not claim stable production support or representative ARM64 RAM/latency/energy/thermal performance: no physical ARM64 target was available during rc3, so those metrics remain **NOT MEASURED**. Do not claim that rc4 currently improves hallucination or everyday accuracy merely from the new design documents or prototype retrieval code. Any such claim requires a newly frozen grounding candidate with source/provider/policy identities and preregistered A/G model evidence.

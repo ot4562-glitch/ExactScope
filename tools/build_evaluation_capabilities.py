@@ -17,9 +17,11 @@ from typing import Any
 from compile_capability import (
     canonical,
     constrained_request_grammar,
+    constrained_request_prompt,
     digest,
     load,
     model_surface_contract,
+    model_surface_measurements,
     position_aware_calc_grammar,
     source_identity,
     verify_bundle,
@@ -87,7 +89,9 @@ def build_profile(
     operations = [entry["op"] for entry in catalog["operations"]]
     tool_names = [name for name in files if name.endswith(".tool.json")]
     grammar_names = [name for name in files if name.endswith(".gbnf")]
-    prompt_names = ["prompt-fragment.txt"]
+    prompt_names = sorted(
+        name for name in ("prompt-fragment.txt", "constrained-prompt.txt") if name in files
+    )
     profile: dict[str, Any] = {
         "format": "exactscope.capability.profile",
         "format_version": "0.1-draft",
@@ -178,18 +182,10 @@ def build_one(
             b"prefer xs_eval for bound economics/statistics methods.\n"
         )
 
-    constrained_lines = [
-        "Emit exactly one constrained JSON request; do not calculate the answer yourself.",
-        "For a supported reviewed method with all required inputs, emit its exact xs_eval object with decimal strings in signature order.",
-        "If no valid call can be made because information is missing, unsupported, or ambiguous, emit {\"n\":true}.",
-    ]
-    if combined:
-        constrained_lines.append(
-            "Use an xs_calc plan only for generic arithmetic that does not require one of the reviewed semantic methods below."
-        )
-    constrained_lines.append("Bound semantic operations:")
-    constrained_lines.extend(operation["sig"] for operation in catalog["operations"])
-    files["constrained-prompt.txt"] = ("\n".join(constrained_lines) + "\n").encode("ascii")
+    files["constrained-prompt.txt"] = constrained_request_prompt(
+        catalog,
+        include_calc=combined,
+    )
     files["xs-request.gbnf"] = constrained_request_grammar(
         files.get("xs-eval.gbnf"),
         files.get("xs-calc.gbnf"),
@@ -209,19 +205,11 @@ def build_one(
     profile["bindings"]["surface_contract_sha256"] = digest(files["surface-contract.json"])
     files["profile.json"] = canonical(profile)
 
-    model_asset_names = sorted(name for name in files if name.endswith(".tool.json"))
-    grammar_names = sorted(name for name in files if name.endswith(".gbnf"))
     manifest = {
         "format": "exactscope.capability.bundle",
         "format_version": "0.1",
         "files": {name: digest(data) for name, data in sorted(files.items())},
-        "measurements": {
-            "prompt_fragment_bytes": len(files["prompt-fragment.txt"]),
-            "schema_bytes": sum(len(files[name]) for name in model_asset_names),
-            "grammar_bytes": sum(len(files[name]) for name in grammar_names),
-            "top_level_tool_count": len(model_asset_names),
-            "visible_semantic_operation_count": len(catalog["operations"]),
-        },
+        "measurements": model_surface_measurements(files, catalog),
         "operation_revisions": {
             operation["op"]: operation["revision"] for operation in catalog["operations"]
         },

@@ -1,50 +1,58 @@
 # ExactScope marketing claims playbook
 
 Status: internal product/marketing guidance
-Release context: **v1.0.0-rc.3 integration & qualification candidate**
-Date: 2026-09-05
+Release context: **rc4 grounding implementation/pre-inference benchmark-ready work after completed v1.0.0-rc.3 qualification**
+Date: 2026-09-06
 
-This file prevents historical development measurements from being presented as rc3 product evidence. The strongest current public message is **a packaged, deterministic, narrow capability component that is ready to be independently evaluated**, not a new accuracy/latency/energy claim.
+This file prevents historical measurements from being generalized beyond their exact identities. rc3 may be described as a completed external-user quantitative/model-interface qualification input with five-model/install observations, but it does not establish universal accuracy, production support, or real-device energy/thermal claims. The strongest **pre-benchmark rc4** product message is **a tiny provider-neutral grounding layer implemented to improve everyday factual reliability without requiring a model-visible tool turn**. The contract/reference path/package harness exists and is no-inference tested; model uplift is not yet measured.
 
 ## 1. Default public positioning
 
-Safe:
+Safe before the next grounding benchmark:
 
-> ExactScope is a tiny deterministic quantitative capability component for small and on-device AI. It lets a product expose a narrow reviewed `xs_calc`/`xs_eval` surface instead of asking a weak model to perform every numerical step probabilistically.
+> ExactScope implements a compact grounding layer for small and on-device AI. The rc4 candidate prefetches scoped evidence before the model answers, presents only a small Grounding Frame, and keeps retrieval providers replaceable behind one contract. Existing deterministic `xs_calc`/`xs_eval` remains available for quantitative tasks.
 
 Keep the important qualifier close:
 
-> Determinism applies after the model has selected a valid operation/plan and arguments. Model selection and argument extraction can still fail.
+> The rc4 grounding implementation has not yet established an accuracy or hallucination-reduction claim. Retrieval can miss or retrieve the wrong evidence, and the model can still ignore correct evidence; those failures are explicitly part of the frozen A/G benchmark contract.
 
 Also safe:
 
-- “ExactScope is designed for OEM/device/embedded/local-AI integration, not as a human calculator application.”
-- “The deterministic core can run locally through a native C ABI or a no-import Wasm boundary.”
-- “Selected capability builds are designed to minimize model-visible choices and fail closed on excluded operations.”
-- “v1.0.0-rc.3 is an integration and qualification candidate, not a stable/production-qualified release.”
+- “The default rc4 grounding path is original-question prefetch followed by one model answer call.”
+- “Grounding sources distinguish authoritative from supplemental no-hit behavior.”
+- “ExactScope does not require one specific retrieval algorithm; exact/lexical, frozen semantic/vector and host-provided providers can share the same Grounding Contract.”
+- “False grounding is treated as a first-class failure, not hidden behind final answer accuracy.”
+- “ExactScope is designed for OEM/device/embedded/local-AI integration, not as a human calculator application or giant RAG framework.”
+- “The deterministic quantitative core can run locally through a native C ABI or a no-import Wasm boundary.”
+- “rc3 qualification found that native tool-call reliability varied by model/chat-template protocol rather than simply by model size.”
+- “v1.0.0-rc.3 remains a prerelease and is not a stable/production-qualified release.”
 
 ## 2. What rc3 may claim now
 
-Before the separate qualification session, rc3 may claim **implementation/package properties that are verified for the exact source/release process**, such as:
+rc3 may claim the following **only as exact rc3 observations**:
 
-- the active Statistics/Economics architecture is code-side implemented;
-- the release workflow is configured to produce Windows/Linux x86-64 evaluation SDKs and Android/Linux ARM64 static OEM SDKs;
-- release bundles carry manifests/checksums and model-facing integration assets;
-- the model-surface identity/compatibility machinery is fail closed;
-- the broad domain catalog is a build-time asset rather than a required weak-model prompt surface;
-- the benchmark model downloader resolves model revisions and records local file SHA-256 values without running inference.
+- the published evaluation/OEM artifacts and release-level/internal checksums were independently exercised;
+- Linux and Windows clean-room first-use paths passed the recorded package/core/capability checks;
+- a five-model A/C/D matrix was completed and bound to the exact rc3/model/runtime/corpus identities;
+- Qwen3.5 0.8B/2B showed frequent native tool recognition while Gemma 3 270M, LFM2.5 350M and Phi-4-mini 3.8B did not produce a comparable usable native-tool path under the frozen runtime/templates;
+- the largest tested model was not the most reliable tool caller, rejecting a monotonic model-size explanation;
+- valid calls reaching ExactScope were much stronger than the end-to-end model-selection result;
+- Android/Linux ARM64 package/doctor checks passed contract-level checks.
 
-Do not convert a workflow/configured asset into a claim that the asset was successfully published until the GitHub release actually contains it.
+These are observations for the frozen rc3 setup, not universal statements about all versions/models/runtimes.
 
-## 3. What rc3 must say is unmeasured
+## 3. What remains unmeasured or unsupported
 
-Until the next evidence session is complete, say explicitly:
+Say explicitly:
 
-- **rc3 model uplift: unmeasured**;
-- **rc3 representative target RAM/latency/energy: unmeasured**;
-- **rc3 production readiness/stable support: not established**.
+- **universal model uplift across small models: not established**;
+- **rc4 everyday factual-accuracy uplift: not established**;
+- **rc4 hallucination / wrong-confident-answer reduction: not established**;
+- **rc4 false-grounding rate on a frozen candidate: not yet measured**;
+- **representative physical ARM64 RAM/latency/energy/thermal behavior: NOT MEASURED**;
+- **production readiness/stable support: not established**.
 
-Do not use old r20 numbers to fill these blanks.
+Do not use old r20 or rc3 numbers to fill rc4 blanks.
 
 ## 4. Historical r20 evidence — allowed only as historical evidence
 
@@ -117,7 +125,7 @@ Target reports should prefer p50/p95/p99 or another preregistered distribution s
 
 ## 9. Energy / thermal / battery claims
 
-No rc3 energy/thermal qualification exists before the next session.
+The rc3 qualification did not have a physical ARM64 target, so representative target energy/thermal/battery behavior remains **NOT MEASURED**. Desktop/model latency is not a substitute.
 
 Do not say:
 
@@ -136,7 +144,7 @@ That is a hypothesis to test, not an established saving.
 
 Safe:
 
-> ExactScope packages deterministic numeric semantics, weak-model interfaces, constrained generation assets, capability specialization, conformance, artifact identity, and evidence tooling into one reusable subsystem.
+> ExactScope is designing a reusable small-model grounding subsystem around provider-neutral evidence contracts, authority/freshness/conflict policy, compact context budgets, reproducible provider/index identity and benchmark/qualification tooling, while retaining deterministic quantitative capability where needed.
 
 Not safe without customer evidence:
 
@@ -149,20 +157,19 @@ The commercial argument is currently the **scope of reusable engineering/qualifi
 
 ## 11. Model-matrix wording
 
-The planned rc3 core matrix contains five deliberately diverse models:
+The completed rc3 core matrix used five deliberately diverse models:
 
 - Gemma 3 270M IT;
 - LFM2.5 350M;
 - Qwen3.5 0.8B;
 - Qwen3.5 2B;
-- Phi-4-mini-instruct 3.8B;
-- optional separate Gemma 3n E2B product profile.
+- Phi-4-mini-instruct 3.8B.
 
 Safe wording:
 
-> rc3 will be qualified on a deliberately small multi-vendor/multi-scale model matrix; results are currently unmeasured.
+> In the frozen rc3 llama.cpp qualification, Qwen3.5 models recognized native tools much more often than Gemma/LFM/Phi, while the largest tested Phi model was not the strongest native tool caller. The result points to chat-template/tool-protocol compatibility and model-surface difficulty, not a simple model-size relationship.
 
-Do not publish blank rows or planned model names in a way that visually implies a score.
+When giving individual scores, include the exact rc3 identity/surface and denominator and link to the closeout/evidence. Do not imply the matrix is a general leaderboard or that rc4 inherits the scores.
 
 ## 12. Stable-support wording
 
@@ -176,7 +183,7 @@ Do not call it:
 - stable LTS;
 - certified for Android/wearables/smart glasses generally.
 
-A future stable claim should be based on the exact release artifacts and the promotion gate in `docs/QUALIFICATION_HANDOFF.md`.
+A future stable claim should be based on exact immutable artifacts plus model/target/support evidence that satisfies the current `ROADMAP.md`/`COMPATIBILITY.md` gates. The rc3 qualification handoff is historical and is not the active promotion checklist.
 
 ## 13. Evidence citation checklist
 
@@ -196,8 +203,8 @@ If these fields are unavailable, keep the wording qualitative or explicitly hist
 
 ## 14. Current recommended README hero
 
-Use the current release-state message rather than an old score:
+Use the current product-state message rather than an old score:
 
-> **ExactScope v1.0.0-rc.3 is a code-side-complete integration and qualification candidate for adding narrow deterministic quantitative capability to small/on-device AI. rc3 model and real-device qualification are intentionally unmeasured until the public release is evaluated as an external user.**
+> **ExactScope is a tiny deterministic quantitative capability layer for small/on-device AI. The completed rc3 qualification showed that native tool-call reliability depends strongly on runtime/chat-template protocol and model-surface cost, so active rc4 development uses constrained JSON/GBNF as the compatibility baseline and native tools only when support is proven before inference.**
 
-This is less flashy than copying old r20 numbers into a new release, but it preserves the evidence boundary needed for credible qualification.
+Keep `v1.0.0-rc.3` labeled as the latest frozen prerelease, not stable support. Link the qualification closeout when referencing rc3 results.

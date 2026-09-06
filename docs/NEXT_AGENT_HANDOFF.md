@@ -1,9 +1,9 @@
-# Next agent handoff — ExactScope v1.0.0-rc.3
+# Next agent handoff — ExactScope v1.0.0-rc.3 — HISTORICAL
 
 Date: 2026-09-05
-Current phase: **public integration/qualification candidate packaging complete; evidence run deferred to a new session**
+Current phase recorded here: **closed; rc3 evidence run has since completed**
 
-This file is intentionally short. The full next-session procedure lives in [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md), and the ready-to-paste Korean prompt lives in [`NEXT_SESSION_PROMPT.md`](NEXT_SESSION_PROMPT.md).
+This file is preserved only as the pre-qualification handoff that existed before rc3 validation. It is not the current agent instruction. Current work is the **rc4 grounding final pre-inference package/preregistration gate**; read [`CODEX_CONTEXT.md`](CODEX_CONTEXT.md), [`PRODUCT_DIRECTION.md`](PRODUCT_DIRECTION.md), [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md), [`GROUNDING_BENCHMARK_HANDOFF.md`](GROUNDING_BENCHMARK_HANDOFF.md), [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md), and [`../ROADMAP.md`](../ROADMAP.md). Do not resume the rc3 procedure below or start new work from this historical record.
 
 ## What the previous implementation phase finished
 

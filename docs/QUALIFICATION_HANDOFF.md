@@ -1,10 +1,10 @@
 # ExactScope v1.0.0-rc.3 qualification handoff
 
-Status: **runbook for a later verification session**
-Release role: **integration & qualification candidate, not a stable/qualified product**
+Status: **HISTORICAL / CLOSED — rc3 qualification was completed on 2026-09-06**
+Release role: **audit/reproducibility record for the rc3 procedure; not the active work plan**
 Date: 2026-09-06
 
-This document is the source of truth for the next session that evaluates ExactScope as an external user would. The present release-preparation session must not create rc3 model scores or target-device claims. Qualification starts only from the immutable GitHub `v1.0.0-rc.3` release and its published assets.
+This runbook records the procedure that was used to qualify the immutable public rc3 release. Do not resume or extend rc3 inference from this document. The accepted findings and transition to rc4 are in [`RC3_QUALIFICATION_CLOSEOUT.md`](RC3_QUALIFICATION_CLOSEOUT.md); any changed prompt, grammar, selector, runtime, validator or capability surface requires a new candidate identity.
 
 ## 1. Non-negotiable evidence boundary
 

@@ -1,10 +1,10 @@
 # Compatibility contract
 
-Release context: **v1.0.0-rc.3 integration & qualification candidate**. No rc3 path is promoted to Tier 1/Tier 2 until evidence is produced against the exact published artifact.
+Release context: **rc4 grounding-contract design after completed v1.0.0-rc.3 qualification**. rc3 remains prerelease/historical quantitative evidence and is not automatically promoted to Tier 1/Tier 2. rc4 adds a compatibility layer above ABI/runtime: a grounding result is compatible only when source scope, authority, retrieval-provider/index identity, Evidence Policy and Grounding Frame semantics are all bound. Native-tool compatibility remains relevant only to optional model-generated quantitative/rewrite paths.
 
-Compatibility is evidence attached to a released artifact, not a statement that the source code compiled somewhere.
+Compatibility is evidence attached to an exact artifact **and behavior-affecting grounding profile**, not a statement that source code compiled or one search query returned a plausible hit.
 
-The current product strategy deliberately separates **primary v0.1 release profiles** from broader experimental architecture so universal platform/profile parity does not delay the first product proof.
+The current product strategy separates the already-published **rc3 quantitative profiles** from the not-yet-frozen **rc4 grounding provider/profile contract** so grounding design can converge without falsely promoting prototype retrieval code or old platform packages.
 
 ## 1. Support vocabulary
 
@@ -15,31 +15,68 @@ The current product strategy deliberately separates **primary v0.1 release profi
 
 No README badge or release note may call an artifact supported without the corresponding evidence.
 
-## 2. Primary v0.1 compatibility scope
+## 2. Grounding compatibility identity — active rc4 design
 
-### Primary candidates
+Grounding compatibility is provider-neutral. Two integrations are not the same compatibility target merely because they emit the same JSON fields.
+
+A grounding profile identity must bind, at minimum:
+
+- Grounding Contract version;
+- allowed source namespaces/scope semantics;
+- authority mode per source/namespace;
+- source/content revision or immutable digest;
+- Retrieval Provider type and implementation revision;
+- query preprocessing/normalization identity;
+- index/content build identity and digest where an index exists;
+- ranking/top-k configuration that can change selected evidence;
+- embedding model/tokenizer/vector/index identity where semantic retrieval is used;
+- freshness/revision selection policy;
+- duplicate/conflict/ambiguity policy;
+- provider-unavailable behavior;
+- model-visible evidence item/byte/token budget;
+- Grounding Frame serialization/model-policy revision;
+- prefetch vs rewrite/tool query profile and model-call budget.
+
+A change to one of those behavior-affecting fields creates a different grounding compatibility identity for qualification.
+
+Exact/alias, lexical, semantic/vector, application-native and captured network/search providers may all be compatible with the same logical Grounding Contract. **Algorithm parity is not required; contract/failure/identity semantics are.**
+
+### Grounding compatibility requirements
+
+A compatible provider/profile must prove:
+
+1. scope isolation occurs before retrieval;
+2. `authoritative` and `supplemental` behavior is preserved;
+3. `grounded`, `none`, `ambiguous`, `conflict`, and `unavailable` remain distinguishable;
+4. evidence identity/source/revision survive provider -> policy -> model-frame transport;
+5. configured evidence budgets are enforced deterministically at the policy boundary;
+6. false/ambiguous/conflicting evidence is not silently upgraded into an authoritative hit;
+7. provider failure is not reported as a true no-hit;
+8. model-facing evidence cannot change higher-priority Grounding Policy semantics;
+9. the exact provider/profile identity is recorded with benchmark evidence.
+
+Support/Tier promotion for a grounding profile additionally requires representative end-to-end evidence; a retrieval unit test alone is insufficient.
+
+## 3. Published rc3 quantitative compatibility scope
+
+The currently published prerelease compatibility candidates remain:
 
 1. **Native static C ABI**
 2. **No-import `wasm32v1-none`**
 
-These profiles receive the first stable quickstart, prebuilt artifacts, benchmark integration, and qualification effort.
+These describe the rc3 quantitative subsystem and its release assets. They do not imply that an rc4 grounding SDK/profile is already published.
 
-### Secondary/experimental
+Secondary/experimental quantitative paths include dynamic packs/discovery, convenience wrappers, wider native OS/architecture targets, embedded/bare-metal targets and additional shared-library profiles.
 
-- dynamic-pack profile;
-- dynamic discovery;
-- Android/iOS convenience wrappers;
-- wider native OS/architecture matrix;
-- embedded/bare-metal targets;
-- additional shared-library profiles.
+The quantitative invariant remains that any profile exposing the same operation uses the same shared calculation semantics. It is not a requirement that every grounding provider and every quantitative platform reach Tier 1 simultaneously.
 
-The invariant is that any profile exposing the same operation uses the same shared calculation semantics. It is **not** a v0.1 requirement that every profile and platform reach Tier 1 simultaneously.
-
-## 3. Current evidence snapshot
+## 4. Current evidence snapshot
 
 | Path | Current evidence | Current claim |
 |---|---|---|
-| Native scalar/statistics C ABI | source/unit/conformance coverage; zero-copy vector path; rc3 evaluation packaging | implemented candidate path; not Tier 1/Tier 2 yet |
+| rc4 grounding logical contract | architecture/specification review only; no frozen provider/profile candidate or model evidence yet | design-stage / **no accuracy, hallucination-reduction, provider-support or Tier claim** |
+| prototype exact/lexical recall code | local prototype/self-test evidence only | non-normative implementation probe; not the grounding compatibility definition |
+| Native scalar/statistics C ABI | source/unit/conformance coverage; zero-copy vector path; rc3 evaluation packaging | implemented quantitative candidate path; not Tier 1/Tier 2 yet |
 | Dynamic statistics `.xsp` path | shared kernel and fused/dynamic parity tests for implemented slice | implemented secondary path |
 | No-import Wasm | source/build inspection and runtime/component tests; rc3 evaluation packaging | implemented candidate path; not Tier 1/Tier 2 yet |
 | Android AArch64 static SDK | cross-build/package workflow, CMake target, doctor/reference host infrastructure | Experimental rc3 candidate until published artifact/target evidence exists |
@@ -52,23 +89,26 @@ The invariant is that any profile exposing the same operation uses the same shar
 
 The legacy planned example in `spec/examples/compatibility-manifest.json` remains a design placeholder. A current release record is meaningful only when produced from the exact verified release archive it names. Target/runtime execution, conformance, resource evidence, and support promotion remain separate requirements below.
 
-## 4. What a supported artifact must prove
+## 5. What a supported artifact/profile must prove
 
-For the same immutable release artifact:
+For a grounding profile, support evidence must bind the exact Grounding Contract/Profile plus source/provider/index/projection identities and prove, as applicable:
 
-1. documented clean integration/build path;
-2. ABI/wire conformance;
-3. canonical golden vectors;
-4. malformed request/pack behavior where relevant;
-5. artifact identity/digest;
-6. size/memory records;
-7. actual runtime execution on the declared target/runtime;
-8. required self-test success;
-9. exact operation/hot-set scope documented.
+1. documented clean integration/install path;
+2. profile/schema/canonicalization/digest conformance;
+3. security-scope and provider/source binding enforcement;
+4. deterministic Router/Provider/Policy/Projection replay for local components;
+5. correct authoritative coverage and `none` vs `unavailable` behavior;
+6. ambiguity/conflict/freshness/dedup/order/budget behavior;
+7. provider/index/source-snapshot identity and reproducibility;
+8. model-projection and adversarial-evidence/data-boundary tests;
+9. representative end-to-end A/G evidence before an accuracy/support claim;
+10. size/memory/latency/resource evidence for any target-specific cost claim.
+
+For a quantitative runtime artifact, retain the existing requirements: clean build/integration, ABI/wire conformance, canonical vectors, malformed request/pack behavior, artifact identity/digest, size/memory records, target execution, self-tests and exact operation/hot-set scope.
 
 Performance claims additionally require the actual target used for the claim.
 
-## 5. Native static C ABI requirements
+## 6. Native static C ABI requirements
 
 The C ABI remains the native cross-language authority.
 
@@ -92,7 +132,7 @@ Tier evidence should include:
 - exact release archive digest;
 - platform runtime execution.
 
-## 6. WebAssembly baseline
+## 7. WebAssembly baseline
 
 The primary portable artifact uses `wasm32v1-none` and must not require:
 
@@ -112,7 +152,7 @@ Required release evidence:
 - artifact size/digest;
 - execution in at least one declared runtime.
 
-## 7. Direct-hot-path compatibility
+## 8. Direct-hot-path compatibility
 
 A product integration is considered compatible only when its hot-set binding cannot silently drift from the runtime.
 
@@ -131,7 +171,7 @@ On mismatch:
 
 `xs_find` remains available as fallback where enabled, but repeated known operations should not require discovery.
 
-## 8. Adapter compatibility
+## 9. Adapter compatibility
 
 Generated OpenAI-compatible/GBNF/llama.cpp assets are compatibility artifacts in their own right.
 
@@ -146,7 +186,7 @@ They require:
 
 A model adapter cannot be called compatible merely because it produced parseable JSON once.
 
-## 9. Fail-closed compatibility
+## 10. Fail-closed compatibility
 
 The core remains strict. Compatibility testing must include both acceptance and rejection behavior.
 
@@ -163,13 +203,13 @@ Required negative classes include:
 
 Adapters may apply allowed syntactic normalization but cannot repair semantic errors.
 
-## 10. Data/pack portability
+## 11. Data/pack portability
 
 `.xsp` is canonical little-endian and contains offsets rather than native pointers. Loaders decode fields explicitly and validate every offset/count/length.
 
 Dynamic packs remain Experimental until their intended release profile has complete loader/discovery/update evidence. Their existence does not block the primary native/Wasm product release.
 
-## 11. CPU policy
+## 12. CPU policy
 
 The correctness path remains scalar.
 
@@ -178,7 +218,7 @@ The correctness path remains scalar.
 - baseline correctness must not require a specific FPU mode;
 - product claims must identify the artifact/CPU profile used.
 
-## 12. Platform packaging policy
+## 13. Platform packaging policy
 
 Android, Apple, Windows, Linux, or other wrappers are convenience distribution layers around the same shared core.
 
@@ -191,7 +231,7 @@ A wrapper:
 
 Only ABI slices with exact release evidence belong in a supported package.
 
-## 13. Wearable/device claims
+## 14. Wearable/device claims
 
 “Wearable support” is too broad to be a compatibility claim.
 
@@ -205,60 +245,73 @@ Documentation must identify the actual execution boundary:
 
 A closed device without a legitimate product-controlled executable boundary cannot be retrofitted by ExactScope independently. ExactScope is integrated by the product team; it is not an end-user installation target.
 
-## 14. Conformance corpus priorities
+## 15. Conformance corpus priorities
 
-Primary release conformance covers:
+The grounding candidate must cover, before model inference:
 
-- decimal lexical/canonical behavior;
-- arithmetic/rounding/sqrt boundaries;
-- scalar VM/kernel vectors;
-- statistics vectors;
-- classification-before-rounding;
-- C ABI/TinyWire buffer/status behavior;
-- direct hot-set operation identity;
-- malformed request behavior;
-- no-import Wasm inspection;
-- adapter fixtures where shipped.
+- GroundingProfile schema/canonicalization/digest behavior;
+- QueryEnvelope/profile/security-scope binding;
+- Router/TargetPlan deterministic replay;
+- ProviderOutcome status/coverage semantics;
+- authoritative `none` versus `unavailable`;
+- mixed authoritative/supplemental target groups;
+- deterministic merge/order/tie-break/dedup independent of provider completion order;
+- freshness/validity and stale-revision selection;
+- ambiguity/conflict preservation;
+- Evidence Item canonicalization/content identity;
+- whole-item evidence budget/truncation;
+- Model Projection byte determinism and target-state preservation;
+- adversarial evidence/data-versus-instruction fixtures;
+- serving/gold benchmark isolation;
+- captured remote-provider replay when such a profile is shipped.
 
-Dynamic pack corruption/offset/string/duplicate tests remain mandatory for any release that ships dynamic packs.
+The retained quantitative release conformance still covers decimal arithmetic, VM/kernel/statistics vectors, C ABI/TinyWire behavior, operation identity, malformed requests, no-import Wasm inspection, and shipped adapter fixtures. Dynamic pack corruption/offset/string/duplicate tests remain mandatory for any release that ships dynamic packs.
 
-## 15. Performance/resource evidence
+## 16. Performance/resource evidence
 
-For any target used in marketing/product claims, record:
+For any grounding target/profile used in claims, record as applicable:
 
-- artifact bytes;
-- context bytes;
-- eval scratch bytes;
-- vector transport/copy bytes;
-- p50/p99 ExactScope compute latency where relevant;
-- end-to-end latency separately;
-- energy where measurable;
-- runtime/hardware/toolchain configuration.
+- source snapshot and provider-index bytes;
+- provider/runtime code bytes;
+- resident memory/RSS/heap;
+- GroundingFrame and Model Projection bytes;
+- model-visible evidence tokens;
+- retrieval p50/p95/p99 latency with cold/warm distinction;
+- answer-model and end-to-end latency separately;
+- energy where credibly measurable;
+- runtime/hardware/toolchain/provider configuration.
 
-Do not extrapolate one hardware measurement to another platform.
+For quantitative paths, continue to record artifact/context/scratch/vector transport and ExactScope compute latency separately.
 
-## 16. Benchmark compatibility
+Do not extrapolate one hardware/provider measurement to another platform or provider profile.
 
-A published model benchmark must record the exact:
+## 17. Benchmark compatibility
 
-- ExactScope artifact digest;
-- hot-set/pack digest;
-- operation revisions;
-- adapter schema/GBNF digest;
-- model/runtime/quantization/hardware settings;
-- benchmark dataset revision.
+A published grounding benchmark must record the exact:
+
+- ExactScope candidate/release digest;
+- Grounding Contract/Profile bytes and digest;
+- router/configuration identity;
+- source snapshots and provider/index/preprocessing/ranking identities;
+- embedding/tokenizer/index identity where semantic retrieval is used;
+- merge/freshness/conflict/timeout/budget/projection identities;
+- serving corpus and scorer-gold digests separately;
+- model/runtime/quantization/hardware/generation settings;
+- raw per-query routing/provider/frame/projection records subject to privacy policy.
+
+A quantitative benchmark additionally binds its hot-set/pack, operation revisions, adapter schema/GBNF and model-surface identities.
 
 See [BENCHMARK.md](BENCHMARK.md).
 
 Operation-revision compatibility is governed by [OPERATION_REVISION_POLICY_V0_1.md](../spec/OPERATION_REVISION_POLICY_V0_1.md). Transparent upgrades of one capability profile can be checked statically with `tools/check_operation_revision_compat.py`; revision upgrades require explicit review and never inherit benchmark/qualification evidence automatically.
 
-## 17. Release promotion rule
+## 18. Release promotion rule
 
 An Experimental path becomes Tier 2/Tier 1 only after evidence is produced for the immutable artifact being promoted.
 
 A green source-tree CI run from another commit cannot retroactively qualify a release artifact.
 
-## 18. Product-scope rule
+## 19. Product-scope rule
 
 A focused v0.1 may ship with a narrow operation/profile/target matrix if that scope is clearly documented and benchmark-backed.
 

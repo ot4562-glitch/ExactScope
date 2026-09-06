@@ -1,21 +1,21 @@
 # ExactScope benchmark tooling
 
-Release context: **v1.0.0-rc.3**
-Status: **harness/source inputs are shipped; rc3 model results are intentionally unmeasured**
+Release context: **rc4 tooling development after completed v1.0.0-rc.3 qualification**
+Status: **rc3 outputs are frozen historical evidence; harness code is being upgraded for model-envelope identity and efficiency metrics**
 
 This directory contains benchmark/corpus/tooling infrastructure. It is developer/evidence tooling, not a target runtime dependency.
 
-## Start here for rc3
+## Start here for rc4 development
 
 Read:
 
-1. `../docs/QUALIFICATION_HANDOFF.md`
-2. `NEXT_MODEL_MATRIX.md`
-3. `model-downloads.json`
-4. `../docs/BENCHMARK.md`
-5. `../docs/NEXT_SESSION_PROMPT.md`
+1. `../docs/RC3_QUALIFICATION_CLOSEOUT.md`
+2. `../docs/MODEL_INTERFACE_RC4.md`
+3. `../docs/BENCHMARK.md`
+4. `../ROADMAP.md`
+5. `model-downloads.json` only when preparing a new candidate-bound model run.
 
-Do not run the rc3 model matrix from a moving developer checkout. Start from the immutable public GitHub `v1.0.0-rc.3` release and preserve release/model/runtime/corpus identities before inference.
+Do not resume the old rc3 matrix. If new inference is requested, first freeze a new immutable candidate and preregister the exact release/model/runtime/corpus/model-envelope identities before inference.
 
 ## Model download only
 

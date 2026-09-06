@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.org/spec/schemas/grounding-routing-plan-v0.1.schema.json",
+  "title": "ExactScope grounding-routing-plan v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "v": {
+      "const": 1
+    },
+    "qid": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "profile_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "security_scope_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "router_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "router_config_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "$ref": "grounding-target-plan-v0.1.schema.json"
+      },
+      "minItems": 0
+    }
+  },
+  "required": [
+    "v",
+    "qid",
+    "profile_sha256",
+    "security_scope_id",
+    "router_id",
+    "router_config_sha256",
+    "targets"
+  ]
+}

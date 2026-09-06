@@ -1,0 +1,1 @@
+{"case":"ASCII-lower","id":"ascii-token-v1","join":" ","stemming":false,"stop_words":[],"tokens":"[a-z0-9]+","unicode_normalization":"none"}

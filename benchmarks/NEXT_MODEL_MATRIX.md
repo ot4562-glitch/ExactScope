@@ -1,12 +1,12 @@
-# ExactScope v1.0.0-rc.3 qualification model matrix
+# ExactScope v1.0.0-rc.3 qualification model matrix — HISTORICAL
 
-Status: **planned, unmeasured for v1.0.0-rc.3**
-As-of: 2026-09-05
+Status: **completed/frozen rc3 plan; do not use as an instruction to resume rc3 inference**
+As-of: 2026-09-06
 Machine-readable source: [`model-downloads.json`](model-downloads.json)
 
-This is the next-session model plan for the release artifact. It is intentionally small: five core GGUF models cover an extreme-small architecture, an edge-first architecture, a current mainstream sub-1B model, a 2B scaling point, and an independent upper-small reasoning model. One explicit low-resource product model is optional and runs as a separate runtime/device profile.
+This document records the five-model plan used for the completed rc3 qualification. Its selection remains useful as historical design context and may be reused only by creating a new preregistered candidate/run identity.
 
-No score in this document belongs to `v1.0.0-rc.3` until the exact release tag, release asset digests, model repository revisions, model file digests, corpus, prompts, generation settings, scoring code, and output records have been frozen together.
+The completed rc3 observations and model-interface conclusion are summarized in [`../docs/RC3_QUALIFICATION_CLOSEOUT.md`](../docs/RC3_QUALIFICATION_CLOSEOUT.md). No rc3 score may be copied to rc4 after prompt, grammar, interface selector, runtime, validator or capability-surface changes.
 
 ## Core five
 

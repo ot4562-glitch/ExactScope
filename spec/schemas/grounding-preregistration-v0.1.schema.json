@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.org/spec/schemas/grounding-preregistration-v0.1.schema.json",
+  "title": "ExactScope grounding-preregistration v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "v": {
+      "const": 1
+    },
+    "registration_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "state": {
+      "enum": [
+        "preregistered",
+        "complete",
+        "invalid",
+        "aborted"
+      ]
+    },
+    "profile_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "source_snapshot_sha256": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      "minItems": 1
+    },
+    "provider_identity_sha256": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      "minItems": 1
+    },
+    "projection_template_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "projection_policy_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "projection_renderer_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "serving_corpus_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "gold_corpus_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "generator_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "generator_seed": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "scorer_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "model_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "runtime_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "generation_config_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "answer_calls_per_arm": {
+      "const": 1
+    },
+    "arms": {
+      "const": [
+        "A",
+        "G"
+      ]
+    },
+    "rewrite_calls": {
+      "const": 0
+    },
+    "isolation_policy_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "writer_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "duplicate_rule": {
+      "const": "reject-qid-arm"
+    },
+    "drift_rule": {
+      "const": "reject-any-bound-byte-or-config-drift"
+    },
+    "remote_replay_sha256": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      "minItems": 0
+    },
+    "claim": {
+      "const": "Identity record only; not benchmark readiness or inference evidence."
+    }
+  },
+  "required": [
+    "v",
+    "registration_id",
+    "state",
+    "profile_sha256",
+    "source_snapshot_sha256",
+    "provider_identity_sha256",
+    "projection_template_sha256",
+    "projection_policy_sha256",
+    "projection_renderer_sha256",
+    "serving_corpus_sha256",
+    "gold_corpus_sha256",
+    "generator_sha256",
+    "generator_seed",
+    "scorer_sha256",
+    "model_sha256",
+    "runtime_sha256",
+    "generation_config_sha256",
+    "answer_calls_per_arm",
+    "arms",
+    "rewrite_calls",
+    "isolation_policy_sha256",
+    "writer_id",
+    "duplicate_rule",
+    "drift_rule",
+    "remote_replay_sha256",
+    "claim"
+  ]
+}

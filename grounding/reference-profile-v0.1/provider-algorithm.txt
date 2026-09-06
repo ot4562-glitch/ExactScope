@@ -1,0 +1,15 @@
+exact-lexical-reference-v1 (frozen algorithm identity; host execution is P2)
+Inputs: validated QueryEnvelope, TargetPlan binding, profile and digest-verified index/source.
+Reject a security scope other than reference-public as denied, complete=false.
+Scan every index entry in the binding source_ids and matching target_key, in tuple UTF-8 order.
+Normalize query and aliases exactly as preprocessing.json; score exactly as ranking.json.
+Resolve each indexed tuple to exactly one source record in its bound snapshot revision.
+Missing records, digest drift, malformed inputs or mismatched targets are error, complete=false.
+Keep all positive-scoring candidates, sorted by ranking.json. Never use a rank as authority.
+A complete scan with no matches returns none, complete=true, candidates=[], reason=null.
+A complete scan with matches returns ok, complete=true, reason=null and all candidates.
+More than 16 candidates or any content limit violation returns budget_exceeded, complete=false.
+Do not silently truncate. Timeout returns timeout; cancellation returns error with reason cancelled.
+All failures have candidates=[] and a nonempty reason. One attempt; no retries or rewrite.
+Bind every outcome to qid, profile digest, scope, target, provider, attempt=1 and all invoked snapshot digests.
+No inference, network, filesystem discovery, clocks as revisions, or fact-pack authority fields.
