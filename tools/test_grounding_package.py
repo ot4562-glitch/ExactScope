@@ -8,6 +8,8 @@ import importlib.util
 import json
 from pathlib import Path
 import shutil
+import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -83,6 +85,26 @@ class GroundingPackageTests(unittest.TestCase):
         self.assertTrue((root / "candidate/serving/questions.jsonl").is_file())
         self.assertTrue((root / "benchmarks/run_grounding_benchmark.py").is_file())
         self.assertEqual(result1["file_count"], result2["file_count"])
+
+    def test_packaged_python_commands_do_not_mutate_package_with_bytecode(self):
+        _, result = self.build_package("pkg-bytecode")
+        package_root = self.extract(Path(result["archive"]), self.work / "extract-bytecode")
+        dryrun_output = self.work / "dryrun-bytecode"
+        commands = [
+            [sys.executable, "benchmarks/grounding_dry_run.py", "serve", "--candidate", "candidate", "--output", str(dryrun_output)],
+            [sys.executable, "tools/grounding_runtime.py", "verify", "--profile-dir", "candidate/serving/grounding"],
+            [sys.executable, "benchmarks/grounding_preregister.py", "--help"],
+            [sys.executable, "benchmarks/run_grounding_benchmark.py", "--help"],
+            [sys.executable, "benchmarks/score_grounding.py", "--help"],
+        ]
+        for command in commands:
+            with self.subTest(command=command[1]):
+                subprocess.run(command, cwd=package_root, check=True, capture_output=True, text=True)
+        cache_dirs = [path for path in package_root.rglob("__pycache__") if path.is_dir()]
+        pyc_files = [path for path in package_root.rglob("*.pyc") if path.is_file()]
+        self.assertEqual(cache_dirs, [])
+        self.assertEqual(pyc_files, [])
+        self.assertEqual(verify_mod.verify(package_root)["status"], "ok")
 
     def make_dummy_identity(self):
         model_root = self.work / "models"

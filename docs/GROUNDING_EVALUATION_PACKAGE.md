@@ -53,6 +53,8 @@ README.md
 
 `candidate/gold/` is scorer-only. The serving dry-run and model runner must not open it. The scorer opens gold only after a complete raw A/G run exists.
 
+The extracted package is also treated as an immutable payload. Packaged Python entrypoints disable bytecode-cache writes before importing package-local modules, so normal verification/dry-run/preregistration/help paths must not create `__pycache__` or `.pyc` files inside the package. The strict package verifier therefore remains valid after first use rather than needing to ignore interpreter-generated extra files.
+
 ## Zero-inference clean-room sequence
 
 From the extracted package root:

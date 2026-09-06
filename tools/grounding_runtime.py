@@ -9,7 +9,10 @@ import importlib.util
 import json
 from pathlib import Path
 import re
+import sys
 from typing import Any, Protocol
+
+sys.dont_write_bytecode = True
 
 from grounding_canonical import canonical_bytes, canonical_sha256, loads
 from grounding_match import ascii_words, frozen_alias, matches as alias_matches

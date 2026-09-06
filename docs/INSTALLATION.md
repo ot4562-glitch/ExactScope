@@ -26,6 +26,8 @@ A local lexical profile, a frozen embedding/vector profile, and an application-n
 
 The target host must keep private/user/tenant scope outside unauthorized providers and must record `unavailable` separately from a true no-hit.
 
+For the rc4 grounding evaluation package, Python entrypoints must not write interpreter cache files into the extracted package. The package verifier intentionally rejects unmanifested extra files, so packaged commands disable bytecode-cache writes and the payload remains re-verifiable after first use on Linux and Windows.
+
 ## 1. Prefer a published rc3 release asset for quantitative evaluation
 
 For external evaluation of the current public quantitative runtime, use the immutable GitHub release rather than a developer checkout.
