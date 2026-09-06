@@ -16,6 +16,7 @@ from typing import Any
 
 from compile_capability import (
     canonical,
+    constrained_request_grammar,
     digest,
     load,
     model_surface_contract,
@@ -110,7 +111,7 @@ def build_profile(
             "semantic_operation_count": len(operations),
             "prompt_fragment_bytes_max": 1024,
             "schema_bytes_max": 4096,
-            "grammar_bytes_max": 4096,
+            "grammar_bytes_max": 16384,
             "generated_request_tokens_max": 256,
             "request_bytes_max": 512,
             "plan_steps_max": 8 if combined else 0,
@@ -176,6 +177,23 @@ def build_one(
             b"Use xs_calc only for generic arithmetic without a reviewed semantic method; "
             b"prefer xs_eval for bound economics/statistics methods.\n"
         )
+
+    constrained_lines = [
+        "Emit exactly one constrained JSON request; do not calculate the answer yourself.",
+        "For a supported reviewed method with all required inputs, emit its exact xs_eval object with decimal strings in signature order.",
+        "If no valid call can be made because information is missing, unsupported, or ambiguous, emit {\"n\":true}.",
+    ]
+    if combined:
+        constrained_lines.append(
+            "Use an xs_calc plan only for generic arithmetic that does not require one of the reviewed semantic methods below."
+        )
+    constrained_lines.append("Bound semantic operations:")
+    constrained_lines.extend(operation["sig"] for operation in catalog["operations"])
+    files["constrained-prompt.txt"] = ("\n".join(constrained_lines) + "\n").encode("ascii")
+    files["xs-request.gbnf"] = constrained_request_grammar(
+        files.get("xs-eval.gbnf"),
+        files.get("xs-calc.gbnf"),
+    )
 
     profile = build_profile(
         profile_id=profile_id,

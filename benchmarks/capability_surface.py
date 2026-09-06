@@ -14,6 +14,8 @@ MODEL_SURFACE_ASSETS = {
     "xs-calc.tool.json": ("tool-schema", "exactscope.xs-calc.tool", "0.1"),
     "xs-eval.gbnf": ("grammar", "exactscope.xs-eval.gbnf", "0.1"),
     "xs-eval.tool.json": ("tool-schema", "exactscope.xs-eval.tool", "0.1"),
+    "xs-request.gbnf": ("grammar", "exactscope.xs-request.gbnf", "0.1"),
+    "constrained-prompt.txt": ("prompt", "exactscope.constrained-prompt", "0.1"),
 }
 
 
@@ -44,6 +46,7 @@ class CapabilitySurface:
     contract: dict[str, Any]
     catalog: dict[str, Any]
     prompt: str
+    constrained_prompt: str
     tools: dict[str, dict[str, Any]]
     grammars: dict[str, str]
     bundle_sha256: str
@@ -194,9 +197,16 @@ def load_capability(root: Path, *, corpus: Path | None = None) -> CapabilitySurf
     if not calc_enabled and ((root / "xs-calc.tool.json").exists() or (root / "xs-calc.gbnf").exists()):
         raise CapabilityError("semantic-only capability unexpectedly exposes xs_calc")
 
+    request_grammar = root / "xs-request.gbnf"
+    constrained_prompt_path = root / "constrained-prompt.txt"
+    if not request_grammar.is_file() or not constrained_prompt_path.is_file():
+        raise CapabilityError("capability is missing the constrained request surface")
+    grammars["request"] = request_grammar.read_text(encoding="utf-8")
+
     prompt = (root / "prompt-fragment.txt").read_text(encoding="utf-8").strip()
-    if not prompt:
-        raise CapabilityError("capability prompt fragment is empty")
+    constrained_prompt = constrained_prompt_path.read_text(encoding="utf-8").strip()
+    if not prompt or not constrained_prompt:
+        raise CapabilityError("capability prompt surface is empty")
     if corpus is not None:
         mapping = root / "benchmark-mapping.jsonl"
         evidence = profile.get("evidence") if isinstance(profile, dict) else None
@@ -213,6 +223,7 @@ def load_capability(root: Path, *, corpus: Path | None = None) -> CapabilitySurf
         contract=contract,
         catalog=catalog,
         prompt=prompt,
+        constrained_prompt=constrained_prompt,
         tools=tools,
         grammars=grammars,
         bundle_sha256=detached,

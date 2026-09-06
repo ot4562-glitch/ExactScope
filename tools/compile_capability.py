@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -27,7 +28,9 @@ MODEL_SURFACE_ASSETS = {
     "xs-eval.tool.json": ("tool-schema", "exactscope.xs-eval.tool", "0.1"),
     "xs-calc.gbnf": ("grammar", "exactscope.xs-calc.gbnf", "0.1"),
     "xs-eval.gbnf": ("grammar", "exactscope.xs-eval.gbnf", "0.1"),
+    "xs-request.gbnf": ("grammar", "exactscope.xs-request.gbnf", "0.1"),
     "prompt-fragment.txt": ("prompt", "exactscope.prompt-fragment", "0.1"),
+    "constrained-prompt.txt": ("prompt", "exactscope.constrained-prompt", "0.1"),
 }
 
 
@@ -423,6 +426,44 @@ def position_aware_calc_grammar():
         'ws ::= [ \\t\\n\\r]{0,4}',
     ]
     return ("\n".join(lines) + "\n").encode()
+
+
+def namespace_gbnf(grammar, prefix):
+    """Namespace every rule in one GBNF document so grammars can be composed safely."""
+    text = grammar.decode("utf-8") if isinstance(grammar, bytes) else grammar
+    names = re.findall(r"(?m)^([A-Za-z][A-Za-z0-9_-]*)\s*::=", text)
+    if not names or "root" not in names:
+        raise ValueError("GBNF document has no root rule")
+    if len(names) != len(set(names)):
+        raise ValueError("GBNF document contains duplicate rule definitions")
+    for name in sorted(names, key=len, reverse=True):
+        text = re.sub(
+            rf"(?<![A-Za-z0-9_-]){re.escape(name)}(?![A-Za-z0-9_-])",
+            f"{prefix}-{name}",
+            text,
+        )
+    return text
+
+
+def constrained_request_grammar(eval_grammar=None, calc_grammar=None):
+    """Compose a model-agnostic request grammar with an explicit fail-closed no-call sentinel."""
+    if eval_grammar is None and calc_grammar is None:
+        raise ValueError("constrained request grammar requires at least one serving lane")
+    roots = []
+    documents = []
+    if eval_grammar is not None:
+        documents.append(namespace_gbnf(eval_grammar, "eval"))
+        roots.append("eval-root")
+    if calc_grammar is not None:
+        documents.append(namespace_gbnf(calc_grammar, "calc"))
+        roots.append("calc-root")
+    roots.append("no-call")
+    header = (
+        "root ::= " + " | ".join(roots) + "\n"
+        'no-call ::= "{" request-ws "\\\"n\\\"" request-ws ":" request-ws "true" request-ws "}"\n'
+        "request-ws ::= [ \\t\\n\\r]{0,2}\n"
+    )
+    return (header + "".join(documents)).encode("utf-8")
 
 
 def compile_profile(source, packc):

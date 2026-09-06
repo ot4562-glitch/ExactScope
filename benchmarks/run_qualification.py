@@ -27,6 +27,7 @@ from run_benchmark import Case, CoreBridge, core_matches, load_cases, normalize_
 
 ROOT = Path(__file__).resolve().parents[1]
 ARMS = ("A", "C", "D")
+MODEL_INTERFACES = ("constrained_json", "native_tools")
 DECIMAL_RE = re.compile(r"^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$")
 REFERENCE_RE = re.compile(r"^#([0-7])$")
 INTEGER_RE = re.compile(r"^-?(?:0|[1-9][0-9]*)$")
@@ -377,6 +378,101 @@ def tool_body(case: Case, surface: CapabilitySurface) -> dict[str, Any]:
     }
 
 
+def constrained_body(case: Case, surface: CapabilitySurface) -> dict[str, Any]:
+    return {
+        "messages": [
+            {"role": "system", "content": surface.constrained_prompt},
+            {"role": "user", "content": case.prompt},
+        ],
+        "grammar": surface.grammars["request"],
+    }
+
+
+def score_constrained_reply(
+    *,
+    case: Case,
+    reply: ModelReply,
+    surface: CapabilitySurface,
+    core: CoreBridge,
+    arm: str,
+) -> dict[str, Any]:
+    expected_lane = "none" if case.expected_call is None else "xs_eval"
+    selected_lane = "none"
+    call: dict[str, Any] | None = None
+    parsed: dict[str, Any] | None = None
+    core_response: dict[str, Any] | None = None
+    normalized_core: dict[str, Any] | None = None
+    core_latency: float | None = None
+    request_valid = True
+    malformed = False
+    try:
+        content = reply.message.get("content")
+        if not isinstance(content, str):
+            raise QualificationFailure("constrained response content must be a JSON string")
+        decoded = parse_json_strict(content)
+        if not isinstance(decoded, dict):
+            raise QualificationFailure("constrained response root must be an object")
+        parsed = decoded
+        if set(decoded) == {"n"} and decoded.get("n") is True:
+            selected_lane = "none"
+        elif set(decoded) == {"op", "a"}:
+            selected_lane = "xs_eval"
+            call = validate_eval_call(decoded, surface)
+            core_response, core_latency = core.eval(call)
+            normalized_core = normalize_core(core_response)
+        elif set(decoded) == {"p"} and surface.calc_enabled:
+            selected_lane = "xs_calc"
+            call = validate_calc_call(decoded)
+            core_response, core_latency = core.call("request", call)
+            normalized_core = normalize_core(core_response)
+        else:
+            raise QualificationFailure("constrained response is outside the frozen request grammar lanes")
+    except QualificationFailure:
+        request_valid = False
+        malformed = True
+
+    eval_call = call if selected_lane == "xs_eval" else None
+    stages = stage_metrics(case, eval_call)
+    stages["tool_use_recognition"] = (
+        selected_lane == "none" if case.expected_call is None else selected_lane != "none"
+    )
+    lane_correct = selected_lane == expected_lane
+    core_status_correct: bool | None = None
+    if selected_lane == "xs_eval" and normalized_core is not None:
+        core_status_correct = core_matches(case, normalized_core)
+    if case.expected_call is None:
+        final_correct = lane_correct and request_valid
+        failure_fidelity = final_correct
+    else:
+        final_correct = bool(
+            lane_correct
+            and request_valid
+            and stages["operation_selection"]
+            and stages["argument_extraction"]
+            and core_status_correct
+        )
+        failure_fidelity = final_correct if case.should_fail else None
+    return {
+        "expected_lane": expected_lane,
+        "selected_lane": selected_lane,
+        "lane_selection": lane_correct,
+        **stages,
+        "tool_call_validity": request_valid if selected_lane != "none" else None,
+        "core_status_correct": core_status_correct,
+        "final_answer_correct": final_correct,
+        "result_fidelity": final_correct if case.expected_core["status"] == "OK" else None,
+        "failure_fidelity": failure_fidelity,
+        "malformed_output": malformed,
+        "incorrect_numeric_answer": bool(
+            normalized_core is not None and normalized_core.get("status") == "OK" and not final_correct
+        ),
+        "model_output": parsed,
+        "call": call,
+        "core_response": core_response,
+        "core_latency_ms": round(core_latency, 6) if core_latency is not None else None,
+    }
+
+
 def score_tool_reply(
     *,
     case: Case,
@@ -546,6 +642,12 @@ def preregistration_document(args: argparse.Namespace) -> dict[str, Any]:
             "hidden_repair": False,
             "parallel_tool_calls": False,
         },
+        "model_interface": {
+            "mode": args.model_interface,
+            "fallback": "none",
+            "native_tool_template_required": args.model_interface == "native_tools",
+            "constrained_no_call_sentinel": {"n": True} if args.model_interface == "constrained_json" else None,
+        },
         "corpus": {
             "path": str(corpus),
             "sha256": sha256_path(corpus),
@@ -560,16 +662,16 @@ def preregistration_document(args: argparse.Namespace) -> dict[str, Any]:
             "D": capability_identity(combined),
         },
         "arms": {
-            "A": "model-only; no ExactScope model-facing tool",
-            "C": "semantic capability; exact bound xs_eval only",
-            "D": "combined capability; exact bound xs_eval + xs_calc; semantic corpus expects xs_eval",
+            "A": "model-only; no ExactScope model-facing surface",
+            "C": f"semantic capability via {args.model_interface}; exact bound xs_eval only plus explicit no-call",
+            "D": f"combined capability via {args.model_interface}; exact bound xs_eval + xs_calc plus explicit no-call; semantic corpus expects xs_eval",
         },
         "order": {"type": "arm-major", "arms": list(ARMS), "corpus_order": "file-order"},
         "scoring": {
             "A_success": "exact expected decimal string; failures require null answer and nonempty error",
             "C_D_success": "expected lane + valid call + exact op + exact args + expected ExactScope status/value/classification",
             "D_lane_rule": "xs_calc on a benchmark semantic item is a wrong-lane failure even if its arithmetic result is numerically correct",
-            "missing_information": "no tool call",
+            "missing_information": "explicit no-call sentinel for constrained_json; no tool call for native_tools",
         },
         "failure_policy": {
             "single_writer": True,
@@ -603,6 +705,9 @@ def capability_identity(surface: CapabilitySurface) -> dict[str, Any]:
 def verify_preregistration(document: dict[str, Any]) -> tuple[list[Case], CoreBridge, CapabilitySurface, CapabilitySurface]:
     if document.get("format") != "exactscope.qualification.preregistration" or document.get("status") != "frozen-before-inference":
         raise QualificationFailure("unsupported or unfrozen preregistration")
+    interface = document.get("model_interface")
+    if not isinstance(interface, dict) or interface.get("mode") not in MODEL_INTERFACES or interface.get("fallback") != "none":
+        raise QualificationFailure("preregistration model interface is missing or unsupported")
     corpus_info = document.get("corpus")
     core_info = document.get("core")
     runtime_info = document.get("runtime")
@@ -714,6 +819,7 @@ def execute_run(preregistration_path: Path, output_dir: Path) -> None:
     cases, core, semantic, combined = verify_preregistration(prereg)
     generation = prereg["generation"]
     runtime = prereg["runtime"]
+    model_interface = prereg["model_interface"]["mode"]
     client = QualificationClient(
         base_url=runtime["base_url"],
         model=runtime["server_model_name"],
@@ -754,11 +860,20 @@ def execute_run(preregistration_path: Path, output_dir: Path) -> None:
                         scored = score_model_only(case, reply)
                     else:
                         assert surface is not None
-                        reply = client.chat(tool_body(case, surface))
-                        scored = score_tool_reply(case=case, reply=reply, surface=surface, core=core, arm=arm)
+                        if model_interface == "constrained_json":
+                            reply = client.chat(constrained_body(case, surface))
+                            scored = score_constrained_reply(
+                                case=case, reply=reply, surface=surface, core=core, arm=arm
+                            )
+                        else:
+                            reply = client.chat(tool_body(case, surface))
+                            scored = score_tool_reply(
+                                case=case, reply=reply, surface=surface, core=core, arm=arm
+                            )
                     record = {
                         "case_id": case.identifier,
                         "arm": arm,
+                        "model_interface": "model_only" if arm == "A" else model_interface,
                         "timestamp_utc": started,
                         "model_turns": 1,
                         "input_tokens": reply.input_tokens,
@@ -827,6 +942,7 @@ def parse_args() -> argparse.Namespace:
     pre.add_argument("--seed", type=int, default=42)
     pre.add_argument("--max-tokens", type=int, default=256)
     pre.add_argument("--timeout", type=float, default=120.0)
+    pre.add_argument("--model-interface", choices=MODEL_INTERFACES, default="constrained_json")
     pre.add_argument("--corpus", type=Path, default=ROOT / "benchmarks/corpus-v0.1.jsonl")
     pre.add_argument("--core", type=Path, required=True)
     pre.add_argument("--semantic-capability", type=Path, required=True)

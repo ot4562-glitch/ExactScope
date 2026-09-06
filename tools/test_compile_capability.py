@@ -222,7 +222,9 @@ class CompilerTests(unittest.TestCase):
         self.assertEqual(measurements["visible_semantic_operation_count"], 1)
         self.assertEqual(measurements["prompt_fragment_bytes"], 129)
         self.assertEqual(measurements["schema_bytes"], 811)
-        self.assertEqual(measurements["grammar_bytes"], 407)
+        self.assertEqual(measurements["grammar_bytes"], 411)
+        self.assertIn(b"ws ::= [ \\t\\n\\r]{0,2}", bundle["xs-eval.gbnf"])
+        self.assertNotIn(b"ws ::= [ \\t\\n\\r]*", bundle["xs-eval.gbnf"])
         self.assertNotIn("xs-calc.tool.json", bundle)
 
         combined = copy.deepcopy(request)
