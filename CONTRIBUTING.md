@@ -4,7 +4,7 @@ ExactScope is a tiny grounding and deterministic capability layer for small/on-d
 
 ## Current project phase
 
-`v1.0.0-rc.3` qualification is closed and its evidence is immutable. The current branch is in **rc4 grounding contract/design freeze**. Do not keep changing product code while the provider-neutral grounding contract is still being reviewed. Original-question prefetch, compact Grounding Frames, authority modes and retrieval-provider identity are the active product design; constrained/native quantitative interfaces remain supporting infrastructure.
+`v1.0.0-rc.3` qualification is closed and its evidence is immutable. The frozen rc4 grounding candidate source `125ad9403f22eece7f552701d4c7376bba3b697f` is **READY_FOR_GROUNDING_BENCHMARK** after no-inference Linux/Windows package and five-model preregistration gates. Do not change candidate behavior under that identity; the next phase is the separate A/G validation session. Original-question prefetch, compact Grounding Frames, authority modes and retrieval-provider identity are the active product design; constrained/native quantitative interfaces remain supporting infrastructure.
 
 Read this order first:
 

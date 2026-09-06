@@ -2,6 +2,8 @@
 
 Status: **rc4 pre-inference evaluation/qualification package contract**.
 
+Current frozen benchmark-ready instance: candidate source `125ad9403f22eece7f552701d4c7376bba3b697f`, archive `exactscope-grounding-eval-1.0.0-rc.4.tar.gz`, SHA-256 `f665ec8b04a258262f343c5f5e875633b04230f588a20db4da2a3c80faf75dc5`. See [`GROUNDING_BENCHMARK_READY.md`](GROUNDING_BENCHMARK_READY.md) for all bound identities and clean-room results.
+
 This package exists to let an independent session reach the first model request without using a developer checkout. It is not a production deployment package and does not claim that grounding improves model accuracy before the A/G benchmark is run.
 
 ## Purpose

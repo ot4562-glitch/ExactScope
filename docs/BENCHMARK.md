@@ -731,3 +731,5 @@ A candidate is **READY_FOR_GROUNDING_BENCHMARK** only when:
 - no model inference for the candidate has yet been run.
 
 The user may then start a separate validation/benchmark session from that immutable candidate.
+
+**Current status note (2026-09-06, non-normative):** frozen candidate source `125ad9403f22eece7f552701d4c7376bba3b697f` has met this gate with zero rc4 model inference. Its archive/package/profile/model/runtime/preregistration identities and Linux/Windows clean-room evidence are recorded in [`GROUNDING_BENCHMARK_READY.md`](GROUNDING_BENCHMARK_READY.md). The normative criteria above remain unchanged for future candidates.

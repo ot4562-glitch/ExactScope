@@ -1,8 +1,8 @@
 # ExactScope rc4 grounding benchmark handoff
 
-Status: **ACTIVE HANDOFF CONTRACT — use only after the source-bound candidate is labeled `READY_FOR_GROUNDING_BENCHMARK`**
+Status: **ACTIVE HANDOFF CONTRACT — frozen candidate `125ad9403f22eece7f552701d4c7376bba3b697f` is `READY_FOR_GROUNDING_BENCHMARK`**
 
-This handoff is for the separate validation session that will run the first rc4 model inference. It does not replace the historical rc3 qualification record in `QUALIFICATION_HANDOFF.md`.
+This handoff is for the separate validation session that will run the first rc4 model inference. Read [`GROUNDING_BENCHMARK_READY.md`](GROUNDING_BENCHMARK_READY.md) first for exact package/preregistration hashes. It does not replace the historical rc3 qualification record in `QUALIFICATION_HANDOFF.md`.
 
 ## 1. Product hypothesis being tested
 

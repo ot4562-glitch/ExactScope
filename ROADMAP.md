@@ -285,32 +285,32 @@ Before model benchmark:
 - [x] adversarial evidence/data-boundary tests;
 - [x] existing quantitative Rust/C/Wasm regression suites;
 - [x] source design/security/drift checks;
-- [ ] fresh final grounding evaluation package build from the final source commit;
+- [x] fresh grounding evaluation package built from the frozen candidate source commit;
 - [x] package manifest/SHA256 verifier and deterministic-package tests;
-- [ ] final clean-room first-use with zero model inference;
-- [ ] actual five-model preregistration dry-run from the extracted final package only;
-- [ ] native Windows/Linux command examples verified where that package supports them.
+- [x] final clean-room first-use with zero model inference, including post-use package re-verification;
+- [x] actual five-model preregistration dry-run from the extracted final package only;
+- [x] native Windows/Linux package verification and zero-inference dry-run commands verified.
 
-Success criterion: package is independently usable up to preregistration without a developer checkout and without launching a model.
+Success criterion: package is independently usable up to preregistration without a developer checkout and without launching a model. **Met for candidate source `125ad9403f22eece7f552701d4c7376bba3b697f`.**
 
 ## P5 — stop at benchmark-ready candidate
 
 The current user request ends here.
 
-A candidate may be labeled **READY_FOR_GROUNDING_BENCHMARK** only when:
+Frozen candidate: **READY_FOR_GROUNDING_BENCHMARK**. Exact package/preregistration identities are recorded in [`docs/GROUNDING_BENCHMARK_READY.md`](docs/GROUNDING_BENCHMARK_READY.md).
 
-- [ ] current docs/contracts are internally consistent;
-- [ ] Codex read-only review has no unresolved P0 blocker;
-- [ ] Grounding Contract/profile/schema/projection bytes are frozen;
-- [ ] source/provider/index identities are frozen;
-- [ ] serving/gold data are separated and hashed;
-- [ ] no-inference conformance/security/determinism tests pass;
-- [ ] packaging/clean-room tests pass;
-- [ ] preregistration dry-run passes from the frozen package;
-- [ ] benchmark model inventory is downloaded/hashed or otherwise ready to use;
-- [ ] **no new rc4 grounding model inference has been run**.
+- [x] current docs/contracts are internally consistent;
+- [x] Codex read-only review has no unresolved P0 blocker;
+- [x] Grounding Contract/profile/schema/projection bytes are frozen;
+- [x] source/provider/index identities are frozen;
+- [x] serving/gold data are separated and hashed;
+- [x] no-inference conformance/security/determinism tests pass;
+- [x] packaging/clean-room tests pass;
+- [x] preregistration dry-run passes from the frozen package for all five models;
+- [x] benchmark model inventory is downloaded/hashed and byte-verified;
+- [x] **no new rc4 grounding model inference has been run**.
 
-At that point create/update a dedicated handoff prompt for a separate benchmark/validation session. That later session will run A/G on the frozen diverse small-model matrix and then, separately, target-device qualification.
+The implementation session stops here. The separate benchmark/validation session must use [`docs/GROUNDING_BENCHMARK_HANDOFF.md`](docs/GROUNDING_BENCHMARK_HANDOFF.md) / [`docs/NEXT_SESSION_PROMPT.md`](docs/NEXT_SESSION_PROMPT.md) and run A/G on the frozen diverse small-model matrix before any efficacy claim or product redesign.
 
 ## P6 — actual benchmark and target qualification — NOT PART OF CURRENT TASK
 

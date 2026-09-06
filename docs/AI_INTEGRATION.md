@@ -1,7 +1,7 @@
 # AI integration contract
 
-Release target: **rc4 grounding contract/design candidate; no grounding release artifact frozen yet**
-Status: **active grounding contract/design freeze after rc3 qualification closeout; implementation resumes after contract convergence**
+Release target: **frozen rc4 grounding benchmark candidate source `125ad9403f22eece7f552701d4c7376bba3b697f`; no public rc4 grounding release artifact yet**
+Status: **READY_FOR_GROUNDING_BENCHMARK after Linux/Windows clean-room and five-model zero-inference preregistration/verify-only gates; efficacy remains unmeasured**
 
 ExactScope is consumed by AI runtimes as a **grounding layer plus optional deterministic capability layer**. rc3 showed that native tool-call support varies sharply by model/chat template and can impose large prompt-token overhead. rc4 therefore moves the common everyday path away from mandatory model tool calls: the host prefetches evidence from configured providers using the original user question, applies the Grounding Contract, and calls the model once with a compact Grounding Frame. See [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md), [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md), [`RC3_QUALIFICATION_CLOSEOUT.md`](RC3_QUALIFICATION_CLOSEOUT.md), and [`MODEL_INTERFACE_RC4.md`](MODEL_INTERFACE_RC4.md).
 

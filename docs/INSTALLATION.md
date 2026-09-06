@@ -1,9 +1,9 @@
 # Installation and embedding profiles
 
-Release target: **rc4 grounding source candidate is implemented through the pre-inference package/preregistration gate; v1.0.0-rc.3 remains the latest frozen public prerelease artifact and is primarily the quantitative SDK**
+Release target: **rc4 grounding candidate source `125ad9403f22eece7f552701d4c7376bba3b697f` is READY_FOR_GROUNDING_BENCHMARK after Linux/Windows clean-room package and five-model preregistration verification; v1.0.0-rc.3 remains the latest frozen public prerelease artifact and is primarily the quantitative SDK**
 
 > rc4 grounding change: the common everyday path is original-question prefetch into a compact Grounding Frame. Retrieval providers are replaceable behind one contract, and native model tool calls are not required. The first exact/lexical reference profile and grounding evaluation-package format are implemented for benchmark qualification, but no rc4 grounding release or accuracy claim is public yet.
-Status: **final source-bound clean-room/benchmark-ready freeze in progress; legacy `xs_recall`/fact-pack prototypes are not the installable product contract**
+Status: **benchmark-ready freeze complete for the candidate above; legacy `xs_recall`/fact-pack prototypes are not the installable product contract; rc4 model efficacy remains unmeasured**
 
 ExactScope is loaded as a component of another AI runtime. The runtime consumer is the AI system; a developer/OEM engineer is the integrator. The planned grounding layer does not require a human-facing tool workflow. A fully local profile need not require a daemon, account or network service; a host may optionally adapt application/network providers under explicit source/privacy policy.
 

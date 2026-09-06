@@ -1,6 +1,6 @@
 # ExactScope documentation map
 
-Release context: **rc4 grounding implementation complete through pre-inference packaging/preregistration work; final source-bound benchmark-ready gate in progress after v1.0.0-rc.3 qualification closeout**
+Release context: **rc4 grounding candidate source `125ad9403f22eece7f552701d4c7376bba3b697f` is READY_FOR_GROUNDING_BENCHMARK after completed no-inference Linux/Windows package and five-model preregistration gates; v1.0.0-rc.3 remains the latest public prerelease**
 Date: 2026-09-06
 
 This index separates active rc4 product/design authority from the retained quantitative subsystem and historical rc3 release/qualification records. rc3 artifacts and evidence are frozen. Do not interpret old rc3 qualification checklists or earlier rc4 model-interface implementation notes as instructions to keep changing product code.
@@ -14,14 +14,15 @@ Read in this order:
 3. [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md) — logical grounding contract, authority modes, provider identity, failure states and benchmark invariants.
 4. [`BENCHMARK.md`](BENCHMARK.md) — A/G fairness, everyday workloads, false-grounding and wrong-confident-answer metrics.
 5. [`AI_INTEGRATION.md`](AI_INTEGRATION.md) — integrator-facing prefetch/Grounding Frame contract plus secondary quantitative lanes.
-6. [`../ROADMAP.md`](../ROADMAP.md) — current gate: final source-bound package, five zero-inference preregistrations and benchmark-ready freeze.
-7. [`GROUNDING_EVALUATION_PACKAGE.md`](GROUNDING_EVALUATION_PACKAGE.md) — clean-room pre-inference package contents and boundary.
-8. [`GROUNDING_BENCHMARK_HANDOFF.md`](GROUNDING_BENCHMARK_HANDOFF.md) — active instructions for the separate later A/G validation session.
-9. [`ARCHITECTURE.md`](ARCHITECTURE.md) — combined grounding + deterministic quantitative system boundary.
-10. [`DECISIONS.md`](DECISIONS.md) — binding decisions, especially D-067 through D-074.
-11. [`CODEX_CONTEXT.md`](CODEX_CONTEXT.md) — current agent instructions and prototype/non-normative boundary.
-12. [`../SECURITY.md`](../SECURITY.md) — grounding privacy, scope, provider and prompt-injection trust boundary.
-13. [`RC3_QUALIFICATION_CLOSEOUT.md`](RC3_QUALIFICATION_CLOSEOUT.md) — immutable historical findings that motivated the pivot.
+6. [`../ROADMAP.md`](../ROADMAP.md) — P1-P5 completion record; implementation stops at benchmark-ready.
+7. [`GROUNDING_BENCHMARK_READY.md`](GROUNDING_BENCHMARK_READY.md) — exact frozen source/package/profile/model/runtime/preregistration identities and no-inference gate results.
+8. [`GROUNDING_EVALUATION_PACKAGE.md`](GROUNDING_EVALUATION_PACKAGE.md) — clean-room pre-inference package contents and boundary.
+9. [`GROUNDING_BENCHMARK_HANDOFF.md`](GROUNDING_BENCHMARK_HANDOFF.md) — active instructions for the separate A/G validation session.
+10. [`ARCHITECTURE.md`](ARCHITECTURE.md) — combined grounding + deterministic quantitative system boundary.
+11. [`DECISIONS.md`](DECISIONS.md) — binding decisions, especially D-067 through D-074.
+12. [`CODEX_CONTEXT.md`](CODEX_CONTEXT.md) — current agent instructions and candidate freeze boundary.
+13. [`../SECURITY.md`](../SECURITY.md) — grounding privacy, scope, provider and prompt-injection trust boundary.
+14. [`RC3_QUALIFICATION_CLOSEOUT.md`](RC3_QUALIFICATION_CLOSEOUT.md) — immutable historical findings that motivated the pivot.
 
 ## Active supporting documents
 

@@ -1,10 +1,10 @@
 # ExactScope marketing claims playbook
 
 Status: internal product/marketing guidance
-Release context: **rc4 grounding implementation/pre-inference benchmark-ready work after completed v1.0.0-rc.3 qualification**
+Release context: **rc4 grounding candidate source `125ad9403f22eece7f552701d4c7376bba3b697f` is READY_FOR_GROUNDING_BENCHMARK; efficacy remains unmeasured after completed v1.0.0-rc.3 qualification**
 Date: 2026-09-06
 
-This file prevents historical measurements from being generalized beyond their exact identities. rc3 may be described as a completed external-user quantitative/model-interface qualification input with five-model/install observations, but it does not establish universal accuracy, production support, or real-device energy/thermal claims. The strongest **pre-benchmark rc4** product message is **a tiny provider-neutral grounding layer implemented to improve everyday factual reliability without requiring a model-visible tool turn**. The contract/reference path/package harness exists and is no-inference tested; model uplift is not yet measured.
+This file prevents historical measurements from being generalized beyond their exact identities. rc3 may be described as a completed external-user quantitative/model-interface qualification input with five-model/install observations, but it does not establish universal accuracy, production support, or real-device energy/thermal claims. The strongest **pre-benchmark rc4** product message is **a tiny provider-neutral grounding layer designed to improve everyday factual reliability without requiring a model-visible tool turn**. The frozen candidate/reference path/package harness exists, passed no-inference readiness gates, and is ready to benchmark; model uplift is not yet measured.
 
 ## 1. Default public positioning
 

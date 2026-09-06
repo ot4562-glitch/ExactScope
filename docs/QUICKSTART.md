@@ -1,6 +1,6 @@
 # ExactScope quickstart
 
-ExactScope is evolving into a tiny grounding and deterministic capability layer for small and on-device AI. `v1.0.0-rc.3` remains the latest frozen **public** prerelease and its external-user qualification is complete; that public asset is primarily the quantitative runtime/package. The rc4 grounding contract/reference path/candidate/scorer/evaluation-package tooling are now implemented in the rc4 source candidate, but no rc4 grounding SDK or model-uplift result is public yet. The flagship path is original-question prefetch -> compact Grounding Frame -> one model answer call, with provider-neutral retrieval and explicit authoritative/supplemental policy.
+ExactScope is evolving into a tiny grounding and deterministic capability layer for small and on-device AI. `v1.0.0-rc.3` remains the latest frozen **public** prerelease and its external-user qualification is complete; that public asset is primarily the quantitative runtime/package. The rc4 grounding candidate source `125ad9403f22eece7f552701d4c7376bba3b697f` is now `READY_FOR_GROUNDING_BENCHMARK` after Linux/Windows clean-room and five-model zero-inference preregistration checks, but no rc4 grounding release or model-uplift result is public yet. The flagship path is original-question prefetch -> compact Grounding Frame -> one model answer call, with provider-neutral retrieval and explicit authoritative/supplemental policy.
 
 ## 1. Prefer the release asset when evaluating as a user
 
@@ -19,7 +19,7 @@ The prebuilt evaluation SDK is designed to avoid a Rust build requirement for fi
 
 See [EVALUATION_BUNDLE.md](EVALUATION_BUNDLE.md) for archive details.
 
-## 2. rc4 grounding path — implemented source candidate, benchmark not yet run
+## 2. rc4 grounding path — frozen benchmark-ready candidate, efficacy benchmark not yet run
 
 For the current rc4 source candidate, start from [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md), [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md), [`BENCHMARK.md`](BENCHMARK.md), and [`GROUNDING_EVALUATION_PACKAGE.md`](GROUNDING_EVALUATION_PACKAGE.md):
 
@@ -33,7 +33,7 @@ user question
 
 Choose source authority and privacy scope before choosing a retrieval algorithm. The first benchmark candidate freezes a small offline exact/lexical provider for reproducibility; that provider is **not** the universal product definition. A frozen semantic/vector provider, application memory, or captured host/search provider may implement the same ProviderOutcome/GroundingFrame contract later. Do not build a model-visible tool catalog merely to retrieve ordinary evidence.
 
-Before any model inference, the source-candidate workflow is:
+The frozen candidate passed this source-side no-inference workflow before packaging:
 
 ```powershell
 py -3 tools/test_grounding_profile.py
@@ -44,7 +44,7 @@ py -3 tools/validate_design.py
 py -3 tools/audit_security_surface.py
 ```
 
-The final benchmark-ready gate then builds the source-commit-bound grounding evaluation archive, verifies it from a fresh extraction, creates one zero-inference preregistration per frozen model identity, and runs `benchmarks/run_grounding_benchmark.py --verify-only`. **Do not invoke the runner without `--verify-only` during this pre-benchmark stage.**
+The final benchmark-ready gate is complete. Exact source/package/model/runtime/preregistration hashes and Linux/Windows clean-room results are in [`GROUNDING_BENCHMARK_READY.md`](GROUNDING_BENCHMARK_READY.md). The separate validation session must follow [`GROUNDING_BENCHMARK_HANDOFF.md`](GROUNDING_BENCHMARK_HANDOFF.md); do not rebuild or modify the frozen candidate before running A/G.
 
 The remainder of this document describes the **currently published rc3 quantitative SDK** and remains valid for evaluating that release. Its A/C/D procedure is historical and separate from the rc4 A/G grounding benchmark.
 

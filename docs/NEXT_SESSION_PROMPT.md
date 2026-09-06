@@ -1,6 +1,6 @@
 # 다음 검증 세션용 프롬프트 — rc4 grounding A/G benchmark
 
-Status: **ACTIVE — `READY_FOR_GROUNDING_BENCHMARK` 후보를 별도 검증 세션에서 실행할 때 사용**
+Status: **ACTIVE — frozen candidate source `125ad9403f22eece7f552701d4c7376bba3b697f` / archive SHA-256 `f665ec8b04a258262f343c5f5e875633b04230f588a20db4da2a3c80faf75dc5`를 별도 검증 세션에서 실행할 때 사용**
 
 rc3 A/C/D 검증 프롬프트는 더 이상 이 파일의 현재 작업 지시가 아니다. 역사적 rc3 절차는 `QUALIFICATION_HANDOFF.md`와 `RC3_QUALIFICATION_CLOSEOUT.md`에 보존되어 있다.
 
@@ -10,6 +10,15 @@ rc3 A/C/D 검증 프롬프트는 더 이상 이 파일의 현재 작업 지시�
 ExactScope rc4의 frozen grounding evaluation package를 실제 외부 검증자처럼 검증하고 A/G 모델 benchmark를 수행해라.
 
 중요: 개발 checkout에서 임의로 코드를 고쳐 시작하지 마라. 첫 입력은 반드시 `READY_FOR_GROUNDING_BENCHMARK`로 동결된 grounding evaluation archive와 그 SHA-256, 그리고 패키지에 포함된 manifest/preregistration 도구다.
+
+동결 identity:
+- candidate source commit = `125ad9403f22eece7f552701d4c7376bba3b697f`
+- archive = `exactscope-grounding-eval-1.0.0-rc.4.tar.gz`
+- archive SHA-256 = `f665ec8b04a258262f343c5f5e875633b04230f588a20db4da2a3c80faf75dc5`
+- package manifest SHA-256 = `2879367ba76539e81bbe07a81be789fffbb796dd07aeab6c1996837c66cfa71c`
+- candidate ID = `rc4-grounding-r3-seed-20260906`
+- GroundingProfile SHA-256 = `9575efb3fd3d0b1225e38775f2f0013a60757a639fe54fb71a0f826de26098ea`
+- 이 identity와 다른 archive/source/provider/profile/corpus/scorer/runtime/model을 같은 rc4 evidence라고 부르지 마라.
 
 제품 가설:
 - ExactScope rc4의 주제품 방향은 학문별 계산/tool-call breadth가 아니다.

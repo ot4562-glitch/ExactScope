@@ -1,6 +1,6 @@
 # ExactScope product direction
 
-Release context: **rc4 grounding contract/design freeze after v1.0.0-rc.3 qualification closeout**. rc3 proved the quantitative public SDK/package path but exposed model-interface portability and prompt-cost limits. rc4 now prioritizes provider-neutral everyday grounding: original-question prefetch, compact Grounding Frames, explicit evidence authority/failure semantics, and one answer-generation call. The quantitative core/model-interface remains a secondary retained subsystem. See [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md), [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md), and [`RC3_QUALIFICATION_CLOSEOUT.md`](RC3_QUALIFICATION_CLOSEOUT.md).
+Release context: **frozen rc4 grounding candidate source `125ad9403f22eece7f552701d4c7376bba3b697f` is READY_FOR_GROUNDING_BENCHMARK after v1.0.0-rc.3 qualification closeout and completed no-inference readiness gates**. rc3 proved the quantitative public SDK/package path but exposed model-interface portability and prompt-cost limits. rc4 prioritizes provider-neutral everyday grounding: original-question prefetch, compact Grounding Frames, explicit evidence authority/failure semantics, and one answer-generation call. The quantitative core/model-interface remains a secondary retained subsystem. See [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md), [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md), [`GROUNDING_BENCHMARK_READY.md`](GROUNDING_BENCHMARK_READY.md), and [`RC3_QUALIFICATION_CLOSEOUT.md`](RC3_QUALIFICATION_CLOSEOUT.md).
 
 This document defines what ExactScope is optimizing for. It supersedes any earlier product framing that treated broad platform parity or full catalog completion as more important than proving adoption value.
 
@@ -171,7 +171,7 @@ The strongest early adoption wedge may be **existing devices** whose hardware ca
 
 The product scope remains intentionally narrow even though the grounding contract permits several retrieval implementations.
 
-The rc3 native/Wasm quantitative runtime and packaging remain useful infrastructure, but **they do not define the rc4 flagship product boundary**. The provider-neutral logical Grounding Contract is now frozen for implementation, and the first benchmark reference profile, deterministic host/provider/policy/projection path, benchmark corpus/scorer, package tooling and zero-inference preregistration path are implemented. The remaining current work is to bind those pieces to one final source commit and prove the extracted package reaches the first model request without drift or inference.
+The rc3 native/Wasm quantitative runtime and packaging remain useful infrastructure, but **they do not define the rc4 flagship product boundary**. The provider-neutral logical Grounding Contract is frozen for implementation, and the first benchmark reference profile, deterministic host/provider/policy/projection path, benchmark corpus/scorer, package tooling and zero-inference preregistration path are implemented. Candidate source `125ad9403f22eece7f552701d4c7376bba3b697f` has completed Linux/Windows clean-room and five-model zero-inference preregistration/verify-only gates and is `READY_FOR_GROUNDING_BENCHMARK`; model efficacy remains intentionally unmeasured until the separate validation session.
 
 The primary rc4 integration shape is:
 
@@ -201,18 +201,21 @@ The existing quantitative subsystem remains available through native/Wasm `xs_ca
 - evaluation-package, model/runtime identity, preregistration and benchmark-runner tooling were implemented with no retry, hidden repair or resume path;
 - the retained quantitative Rust/C/Wasm code continues to pass its regression suite.
 
-### Current gate — final immutable benchmark-ready package
+### Benchmark-ready gate — completed without inference
 
-Before any rc4 model inference:
+Candidate source `125ad9403f22eece7f552701d4c7376bba3b697f` completed the pre-inference gate:
 
-- make current documentation and implementation agree on the grounding-first product boundary;
-- commit the final source state and regenerate the candidate from that exact commit;
-- build the deterministic grounding evaluation archive and verify its manifest/checksums in a clean extraction;
-- preregister each of the five already-downloaded model identities plus the frozen llama.cpp runtime from the extracted package only;
-- run the benchmark runner in `--verify-only` mode for every preregistration;
-- stop at `READY_FOR_GROUNDING_BENCHMARK` and hand the immutable package/hashes to a separate validation session.
+- documentation and implementation were converged on the grounding-first product boundary;
+- the candidate was regenerated from the frozen source commit;
+- deterministic archive SHA-256 `f665ec8b04a258262f343c5f5e875633b04230f588a20db4da2a3c80faf75dc5` was clean-room verified;
+- Linux and native Windows package/dry-run/post-use re-verification passed;
+- all five already-downloaded model identities plus the frozen llama.cpp runtime were re-hashed from the extracted package and preregistered;
+- `run_grounding_benchmark.py --verify-only` returned `ready-to-run` for all five preregistrations;
+- rc4 model inference count remained zero.
 
-### Later evidence phase — not part of the current implementation task
+Exact hashes are in [`GROUNDING_BENCHMARK_READY.md`](GROUNDING_BENCHMARK_READY.md). Product implementation stops under this identity; the next phase is the separate frozen validation session.
+
+### Later evidence phase — not part of the completed implementation task
 
 - run A/G across the diverse small-model matrix with equal answer-generation call count;
 - report factual accuracy, wrong-confident-answer reduction, false grounding, abstention/useful-answer tradeoff and exact token/latency/storage costs;

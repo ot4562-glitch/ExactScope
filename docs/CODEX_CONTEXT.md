@@ -1,7 +1,7 @@
 # Codex / agent context — ExactScope rc4 grounding implementation
 
 Date: 2026-09-06
-Current branch intent: **implement the frozen grounding contract through READY_FOR_GROUNDING_BENCHMARK, without model inference**
+Current branch intent: **post-freeze readiness record for candidate source `125ad9403f22eece7f552701d4c7376bba3b697f`; implementation is stopped at READY_FOR_GROUNDING_BENCHMARK with zero rc4 model inference**
 
 Read this before modifying ExactScope. The current authority order is:
 
@@ -20,28 +20,24 @@ Read this before modifying ExactScope. The current authority order is:
 
 `docs/QUALIFICATION_HANDOFF.md` and the older model-matrix/procedure records are historical rc3 material. Do not resume rc3 inference from them. The active future validation instructions are `docs/GROUNDING_BENCHMARK_HANDOFF.md` and `docs/NEXT_SESSION_PROMPT.md`.
 
-## Current instruction: finish the immutable pre-inference gate
+## Current instruction: candidate is frozen; do not keep implementing under this identity
 
 The logical Grounding Contract v0.1 is **FROZEN_FOR_IMPLEMENTATION** after a final read-only Codex review reported `NO_P0_BLOCKERS`. The freeze record is `docs/GROUNDING_IMPLEMENTATION_FREEZE.md`.
 
-P1-P3 are implemented and no-inference tested:
+P1-P5 are complete for the frozen candidate source `125ad9403f22eece7f552701d4c7376bba3b697f`:
 
 - machine-readable profile/schemas/canonical encodings are frozen for the reference candidate;
 - provider-neutral host/provider/policy/frame/projection behavior is implemented;
 - the exact/lexical implementation is isolated as a **reference provider**, not the universal product contract;
 - serving/gold benchmark inputs, scorer, zero-inference dry-run, package tooling, five-model identity inventory, runtime identity, preregistration and benchmark runner exist;
-- runner `--verify-only` checks all frozen inputs without launching inference;
-- retained quantitative Rust/C/Wasm regressions remain green.
+- Linux and Windows clean-room package/dry-run/post-use re-verification pass;
+- five actual model preregistrations pass runner `--verify-only` as `ready-to-run`;
+- retained quantitative Rust/C/Wasm regressions remain green;
+- no rc4 grounding model inference has run.
 
-Current work is the final P4/P5 gate only:
+The exact hashes and gate results are in `docs/GROUNDING_BENCHMARK_READY.md`.
 
-1. keep docs and implementation aligned with the grounding-first product boundary;
-2. commit the final source state;
-3. regenerate the candidate from that exact state;
-4. build and clean-room verify the deterministic grounding evaluation package;
-5. create five actual zero-inference preregistrations from the extracted package using the already-downloaded model files and frozen llama.cpp executable;
-6. run `--verify-only` for each preregistration;
-7. stop at `READY_FOR_GROUNDING_BENCHMARK` with no rc4 model inference.
+Do **not** continue product implementation, rewrite the corpus/provider/profile/projection/scorer, or run model inference from this implementation session. The next active phase is a separate validation session using `docs/GROUNDING_BENCHMARK_HANDOFF.md` and `docs/NEXT_SESSION_PROMPT.md`. Any behavior change creates a new candidate identity.
 
 Do not expand Finance/Physics/other academic domains. Do not change frozen authority, coverage, state precedence, security-scope, evidence-identity, deterministic merge, Model Projection, or benchmark-isolation semantics merely to make implementation easier. If implementation discovers a genuine semantic defect, explicitly revise the contract/candidate identity rather than silently repairing it.
 

@@ -7,13 +7,13 @@
 **Make small models more useful on everyday factual questions without replacing the model.**
 
 [![Release](https://img.shields.io/badge/release-v1.0.0--rc.3-orange)](https://github.com/ot4562-glitch/ExactScope/releases/tag/v1.0.0-rc.3)
-![Status](https://img.shields.io/badge/status-rc4%20grounding%20benchmark--ready%20work-blue)
+![Status](https://img.shields.io/badge/status-rc4%20grounding%20READY__FOR__BENCHMARK-blue)
 ![ABI](https://img.shields.io/badge/C%20ABI-1.0-informational)
 ![Wasm](https://img.shields.io/badge/Wasm-no--import-success)
 
-**v1.0.0-rc.3 external-user qualification is complete and frozen. Active rc4 work implements the provider-neutral everyday-grounding pivot through a frozen logical contract, machine-readable profile, deterministic reference provider/policy/projection path, physically separated serving/gold benchmark candidate, scorer, evaluation-package tooling and zero-inference preregistration. Quantitative `xs_calc`/`xs_eval` remains supported as a secondary deterministic capability subsystem. No rc4 model-accuracy or hallucination-reduction result is claimed before the frozen A/G benchmark runs.**
+**v1.0.0-rc.3 external-user qualification is complete and frozen. The rc4 provider-neutral everyday-grounding candidate is now `READY_FOR_GROUNDING_BENCHMARK`: source/package/profile/corpus/scorer/runtime/model identities are frozen, Linux and Windows clean-room zero-inference checks passed, and all five model preregistrations return `ready-to-run`. Quantitative `xs_calc`/`xs_eval` remains supported as a secondary deterministic capability subsystem. No rc4 model-accuracy or hallucination-reduction result is claimed before the frozen A/G benchmark runs.**
 
-[Grounding architecture](docs/GROUNDING_ARCHITECTURE.md) · [Grounding contract](spec/GROUNDING_CONTRACT_V0_1.md) · [AI integration](docs/AI_INTEGRATION.md) · [Benchmark contract](docs/BENCHMARK.md) · [rc3 qualification closeout](docs/RC3_QUALIFICATION_CLOSEOUT.md) · [한국어 요약](#한국어-요약)
+[Grounding architecture](docs/GROUNDING_ARCHITECTURE.md) · [Grounding contract](spec/GROUNDING_CONTRACT_V0_1.md) · [Benchmark-ready record](docs/GROUNDING_BENCHMARK_READY.md) · [Benchmark handoff](docs/GROUNDING_BENCHMARK_HANDOFF.md) · [Benchmark contract](docs/BENCHMARK.md) · [rc3 qualification closeout](docs/RC3_QUALIFICATION_CLOSEOUT.md) · [한국어 요약](#한국어-요약)
 
 </div>
 
@@ -47,7 +47,7 @@ Sources may be private memory, device/application state, product manuals, local 
 
 The important constraint is **small evidence, not broad context**. A weak model should receive only the few evidence items it needs, with explicit `authoritative` versus `supplemental` behavior. Existing `xs_calc`/`xs_eval` deterministic calculation remains available for quantitative tasks without forcing ordinary factual questions through an academic/tool catalog.
 
-## Current status: rc3 closed, rc4 grounding implementation/package gate active
+## Current status: rc3 closed, rc4 grounding candidate benchmark-ready
 
 `v1.0.0-rc.3` remains the latest frozen public prerelease. Its external-user model/install qualification is complete; its raw evidence is historical and immutable. It is **not** promoted to stable support.
 
@@ -69,7 +69,7 @@ The important constraint is **small evidence, not broad context**. A weak model 
 | rc4 default everyday path | **original-question prefetch -> compact Grounding Frame -> one model answer call** |
 | rc4 benchmark candidate/scorer | **implemented; serving/gold physically separated; zero-inference dry-run 30/30** |
 | rc4 retrieval provider choice | **product-neutral; exact/lexical reference provider is frozen only for the first benchmark candidate, while vector/application/host providers remain contract-compatible options** |
-| rc4 evaluation package/preregistration | **implemented; final source-bound clean-room freeze still required before model benchmark** |
+| rc4 evaluation package/preregistration | **READY_FOR_GROUNDING_BENCHMARK; frozen candidate source `125ad940...`, Linux/Windows clean-room PASS, 5/5 verify-only ready-to-run** |
 | rc4 constrained/native quantitative envelope work | retained infrastructure / secondary subsystem |
 | Stable support claim | **not made** |
 
