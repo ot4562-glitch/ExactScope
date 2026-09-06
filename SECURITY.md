@@ -1,6 +1,6 @@
 # Security policy
 
-ExactScope `v1.0.0-rc.2` is an integration & qualification candidate, not a stable supported production runtime. Code-side security boundaries and release packaging can be checked before publication, but exact built-artifact, fuzz/sanitizer and representative target evidence still control any Tier 1/Tier 2 or production-security claim.
+ExactScope `v1.0.0-rc.3` is an integration & qualification candidate, not a stable supported production runtime. Code-side security boundaries and release packaging can be checked before publication, but exact built-artifact, fuzz/sanitizer and representative target evidence still control any Tier 1/Tier 2 or production-security claim.
 
 ## Reporting a vulnerability
 

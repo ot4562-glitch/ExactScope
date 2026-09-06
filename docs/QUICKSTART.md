@@ -1,10 +1,10 @@
-# ExactScope v1.0.0-rc.2 quickstart
+# ExactScope v1.0.0-rc.3 quickstart
 
-ExactScope is a tiny deterministic quantitative capability component for small and on-device AI. `v1.0.0-rc.2` is an **integration & qualification candidate**: code-side implementation and packaging are intended to be usable, while model and real-device qualification are deliberately performed from the published release in a later session.
+ExactScope is a tiny deterministic quantitative capability component for small and on-device AI. `v1.0.0-rc.3` is an **integration & qualification candidate**: code-side implementation and packaging are intended to be usable, while model and real-device qualification are deliberately performed from the published release in a later session.
 
 ## 1. Prefer the release asset when evaluating as a user
 
-Choose only an asset that actually appears on the GitHub `v1.0.0-rc.2` release page:
+Choose only an asset that actually appears on the GitHub `v1.0.0-rc.3` release page:
 
 | Platform | Asset role |
 |---|---|
@@ -89,18 +89,44 @@ python tools/inspect_wasm.py target/wasm32v1-none/release/exactscope_wasm.wasm
 node examples/javascript/wasm-xs-calc.mjs target/wasm32v1-none/release/exactscope_wasm.wasm
 ```
 
-For a selected capability integration, use the generated capability/model-surface assets and `examples/javascript/capability-host.mjs`, which verifies the expected identity before compiling/loading the module.
+The **release archive** ships two complete artifact-bound evaluation capabilities and one archive-local host:
 
-## 5. llama.cpp / local-model hookup
+```text
+capabilities/quant-core-16-semantic-ai/   # xs_eval only
+capabilities/quant-core-16-combined-ai/   # xs_eval + xs_calc
+examples/capability-host.mjs
+```
 
-Two maintained one-tool envelopes are under `adapters/llama-cpp/`:
+The host verifies `manifest.json`, `bundle-sha256.txt`, `profile.json`, `surface-contract.json`, every bound model-surface digest, and the exact `runtime.wasm` before execution. From the extracted archive:
 
-- `direct_eval_smoke.py` — semantic-only `xs_eval` envelope;
-- `calc_plan_smoke.py` — calc-only `xs_calc` envelope.
+```sh
+node examples/capability-host.mjs \
+  capabilities/quant-core-16-semantic-ai \
+  '{"op":"stats.mean","a":[["1","2","3"]]}'
+```
 
-They are strict protocol adapters, not alternate calculators. They validate capability/model-surface identity and model output shape; they must not invent arguments, change methods, or repair an ExactScope error.
+The source checkout path is `examples/javascript/capability-host.mjs`; the packaged path above is intentionally shorter and is the path to use when evaluating a GitHub release.
 
-For model evaluation, follow [AI_INTEGRATION.md](AI_INTEGRATION.md) and the separate [qualification handoff](QUALIFICATION_HANDOFF.md). Do not use old model scores as evidence for rc2.
+## 5. llama.cpp / local-model qualification
+
+The evaluation archive includes `benchmarks/run_qualification.py` and its stdlib-only capability verifier. The qualification runner has two separate phases:
+
+```sh
+python benchmarks/run_qualification.py preregister --help
+python benchmarks/run_qualification.py run --help
+```
+
+`preregister` performs **zero inference calls** and freezes the release archive SHA-256, model bytes/revision/SHA-256, llama.cpp executable SHA/version/launch command, corpus, core, semantic/combined capability identities, seed, generation budget, timeout, scoring rules, and no-retry policy. `run` refuses to start if any frozen byte identity has changed and writes one immutable single-writer evidence directory.
+
+The frozen comparison is:
+
+- **A** — model only, no ExactScope tool;
+- **C** — `capabilities/quant-core-16-semantic-ai`, exact `xs_eval` only;
+- **D** — `capabilities/quant-core-16-combined-ai`, exact `xs_eval + xs_calc` surface.
+
+The benchmark corpus is semantic, so D must choose `xs_eval` for supported corpus items; choosing `xs_calc` is preserved as a wrong-lane failure even if a coincidental arithmetic result is numerically correct. There are no hidden retries or answer repair.
+
+Developer checkouts still contain the narrower `adapters/llama-cpp/` protocol-adapter self-tests, but release qualification does not depend on those source-only paths. Follow [AI_INTEGRATION.md](AI_INTEGRATION.md) and [QUALIFICATION_HANDOFF.md](QUALIFICATION_HANDOFF.md). Do not reuse older model scores as rc3 evidence.
 
 ## 6. Source checkout sanity checks
 
@@ -147,6 +173,6 @@ The product boundary is valuable precisely because it can return a deterministic
 
 ## 9. Before claiming the product is qualified
 
-Use [QUALIFICATION_HANDOFF.md](QUALIFICATION_HANDOFF.md). The next session must start from the immutable GitHub rc2 release, bind every result to exact artifact/model/runtime/corpus identities, and then measure a representative real ARM64 target before making target RAM/latency/energy claims.
+Use [QUALIFICATION_HANDOFF.md](QUALIFICATION_HANDOFF.md). The next session must start from the immutable GitHub rc3 release, bind every result to exact artifact/model/runtime/corpus identities, and then measure a representative real ARM64 target before making target RAM/latency/energy claims.
 
-Historical r20 Statistics model evidence belongs to an older runtime and is not rc2 evidence.
+Historical r20 Statistics model evidence belongs to an older runtime and is not rc3 evidence.

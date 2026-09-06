@@ -1,6 +1,6 @@
 # ExactScope product direction
 
-Release context: **v1.0.0-rc.2 integration & qualification candidate**. The active capability architecture described here is implemented code-side; the remaining adoption gates are exact public-release model evidence, representative target qualification and support promotion.
+Release context: **v1.0.0-rc.3 integration & qualification candidate**. The active capability architecture described here is implemented code-side; the remaining adoption gates are exact public-release model evidence, representative target qualification and support promotion.
 
 This document defines what ExactScope is optimizing for. It supersedes any earlier product framing that treated broad platform parity or full catalog completion as more important than proving adoption value.
 
@@ -152,28 +152,28 @@ Offline is a capability, not the whole market. A network-connected device can st
 
 The strongest early adoption wedge may be **existing devices** whose hardware cannot be changed but whose AI software stack can still receive an update.
 
-## 8. rc2 release scope
+## 8. rc3 release scope
 
 The product scope remains intentionally narrow even though the internal architecture supports more paths.
 
-Primary rc2 integration candidates:
+Primary rc3 integration candidates:
 
 1. **Native static C ABI** — packaged for Windows/Linux x86-64 evaluation and Android/Linux ARM64 OEM integration.
 2. **No-import WebAssembly** — packaged in the x86-64 evaluation SDK and intended for local embedding.
 
 Both profiles preserve the tiny embed/update model and remain qualification candidates rather than Tier 1/Tier 2 support promises.
 
-Secondary/experimental architecture includes dynamic data packs, dynamic discovery, convenience wrappers, broader OS/architecture parity, and additional domain breadth. All paths exposing the same computation must use shared calculation semantics. rc2 does not wait for universal platform parity.
+Secondary/experimental architecture includes dynamic data packs, dynamic discovery, convenience wrappers, broader OS/architecture parity, and additional domain breadth. All paths exposing the same computation must use shared calculation semantics. rc3 does not wait for universal platform parity.
 
 ## 9. Capability-first roadmap
 
-### P0 — rc2 public candidate and model evidence
+### P0 — rc3 public candidate and model evidence
 
 Implemented before qualification: bounded `xs_calc`, selected Statistics/Economics semantic slices, deterministic capability compiler, model-surface identity, native/Wasm packaging and qualification tooling.
 
 Remaining P0 evidence:
 
-- publish/verify the exact rc2 GitHub candidate and release assets;
+- publish/verify the exact rc3 GitHub candidate and release assets;
 - freeze the five-model minimum matrix and preregistration identities;
 - run A model-only / C selected semantic / D combined comparisons, adding B calc-only only as a diagnostic;
 - report end-to-end correctness plus failure decomposition and exact interface/artifact cost;
@@ -243,7 +243,7 @@ The business model must not require a proprietary cloud calculation service or i
 
 ## 13. Current implementation position
 
-Implemented code-side for rc2:
+Implemented code-side for rc3:
 
 - deterministic `no_std` numeric kernel and bounded scalar VM;
 - bounded `xs_calc` plan-v0.1 over `add/sub/mul/div/powi/sqrt`;
@@ -262,9 +262,9 @@ Implemented code-side for rc2:
 - wearable reference/A-B/update/qualification infrastructure;
 - relocatable CMake target, security/export audit and CI gates.
 
-Historical model/oracle/smoke results remain design evidence only. They are not listed as rc2 implementation proof because the clean release requires new exact-artifact evidence.
+Historical model/oracle/smoke results remain design evidence only. They are not listed as rc3 implementation proof because the clean release requires new exact-artifact evidence.
 
-Remaining product gates are public rc2 release verification, fresh revision-bound model evidence, resource/energy measurements, representative real-device qualification and long-term compatibility/LTS/support evidence. These are not missing numeric engines or compiler mechanisms. See `CODEX_CONTEXT.md` and `QUALIFICATION_HANDOFF.md`.
+Remaining product gates are public rc3 release verification, fresh revision-bound model evidence, resource/energy measurements, representative real-device qualification and long-term compatibility/LTS/support evidence. These are not missing numeric engines or compiler mechanisms. See `CODEX_CONTEXT.md` and `QUALIFICATION_HANDOFF.md`.
 
 ## 14. Decision test
 

@@ -1,8 +1,8 @@
 # ExactScope retrofit product strategy
 
-> **v1.0.0-rc.2 status:** the bounded `xs_calc` lane, selected semantic capability/profile compiler, Statistics/Economics specialization, model-surface identity and public packaging are implemented code-side. Model uplift and representative real-target qualification remain evidence work and are intentionally deferred to the external-user qualification session.
+> **v1.0.0-rc.3 status:** the bounded `xs_calc` lane, selected semantic capability/profile compiler, Statistics/Economics specialization, model-surface identity and public packaging are implemented code-side. Model uplift and representative real-target qualification remain evidence work and are intentionally deferred to the external-user qualification session.
 >
-> See [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) for the active product-unit/build-vs-buy architecture and [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md) for the rc2 evidence procedure.
+> See [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) for the active product-unit/build-vs-buy architecture and [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md) for the rc3 evidence procedure.
 
 ## 1. Product thesis
 
@@ -232,9 +232,9 @@ The plan layer is therefore a restricted model-facing program representation, no
 
 Accuracy alone is insufficient. ExactScope only wins the retrofit position if the added software is materially cheaper than replacing the model/hardware path it is intended to avoid.
 
-Pre-rc2 development builds produced multiple local footprint measurements, but those values are tied to their exact source/toolchain/artifact identities. The rc2 clean source therefore does not present an old development byte count as the current product size.
+Pre-rc3 development builds produced multiple local footprint measurements, but those values are tied to their exact source/toolchain/artifact identities. The rc3 clean source therefore does not present an old development byte count as the current product size.
 
-Measure the exact public rc2 archive/runtime bytes and SHA-256 during qualification and bind every footprint comparison to that released artifact.
+Measure the exact public rc3 archive/runtime bytes and SHA-256 during qualification and bind every footprint comparison to that released artifact.
 
 The capability product should keep explicit footprint gates:
 

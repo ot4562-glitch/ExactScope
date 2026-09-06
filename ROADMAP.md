@@ -2,13 +2,13 @@
 
 No dates are promised. This roadmap is ordered by **capability density, weak-model usability, evidence quality, and retrofit economics**, not by operation count.
 
-Release context: **v1.0.0-rc.2 integration & qualification candidate**.
+Release context: **v1.0.0-rc.3 integration & qualification candidate**.
 
 The product question is:
 
 > Can a tiny deterministic capability component let an already-deployed small/on-device model recover a useful narrow quantitative skill cheaply enough that keeping the existing model/hardware is the better engineering choice for that task family?
 
-## Current checkpoint — rc2
+## Current checkpoint — rc3
 
 The active code architecture and public prerelease packaging are implemented.
 
@@ -34,7 +34,7 @@ The active code architecture and public prerelease packaging are implemented.
 - [x] build-input identity and reproducibility/compatibility-record infrastructure;
 - [x] maintained strict llama.cpp `xs_eval` and `xs_calc` envelopes.
 
-### Public package implemented for rc2
+### Public package implemented for rc3
 
 - [x] clean source-release policy: reviewed source/specs/generators retained, mutable generated capability/evidence directories and benchmark output payloads excluded from the product source tag;
 - [x] version-driven release workflow rather than rc1 filename hardcoding;
@@ -51,7 +51,7 @@ A workflow being implemented does not become “published/supporting” until th
 
 ## Historical evidence boundary
 
-The older Statistics model evidence accumulated through `statistics-core-8-ai-r20` is frozen to a **45,804-byte r17 serving runtime**. It remains useful historical design evidence but is not rc2 evidence.
+The older Statistics model evidence accumulated through `statistics-core-8-ai-r20` is frozen to a **45,804-byte r17 serving runtime**. It remains useful historical design evidence but is not rc3 evidence.
 
 Historical work established two useful lessons:
 
@@ -60,18 +60,18 @@ Historical work established two useful lessons:
 
 Therefore target-model qualification is part of the product, not optional marketing polish.
 
-## P0 — publish and independently verify rc2
+## P0 — publish and independently verify rc3
 
 ### P0.1 Release artifact integrity
 
-- [ ] confirm GitHub `v1.0.0-rc.2` tag points to the intended clean commit;
+- [ ] confirm GitHub `v1.0.0-rc.3` tag points to the intended clean commit;
 - [ ] confirm release manifest source commit/tag consistency;
 - [ ] verify all release-level SHA256SUMS;
 - [ ] verify the internal inventory/checksums of each evaluation/OEM SDK archive;
 - [ ] record exact archive bytes/digests;
 - [ ] confirm the expected Windows/Linux/Android/ARM64 assets actually exist.
 
-Success criterion: a fresh external checkout/download can identify and verify every rc2 input without relying on the developer working tree.
+Success criterion: a fresh external checkout/download can identify and verify every rc3 input without relying on the developer working tree.
 
 ### P0.2 External-user integration baseline
 
@@ -86,7 +86,7 @@ From the published archive, not a source build:
 
 Success criterion: an evaluator can attach and exercise the release artifact without modifying product source.
 
-### P0.3 Freeze rc2 model qualification inputs
+### P0.3 Freeze rc3 model qualification inputs
 
 Core five:
 
@@ -159,7 +159,7 @@ Correctness, deterministic semantics, fail-closed behavior, and ABI stability ar
 
 ### P1.1 Android ARM64 or embedded Linux ARM64 target
 
-Choose at least one representative product-style target and use the **exact published rc2 SDK**.
+Choose at least one representative product-style target and use the **exact published rc3 SDK**.
 
 - [ ] record device/SoC/OS/toolchain/runtime identity;
 - [ ] record exact installed ExactScope asset digest;
@@ -222,7 +222,7 @@ Only then consider stable `v1.0.0`.
 
 ## P3 — expand breadth selectively
 
-New domains/operations are not blockers for rc2. Add them only when they improve a real product profile.
+New domains/operations are not blockers for rc3. Add them only when they improve a real product profile.
 
 Possible future work:
 
@@ -237,6 +237,6 @@ Do not turn ExactScope into a general scientific runtime or a giant model-visibl
 
 ## Current single next action
 
-**Publish/verify `v1.0.0-rc.2`, then start a new external-user qualification session using `docs/NEXT_SESSION_PROMPT.md`.**
+**Publish/verify `v1.0.0-rc.3`, then start a new external-user qualification session using `docs/NEXT_SESSION_PROMPT.md`.**
 
 Benchmark and target evidence should be collected from the immutable public candidate, not from the release-preparation working tree.

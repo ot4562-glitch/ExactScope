@@ -1,6 +1,6 @@
 # ExactScope capability compiler
 
-Release context: **v1.0.0-rc.2 integration & qualification candidate**
+Release context: **v1.0.0-rc.3 integration & qualification candidate**
 Status: **implemented build-time infrastructure; generated capability revisions are evidence-bound outputs, not permanent product source**
 
 `tools/compile_capability.py` turns reviewed domain/task-family metadata into the smallest deterministic model-facing capability surface requested by a profile. Python/jsonschema are workstation build dependencies only; they are not target runtime dependencies.
@@ -34,7 +34,7 @@ py -3 tools/compile_capability.py --verify adapters/capabilities/<new-revision>
 py -3 tools/test_compile_capability.py
 ```
 
-The rc2 clean source intentionally keeps only `adapters/capabilities/README.md`; it does not carry forward every generated historical revision. A generated directory is a build/evidence artifact whose identity belongs to the exact source/profile that produced it.
+The rc3 clean source intentionally keeps only `adapters/capabilities/README.md`; it does not carry forward every generated historical revision. A generated directory is a build/evidence artifact whose identity belongs to the exact source/profile that produced it.
 
 Do not regenerate into or overwrite a frozen historical revision. Changed source/profile/assets require a new revision/output directory.
 
@@ -114,9 +114,9 @@ The specialization mechanism has historically demonstrated real reachability/foo
 - a weighted-mean-only slice;
 - an `xs_calc`-only same-boundary baseline.
 
-Those pre-rc2 byte/digest measurements are development history tied to their exact source/toolchain identities. They are **not rc2 release measurements** and the clean source does not carry the generated revision directories forward.
+Those pre-rc3 byte/digest measurements are development history tied to their exact source/toolchain identities. They are **not rc3 release measurements** and the clean source does not carry the generated revision directories forward.
 
-The exact rc2 size, SHA-256, import/memory declaration, conformance result, and marginal semantic cost must be measured again from the immutable public candidate during qualification.
+The exact rc3 size, SHA-256, import/memory declaration, conformance result, and marginal semantic cost must be measured again from the immutable public candidate during qualification.
 
 ## 8. Build and bind an artifact
 
@@ -129,7 +129,7 @@ py -3 tools/build_capability_wasm.py --bundle adapters/capabilities/<source-revi
 py -3 tools/bind_capability.py --bundle adapters/capabilities/<source-revision> --artifact target/<build-id>/runtime.wasm --build-provenance target/<build-id>/build-provenance.json --corpus benchmarks/statistics-v0.1.jsonl --core target/debug/exactscope-core.exe --revision <new-revision> --output adapters/capabilities/<new-bound-revision>
 ```
 
-These commands are intentionally **not** used to create rc2 benchmark evidence in the release-preparation session. They may execute product/gold paths and belong to the later exact-artifact qualification workflow when evidence is being frozen.
+These commands are intentionally **not** used to create rc3 benchmark evidence in the release-preparation session. They may execute product/gold paths and belong to the later exact-artifact qualification workflow when evidence is being frozen.
 
 A historical source profile cannot be rebound to current runtime source just because operation names or byte counts look similar.
 
@@ -145,15 +145,15 @@ Model evidence must bind the exact:
 - runtime/hardware/configuration;
 - raw rows and summary.
 
-Historical `statistics-core-8-ai-r20` remains frozen to its older **45,804-byte r17 Statistics serving runtime**. It cannot be inherited by rc2 or by a newly generated capability revision.
+Historical `statistics-core-8-ai-r20` remains frozen to its older **45,804-byte r17 Statistics serving runtime**. It cannot be inherited by rc3 or by a newly generated capability revision.
 
-Re-running a historical model against rc2 creates new evidence.
+Re-running a historical model against rc3 creates new evidence.
 
 ## 10. Release packaging boundary
 
 The compiler and capability binder are not the public release themselves.
 
-For rc2:
+For rc3:
 
 - public GitHub evaluation/OEM SDKs are packaged from the clean source by the release workflow;
 - evaluation SDKs contain selected integration assets, documentation, manifests/checksums, and benchmark/model-download tooling;
@@ -175,4 +175,4 @@ They do **not** by themselves prove:
 - production compatibility;
 - stable support.
 
-Those belong to the separate rc2 qualification procedure in `docs/QUALIFICATION_HANDOFF.md`.
+Those belong to the separate rc3 qualification procedure in `docs/QUALIFICATION_HANDOFF.md`.

@@ -1,10 +1,10 @@
 # Historical Statistics multi-arm runner
 
-Release context: **historical development tooling; not the v1.0.0-rc.2 benchmark plan**
+Release context: **historical development tooling; not the v1.0.0-rc.3 benchmark plan**
 
-`benchmarks/capability_benchmark.py` was built during the pre-rc2 Statistics evidence chain. It can still be useful for reproducing or inspecting that historical benchmark contract, but its old bundle defaults, five-arm A/B/C/D/E layout, token-budget compatibility knobs, and historical artifact-cost assumptions must not be treated as rc2 evidence.
+`benchmarks/capability_benchmark.py` was built during the pre-rc3 Statistics evidence chain. It can still be useful for reproducing or inspecting that historical benchmark contract, but its old bundle defaults, five-arm A/B/C/D/E layout, token-budget compatibility knobs, and historical artifact-cost assumptions must not be treated as rc3 evidence.
 
-For new rc2 qualification, start with:
+For new rc3 qualification, start with:
 
 1. [`../docs/QUALIFICATION_HANDOFF.md`](../docs/QUALIFICATION_HANDOFF.md)
 2. [`NEXT_MODEL_MATRIX.md`](NEXT_MODEL_MATRIX.md)
@@ -27,11 +27,11 @@ That layout was useful during development because it exposed a key product fact:
 
 ## Historical reproduction only
 
-Older examples referred to generated bundles such as the r17 Statistics runtime and a calc-only baseline. The rc2 clean source intentionally does **not** ship those generated capability/evidence directories.
+Older examples referred to generated bundles such as the r17 Statistics runtime and a calc-only baseline. The rc3 clean source intentionally does **not** ship those generated capability/evidence directories.
 
 To reproduce an old run, use an evidence checkout/archive that contains the exact historical bundles and model/runtime metadata, pass all bundle paths explicitly, and preserve the old configuration exactly. Do not regenerate a look-alike bundle from current source and call it the historical artifact.
 
-The historical r17 Statistics serving artifact was **45,804 bytes**. The model evidence accumulated through `statistics-core-8-ai-r20` belongs to that exact old runtime line. It is never an rc2 baseline.
+The historical r17 Statistics serving artifact was **45,804 bytes**. The model evidence accumulated through `statistics-core-8-ai-r20` belongs to that exact old runtime line. It is never an rc3 baseline.
 
 Historical result interpretation is kept in files such as:
 
@@ -39,11 +39,11 @@ Historical result interpretation is kept in files such as:
 - `STATISTICS_R17_LLAMA32_SECONDARY_RESULT.md`;
 - `STATISTICS_R17_QWEN25_STRESS_RESULT.md`.
 
-Those documents describe old experiments and limitations; they are not planned rc2 scores.
+Those documents describe old experiments and limitations; they are not planned rc3 scores.
 
-## rc2 comparison policy
+## rc3 comparison policy
 
-The new rc2 evidence plan is deliberately simpler:
+The new rc3 evidence plan is deliberately simpler:
 
 - **A — model only**;
 - **C — selected semantic `xs_eval` only**;
@@ -52,7 +52,7 @@ The new rc2 evidence plan is deliberately simpler:
 
 There is no automatic E arm. The frozen five-model matrix already contains multiple sizes/vendors and an upper-small independent reference. A still-larger model is added only when it answers a specific product decision and the comparison contract is fair.
 
-The rc2 core matrix is:
+The rc3 core matrix is:
 
 - Gemma 3 270M IT Q8_0;
 - LFM2.5 350M Q4_K_M;
@@ -80,7 +80,7 @@ Several principles from the historical runner remain mandatory:
 
 ## New-run identity
 
-Before using this or any other runner for rc2, freeze the exact:
+Before using this or any other runner for rc3, freeze the exact:
 
 - GitHub release/tag/commit and release asset hashes;
 - capability/model-surface/runtime artifact hashes;
@@ -93,14 +93,14 @@ Before using this or any other runner for rc2, freeze the exact:
 - timeout/retry policy;
 - output directory and single-writer rule.
 
-If the current runner does not cleanly implement the frozen rc2 preregistration, adapt or replace the harness **before inference**, record that harness identity, and do not alter it after seeing results.
+If the current runner does not cleanly implement the frozen rc3 preregistration, adapt or replace the harness **before inference**, record that harness identity, and do not alter it after seeing results.
 
 ## Output location
 
-New rc2 run payloads belong under ignored unique directories such as:
+New rc3 run payloads belong under ignored unique directories such as:
 
 ```text
-benchmarks/output/rc2-<model-id>-<run-id>/
+benchmarks/output/rc3-<model-id>-<run-id>/
 ```
 
-Do not commit mutable rc2 raw results into the product source tree. Freeze publishable evidence separately with exact hashes and an explicit complete/invalid/aborted status.
+Do not commit mutable rc3 raw results into the product source tree. Freeze publishable evidence separately with exact hashes and an explicit complete/invalid/aborted status.

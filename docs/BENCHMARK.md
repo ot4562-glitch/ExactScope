@@ -1,7 +1,7 @@
 # ExactScope benchmark and qualification contract
 
-Release context: **v1.0.0-rc.2**
-Status: **planned/unmeasured for rc2; execute from the immutable public release in a later session**
+Release context: **v1.0.0-rc.3**
+Status: **planned/unmeasured for rc3; execute from the immutable public release in a later session**
 
 ExactScope must earn adoption with reproducible evidence. Deterministic code alone does not prove that a small model can select the right operation, extract the right arguments, or gain enough capability to justify integration cost.
 
@@ -9,7 +9,7 @@ The central product question is:
 
 > For an existing constrained/on-device model, does a tiny selected ExactScope surface improve end-to-end narrow quantitative capability enough to justify its exact binary, model-interface, latency, memory, energy, integration, and qualification cost?
 
-The canonical rc2 continuation procedure is [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md). The minimum model matrix is [`../benchmarks/NEXT_MODEL_MATRIX.md`](../benchmarks/NEXT_MODEL_MATRIX.md).
+The canonical rc3 continuation procedure is [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md). The minimum model matrix is [`../benchmarks/NEXT_MODEL_MATRIX.md`](../benchmarks/NEXT_MODEL_MATRIX.md).
 
 ## 1. Evidence boundary
 
@@ -29,13 +29,13 @@ A benchmark result belongs only to the exact combination of:
 
 Changing one of those creates a new run identity. Do not silently inherit a score across candidates.
 
-Historical `statistics-core-8-ai-r20` evidence is tied to an older **45,804-byte r17 Statistics serving runtime**. It is historical development evidence only, not rc2 evidence.
+Historical `statistics-core-8-ai-r20` evidence is tied to an older **45,804-byte r17 Statistics serving runtime**. It is historical development evidence only, not rc3 evidence.
 
 ## 2. Preregister before inference
 
 Freeze the following before the first model request:
 
-1. exact rc2 release/tag/commit and all release-asset hashes;
+1. exact rc3 release/tag/commit and all release-asset hashes;
 2. exact capability/profile/model-surface identity;
 3. model inventory including repository revision, file name, bytes and SHA-256;
 4. inference runtime build/version and launch command;
@@ -51,9 +51,9 @@ Freeze the following before the first model request:
 
 If a policy is changed after results are seen, create a new run rather than rewriting the preregistration.
 
-## 3. Minimum rc2 model matrix
+## 3. Minimum rc3 model matrix
 
-The rc2 core matrix deliberately uses five models rather than a large leaderboard sweep:
+The rc3 core matrix deliberately uses five models rather than a large leaderboard sweep:
 
 | Model | Role |
 |---|---|
@@ -248,7 +248,7 @@ CRR is undefined/unhelpful when the larger reference does not beat the baseline.
 Use a unique output directory outside tracked product source, for example:
 
 ```text
-benchmarks/output/rc2-<model-id>-<run-id>/
+benchmarks/output/rc3-<model-id>-<run-id>/
 ```
 
 Preserve:
@@ -269,15 +269,15 @@ Require one writer. Duplicate `(arm,item_id)` keys, silent configuration changes
 
 ## 15. Historical evidence policy
 
-Historical r17/r20 result interpretation documents may remain in the repository as design history. Their exact raw/generated capability payloads are not copied into rc2 clean source.
+Historical r17/r20 result interpretation documents may remain in the repository as design history. Their exact raw/generated capability payloads are not copied into rc3 clean source.
 
 Safe conclusion from that history: different weak models showed different uplift and preferred surfaces, so **model/task-specific qualification is required**.
 
-Unsafe conclusion: copying an old Qwen/Llama score onto rc2 or using it as proof that every small model improves.
+Unsafe conclusion: copying an old Qwen/Llama score onto rc3 or using it as proof that every small model improves.
 
-## 16. rc2 qualification order
+## 16. rc3 qualification order
 
-1. verify the immutable GitHub rc2 release/tag/checksums;
+1. verify the immutable GitHub rc3 release/tag/checksums;
 2. run no-model package/integration baseline checks;
 3. download/hash/freeze the five core models;
 4. freeze preregistration;
@@ -293,9 +293,9 @@ A preregistered futility rule may stop a catastrophically incompatible lower-bou
 
 ## 17. Claim policy
 
-Before rc2 model/target evidence exists, public docs may say that ExactScope implements bounded deterministic quantitative execution and packages narrow model-facing/native/Wasm integration paths for evaluation.
+Before rc3 model/target evidence exists, public docs may say that ExactScope implements bounded deterministic quantitative execution and packages narrow model-facing/native/Wasm integration paths for evaluation.
 
-They must not claim rc2:
+They must not claim rc3:
 
 - accuracy uplift;
 - general hallucination elimination;

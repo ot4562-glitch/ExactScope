@@ -1,6 +1,6 @@
 # AI integration contract
 
-Release target: **ExactScope v1.0.0-rc.2**
+Release target: **ExactScope v1.0.0-rc.3**
 Status: **integration & qualification candidate**
 
 ExactScope is consumed by AI runtimes as a constrained deterministic capability component. The integration goal is not to expose a large tool catalog. It is to give a small model the **fewest reviewed choices necessary** and route accepted calls into one shared deterministic numeric core.
@@ -141,24 +141,26 @@ Forbidden examples:
 
 ## 6. llama.cpp reference integration
 
-The maintained strict reference adapters are:
+A source checkout still contains the narrow protocol self-tests:
 
 ```text
 adapters/llama-cpp/direct_eval_smoke.py
 adapters/llama-cpp/calc_plan_smoke.py
 ```
 
-Their source-level/self-test role is to validate the integration envelope without running a model:
+They validate duplicate-key handling, arity/shape/decimal constraints, bounded `xs_calc` references, explicit model-surface negotiation, and the rule that an adapter must never calculate or repair semantics itself.
 
-- exact capability/model-surface negotiation;
-- strict duplicate-key handling;
-- arity and shape checks;
-- decimal lexical checks;
-- resource limits;
-- backward-only `xs_calc` references;
-- no calculation or semantic repair inside the adapter.
+**Published-release qualification does not depend on those source-only paths.** The evaluation archive ships these complete model-facing inputs:
 
-For actual model inference, use the frozen generated tool/GBNF/prompt assets from the exact release/capability being qualified. A model run becomes evidence only when its model/runtime/artifact/corpus identities are recorded as described in [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md).
+```text
+capabilities/quant-core-16-semantic-ai/
+capabilities/quant-core-16-combined-ai/
+examples/capability-host.mjs
+benchmarks/capability_surface.py
+benchmarks/run_qualification.py
+```
+
+Each capability includes its exact profile, surface contract, manifest/detached digest, prompt/tool/GBNF assets, benchmark mapping and bound `runtime.wasm`. `benchmarks/run_qualification.py preregister` freezes those identities together with model/runtime/corpus/generation settings **before inference**; `run` rejects any later drift. This archive-local path is the evidence path described in [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md).
 
 ## 7. OpenAI-compatible tool envelopes
 
@@ -179,7 +181,7 @@ A fixed embedded product can bypass model-facing JSON after the model adapter an
 
 ### Wasm host
 
-The evaluation SDK includes a no-import Wasm artifact for local embedding. `examples/javascript/capability-host.mjs` demonstrates identity checking and a strict local host boundary.
+The evaluation SDK includes a no-import Wasm artifact for local embedding. In a source checkout the host is `examples/javascript/capability-host.mjs`; in the published evaluation archive it is `examples/capability-host.mjs`. The packaged semantic/combined capability directories are the exact inputs to that identity-checking host.
 
 A selected capability build should not retain excluded serving paths merely because the fused development runtime has them.
 
@@ -206,7 +208,7 @@ This decomposition matters because ExactScope can guarantee deterministic execut
 
 ## 10. Recommended qualification arms
 
-For `v1.0.0-rc.2`, the later qualification session should use the minimum useful comparison:
+For `v1.0.0-rc.3`, the later qualification session should use the minimum useful comparison:
 
 - **A — model only**;
 - **C — selected semantic `xs_eval` only**;
@@ -235,7 +237,7 @@ Model terms/licenses remain independent from ExactScope's source license.
 
 The old Statistics evidence accumulated through `statistics-core-8-ai-r20` belongs to a 45,804-byte r17 serving runtime. It demonstrated both potential value and a critical limitation: different weak models preferred different selected surfaces and very weak models could still fail semantic selection/argument extraction.
 
-Do not copy those scores onto rc2. Re-running the same model against rc2 is a new evidence run.
+Do not copy those scores onto rc3. Re-running the same model against rc3 is a new evidence run.
 
 ## 13. Integration completion checklist
 
@@ -260,4 +262,4 @@ For a real end-to-end model benchmark and ARM64 target qualification, use:
 - [`NEXT_SESSION_PROMPT.md`](NEXT_SESSION_PROMPT.md)
 - [`../benchmarks/NEXT_MODEL_MATRIX.md`](../benchmarks/NEXT_MODEL_MATRIX.md)
 
-`v1.0.0-rc.2` remains a prerelease until those exact public artifacts are independently qualified.
+`v1.0.0-rc.3` remains a prerelease until those exact public artifacts are independently qualified.

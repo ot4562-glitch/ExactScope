@@ -6,12 +6,12 @@
 
 **Add reviewed quantitative capability without replacing the model.**
 
-[![Release](https://img.shields.io/badge/release-v1.0.0--rc.2-orange)](https://github.com/ot4562-glitch/ExactScope/releases/tag/v1.0.0-rc.2)
+[![Release](https://img.shields.io/badge/release-v1.0.0--rc.3-orange)](https://github.com/ot4562-glitch/ExactScope/releases/tag/v1.0.0-rc.3)
 ![Status](https://img.shields.io/badge/status-integration%20%26%20qualification%20candidate-yellow)
 ![ABI](https://img.shields.io/badge/C%20ABI-1.0-informational)
 ![Wasm](https://img.shields.io/badge/Wasm-no--import-success)
 
-**Code-side implementation is complete for the active Statistics/Economics architecture. Model and real-device qualification for rc.2 are intentionally unmeasured until the public release is evaluated as an external user.**
+**Code-side implementation is complete for the active Statistics/Economics architecture. Model and real-device qualification for rc.3 are intentionally unmeasured until the public release is evaluated as an external user.**
 
 [Quickstart](docs/QUICKSTART.md) · [AI integration](docs/AI_INTEGRATION.md) · [Qualification handoff](docs/QUALIFICATION_HANDOFF.md) · [한국어 요약](#한국어-요약)
 
@@ -46,11 +46,11 @@ canonical decimal result or typed failure
 
 The important constraint is **small surface, not broad catalog**. A weak model should see the fewest choices needed for its task family.
 
-## v1.0.0-rc.2 status
+## v1.0.0-rc.3 status
 
-`v1.0.0-rc.2` is an **integration & qualification candidate**.
+`v1.0.0-rc.3` is an **integration & qualification candidate**.
 
-| Area | rc.2 state |
+| Area | rc.3 state |
 |---|---|
 | Deterministic numeric core | implemented |
 | Native C ABI | implemented |
@@ -63,22 +63,22 @@ The important constraint is **small surface, not broad catalog**. A weak model s
 | Model-surface identity negotiation | implemented, fail closed |
 | Release-shaped packaging | implemented |
 | Android/Linux ARM64 SDK packaging | implemented in release workflow |
-| rc.2 model benchmark | **not run yet** |
-| rc.2 real-device RAM/latency/energy qualification | **not run yet** |
+| rc.3 model benchmark | **not run yet** |
+| rc.3 real-device RAM/latency/energy qualification | **not run yet** |
 | Stable support claim | **not made** |
 
 That separation is deliberate: the candidate is packaged first, then benchmarked and qualified from the immutable public release so results are not attached to a moving development tree.
 
 ## Pick the right release asset
 
-The rc.2 workflow is configured to publish these integration shapes. Only use an asset that actually exists on the GitHub release page.
+The rc.3 workflow is configured to publish these integration shapes. Only use an asset that actually exists on the GitHub release page.
 
 | Platform | Expected archive | Use |
 |---|---|---|
-| Windows x86-64 | `exactscope-eval-1.0.0-rc.2-x86_64-pc-windows-msvc.tar.gz` | local-model / desktop integration |
-| Linux x86-64 | `exactscope-eval-1.0.0-rc.2-x86_64-unknown-linux-gnu.tar.gz` | local-model / server integration |
-| Android ARM64 | `exactscope-wearable-sdk-1.0.0-rc.2-aarch64-linux-android.tar.gz` | Android / edge OEM integration |
-| Linux ARM64 musl | `exactscope-wearable-sdk-1.0.0-rc.2-aarch64-unknown-linux-musl.tar.gz` | embedded Linux / wearable integration |
+| Windows x86-64 | `exactscope-eval-1.0.0-rc.3-x86_64-pc-windows-msvc.tar.gz` | local-model / desktop integration |
+| Linux x86-64 | `exactscope-eval-1.0.0-rc.3-x86_64-unknown-linux-gnu.tar.gz` | local-model / server integration |
+| Android ARM64 | `exactscope-wearable-sdk-1.0.0-rc.3-aarch64-linux-android.tar.gz` | Android / edge OEM integration |
+| Linux ARM64 musl | `exactscope-wearable-sdk-1.0.0-rc.3-aarch64-unknown-linux-musl.tar.gz` | embedded Linux / wearable integration |
 
 Every published archive is accompanied by release-level `SHA256SUMS` and `release-manifest.json`. The evaluation archives also contain their own manifest and checksums.
 
@@ -205,7 +205,7 @@ Source/unit/static checks are not model or hardware qualification evidence.
 
 ## Next benchmark: minimum diverse model matrix
 
-The rc.2 benchmark plan intentionally uses **five core models**, not a giant leaderboard sweep:
+The rc.3 benchmark plan intentionally uses **five core models**, not a giant leaderboard sweep:
 
 | Model | Role |
 |---|---|
@@ -225,13 +225,13 @@ py -3 tools/fetch_benchmark_models.py --list
 py -3 tools/fetch_benchmark_models.py core --root C:\AIModels\ExactScopeBench
 ```
 
-See [`benchmarks/NEXT_MODEL_MATRIX.md`](benchmarks/NEXT_MODEL_MATRIX.md). New rc.2 scores remain **unmeasured** until a separate qualification session freezes exact release/model/runtime/corpus/scoring identities and runs them.
+See [`benchmarks/NEXT_MODEL_MATRIX.md`](benchmarks/NEXT_MODEL_MATRIX.md). New rc.3 scores remain **unmeasured** until a separate qualification session freezes exact release/model/runtime/corpus/scoring identities and runs them.
 
-## Historical model evidence — do not transfer to rc.2
+## Historical model evidence — do not transfer to rc.3
 
 An older internal preregistered Statistics development chain, accumulated through `statistics-core-8-ai-r20`, showed that reviewed semantic capability could materially change end-to-end results for some weak-model configurations. It also showed an important failure boundary: uplift magnitude and the best model-facing surface varied substantially by model, and a sufficiently weak model could still fail selection/argument extraction.
 
-Those results belong to an older **45,804-byte r17 Statistics serving runtime**. They are retained as historical design evidence only and are **not rc.2 benchmark results**. Re-running those models against rc.2 creates new evidence.
+Those results belong to an older **45,804-byte r17 Statistics serving runtime**. They are retained as historical design evidence only and are **not rc.3 benchmark results**. Re-running those models against rc.3 creates new evidence.
 
 For the exact historical numbers and caveats, see the result interpretation documents under `benchmarks/STATISTICS_R17_*_RESULT.md`.
 
@@ -290,7 +290,7 @@ ExactScope is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APA
 
 ExactScope는 **작은 온디바이스/로컬 AI에 필요한 좁은 정량 계산 능력을 작은 deterministic component로 붙이는 제품**입니다. 모델 전체를 키우거나 하드웨어를 바꾸기 전에, 필요한 통계·경제·일반 산술 능력만 제한된 도구 표면으로 추가하는 것이 목적입니다.
 
-`v1.0.0-rc.2`는 **제품 코드 구현과 공개 패키징을 끝내고 실제 사용자 방식의 검증을 시작하기 위한 릴리즈 후보**입니다. 아직 rc2에 대한 모델 성능·실기기 RAM/지연시간/에너지 결과는 만들지 않았습니다. 그 검증은 공개된 동일한 GitHub 릴리즈를 새 세션에서 내려받아 수행합니다.
+`v1.0.0-rc.3`는 **제품 코드 구현과 공개 패키징을 끝내고 실제 사용자 방식의 검증을 시작하기 위한 릴리즈 후보**입니다. 아직 rc3에 대한 모델 성능·실기기 RAM/지연시간/에너지 결과는 만들지 않았습니다. 그 검증은 공개된 동일한 GitHub 릴리즈를 새 세션에서 내려받아 수행합니다.
 
 가장 먼저 읽을 문서:
 
@@ -300,4 +300,4 @@ ExactScope는 **작은 온디바이스/로컬 AI에 필요한 좁은 정량 계�
 4. [`docs/QUALIFICATION_HANDOFF.md`](docs/QUALIFICATION_HANDOFF.md) — 실제 benchmark/target qualification 절차
 5. [`docs/NEXT_SESSION_PROMPT.md`](docs/NEXT_SESSION_PROMPT.md) — 다음 세션에 그대로 붙여넣을 프롬프트
 
-과거 r20 모델 성능은 이전 45,804 B r17 runtime의 역사적 증거이며 rc2에 상속하지 않습니다.
+과거 r20 모델 성능은 이전 45,804 B r17 runtime의 역사적 증거이며 rc3에 상속하지 않습니다.

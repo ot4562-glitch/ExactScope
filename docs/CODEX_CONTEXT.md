@@ -1,4 +1,4 @@
-# Codex / agent context — ExactScope v1.0.0-rc.2
+# Codex / agent context — ExactScope v1.0.0-rc.3
 
 Date: 2026-09-05
 Release role: **integration & qualification candidate**
@@ -38,7 +38,7 @@ Correctness/determinism/fail-closed/ABI come before a small byte reduction. If a
 
 ## Active code-side state
 
-The active Statistics/Economics product architecture is code-side complete for rc2.
+The active Statistics/Economics product architecture is code-side complete for rc3.
 
 Rust crates:
 
@@ -61,7 +61,7 @@ Build/generation tooling:
 
 D-057 metadata phase 2 is complete: Statistics stable kernel IDs, arity/output contracts, operation declarations, selected lookup, dispatch-call plumbing, packc kernel-name lookup, and Cargo forwarding are generated or drift-checked. Economics selected lookup/scalar wiring is drift-checked. Numeric algorithms remain handwritten/reviewed.
 
-## rc2 clean-source policy
+## rc3 clean-source policy
 
 The release source keeps reviewed source/specs, deterministic generators, benchmark harnesses/preregistration inputs, and historical interpretation documents. It does **not** carry forward mutable generated capability/evidence revision directories or mutable benchmark output payloads as product source.
 
@@ -69,13 +69,13 @@ The release source keeps reviewed source/specs, deterministic generators, benchm
 - `benchmarks/output/` is ignored.
 - `benchmarks/results/` keeps policy/readme only in the clean source; frozen evidence should be published separately/immutably rather than overwritten.
 
-Never delete or rewrite historical frozen evidence in a developer checkout just to make a source release look clean. The rc2 release was prepared in a separate clean clone.
+Never delete or rewrite historical frozen evidence in a developer checkout just to make a source release look clean. The rc3 release was prepared in a separate clean clone.
 
 ## Evidence boundary
 
-Historical `statistics-core-8-ai-r20` model evidence belongs to an older 45,804-byte r17 Statistics serving runtime. It does not transfer to rc2.
+Historical `statistics-core-8-ai-r20` model evidence belongs to an older 45,804-byte r17 Statistics serving runtime. It does not transfer to rc3.
 
-Do not claim for rc2 without new matching evidence:
+Do not claim for rc3 without new matching evidence:
 
 - model accuracy uplift;
 - current specialized artifact byte measurements as if they were old r20 numbers;
@@ -87,7 +87,7 @@ Do not claim for rc2 without new matching evidence:
 
 A 64 KiB Wasm linear-memory ceiling is not process RSS/device RAM.
 
-## rc2 public packaging intent
+## rc3 public packaging intent
 
 The release workflow is configured to produce:
 
@@ -114,7 +114,7 @@ Tag and Cargo version must match. Do not hardcode future release filenames in wo
 
 `tools/fetch_benchmark_models.py` downloads and hashes models only; it does not run inference.
 
-The later qualification session should start from the immutable GitHub rc2 release, preregister exact identities, use A model-only / C selected semantic / D combined as the primary arms, add B calc-only only for diagnostics, then perform representative ARM64 target qualification.
+The later qualification session should start from the immutable GitHub rc3 release, preregister exact identities, use A model-only / C selected semantic / D combined as the primary arms, add B calc-only only for diagnostics, then perform representative ARM64 target qualification.
 
 ## Modification rules
 
@@ -122,9 +122,9 @@ The later qualification session should start from the immutable GitHub rc2 relea
 - Do not overwrite frozen capability/evidence revisions.
 - Do not change ABI/kernel IDs casually.
 - Treat `UNSUPPORTED_OPERATION` in deliberate specialization/fail-closed paths as a contract, not an implementation TODO.
-- New domains/new operations are reviewed product breadth, not missing rc2 plumbing.
+- New domains/new operations are reviewed product breadth, not missing rc3 plumbing.
 - Keep generated metadata and checked-in outputs in deterministic sync.
-- A product/public ABI/surface/corpus/scorer change after rc2 creates a new candidate for evidence purposes.
+- A product/public ABI/surface/corpus/scorer change after rc3 creates a new candidate for evidence purposes.
 
 ## Validation classes
 
@@ -151,4 +151,4 @@ For external-user evaluation, use:
 - `benchmarks/NEXT_MODEL_MATRIX.md`
 - `benchmarks/model-downloads.json`
 
-The correct description before that work is: **rc2 code-side implementation and release packaging candidate, not yet model/target qualified.**
+The correct description before that work is: **rc3 code-side implementation and release packaging candidate, not yet model/target qualified.**

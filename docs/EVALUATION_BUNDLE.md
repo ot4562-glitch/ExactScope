@@ -1,4 +1,4 @@
-# ExactScope v1.0.0-rc.2 evaluation SDK
+# ExactScope v1.0.0-rc.3 evaluation SDK
 
 The evaluation SDK is the prerelease integration artifact for developers who want to evaluate ExactScope without first installing Rust or understanding the workspace.
 
@@ -14,11 +14,15 @@ lib/<target>/libexactscope_cabi.a        # or exactscope_cabi.lib on Windows
 lib/cmake/ExactScope/ExactScopeConfig.cmake
 include/exactscope*.h
 wasm/exactscope.wasm                     # no-import portable artifact
-adapters/generated/<hot-set>/            # bound tool/GBNF/catalog/prompt assets
+adapters/generated/<hot-set>/            # raw generated hot-set assets
+capabilities/quant-core-16-semantic-ai/  # complete artifact-bound xs_eval capability
+capabilities/quant-core-16-combined-ai/  # complete artifact-bound xs_eval + xs_calc capability
 examples/native_smoke.c
 examples/xs_calc.c
 examples/wasm-xs-calc.mjs
 examples/capability-host.mjs
+benchmarks/capability_surface.py
+benchmarks/run_qualification.py
 benchmarks/corpus-v0.1.jsonl
 benchmarks/NEXT_MODEL_MATRIX.md
 benchmarks/model-downloads.json
@@ -38,7 +42,7 @@ licenses/
 
 `manifest.json` is the authoritative inventory and records source commit, toolchain identity, native target, artifact sizes/digests, selected hot-set binding, and integration paths. `SHA256SUMS` covers the packaged payload including the manifest.
 
-Historical mutable benchmark result JSON files are intentionally not copied into a new SDK as if they were rc2 results.
+Historical mutable benchmark result JSON files are intentionally not copied into a new SDK as if they were rc3 results.
 
 ## 1. Verify the outer GitHub release first
 
@@ -48,7 +52,7 @@ Before extracting the SDK:
 2. confirm `release-manifest.json` names the expected tag/source commit and archive digest;
 3. preserve those files with any later qualification result.
 
-If these checks fail, do not continue as rc2 evidence.
+If these checks fail, do not continue as rc3 evidence.
 
 ## 2. Verify the extracted SDK
 
@@ -111,7 +115,17 @@ node examples/wasm-xs-calc.mjs wasm/exactscope.wasm
 
 These checks exercise the packaged integration boundary. They are not a substitute for target qualification and must not be reported as a model benchmark.
 
-For an exact selected capability, prefer the identity-aware `examples/capability-host.mjs` and the generated model-surface assets rather than widening the serving surface manually.
+The archive contains two complete identity-aware capability directories. `examples/capability-host.mjs` accepts those directories directly and rejects digest/profile/surface/runtime drift before execution:
+
+```sh
+node examples/capability-host.mjs capabilities/quant-core-16-semantic-ai \
+  '{"op":"stats.mean","a":[["1","2","3"]]}'
+
+node examples/capability-host.mjs capabilities/quant-core-16-combined-ai \
+  '{"p":[{"o":"mul","a":["12","7"]},{"o":"sub","a":["#0","4"]},{"o":"div","a":["#1","5"]}]}'
+```
+
+Do not reconstruct a capability from `adapters/generated/` during release qualification; the versioned `capabilities/` directories are the immutable model-facing inputs.
 
 ## 6. Benchmark-corpus/core self-test
 
@@ -135,18 +149,22 @@ py -3 tools/fetch_benchmark_models.py core --root C:\AIModels\ExactScopeBench
 
 The helper resolves repository revisions, downloads selected files at those revisions, computes SHA-256, and writes `model-inventory.json`. It does **not** run a model or ExactScope benchmark.
 
-The five core models and rationale are defined in `benchmarks/NEXT_MODEL_MATRIX.md`. Do not expand the matrix casually before the first preregistered rc2 run.
+The five core models and rationale are defined in `benchmarks/NEXT_MODEL_MATRIX.md`. Do not expand the matrix casually before the first preregistered rc3 run.
 
 ## 8. Real model benchmark belongs to the next session
 
-Do not treat an ad-hoc `llama-server` run as release evidence. Before the first inference call, freeze the exact release, model, runtime, corpus, prompt/tool/GBNF assets, generation settings, scoring rules, retry/timeout policy, and output identity as described in:
+Do not treat an ad-hoc `llama-server` run as release evidence. Use the packaged two-phase qualification harness:
 
-- `docs/QUALIFICATION_HANDOFF.md`;
-- `docs/NEXT_SESSION_PROMPT.md`.
+```sh
+python benchmarks/run_qualification.py preregister --help
+python benchmarks/run_qualification.py run --help
+```
 
-Primary comparison arms are A model-only, C selected semantic-only, and D combined when the exact selected profile actually contains both. Add B calc-only only for diagnostics.
+`preregister` performs no inference and freezes the exact release archive/model/runtime/corpus/core/capability byte identities plus launch command, context, seed, generation ceiling, timeout, scoring rules and no-retry policy. `run` re-verifies every frozen identity and refuses to start on drift. Completed output contains `results.jsonl`, copied C/D capability evidence, `summary.json`, `run-status.json`, the exact preregistration, and `SHA256MANIFEST.json`.
 
-Historical r20 Statistics model scores belong to an older 45,804-byte r17 runtime and are not rc2 baseline results.
+Primary comparison arms are A model-only, C the shipped semantic capability, and D the shipped combined capability. The current semantic benchmark corpus expects `xs_eval` in C/D; a D-side `xs_calc` choice is recorded as wrong-lane rather than silently credited. There is no hidden retry or semantic repair.
+
+The detailed rules remain in `docs/QUALIFICATION_HANDOFF.md` and `docs/NEXT_SESSION_PROMPT.md`. Historical r20 Statistics model scores belong to an older 45,804-byte r17 runtime and are not rc3 baseline results.
 
 ## 9. ARM64 product qualification
 
@@ -158,6 +176,6 @@ A Wasm linear-memory page maximum is not total process/device RSS.
 
 ## 10. Stable-release boundary
 
-`v1.0.0-rc.2` provides permanent versioned public candidate assets so qualification can be performed against an immutable input. Stable/support promotion still requires evidence for the exact published artifacts, including the selected model matrix or justified product-specific subset and representative target-device qualification.
+`v1.0.0-rc.3` provides permanent versioned public candidate assets so qualification can be performed against an immutable input. Stable/support promotion still requires evidence for the exact published artifacts, including the selected model matrix or justified product-specific subset and representative target-device qualification.
 
 Use [QUALIFICATION_HANDOFF.md](QUALIFICATION_HANDOFF.md) as the canonical continuation contract.

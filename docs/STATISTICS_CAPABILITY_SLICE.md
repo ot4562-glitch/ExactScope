@@ -1,6 +1,6 @@
 # ExactScope Statistics flagship capability slice
 
-Status: **code-side capability slice implemented; v1.0.0-rc.2 model/target qualification unmeasured**. This document defines the flagship Statistics task families and evidence contract built from the reviewed eight-operation set. The compiler/specialization/runtime plumbing exists, but the exact public rc2 release must still pass the benchmark and target gates below before the slice is called qualified.
+Status: **code-side capability slice implemented; v1.0.0-rc.3 model/target qualification unmeasured**. This document defines the flagship Statistics task families and evidence contract built from the reviewed eight-operation set. The compiler/specialization/runtime plumbing exists, but the exact public rc3 release must still pass the benchmark and target gates below before the slice is called qualified.
 
 Implemented corpus: `benchmarks/statistics_corpus.py` emits the checked-in
 `statistics-v0.1.jsonl` from an explicit 32-bit LCG seed and five presentation
@@ -193,7 +193,7 @@ Every case must contain machine-readable gold data separate from model output:
 
 Before model evaluation, every supported gold call must execute through the actual ExactScope artifact and match the stored expected result. No model answer may influence compatibility selection or gold generation.
 
-## 8. rc2 benchmark arms
+## 8. rc3 benchmark arms
 
 For the same prompt corpus and model configuration, use the minimum comparison that answers the product question:
 
@@ -206,9 +206,9 @@ For the same prompt corpus and model configuration, use the minimum comparison t
 
 A larger-model comparison is handled by the model matrix rather than creating an automatic E arm for every run. Phi-4-mini 3.8B is the default upper-small independent reference; add a still-larger reference only when it answers a specific product decision and the comparison contract is fair.
 
-## 9. rc2 target model matrix
+## 9. rc3 target model matrix
 
-The rc2 qualification matrix is frozen in [`../benchmarks/NEXT_MODEL_MATRIX.md`](../benchmarks/NEXT_MODEL_MATRIX.md). Its five core models deliberately cover multiple sizes/vendors/use cases without becoming a large leaderboard sweep:
+The rc3 qualification matrix is frozen in [`../benchmarks/NEXT_MODEL_MATRIX.md`](../benchmarks/NEXT_MODEL_MATRIX.md). Its five core models deliberately cover multiple sizes/vendors/use cases without becoming a large leaderboard sweep:
 
 - Gemma 3 270M IT Q8_0;
 - LFM2.5 350M Q4_K_M;
@@ -333,8 +333,8 @@ The flagship result should let a device/AI team answer four practical questions:
 
 If those answers are weak, ExactScope should improve the slice/interface/evidence before expanding the domain catalog.
 
-## Implemented compiler / rc2 evidence boundary
+## Implemented compiler / rc3 evidence boundary
 
 The build-time [capability compiler](CAPABILITY_COMPILER.md) validates Statistics/Economics task selections, binds operation revisions and canonical model assets, enforces static budgets, emits exact model-surface negotiation metadata, and drives operation-selected no-import Wasm specialization. The active Statistics metadata generation/dispatch plumbing is code-side complete.
 
-Existing capability benchmark runners remain useful implementation/evidence tooling, and older local-model experiments remain historical interface evidence. They are **not** the rc2 benchmark result. The rc2 qualification session must start from the immutable public release, use the frozen minimum model matrix/preregistration contract, and create new evidence identities under [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md).
+Existing capability benchmark runners remain useful implementation/evidence tooling, and older local-model experiments remain historical interface evidence. They are **not** the rc3 benchmark result. The rc3 qualification session must start from the immutable public release, use the frozen minimum model matrix/preregistration contract, and create new evidence identities under [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md).

@@ -4,7 +4,7 @@ ExactScope is a tiny deterministic quantitative coprocessor for small/on-device 
 
 ## Current project phase
 
-`v1.0.0-rc.2` is a code-side-complete **integration & qualification candidate** for the active Statistics/Economics architecture. The current priority is to keep the public candidate reproducible and small while external-user model/target qualification is performed from the immutable release. New feature breadth is not a substitute for that evidence.
+`v1.0.0-rc.3` is a code-side-complete **integration & qualification candidate** for the active Statistics/Economics architecture. The current priority is to keep the public candidate reproducible and small while external-user model/target qualification is performed from the immutable release. New feature breadth is not a substitute for that evidence.
 
 Read this order first:
 
@@ -33,7 +33,7 @@ Before proposing a large feature, ask whether it improves one of these:
 - exact release packaging, compatibility, update and rollback behavior;
 - measured product value on a real constrained workload.
 
-Broad platform support, dynamic-profile polish, catalog expansion, and new domains are secondary until the rc2 candidate is independently qualified.
+Broad platform support, dynamic-profile polish, catalog expansion, and new domains are secondary until the rc3 candidate is independently qualified.
 
 ## Core invariants
 
@@ -83,9 +83,9 @@ Forbidden examples:
 
 ## Benchmark changes
 
-Benchmark contributions should follow `docs/BENCHMARK.md` and `docs/QUALIFICATION_HANDOFF.md`. For the rc2 flagship qualification, the primary arms are A model-only, C selected semantic-only, and D combined where the exact selected profile contains both lanes. Add B `xs_calc`-only only when it answers a diagnostic question; discovery is an optional ablation, not a required hot path.
+Benchmark contributions should follow `docs/BENCHMARK.md` and `docs/QUALIFICATION_HANDOFF.md`. For the rc3 flagship qualification, the primary arms are A model-only, C selected semantic-only, and D combined where the exact selected profile contains both lanes. Add B `xs_calc`-only only when it answers a diagnostic question; discovery is an optional ablation, not a required hot path.
 
-Do not publish a single blended score without stage-level failures and cost metrics. Do not run a public rc2 comparison from a modified developer checkout and call it release evidence.
+Do not publish a single blended score without stage-level failures and cost metrics. Do not run a public rc3 comparison from a modified developer checkout and call it release evidence.
 
 Any comparative claim must identify exact release/capability/model-surface/model/runtime/hardware/corpus/scorer identities and digests.
 

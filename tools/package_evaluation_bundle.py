@@ -17,6 +17,9 @@ import tomllib
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from build_evaluation_capabilities import build_set as build_evaluation_capability_set
+from compile_capability import verify_bundle as verify_capability_bundle
+
 ROOT = Path(__file__).resolve().parents[1]
 PROJECT_MANIFEST = ROOT / "Cargo.toml"
 HOTSET_FILES = (
@@ -53,6 +56,8 @@ PUBLIC_FILES: tuple[tuple[str, str], ...] = (
     ("tools/test_wasm.mjs", "tools/test_wasm.mjs"),
     ("tools/inspect_wasm.py", "tools/inspect_wasm.py"),
     ("benchmarks/run_benchmark.py", "benchmarks/run_benchmark.py"),
+    ("benchmarks/capability_surface.py", "benchmarks/capability_surface.py"),
+    ("benchmarks/run_qualification.py", "benchmarks/run_qualification.py"),
     ("benchmarks/corpus-v0.1.jsonl", "benchmarks/corpus-v0.1.jsonl"),
     ("benchmarks/README.md", "benchmarks/README.md"),
     ("docs/README.md", "docs/README.md"),
@@ -173,6 +178,13 @@ def stage_bundle(
     wasm_rel = "wasm/exactscope.wasm"
     copy_file(wasm, bundle_root / wasm_rel)
 
+    capability_records = build_evaluation_capability_set(
+        hotset_dir=hotset_dir,
+        runtime_path=bundle_root / wasm_rel,
+        corpus_path=ROOT / "benchmarks" / "corpus-v0.1.jsonl",
+        output_root=bundle_root / "capabilities",
+    )
+
     catalog_path = hotset_dir / "catalog.json"
     try:
         catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
@@ -215,13 +227,24 @@ def stage_bundle(
             "binding_sha256": binding,
             "catalog_path": f"adapters/generated/{hotset_name}/catalog.json",
         },
+        "capabilities": {
+            lane: {
+                **record,
+                "path": f"capabilities/{record['path']}",
+            }
+            for lane, record in capability_records.items()
+        },
         "integration": {
             "cmake_target": "ExactScope::exactscope",
             "native_smoke": "examples/native_smoke.c",
             "native_xs_calc": "examples/xs_calc.c",
             "wasm_smoke": "tools/test_wasm.mjs",
             "wasm_xs_calc": "examples/wasm-xs-calc.mjs",
+            "capability_host": "examples/capability-host.mjs",
+            "semantic_capability": f"capabilities/{capability_records['semantic']['path']}",
+            "combined_capability": f"capabilities/{capability_records['combined']['path']}",
             "benchmark_runner": "benchmarks/run_benchmark.py",
+            "qualification_runner": "benchmarks/run_qualification.py",
             "rust_toolchain_required_to_evaluate": False,
         },
         "files": records,
@@ -329,6 +352,32 @@ def verify_bundle_root(bundle_root: Path) -> dict[str, Any]:
             raise PackagingError("manifest references missing payload file")
         if record.get("sha256") != digest_file(actual_files[relative]):
             raise PackagingError(f"manifest digest mismatch: {relative}")
+
+    capabilities = manifest.get("capabilities")
+    if not isinstance(capabilities, dict) or set(capabilities) != {"semantic", "combined"}:
+        raise PackagingError("evaluation bundle must publish semantic and combined capabilities")
+    for lane, record in capabilities.items():
+        if not isinstance(record, dict):
+            raise PackagingError(f"invalid {lane} capability record")
+        relative = record.get("path")
+        if not isinstance(relative, str):
+            raise PackagingError(f"{lane} capability path is missing")
+        safe = safe_member_path(relative)
+        capability_root = bundle_root.joinpath(*safe.parts)
+        if not capability_root.is_dir():
+            raise PackagingError(f"{lane} capability directory is missing")
+        try:
+            capability_manifest = verify_capability_bundle(capability_root)
+        except (OSError, ValueError) as exc:
+            raise PackagingError(f"invalid {lane} capability bundle: {exc}") from exc
+        detached = (capability_root / "bundle-sha256.txt").read_text(encoding="ascii").strip()
+        if record.get("bundle_sha256") != detached:
+            raise PackagingError(f"{lane} capability detached digest mismatch")
+        profile = json.loads((capability_root / "profile.json").read_text(encoding="ascii"))
+        if record.get("profile_id") != profile.get("profile_id") or record.get("profile_revision") != profile.get("profile_revision"):
+            raise PackagingError(f"{lane} capability profile identity mismatch")
+        if capability_manifest.get("artifact_measurements") is None:
+            raise PackagingError(f"{lane} capability is not artifact-bound")
     return manifest
 
 

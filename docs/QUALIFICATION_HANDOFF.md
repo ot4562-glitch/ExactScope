@@ -1,16 +1,16 @@
-# ExactScope v1.0.0-rc.2 qualification handoff
+# ExactScope v1.0.0-rc.3 qualification handoff
 
 Status: **runbook for a later verification session**
 Release role: **integration & qualification candidate, not a stable/qualified product**
-Date: 2026-09-05
+Date: 2026-09-06
 
-This document is the source of truth for the next session that evaluates ExactScope as an external user would. The present release-preparation session must not create rc2 model scores or target-device claims. Qualification starts only from the immutable GitHub `v1.0.0-rc.2` release and its published assets.
+This document is the source of truth for the next session that evaluates ExactScope as an external user would. The present release-preparation session must not create rc3 model scores or target-device claims. Qualification starts only from the immutable GitHub `v1.0.0-rc.3` release and its published assets.
 
 ## 1. Non-negotiable evidence boundary
 
 - Treat the Git tag, commit, source archive, release assets, capability/model-surface assets, model files, benchmark corpus, prompts, runtime, scorer, and raw outputs as one evidence identity.
-- Do not edit product source before establishing the baseline. A source change creates a new candidate and invalidates direct attachment of results to rc2.
-- The old `statistics-core-8-ai-r20` results belong to a 45,804-byte r17 runtime. They are historical design evidence only. **Never copy or relabel them as rc2 evidence.**
+- Do not edit product source before establishing the baseline. A source change creates a new candidate and invalidates direct attachment of results to rc3.
+- The old `statistics-core-8-ai-r20` results belong to a 45,804-byte r17 runtime. They are historical design evidence only. **Never copy or relabel them as rc3 evidence.**
 - Do not hide parse, tool-selection, argument-extraction, runtime, token-limit, or final-answer failures. Keep them as separate categories.
 - No hidden retries, semantic repair, answer repair, or manual correction unless a retry/repair policy was frozen before the run.
 - A smoke/conformance pass does not imply model uplift, target latency, target RAM, energy efficiency, or production readiness.
@@ -27,18 +27,18 @@ Record at minimum:
 - each SDK archive name, byte size, and SHA-256;
 - OS, CPU/SoC, RAM, runtime/toolchain version, and command lines used.
 
-Verify `SHA256SUMS` before extracting or loading artifacts. Compare the release manifest's `source_commit` with the tag commit. If either check fails, mark the run **invalid** and do not continue as rc2 qualification.
+Verify `SHA256SUMS` before extracting or loading artifacts. Compare the release manifest's `source_commit` with the tag commit. If either check fails, mark the run **invalid** and do not continue as rc3 qualification.
 
 ## 3. Choose the integration asset
 
-The rc2 release is designed to expose four practical integration routes:
+The rc3 release is designed to expose four practical integration routes:
 
 | Target | Expected release asset | Primary use |
 |---|---|---|
-| Windows x86-64 | `exactscope-eval-1.0.0-rc.2-x86_64-pc-windows-msvc.tar.gz` | desktop/local-AI integration and model qualification |
-| Linux x86-64 | `exactscope-eval-1.0.0-rc.2-x86_64-unknown-linux-gnu.tar.gz` | server/local-AI integration and model qualification |
-| Android ARM64 | `exactscope-wearable-sdk-1.0.0-rc.2-aarch64-linux-android.tar.gz` | Android/edge product integration and target qualification |
-| Linux ARM64 | `exactscope-wearable-sdk-1.0.0-rc.2-aarch64-unknown-linux-musl.tar.gz` | embedded Linux/wearable product integration and target qualification |
+| Windows x86-64 | `exactscope-eval-1.0.0-rc.3-x86_64-pc-windows-msvc.tar.gz` | desktop/local-AI integration and model qualification |
+| Linux x86-64 | `exactscope-eval-1.0.0-rc.3-x86_64-unknown-linux-gnu.tar.gz` | server/local-AI integration and model qualification |
+| Android ARM64 | `exactscope-wearable-sdk-1.0.0-rc.3-aarch64-linux-android.tar.gz` | Android/edge product integration and target qualification |
+| Linux ARM64 | `exactscope-wearable-sdk-1.0.0-rc.3-aarch64-unknown-linux-musl.tar.gz` | embedded Linux/wearable product integration and target qualification |
 
 Evaluation SDKs contain the native static library, a local core bridge, no-import Wasm, model-facing assets, examples, model-download tooling, and this runbook. ARM64 SDKs contain the static library, headers, wearable reference host, A/B update helpers, benchmark stream helpers, and qualification contracts.
 
@@ -95,15 +95,31 @@ Freeze a qualification record containing:
 
 If anything above changes after seeing results, create a new run identity instead of silently continuing the old one.
 
+The published evaluation archive includes the preregistration mechanism; do not invent a parallel JSON format:
+
+```sh
+python benchmarks/run_qualification.py preregister --help
+```
+
+That command performs zero inference. It verifies and freezes the downloaded evaluation archive itself, selected model record plus the complete `model-inventory.json`, llama.cpp executable/version/launch command, `benchmarks/corpus-v0.1.jsonl`, packaged core, and both exact public capability identities. The resulting preregistration is the required input to:
+
+```sh
+python benchmarks/run_qualification.py run --preregistration <frozen.json> --output-dir <new-empty-directory>
+```
+
+`run` re-hashes every frozen file before the first request. It will not resume into an existing output directory, retry a failed model request, substitute another capability, or repair a tool call.
+
 ## 7. Model qualification arms
 
 Use the minimum useful comparison:
 
 - **A — model only:** no ExactScope model-facing surface.
-- **C — semantic-only:** only the reviewed `xs_eval` surface selected for the task family.
-- **D — combined:** `xs_calc + xs_eval` only when the selected rc2 profile actually exposes both.
+- **C — semantic-only:** exact public `capabilities/quant-core-16-semantic-ai`, exposing only `xs_eval` over the frozen 16-operation benchmark surface.
+- **D — combined:** exact public `capabilities/quant-core-16-combined-ai`, exposing the same `xs_eval` surface plus bounded `xs_calc`.
 
-Use **B — xs_calc-only** only when diagnosing the value/interference of generic arithmetic. Do not expose the full catalog or `xs_find` on the normal serving path just because those assets exist for development.
+The current corpus contains reviewed semantic Economics/Statistics tasks, so a supported C/D item expects the `xs_eval` lane. A D-side `xs_calc` choice is a wrong-lane failure even when arithmetic happens to match. Missing-information items expect no tool call. **B — xs_calc-only** remains an optional diagnostic outside the primary packaged A/C/D runner; do not add it after seeing A/C/D results.
+
+Do not expose `xs_find` or a larger maintenance catalog on the normal serving path just because those assets exist for development.
 
 Use equal item sets and equal generation budgets for comparable arms. The deterministic runtime may be exact while the overall system remains wrong because the model selected a wrong operation or arguments; score the end-to-end result, not only the tool call.
 
@@ -112,7 +128,7 @@ Use equal item sets and equal generation budgets for comparable arms. The determ
 Write each new run under a unique directory outside tracked source, for example:
 
 ```text
-benchmarks/output/rc2-<model-id>-<run-id>/
+benchmarks/output/rc3-<model-id>-<run-id>/
 ```
 
 Preserve:
@@ -175,11 +191,11 @@ When something fails, classify before changing code:
 - **Harness/scorer defect:** the measurement itself is wrong or ambiguous.
 - **Target integration defect:** platform/linking/memory/lifecycle issue specific to the device host.
 
-A fix to product source, public ABI, selected surface, benchmark corpus, scorer, or adapter creates a new candidate/revision for evidence purposes. Do not repair rc2 and keep the rc2 label on the new binary.
+A fix to product source, public ABI, selected surface, benchmark corpus, scorer, or adapter creates a new candidate/revision for evidence purposes. Do not repair rc3 and keep the rc3 label on the new binary.
 
 ## 12. Promotion gate
 
-`v1.0.0-rc.2` stays a prerelease until evidence exists for the exact immutable artifacts. Do not change README or release claims to stable/qualified merely because code tests pass.
+`v1.0.0-rc.3` stays a prerelease until evidence exists for the exact immutable artifacts. Do not change README or release claims to stable/qualified merely because code tests pass.
 
 A future stable/support decision should have, at minimum:
 

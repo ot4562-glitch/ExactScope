@@ -1,6 +1,6 @@
 # ExactScope commercialization direction
 
-Release context: **v1.0.0-rc.2 integration & qualification candidate**. Commercial claims about accuracy, device cost, latency, energy or support must wait for exact release-bound evidence; the current public asset is designed to let an evaluator measure those properties independently.
+Release context: **v1.0.0-rc.3 integration & qualification candidate**. Commercial claims about accuracy, device cost, latency, energy or support must wait for exact release-bound evidence; the current public asset is designed to let an evaluator measure those properties independently.
 
 ExactScope core is open infrastructure. Commercial value, if pursued, should come from **maintained AI capability products**: reviewed domain semantics, weak-model interface engineering, capability-slice/profile generation, benchmark evidence, qualification, long-term revision support, and integration assistance.
 

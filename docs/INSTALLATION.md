@@ -1,6 +1,6 @@
 # Installation and embedding profiles
 
-Release target: **ExactScope v1.0.0-rc.2**
+Release target: **ExactScope v1.0.0-rc.3**
 Status: **integration & qualification candidate**
 
 ExactScope is loaded as a component of another AI runtime. The runtime consumer is the AI system; a developer/OEM engineer is the integrator. It is not a human-facing calculator and does not require a daemon, account, database, or network service.
@@ -9,14 +9,14 @@ ExactScope is loaded as a component of another AI runtime. The runtime consumer 
 
 For external evaluation, use the immutable GitHub release rather than a developer checkout.
 
-Expected rc2 asset shapes:
+Expected rc3 asset shapes:
 
 | Platform | Archive | Role |
 |---|---|---|
-| Windows x86-64 | `exactscope-eval-1.0.0-rc.2-x86_64-pc-windows-msvc.tar.gz` | model/local-AI evaluation SDK |
-| Linux x86-64 | `exactscope-eval-1.0.0-rc.2-x86_64-unknown-linux-gnu.tar.gz` | model/local-AI evaluation SDK |
-| Android ARM64 | `exactscope-wearable-sdk-1.0.0-rc.2-aarch64-linux-android.tar.gz` | Android/edge static OEM SDK |
-| Linux ARM64 musl | `exactscope-wearable-sdk-1.0.0-rc.2-aarch64-unknown-linux-musl.tar.gz` | embedded Linux/wearable static OEM SDK |
+| Windows x86-64 | `exactscope-eval-1.0.0-rc.3-x86_64-pc-windows-msvc.tar.gz` | model/local-AI evaluation SDK |
+| Linux x86-64 | `exactscope-eval-1.0.0-rc.3-x86_64-unknown-linux-gnu.tar.gz` | model/local-AI evaluation SDK |
+| Android ARM64 | `exactscope-wearable-sdk-1.0.0-rc.3-aarch64-linux-android.tar.gz` | Android/edge static OEM SDK |
+| Linux ARM64 musl | `exactscope-wearable-sdk-1.0.0-rc.3-aarch64-unknown-linux-musl.tar.gz` | embedded Linux/wearable static OEM SDK |
 
 Only claim a platform asset that actually appears on the release page.
 
@@ -36,7 +36,7 @@ See [QUICKSTART.md](QUICKSTART.md).
 The x86-64 evaluation archive is intended to make model integration possible without building Rust first. Its logical contents include:
 
 ```text
-exactscope-eval-1.0.0-rc.2-<target>/
+exactscope-eval-1.0.0-rc.3-<target>/
   bin/
     exactscope-core[.exe]
   lib/<target>/
@@ -49,14 +49,25 @@ exactscope-eval-1.0.0-rc.2-<target>/
     exactscope_wasm.h
   lib/cmake/ExactScope/
     ExactScopeConfig.cmake
-  adapters/generated/<selected-capability>/
+  adapters/generated/quant-core-16/
     catalog.json
     binding-sha256.txt
     xs-*.tool.json
     xs-*.gbnf
     prompt-fragment.txt
-  examples/
-  benchmarks/
+  capabilities/
+    quant-core-16-semantic-ai/
+      profile.json
+      surface-contract.json
+      runtime.wasm
+      manifest.json
+      bundle-sha256.txt
+      ...exact model-facing assets...
+    quant-core-16-combined-ai/
+      ...same identity-bound surface plus xs_calc...
+  examples/capability-host.mjs
+  benchmarks/capability_surface.py
+  benchmarks/run_qualification.py
   tools/
   docs/
   licenses/
@@ -65,6 +76,17 @@ exactscope-eval-1.0.0-rc.2-<target>/
 ```
 
 The exact inventory is authoritative in `manifest.json`; this document describes the integration shape, not a substitute manifest.
+
+The deterministic native/Wasm component itself does not require Python. The packaged qualification runner is Python-stdlib-only; only model downloading needs `requirements-benchmark.txt`. On Linux distributions that enforce PEP 668, do **not** force a system-wide pip install. Use a virtual environment:
+
+```sh
+python3 -m venv .exactscope-venv
+. .exactscope-venv/bin/activate
+python -m pip install -r requirements-benchmark.txt
+python tools/fetch_benchmark_models.py --list
+```
+
+On Windows, `py -3 -m pip install -r requirements-benchmark.txt` remains a normal per-user/dev setup where Python is configured accordingly.
 
 ## 3. Native C ABI
 
@@ -109,11 +131,11 @@ Host responsibilities:
 
 A selected capability build should remove excluded serving paths rather than relying only on prompt instructions to hide them.
 
-`examples/javascript/capability-host.mjs` demonstrates a strict identity-aware host.
+In a source checkout the strict host is `examples/javascript/capability-host.mjs`; in the published evaluation SDK the copy-paste path is `examples/capability-host.mjs`. Use the packaged `capabilities/quant-core-16-*-ai/` directories directly rather than reconstructing them from raw hot-set assets.
 
 ## 5. ARM64 OEM SDKs
 
-The rc2 release workflow packages two static OEM profiles:
+The rc3 release workflow packages two static OEM profiles:
 
 - `aarch64-linux-android`;
 - `aarch64-unknown-linux-musl`.
@@ -124,7 +146,7 @@ These are **prerelease qualification assets**, not a claim that every Android, w
 
 ### Android
 
-rc2 publishes a native ARM64 static SDK, not a universal AAR/Prefab guarantee. A product team may wrap the C ABI in JNI/Kotlin or another host layer, but that wrapper may transport values/statuses only; it must not implement a second calculator, semantic repair, or error repair.
+rc3 publishes a native ARM64 static SDK, not a universal AAR/Prefab guarantee. A product team may wrap the C ABI in JNI/Kotlin or another host layer, but that wrapper may transport values/statuses only; it must not implement a second calculator, semantic repair, or error repair.
 
 A future AAR/Prefab convenience package can be built around the same evidence-bound C ABI once the target/product integration warrants it.
 
@@ -208,7 +230,7 @@ python tools/package_release_bundle.py verify <archive.tar.gz>
 
 The contract is in `spec/RELEASE_BUNDLE_V0_1.md`. Those formats remain evidence/qualification scoped unless a future support policy explicitly promotes them.
 
-The user-facing rc2 GitHub release is produced by `.github/workflows/release-rc.yml` using the evaluation/OEM SDK packagers.
+The user-facing rc3 GitHub release is produced by `.github/workflows/release-rc.yml` using the evaluation/OEM SDK packagers.
 
 ## 10. Updates and rollback
 
@@ -234,4 +256,4 @@ Installation success means only that the component can be loaded by that host. I
 
 Before a stable/support claim, record the exact published artifact identity and measure the intended target as specified in [QUALIFICATION_HANDOFF.md](QUALIFICATION_HANDOFF.md), including model correctness/failure decomposition and representative target memory/latency/energy behavior where relevant.
 
-Historical r20 model evidence belongs to an older runtime and is not rc2 evidence.
+Historical r20 model evidence belongs to an older runtime and is not rc3 evidence.

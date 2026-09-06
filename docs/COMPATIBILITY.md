@@ -1,6 +1,6 @@
 # Compatibility contract
 
-Release context: **v1.0.0-rc.2 integration & qualification candidate**. No rc2 path is promoted to Tier 1/Tier 2 until evidence is produced against the exact published artifact.
+Release context: **v1.0.0-rc.3 integration & qualification candidate**. No rc3 path is promoted to Tier 1/Tier 2 until evidence is produced against the exact published artifact.
 
 Compatibility is evidence attached to a released artifact, not a statement that the source code compiled somewhere.
 
@@ -39,14 +39,14 @@ The invariant is that any profile exposing the same operation uses the same shar
 
 | Path | Current evidence | Current claim |
 |---|---|---|
-| Native scalar/statistics C ABI | source/unit/conformance coverage; zero-copy vector path; rc2 evaluation packaging | implemented candidate path; not Tier 1/Tier 2 yet |
+| Native scalar/statistics C ABI | source/unit/conformance coverage; zero-copy vector path; rc3 evaluation packaging | implemented candidate path; not Tier 1/Tier 2 yet |
 | Dynamic statistics `.xsp` path | shared kernel and fused/dynamic parity tests for implemented slice | implemented secondary path |
-| No-import Wasm | source/build inspection and runtime/component tests; rc2 evaluation packaging | implemented candidate path; not Tier 1/Tier 2 yet |
-| Android AArch64 static SDK | cross-build/package workflow, CMake target, doctor/reference host infrastructure | Experimental rc2 candidate until published artifact/target evidence exists |
-| Linux AArch64 musl static SDK | cross-build/package workflow, doctor/ELF/reference host infrastructure | Experimental rc2 candidate until published artifact/target evidence exists |
+| No-import Wasm | source/build inspection and runtime/component tests; rc3 evaluation packaging | implemented candidate path; not Tier 1/Tier 2 yet |
+| Android AArch64 static SDK | cross-build/package workflow, CMake target, doctor/reference host infrastructure | Experimental rc3 candidate until published artifact/target evidence exists |
+| Linux AArch64 musl static SDK | cross-build/package workflow, doctor/ELF/reference host infrastructure | Experimental rc3 candidate until published artifact/target evidence exists |
 | Wearable reference | C host, A/B, benchmark/qualification framework | integration reference, not generic device support |
-| Real constrained-target performance | unmeasured for rc2 | no performance Tier claim |
-| GitHub prerelease assets | rc2 workflow configured with manifest/checksum publication | candidate distribution only; actual release page is authoritative |
+| Real constrained-target performance | unmeasured for rc3 | no performance Tier claim |
+| GitHub prerelease assets | rc3 workflow configured with manifest/checksum publication | candidate distribution only; actual release page is authoritative |
 
 `tools/record_release_compatibility.py` can now create an **experimental** compatibility record for one deterministic release-shaped archive. The record binds the archive digest, release-manifest digest, exact runtime digest, capability bundle/profile revision, ABI, model-surface digest, target and toolchain. The tool deliberately refuses Tier 1/Tier 2 output; it is an identity/evidence container, not support promotion.
 

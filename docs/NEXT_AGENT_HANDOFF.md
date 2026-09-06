@@ -1,4 +1,4 @@
-# Next agent handoff — ExactScope v1.0.0-rc.2
+# Next agent handoff — ExactScope v1.0.0-rc.3
 
 Date: 2026-09-05
 Current phase: **public integration/qualification candidate packaging complete; evidence run deferred to a new session**
@@ -27,9 +27,9 @@ The active product-code architecture is complete for the current Statistics/Econ
 
 Do not invent more Category-A product work merely because qualification checkboxes remain open.
 
-## What rc2 packaging changes
+## What rc3 packaging changes
 
-`v1.0.0-rc.2` is prepared as a clean public source/release candidate rather than a continuation of a developer evidence directory.
+`v1.0.0-rc.3` is prepared as a clean public source/release candidate rather than a continuation of a developer evidence directory.
 
 The source tag keeps reviewed implementation/specs, generators, adapters, benchmark harnesses and preregistration inputs, but intentionally does not accumulate mutable generated capability/evidence directories or benchmark result payloads.
 
@@ -45,9 +45,9 @@ The release workflow derives package filenames from the project version and veri
 
 ## Evidence boundary
 
-`statistics-core-8-ai-r20` is historical evidence tied to an older 45,804-byte r17 Statistics serving runtime. It is **not** rc2 evidence. Frozen evidence must never be rewritten or relabeled.
+`statistics-core-8-ai-r20` is historical evidence tied to an older 45,804-byte r17 Statistics serving runtime. It is **not** rc3 evidence. Frozen evidence must never be rewritten or relabeled.
 
-For rc2, do not claim until measured against the exact published artifacts:
+For rc3, do not claim until measured against the exact published artifacts:
 
 - model accuracy uplift;
 - production readiness;
@@ -74,7 +74,7 @@ Download helper: `tools/fetch_benchmark_models.py` (download/hash only, no infer
 
 ## Next agent must do before model inference
 
-1. Start from a fresh copy of the exact public `v1.0.0-rc.2` GitHub release, not a developer checkout.
+1. Start from a fresh copy of the exact public `v1.0.0-rc.3` GitHub release, not a developer checkout.
 2. Verify the release tag/commit, `release-manifest.json`, `SHA256SUMS`, and archive bytes.
 3. Establish a no-model release/package baseline.
 4. Download/core-inventory the five planned models and freeze repository revisions/file SHA-256 values.
@@ -102,7 +102,7 @@ Classify before modifying anything:
 - harness/scorer defect;
 - target integration defect.
 
-If public product source/ABI/surface/corpus/scorer changes, it is a new evidence candidate. Preserve the rc2 baseline rather than silently fixing rc2 and continuing with the same label.
+If public product source/ABI/surface/corpus/scorer changes, it is a new evidence candidate. Preserve the rc3 baseline rather than silently fixing rc3 and continuing with the same label.
 
 ## Canonical continuation documents
 
@@ -118,4 +118,4 @@ Read in this order:
 
 Until the next evidence session finishes, describe the state as:
 
-> **ExactScope v1.0.0-rc.2 is a code-side-complete integration and qualification candidate; rc2 model and representative target qualification are not yet measured.**
+> **ExactScope v1.0.0-rc.3 is a code-side-complete integration and qualification candidate; rc3 model and representative target qualification are not yet measured.**

@@ -1,12 +1,12 @@
-# ExactScope v1.0.0-rc.2 qualification model matrix
+# ExactScope v1.0.0-rc.3 qualification model matrix
 
-Status: **planned, unmeasured for v1.0.0-rc.2**
+Status: **planned, unmeasured for v1.0.0-rc.3**
 As-of: 2026-09-05
 Machine-readable source: [`model-downloads.json`](model-downloads.json)
 
 This is the next-session model plan for the release artifact. It is intentionally small: five core GGUF models cover an extreme-small architecture, an edge-first architecture, a current mainstream sub-1B model, a 2B scaling point, and an independent upper-small reasoning model. One explicit low-resource product model is optional and runs as a separate runtime/device profile.
 
-No score in this document belongs to `v1.0.0-rc.2` until the exact release tag, release asset digests, model repository revisions, model file digests, corpus, prompts, generation settings, scoring code, and output records have been frozen together.
+No score in this document belongs to `v1.0.0-rc.3` until the exact release tag, release asset digests, model repository revisions, model file digests, corpus, prompts, generation settings, scoring code, and output records have been frozen together.
 
 ## Core five
 
@@ -89,7 +89,7 @@ Only after model-level evidence is frozen should target-device latency/RAM/stack
 
 ## Historical evidence boundary
 
-The earlier `statistics-core-8-ai-r20` model evidence belongs to an older 45,804-byte r17 serving runtime. It may be used as historical design evidence, but it is **not** a baseline score for `v1.0.0-rc.2` and must never be copied into a new evidence manifest. Re-running a historical model on rc.2 creates new evidence.
+The earlier `statistics-core-8-ai-r20` model evidence belongs to an older 45,804-byte r17 serving runtime. It may be used as historical design evidence, but it is **not** a baseline score for `v1.0.0-rc.3` and must never be copied into a new evidence manifest. Re-running a historical model on rc.3 creates new evidence.
 
 ## Completion condition
 

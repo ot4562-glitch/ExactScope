@@ -1,7 +1,7 @@
 # llama.cpp `xs_calc` reference
 
-Release context: **v1.0.0-rc.2**
-Status: **reference integration; rc2 model benchmark is intentionally unmeasured**
+Release context: **v1.0.0-rc.3**
+Status: **reference integration; rc3 model benchmark is intentionally unmeasured**
 
 This path keeps planning and deterministic execution separate:
 
@@ -26,11 +26,11 @@ py -3 examples/llama.cpp/run_xs_calc.py `
 
 The runner records the raw plan, structural/runtime acceptance, deterministic result, generated-token estimate, plan-step count and wall-clock latency. A wrong but structurally valid plan remains a model planning failure.
 
-This is useful for adapter development, but **do not use an ad-hoc run from a dirty checkout as rc2 evidence**.
+This is useful for adapter development, but **do not use an ad-hoc run from a dirty checkout as rc3 evidence**.
 
-## rc2 qualification path
+## rc3 qualification path
 
-For actual `v1.0.0-rc.2` model evidence:
+For actual `v1.0.0-rc.3` model evidence:
 
 1. start from the immutable GitHub release archive;
 2. verify `release-manifest.json` and `SHA256SUMS`;
@@ -38,8 +38,8 @@ For actual `v1.0.0-rc.2` model evidence:
 4. freeze `model-inventory.json`, llama.cpp build/command, corpus, prompt/grammar/tool assets, generation settings and scorer before inference;
 5. use the comparison/failure rules in `../../docs/QUALIFICATION_HANDOFF.md`.
 
-The core five are Gemma 3 270M, LFM2.5 350M, Qwen3.5 0.8B, Qwen3.5 2B and Phi-4-mini 3.8B. The old five-case Qwen3/Llama smoke is historical integration evidence only and is not the rc2 benchmark matrix.
+The core five are Gemma 3 270M, LFM2.5 350M, Qwen3.5 0.8B, Qwen3.5 2B and Phi-4-mini 3.8B. The old five-case Qwen3/Llama smoke is historical integration evidence only and is not the rc3 benchmark matrix.
 
 Use the maintained `adapters/llama-cpp/` semantic-only envelope for selected `xs_eval` qualification. The normal product path should expose only the selected surface; `xs_find` remains optional/cold.
 
-Historical r20 Statistics model scores belong to an older 45,804-byte r17 runtime and must not be reused for rc2.
+Historical r20 Statistics model scores belong to an older 45,804-byte r17 runtime and must not be reused for rc3.
