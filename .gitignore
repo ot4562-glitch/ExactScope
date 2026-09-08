@@ -54,3 +54,14 @@ __pycache__/
 
 # Local AI/tool scratch
 .ai-bridge/
+.agents/
+
+# Internal development/release-operator documents — never publish
+/docs/internal/
+/docs/OPTIMIZATION_EXPERIMENTS.md
+/docs/PUBLICATION_BOUNDARY.md
+/docs/*HANDOFF*.md
+/docs/*PROMPT*.md
+/docs/CODEX_CONTEXT.md
+/docs/GROUNDING_IMPLEMENTATION_FREEZE.md
+/docs/MARKETING_CLAIMS.md

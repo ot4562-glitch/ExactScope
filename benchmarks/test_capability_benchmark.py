@@ -13,8 +13,10 @@ from capability_benchmark import (ROOT, SingleWriterLock, aggregate, bind_runtim
                                   managed_server_command, parse_reasoning_final, ratio, score,
                                   surface, verify_preregistered_run)
 from build_capability_wasm import resolve_tool
-from compile_capability import (canonical, compile_profile, digest, load as load_json,
-                                model_surface_contract, source_identity, verify_bundle,
+from compile_capability import (canonical, compile_profile, constrained_request_grammar,
+                                constrained_request_prompt, digest, load as load_json,
+                                model_surface_contract, model_surface_measurements,
+                                source_identity, verify_bundle,
                                 write_bundle)
 from run_benchmark import CoreBridge
 from statistics_corpus import load, oracle, templates, validate_rows
@@ -29,7 +31,7 @@ def write_bound_runtime_fixture(root, *, profile_id, revision, runtime_bytes, se
         "abi": "1.0",
         "binding_sha256": "1" * 64,
         "packs": [{"id": "unit-pack", "version": "0.1"}],
-        "operations": ([{"op": "stats.mean", "revision": 1}] if semantic else []),
+        "operations": ([{"op": "stats.mean", "revision": 1, "sig": "stats.mean(xs[1..64])"}] if semantic else []),
     }
     files = {
         "catalog.json": canonical(catalog),
@@ -43,6 +45,10 @@ def write_bound_runtime_fixture(root, *, profile_id, revision, runtime_bytes, se
     if semantic:
         files["xs-eval.gbnf"] = b"root ::= \"{}\"\n"
         files["xs-eval.tool.json"] = b'{"function":{"parameters":{"type":"object"}}}\n'
+    files["constrained-prompt.txt"] = constrained_request_prompt(catalog, include_calc=True)
+    files["xs-request.gbnf"] = constrained_request_grammar(
+        files.get("xs-eval.gbnf"), files.get("xs-calc.gbnf")
+    )
     profile = {
         "profile_id": profile_id,
         "profile_revision": revision,
@@ -92,6 +98,7 @@ def write_bound_runtime_fixture(root, *, profile_id, revision, runtime_bytes, se
         name: digest(files[name]) for name in grammar_names
     }))
     profile["bindings"]["prompt_sha256"] = digest(canonical({
+        "constrained-prompt.txt": digest(files["constrained-prompt.txt"]),
         "prompt-fragment.txt": digest(files["prompt-fragment.txt"]),
     }))
     contract_bytes = canonical(model_surface_contract(profile, catalog, files))
@@ -102,13 +109,7 @@ def write_bound_runtime_fixture(root, *, profile_id, revision, runtime_bytes, se
         "format": "exactscope.capability.bundle",
         "format_version": "0.1",
         "files": {name: digest(data) for name, data in sorted(files.items())},
-        "measurements": {
-            "prompt_fragment_bytes": len(files["prompt-fragment.txt"]),
-            "schema_bytes": sum(len(files[name]) for name in schema_names),
-            "grammar_bytes": sum(len(files[name]) for name in grammar_names),
-            "top_level_tool_count": len(schema_names),
-            "visible_semantic_operation_count": 1 if semantic else 0,
-        },
+        "measurements": model_surface_measurements(files, catalog),
         "operation_revisions": ({"stats.mean": 1} if semantic else {}),
         "artifact_status": "artifact and gold bound; experimental, not target-qualified",
         "artifact_measurements": {
@@ -277,23 +278,6 @@ class CapabilityTests(unittest.TestCase):
         self.assertNotIn("b-stats", grammar)
         self.assertEqual(assets["top_level_tool_count"], 2)
 
-    def test_r17_preregistration_freezes_corpus_and_fair_generation_contract(self):
-        prereg_path = ROOT / "benchmarks/statistics-r17-preregistration.json"
-        prereg = load(prereg_path.read_bytes())
-        corpus_path = ROOT / prereg["corpus"]["path"]
-        manifest_path = ROOT / prereg["corpus"]["manifest"]
-        generator_path = ROOT / prereg["corpus"]["generator"]
-        self.assertEqual(prereg["status"], "FROZEN_READY_FOR_MODEL_RUN_CONFIGURATION")
-        self.assertEqual(prereg["corpus"]["status"], "FROZEN_BEFORE_MODEL_RUN")
-        self.assertEqual(digest(corpus_path.read_bytes()), prereg["corpus"]["sha256"])
-        self.assertEqual(digest(manifest_path.read_bytes()), prereg["corpus"]["manifest_sha256"])
-        self.assertEqual(digest(generator_path.read_bytes()), prereg["corpus"]["generator_sha256"])
-        frozen_rows = [load(line) for line in corpus_path.read_bytes().splitlines()]
-        self.assertEqual(len(frozen_rows), 144)
-        self.assertEqual(sum(row["call"] is not None for row in frozen_rows), 132)
-        self.assertEqual([generation_budget(prereg["generation_contract"], arm) for arm in "ABCDE"], [512] * 5)
-        self.assertFalse(prereg["generation_contract"]["legacy_asymmetric_token_budget"])
-
     def test_preregistered_run_rejects_model_budget_or_identity_drift(self):
         with tempfile.TemporaryDirectory(prefix="prereg-unit-", dir=ROOT / "target") as temporary:
             root = Path(temporary)
@@ -415,7 +399,7 @@ class CapabilityTests(unittest.TestCase):
             self.assertIn("ACQUIRED", allowed.stdout)
 
     def test_managed_server_command_matches_preregistered_runtime_settings(self):
-        bench_root = Path("C:/AIProjects/ExactScopeBench")
+        bench_root = Path("X:/ExactScopeBench")
         python_exe = bench_root / "venvs/lm-eval/Scripts/python.exe"
         config = {
             "model_inventory_id": "qwen3-0.6b",

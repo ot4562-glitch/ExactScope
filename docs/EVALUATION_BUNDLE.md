@@ -182,4 +182,4 @@ A Wasm linear-memory page maximum is not total process/device RSS.
 
 `v1.0.0-rc.3` provides permanent versioned public candidate assets so qualification can be performed against an immutable input. Stable/support promotion still requires evidence for the exact published artifacts, including the selected model matrix or justified product-specific subset and representative target-device qualification.
 
-Use [QUALIFICATION_HANDOFF.md](QUALIFICATION_HANDOFF.md) as the canonical continuation contract.
+Use [RC3_QUALIFICATION_CLOSEOUT.md](RC3_QUALIFICATION_CLOSEOUT.md) for the public historical qualification findings. Internal evaluator handoffs are stored outside the public repository.

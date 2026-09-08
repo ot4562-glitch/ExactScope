@@ -1,27 +1,29 @@
 # ExactScope grounding benchmark and qualification contract
 
-Release context: **rc4 grounding candidate preparation after completed v1.0.0-rc.3 qualification**
+Release context: **ExactScope v1.0.0 ships the selected r25 grounding behavior as a stable Linux x86-64 native grounding software/package scope. Native search/projection parity, deterministic packaging, footprint gates, and final-archive C11 clean-room integration are complete. Physical ARM64 device qualification remains outside the stable claim.**
 
-Status: **normative for the next grounding candidate; no new model inference may begin until the candidate, corpus and preregistration inputs are frozen**
+Status: **active benchmark/qualification contract; every accuracy or target-performance claim remains bound to exact corpus/config/source/provider/package/model/runtime/scorer/preregistration identity**
 
 Normative grounding semantics: [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md)
 
 The flagship product question is:
 
-> For an existing constrained/on-device model, does ExactScope one-call grounding materially improve everyday factual accuracy and reduce wrong-confident answers, without unacceptable false grounding, privacy risk, token/context growth, retrieval latency, storage/RAM cost, or integration complexity?
+> For an existing constrained/on-device model, can ExactScope materially improve everyday factual accuracy and reduce wrong-confident answers at lower model-call, token, latency, storage/RAM and integration cost than competing approaches, without unacceptable false grounding or privacy risk?
 
-The benchmark is intentionally designed so ExactScope cannot win merely by adding another model turn or by using benchmark gold to route retrieval.
+The benchmark is intentionally designed so ExactScope cannot win by reading benchmark gold, hiding retries/repairs, or failing to count model calls and context cost. A always makes one model answer call. G may make zero or one only under preregistered serving-derived deterministic host rules; every actual model call and host completion must be reported.
 
 ## 1. Primary comparison arms
 
 | Arm | Serving path | Answer-generation calls | Purpose |
 |---|---|---:|---|
 | **A** | model only | exactly 1 | baseline factual accuracy / unsupported-answer behavior |
-| **G** | original question -> production router/providers/policy -> Grounding Frame/Projection -> same model | exactly 1 | flagship product arm |
+| **G** | original question -> production router/providers/policy -> Grounding Frame -> deterministic host completion or compact Projection -> same model | 0 or 1 | flagship product arm |
 | **Q** | one bounded model rewrite -> providers/policy -> Grounding Frame/Projection -> model | max 2 total | optional diagnostic; never merged with G |
 | **L** | justified larger-model reference, no ExactScope | exactly 1 | optional larger-model/hardware alternative |
 
 For secondary quantitative-only experiments, historical B/C/D labels may still be used for `xs_calc` / `xs_eval`, but they are not part of the flagship grounding score.
+
+The selected r25/v1-candidate profile keeps A at exactly one model call. G uses zero model calls only when the sealed serving frame independently satisfies one of two deterministic host rules: (1) exactly one authoritative unresolved target in `none`, `unavailable`, `ambiguous`, or `conflict`; or (2) exactly one grounded canonical scalar item. Every other G item remains on the model path. Reports must separately include unresolved-host, scalar-host and model-call counts.
 
 ### 1.1 A/G fairness
 
@@ -30,7 +32,7 @@ Comparable A and G MUST use the same:
 - item IDs and questions;
 - model repository revision/file SHA-256/quantization;
 - inference runtime build and launch settings;
-- answer-generation call count;
+- the same answer model/runtime identity whenever a model call is made; G may omit the call only under the frozen deterministic host rules above;
 - sampling policy, seed policy and max output tokens;
 - answer system policy except for the preregistered Grounding Policy/Projection added only in G;
 - scorer and answer-normalization rules;
@@ -238,7 +240,35 @@ Purpose: catch over-abstention. Supplemental absence must not be treated like au
 
 ### 5.12 Quantitative subsystem — secondary only
 
-Statistics/FinQA/TAT-QA or `xs_calc`/`xs_eval` corpora remain valid for the quantitative subsystem but are reported separately from everyday grounding.
+Statistics/FinQA/TAT-QA or `xs_calc`/`xs_eval` corpora remain valid for the quantitative subsystem but are reported separately from everyday grounding. Public quantitative cross-checks SHOULD add GSM8K and, when the exact-math surface is ready for it, a frozen MATH-style subset. These results must not be merged into the everyday factual headline.
+
+### 5.13 Recognizable public benchmark suite
+
+The synthetic/private candidate remains necessary because famous public benchmarks may be present in model pretraining. Public benchmarks therefore provide **external validity and recognizability**, while the candidate-bound private/device strata provide the stronger causal test that a pretrained model could not simply memorize.
+
+The intended public suite is:
+
+| Benchmark | ExactScope role | Primary use |
+|---|---|---|
+| **SimpleQA** | short factuality / hallucination | public headline factual accuracy and incorrect-answer rate |
+| **Natural Questions** | real user-shaped factual QA | everyday-question external validity |
+| **HotpotQA** | multi-document reasoning | multi-target / multi-source grounding and supporting-fact use |
+| **TruthfulQA** | misconception/hallucination pressure | wrong-confident answer reduction |
+| **FEVER** | supported/refuted/not-enough-information | evidence provenance and fail-closed state handling |
+| **TyDi QA** | multilingual QA, including Korean coverage | multilingual portability of the same small-model product path |
+| **KILT** | shared frozen knowledge source + provenance | end-to-end knowledge-intensive/provenance evaluation |
+| **BEIR** | heterogeneous retrieval | retrieval/provider diagnostic, reported separately from answer accuracy |
+| **MMLU-Pro** | general reasoning negative control | no-regression check; not a grounding-uplift headline unless a preregistered evidence path legitimately applies |
+
+Public benchmark execution MUST declare one of these modes:
+
+1. **End-to-end retrieval:** A and G receive the same question; G searches a question-independent frozen corpus through the normal ExactScope provider path. No per-question gold document/source/evidence hint is allowed.
+2. **Evidence-given grounding:** both the benchmark protocol and report explicitly state that passages/documents are supplied. This measures grounding/extraction/reasoning over given evidence, not retrieval quality.
+3. **No-grounding negative control:** no eligible evidence source is mounted. ExactScope should not manufacture an advantage; the objective is no harmful regression and correct ordinary-knowledge behavior.
+
+For SimpleQA in particular, a question-specific reference/source URL supplied by the dataset MUST NOT be treated as an end-to-end ExactScope retrieval result. It may be used only in a separately labeled oracle/evidence-given diagnostic. A headline SimpleQA uplift requires a common frozen corpus/index built independently of the scored questions and frozen before inference.
+
+For Natural Questions, HotpotQA, FEVER and KILT, reports MUST distinguish retrieval metrics from answer metrics when the benchmark supplies supporting documents or provenance labels. Famous benchmark scores do not replace the candidate-bound private/device benchmark, the wearable model matrix, or immutable-package qualification.
 
 ## 6. Corpus/source construction rules
 
@@ -687,25 +717,27 @@ The five current benchmark model identities are stored in `benchmarks/grounding-
 
 ## 16. Claim policy
 
-Until a frozen rc4 grounding candidate completes the model matrix, public docs MAY say:
+Public v1 documentation MAY claim the following, provided the scope is kept explicit:
 
-- ExactScope has a provider-neutral grounding architecture and contract;
-- the default design uses original-question prefetch and one answer-generation call;
-- authoritative and supplemental evidence have distinct no-hit behavior;
-- false grounding and provider unavailability are explicit failure classes;
-- the existing rc3 quantitative subsystem remains available.
+- ExactScope v1 has a provider-neutral grounding architecture and contract;
+- the stable public package covers the Linux x86-64 native grounding C ABI/software path;
+- the default design uses original-question prefetch, deterministic host completion when allowed, and otherwise at most one answer-generation call;
+- authoritative and supplemental evidence have distinct no-hit/failure behavior;
+- false grounding, ambiguity, conflict, and provider unavailability are explicit failure classes;
+- the frozen seven-model matched screen improved mean accuracy from 8.1% model-only to 93.3% with ExactScope on that exact 30-item provider/corpus/policy screen;
+- the recorded HotpotQA and NQ development-mirror screens show smaller, workload-dependent improvements and are reported with their exact metric/model scope;
+- the native Linux x86-64 package passes deterministic packaging, footprint, parity, and final-archive C11 clean-room checks.
 
-They MUST NOT claim from design/prototype tests alone:
+Public docs MUST NOT generalize those measurements into:
 
-- improved everyday model accuracy;
-- reduced hallucination rate;
-- a particular percentage reduction in wrong answers;
-- superiority to larger models or RAG stacks;
-- negligible latency/RAM/storage/energy cost;
-- production readiness;
-- broad provider/platform support.
+- a universal +85.2 percentage-point accuracy claim for arbitrary providers/datasets/models;
+- elimination of all hallucinations or reasoning errors;
+- superiority to every larger model or RAG stack;
+- ARM64/wearable RAM, latency, energy, thermal, or battery claims without physical target measurements;
+- negligible resource cost for arbitrary provider data;
+- stable support for platforms/providers not listed in the v1 support matrix.
 
-Use [`MARKETING_CLAIMS.md`](MARKETING_CLAIMS.md) for public wording.
+Before any public push, tag or release package, run `python3 tools/audit_publication.py`. Internal experiment logs, claim-review notes, agent context and evaluator handoffs are not stored in the public repository.
 
 ## 17. Historical evidence boundary
 
@@ -732,4 +764,4 @@ A candidate is **READY_FOR_GROUNDING_BENCHMARK** only when:
 
 The user may then start a separate validation/benchmark session from that immutable candidate.
 
-**Current status note (2026-09-06, non-normative):** r3 at source `125ad9403f22eece7f552701d4c7376bba3b697f` is excluded because the runner emitted float timing values into the canonical raw-record format. r4 at source `aac351644f8c6059721ede4c10c6ac2c0a6c7b54` corrected timing serialization and completed all five model runs, but post-run integrity checking exposed a second harness defect: `SHA256SUMS` was written before `llama-server` termination, so the shutdown log append invalidated only `logs/llama-server.log`. r4 scores are diagnostic only and are not final frozen evidence. The runner now stops/waits for the server before writing run checksums; a new r5 candidate must complete the full gate and five-model run. The normative criteria above remain unchanged.
+**Current status note (2026-09-08, non-normative):** r3 at source `125ad9403f22eece7f552701d4c7376bba3b697f` is excluded because of float timing serialization; r4 at `aac351644f8c6059721ede4c10c6ac2c0a6c7b54` is diagnostic only because run checksums were written before model-server shutdown. Integrity-corrected **r5** at source `e6c3558642c77e379358b9f59aedd92abf7473f4` remains frozen historical comparison evidence. The selected **r25** behavior completed the frozen seven-model 135M–3.8B matched screen and its semantic scores were reproduced after native C-ABI/release integration. The parity-frozen `exactscope-grounding` core has exact NQ 128/128 and Hotpot 20/20 ranked-hit/matched-term/`f64` score-bit parity, plus byte-exact 2 KiB and 4 KiB projection parity. The larger NQ `.xsgi` (`19,710,799` bytes, SHA-256 `6190a79595f109b33f28c2461f84efee7421455b2a1fb54e3d2ee6bd033f71b1`) remains qualification/provider data rather than a default product payload. Stable v1 packages the Linux x86-64 native runtime separately with a tiny demonstration index, enforces 10 MB compressed / 20 MB unpacked hard caps, and passes a final-archive C11 clean-room execution path. Physical ARM64 hardware qualification remains outside the stable v1 claim.

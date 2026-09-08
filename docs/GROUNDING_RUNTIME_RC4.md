@@ -1,6 +1,6 @@
 # Grounding runtime — rc4 reference implementation
 
-Status: **IMPLEMENTED / NO-INFERENCE REFERENCE**
+Status: **v1 implementation record; selected r25 host policy is shipped alongside the stable Linux x86-64 native grounding software path. Physical ARM64 qualification remains unclaimed.**
 
 This document records the concrete implementation choice made after the frozen
 Grounding Contract v0.1 and reference GroundingProfile were completed.
@@ -29,18 +29,26 @@ SHA-256 references, provider identity, source snapshots, adapter configuration,
 index/source consistency, target/provider/source bindings, and the profile
 identity before serving a request.
 
+## Selected r25 completion order
+
+The selected r25 v1 host policy adds no second retrieval system. It uses the same validated `GroundingFrame` and resolves it in this order:
+
+1. one unresolved authoritative target in `none`, `unavailable`, `ambiguous`, or `conflict` -> deterministic host disposition;
+2. exactly one `grounded` item with contract-native `content.kind = scalar` -> deterministic canonical scalar value from the host;
+3. no routed target or an empty supplemental target -> ordinary model knowledge with no grounding context;
+4. remaining grounded text -> compact model projection + frozen grounding policy + one model answer call.
+
+The scalar lane is not text post-processing. The source adapter must already have supplied a valid canonical scalar under Grounding Contract v0.1. The host never derives a scalar by regexing a text evidence sentence, consulting benchmark gold, or guessing a value. Text evidence therefore remains a real model-interpretation problem.
+
+In the frozen 30-item matched screen this order produced 10 unresolved host completions, 13 scalar host completions and 7 model calls. All 23 host completions were correct in all seven measured models. The same semantic scores were reproduced after native C-ABI/release integration; the measurements remain bound to that exact provider/corpus/policy screen rather than becoming a universal accuracy claim.
+
+`adapters/llama-cpp/grounding_v1.py` is the first selected consumer adapter. It talks only to a loopback llama.cpp endpoint, performs no retry, and uses a one-time model-identity-bound answer-contract calibration for model-required questions. The reusable selected model-facing bytes live in `tools/grounding_v1_surface.py`.
+
 ## Transport decision
 
-No new native C ABI or Wasm grounding transport is introduced for the rc4
-reference candidate. The frozen reference provider performs host filesystem
-asset loading, profile validation, routing and local retrieval, so forcing this
-behavior into the no-import quantitative core would add an unnecessary ABI and
-platform dependency without improving the benchmark question.
+v1 exposes the deterministic `.xsgi` search/projection core through the native C ABI. The native boundary binds and validates immutable provider bytes, performs bounded search with caller-owned scratch, and emits deterministic compact evidence. It does not absorb host responsibilities such as application security scope, routing, authority, provider access, or model execution.
 
-The existing Rust/C/Wasm quantitative subsystem remains unchanged and is still
-available as the separate deterministic calculation subsystem. A future product
-profile may define a stable native or Wasm grounding transport only when a real
-integration requires it; that would receive its own contract/profile identity.
+Grounding Wasm remains deferred. The existing no-import Wasm path continues to belong to the separate quantitative subsystem until a grounding Wasm transport has its own parity and qualification evidence.
 
 ## Provider behavior
 

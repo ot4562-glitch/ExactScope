@@ -1,6 +1,6 @@
 # ExactScope product direction
 
-Release context: **frozen rc4 grounding candidate source `125ad9403f22eece7f552701d4c7376bba3b697f` is READY_FOR_GROUNDING_BENCHMARK after v1.0.0-rc.3 qualification closeout and completed no-inference readiness gates**. rc3 proved the quantitative public SDK/package path but exposed model-interface portability and prompt-cost limits. rc4 prioritizes provider-neutral everyday grounding: original-question prefetch, compact Grounding Frames, explicit evidence authority/failure semantics, and one answer-generation call. The quantitative core/model-interface remains a secondary retained subsystem. See [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md), [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md), [`GROUNDING_BENCHMARK_READY.md`](GROUNDING_BENCHMARK_READY.md), and [`RC3_QUALIFICATION_CLOSEOUT.md`](RC3_QUALIFICATION_CLOSEOUT.md).
+Release context: **ExactScope v1.0.0 promotes the selected r25 grounding behavior into a stable Linux x86-64 native grounding software/package scope.** The native C ABI, deterministic XSGI search/projection path, footprint-gated package, and final-archive C11 clean-room integration are complete. The seven-model and public-benchmark accuracy results remain bound to their exact candidate/provider/corpus identities, and physical ARM64 RAM/latency/energy/thermal qualification remains unclaimed. See [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md), [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md), [`BENCHMARK.md`](BENCHMARK.md), and [`../spec/GROUNDING_RUNTIME_BUNDLE_V1.md`](../spec/GROUNDING_RUNTIME_BUNDLE_V1.md).
 
 This document defines what ExactScope is optimizing for. It supersedes any earlier product framing that treated broad platform parity or full catalog completion as more important than proving adoption value.
 
@@ -31,7 +31,7 @@ It must be measured:
 The flagship proof compares:
 
 - **A:** model only, one answer-generation call;
-- **G:** original-question prefetch -> deterministic Grounding Frame/Projection -> the same model, one answer-generation call;
+- **G:** original-question prefetch -> deterministic Grounding Frame -> host completion when serving-visible state is sufficient, otherwise compact Projection -> the same model, zero or one answer-generation call;
 - optional **L:** a justified larger-model/hardware alternative;
 - optional rewrite/tool profiles only as separately costed diagnostics.
 
@@ -39,7 +39,7 @@ The first public proof is **everyday factual accuracy + wrong-confident-answer r
 
 ## 3. Primary interaction model
 
-The flagship rc4 path is host-side grounding prefetch **before** model answer generation.
+The flagship v1 path is host-side grounding prefetch **before** model answer generation.
 
 ```text
 original user question
@@ -64,11 +64,14 @@ Evidence Policy
         v
 grouped GroundingFrame
         |
-        v
-deterministic compact Model Projection
+        +-- authoritative unresolved -> host disposition (0 model calls)
         |
-        v
-small/local model -- one answer-generation call
+        +-- one canonical scalar -> host value (0 model calls)
+        |
+        `-- remaining text/ordinary knowledge -> compact Model Projection
+                                           |
+                                           v
+                               small/local model -- one answer call
 ```
 
 The model does **not** need to call `xs_recall` or choose a retrieval provider in the normal path. Earlier `xs_recall`/fact-pack code is an implementation prototype, not the normative API.
@@ -167,26 +170,26 @@ Offline is a capability, not the whole market. A network-connected device can st
 
 The strongest early adoption wedge may be **existing devices** whose hardware cannot be changed but whose AI software stack can still receive an update.
 
-## 8. rc4 development scope
+## 8. v1 product scope
 
 The product scope remains intentionally narrow even though the grounding contract permits several retrieval implementations.
 
-The rc3 native/Wasm quantitative runtime and packaging remain useful infrastructure, but **they do not define the rc4 flagship product boundary**. The provider-neutral logical Grounding Contract is frozen for implementation, and the first benchmark reference profile, deterministic host/provider/policy/projection path, benchmark corpus/scorer, package tooling and zero-inference preregistration path are implemented. Candidate source `125ad9403f22eece7f552701d4c7376bba3b697f` has completed Linux/Windows clean-room and five-model zero-inference preregistration/verify-only gates and is `READY_FOR_GROUNDING_BENCHMARK`; model efficacy remains intentionally unmeasured until the separate validation session.
+The rc3 native/Wasm quantitative runtime and packaging remain useful secondary infrastructure, but **they do not define the v1 flagship product boundary**. The v1 product boundary is the provider-neutral Grounding Contract plus the selected r25 host policy and the native `.xsgi` retrieval/projection core exposed through the C ABI. The stable Linux x86-64 package now ships that runtime with a tiny demonstration provider and explicit package/support boundaries; benchmark-sized NQ provider data stays outside the default install. Historical source `e6c3558642c77e379358b9f59aedd92abf7473f4` remains frozen as the r5 comparison baseline.
 
-The primary rc4 integration shape is:
+The primary v1 integration shape is:
 
 1. **Host-side Grounding Router** — chooses only preregistered, scope-authorized sources/providers for the current application/user context.
 2. **Retrieval Provider interface** — exact/lexical, frozen semantic/vector, application-native, or captured host/network providers may implement the same logical contract.
 3. **Evidence Policy** — applies authority, revision/validity, duplicate/conflict/ambiguity and context-budget rules.
-4. **Grounding Frame** — the only compact grounding representation normally shown to the small model before its single answer-generation call.
+4. **Grounding Frame** — the compact authority/evidence representation used first by deterministic host completion and, only when needed, by the model projection before one answer-generation call.
 
 The first benchmark candidate freezes a small offline exact/lexical provider **as a reference profile only**. That provider is not the universal product definition and does not grant authority by retrieval score. Vector/application/host providers remain future contract-compatible implementations if their identities, scope and behavior are frozen explicitly.
 
-A new native C/Wasm grounding ABI is not required for the first benchmark merely to make the architecture look symmetrical. The initial normative grounding path is host-side because routing, provider access and application security scope are host concerns. The retained quantitative C ABI/no-import Wasm subsystem stays stable and independently testable.
+The v1 release now includes a native C grounding ABI for the deterministic `.xsgi` retrieval/projection core. Routing, provider access, application security scope, authority, and evidence policy remain host concerns and are intentionally not moved into the no-import quantitative Wasm core. A grounding Wasm transport remains deferred until it has its own parity/qualification evidence.
 
 The existing quantitative subsystem remains available through native/Wasm `xs_calc`/`xs_eval` paths. Additional academic domains, dynamic calculation packs, convenience wrappers and broad platform parity are secondary to proving everyday grounding value.
 
-## 9. Grounding-first roadmap
+## 9. Grounding-first release status
 
 ### Completed before model inference
 
@@ -201,27 +204,21 @@ The existing quantitative subsystem remains available through native/Wasm `xs_ca
 - evaluation-package, model/runtime identity, preregistration and benchmark-runner tooling were implemented with no retry, hidden repair or resume path;
 - the retained quantitative Rust/C/Wasm code continues to pass its regression suite.
 
-### Benchmark-ready gate — completed without inference
+### Historical five-model baseline — completed
 
-Candidate source `125ad9403f22eece7f552701d4c7376bba3b697f` completed the pre-inference gate:
+The first integrity-corrected five-model benchmark is **r5**, source `e6c3558642c77e379358b9f59aedd92abf7473f4`. It is frozen as historical behavioral comparison evidence. Raw run evidence remains checksum-bound and is never rewritten into newer candidate results.
 
-- documentation and implementation were converged on the grounding-first product boundary;
-- the candidate was regenerated from the frozen source commit;
-- deterministic archive SHA-256 `f665ec8b04a258262f343c5f5e875633b04230f588a20db4da2a3c80faf75dc5` was clean-room verified;
-- Linux and native Windows package/dry-run/post-use re-verification passed;
-- all five already-downloaded model identities plus the frozen llama.cpp runtime were re-hashed from the extracted package and preregistered;
-- `run_grounding_benchmark.py --verify-only` returned `ready-to-run` for all five preregistrations;
-- rc4 model inference count remained zero.
+### Selected r25 behavior — source-run complete
 
-Exact hashes are in [`GROUNDING_BENCHMARK_READY.md`](GROUNDING_BENCHMARK_READY.md). Product implementation stops under this identity; the next phase is the separate frozen validation session.
+The optimization chain selected **r25** on the product priorities that matter: cross-model accuracy, wrong-confidence/unsupported-assertion safety, model-call count, token cost and tiny-model robustness. The frozen seven-model matched screen spans SmolLM2 135M through Phi-4-mini 3.8B. Its all-model mean moved from 8.1% model-only to 93.3% with ExactScope; the original five-model subset moved from 9.3% to 95.3%. The same semantic scores were reproduced after the native C ABI/release integration work.
 
-### Later evidence phase — not part of the completed implementation task
+The selected host path completes 10 authoritative unresolved cases and 13 canonical scalar facts deterministically in the 30-item G arm, leaving 7 model answer calls. It does not derive values from benchmark gold or regex text post-processing: scalar completion is permitted only when the source already supplied a valid Grounding Contract scalar.
 
-- run A/G across the diverse small-model matrix with equal answer-generation call count;
-- report factual accuracy, wrong-confident-answer reduction, false grounding, abstention/useful-answer tradeoff and exact token/latency/storage costs;
-- use the same frozen product design on representative ARM64 hardware and record storage/RSS/heap/stack/latency/energy/thermal where credible;
-- compare against a larger-model, larger-context or heavier RAG alternative only when it represents a real product decision;
-- promote support or resume academic/domain expansion only after measured evidence justifies it.
+### v1 software release qualification — complete for Linux x86-64
+
+The selected native grounding core is now exposed through the C ABI, packaged into a deterministic Linux x86-64 SDK, checked against the Python reference with exact search-score bits and byte-exact projection, and exercised from a final-archive C11 clean room. The default package also enforces the release footprint hard caps and excludes benchmark-sized NQ provider data from the generic install.
+
+Representative ARM64 storage/RSS/heap/stack/latency/energy/thermal qualification remains required before production-class embedded hardware claims. The absence of that hardware evidence narrows the v1 support matrix; it does not block the stable Linux x86-64 software package.
 
 See [`../ROADMAP.md`](../ROADMAP.md) for the detailed gates.
 
@@ -281,19 +278,22 @@ The **mature retained subsystem** from rc3 is quantitative:
 - deterministic capability/profile compiler and specialization machinery;
 - model-surface identity, packaging, security/export audit and qualification infrastructure.
 
-Earlier rc4 work also produced constrained-request/model-envelope infrastructure and **prototype factual-recall/fact-pack/benchmark code**. Those prototypes are useful implementation experiments, but they are explicitly **non-normative**: they do not freeze `xs_recall`, one lexical ranking algorithm, one fact-pack schema, or one benchmark runner as the product contract.
+The **stable v1 grounding implementation** now consists of:
 
-The normative rc4 work at this stage is documentation/design:
+- [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md) plus the normative [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md);
+- the selected host completion order and llama.cpp reference adapter;
+- the `no_std`, allocation-free `exactscope-grounding` native core;
+- immutable `.xsgi` provider compilation, zero-copy validation, BM25-v1 search, and compact evidence projection;
+- the public C ABI in `include/exactscope.h`;
+- exact Python/Rust/C-ABI parity tests on NQ development-mirror and HotpotQA screens;
+- the deterministic Linux x86-64 stable package in [`../spec/GROUNDING_RUNTIME_BUNDLE_V1.md`](../spec/GROUNDING_RUNTIME_BUNDLE_V1.md);
+- a package-local C11 demonstration and final-archive clean-room test;
+- explicit 10 MB compressed / 20 MB unpacked default-install hard caps;
+- benchmark and publication audits that keep gold, raw evidence, local paths, and internal handoff material outside the public product package.
 
-- [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md);
-- [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md);
-- provider-neutral Source -> Provider -> Evidence Policy -> Grounding Frame separation;
-- authority/scope/freshness/conflict/budget semantics;
-- one-call A/G benchmark fairness and false-grounding metrics.
+Earlier `xs_recall`/fact-pack experiments remain non-normative implementation history. The older quantitative `xs_calc`/`xs_eval` subsystem remains available as a secondary capability, but it does not define the v1 grounding product.
 
-**Do not continue runtime/ABI/package churn until that logical contract converges.** After the design freeze, implementation should be chosen from measured retrieval precision, false-grounding risk, footprint and integration cost rather than from whichever prototype already exists.
-
-Remaining product gates are provider/profile serialization freeze, implementation selection, candidate-bound regression/conformance, new diverse-model A/G evidence, representative real-device qualification, resource/energy measurements and long-term compatibility/privacy/LTS/support evidence. See `GROUNDING_ARCHITECTURE.md`, `BENCHMARK.md`, `CODEX_CONTEXT.md`, `MODEL_INTERFACE_RC4.md`, and `RC3_QUALIFICATION_CLOSEOUT.md`.
+Post-v1 product gates are broader provider implementations, long-term compatibility/LTS evidence, and representative physical-device qualification where target-specific RAM/latency/energy/thermal claims are desired. Physical ARM64 qualification is the most important outstanding hardware gate; it is not silently inherited from x86-64 evidence.
 
 ## 14. Decision test
 

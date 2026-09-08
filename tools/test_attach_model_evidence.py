@@ -4,7 +4,9 @@ import unittest
 from pathlib import Path
 
 from attach_model_evidence import attach, validate_model_results
-from compile_capability import (canonical, digest, load, model_surface_contract,
+from compile_capability import (canonical, constrained_request_grammar,
+                                constrained_request_prompt, digest, load,
+                                model_surface_contract, model_surface_measurements,
                                 source_identity, verify_bundle, write_bundle)
 
 
@@ -18,7 +20,7 @@ def write_evidence_fixture(root: Path) -> Path:
         "abi": "1.0",
         "binding_sha256": "1" * 64,
         "packs": [{"id": "unit-pack", "version": "0.1"}],
-        "operations": [{"op": "stats.mean", "revision": 1}],
+        "operations": [{"op": "stats.mean", "revision": 1, "sig": "stats.mean(v:vector)"}],
     }
     files = {
         "catalog.json": canonical(catalog),
@@ -29,6 +31,8 @@ def write_evidence_fixture(root: Path) -> Path:
         "runtime.wasm": runtime,
         "benchmark-mapping.jsonl": benchmark_mapping,
     }
+    files["constrained-prompt.txt"] = constrained_request_prompt(catalog, include_calc=False)
+    files["xs-request.gbnf"] = constrained_request_grammar(files["xs-eval.gbnf"], None)
     profile = {
         "profile_id": "model-evidence-unit",
         "profile_revision": 17,
@@ -65,10 +69,10 @@ def write_evidence_fixture(root: Path) -> Path:
                 "xs-eval.tool.json": digest(files["xs-eval.tool.json"]),
             })),
             "grammar_sha256": digest(canonical({
-                "xs-eval.gbnf": digest(files["xs-eval.gbnf"]),
+                name: digest(files[name]) for name in sorted(n for n in files if n.endswith(".gbnf"))
             })),
             "prompt_sha256": digest(canonical({
-                "prompt-fragment.txt": digest(files["prompt-fragment.txt"]),
+                name: digest(files[name]) for name in ("prompt-fragment.txt", "constrained-prompt.txt")
             })),
             "artifact_sha256": digest(runtime),
         },
@@ -89,13 +93,7 @@ def write_evidence_fixture(root: Path) -> Path:
         "format": "exactscope.capability.bundle",
         "format_version": "0.1",
         "files": {name: digest(data) for name, data in sorted(files.items())},
-        "measurements": {
-            "prompt_fragment_bytes": len(files["prompt-fragment.txt"]),
-            "schema_bytes": len(files["xs-eval.tool.json"]),
-            "grammar_bytes": len(files["xs-eval.gbnf"]),
-            "top_level_tool_count": 1,
-            "visible_semantic_operation_count": 1,
-        },
+        "measurements": model_surface_measurements(files, catalog),
         "operation_revisions": {"stats.mean": 1},
         "artifact_status": "artifact and gold bound; experimental, not target-qualified",
         "artifact_measurements": {

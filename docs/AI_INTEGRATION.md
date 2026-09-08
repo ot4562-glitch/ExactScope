@@ -1,9 +1,9 @@
 # AI integration contract
 
-Release target: **frozen rc4 grounding benchmark candidate source `125ad9403f22eece7f552701d4c7376bba3b697f`; no public rc4 grounding release artifact yet**
-Status: **READY_FOR_GROUNDING_BENCHMARK after Linux/Windows clean-room and five-model zero-inference preregistration/verify-only gates; efficacy remains unmeasured**
+Release target: **ExactScope v1.0.0 stable Linux x86-64 native grounding software package**
+Status: **selected r25 host policy + native `.xsgi` C ABI + deterministic package + final-archive C11 clean room complete; physical ARM64 qualification not claimed**
 
-ExactScope is consumed by AI runtimes as a **grounding layer plus optional deterministic capability layer**. rc3 showed that native tool-call support varies sharply by model/chat template and can impose large prompt-token overhead. rc4 therefore moves the common everyday path away from mandatory model tool calls: the host prefetches evidence from configured providers using the original user question, applies the Grounding Contract, and calls the model once with a compact Grounding Frame. See [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md), [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md), [`RC3_QUALIFICATION_CLOSEOUT.md`](RC3_QUALIFICATION_CLOSEOUT.md), and [`MODEL_INTERFACE_RC4.md`](MODEL_INTERFACE_RC4.md).
+ExactScope is consumed by AI runtimes as a **grounding layer plus optional deterministic capability layer**. rc3 showed that native model tool-call support varies sharply by model/chat template and can impose large prompt-token overhead, so v1 keeps everyday grounding outside mandatory model tool calls. The selected r25 behavior preserves canonical scalar facts through the Grounding Contract, completes deterministic unresolved/scalar cases in the host, and calls the model only for text interpretation or ordinary-knowledge fallback. The native v1 package exposes deterministic XSGI retrieval/projection through the C ABI while routing, authority, application scope, and model execution remain host-owned. See [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md), [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md), [`BENCHMARK.md`](BENCHMARK.md), and [`../spec/GROUNDING_RUNTIME_BUNDLE_V1.md`](../spec/GROUNDING_RUNTIME_BUNDLE_V1.md).
 
 ## 1. Default integration: prefetch evidence before model generation
 
@@ -11,28 +11,18 @@ ExactScope is consumed by AI runtimes as a **grounding layer plus optional deter
 original user question
     |
     v
-host security/application scope
-    |
-    v
-Grounding Router -> TargetPlan(s)
-    |
-    v
-configured Retrieval Provider(s)
-    |
-    v
-ProviderOutcome(s)
-    |
-    v
-deterministic Evidence Policy
+host scope -> Router -> Provider(s) -> Evidence Policy
     |
     v
 grouped GroundingFrame
     |
-    v
-deterministic Model Projection
+    +-- unresolved authoritative state ------> host disposition (0 model calls)
     |
-    v
-small/local model called once
+    +-- one grounded canonical scalar ------> host canonical value (0 model calls)
+    |
+    +-- no routed target / supplemental miss -> ordinary model knowledge (1 call)
+    |
+    +-- grounded text -----------------------> compact projection + model (1 call)
     |
     v
 final answer
@@ -189,17 +179,13 @@ Preserve a typed ExactScope failure instead of guessing a numeric answer.
 
 For quantitative model calls, use generated `prompt-fragment.txt` once for native tools or `constrained-prompt.txt` with `xs-request.gbnf` for the compatibility baseline. Do not duplicate the same operation catalog in several prompt surfaces.
 
-### Automatic model-envelope selection
+### Automatic model-surface selection
 
-The grounding prefetch path does not require a model envelope selector because retrieval happens before the model call.
+Grounding retrieval itself does not require a model envelope selector because retrieval happens before any model call. The selected llama.cpp grounding adapter does, however, support a **one-time answer-surface calibration** for the questions that still require model interpretation. It compares only the three already-measured compact answer contracts (`answer-object-v1`, `v3`, `v4`) on four fixed calibration cases and freezes the selected contract into a model-key + policy + model-surface bound record. It never changes contract after seeing a user-question failure and it never recalibrates per question.
 
-A maintained **quantitative** adapter may expose `auto`, `native_tools`, and `constrained_json` modes. `auto` is a pre-inference capability decision, not a retry strategy.
+A maintained **quantitative** adapter may separately expose `auto`, `native_tools`, and `constrained_json` modes. That `auto` is a pre-inference runtime-capability decision, not a retry strategy. For llama.cpp-compatible runtimes, native tools require the active runtime/chat template to report support for tool definitions, assistant tool calls, and object arguments. If any required capability is absent or unknown, quantitative `auto` selects `constrained_json`.
 
-For llama.cpp-compatible runtimes, native tools require the active runtime/chat template to report support for tool definitions, assistant tool calls, and object arguments. If any required capability is absent or unknown, `auto` selects `constrained_json`.
-
-Explicit `constrained_json` is a fixed integration choice and does not require a native-tool capability probe. `auto` and `native_tools` require the runtime capability record before inference.
-
-The selector must never use model family name, benchmark score, expected operation, expected answer, or a failed first inference to switch modes. Qualification always freezes requested/resolved mode; when runtime metadata participates in selection, it freezes the normalized capability/template record too.
+Neither selector may use benchmark gold, expected answers, hidden task labels, or a failed user inference as a switching signal. Qualification freezes the selected grounding contract record and any requested/resolved quantitative envelope before inference.
 
 ## 5. Adapter normalization rules
 
@@ -246,7 +232,7 @@ benchmarks/capability_surface.py
 benchmarks/run_qualification.py
 ```
 
-Each capability includes its exact profile, surface contract, manifest/detached digest, prompt/tool/GBNF assets, benchmark mapping and bound `runtime.wasm`. `benchmarks/run_qualification.py preregister` freezes those identities together with model/runtime/corpus/generation settings **before inference**; `run` rejects any later drift. This archive-local path is the evidence path described in [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md).
+Each capability includes its exact profile, surface contract, manifest/detached digest, prompt/tool/GBNF assets, benchmark mapping and bound `runtime.wasm`. `benchmarks/run_qualification.py preregister` freezes those identities together with model/runtime/corpus/generation settings **before inference**; `run` rejects any later drift. The public rc3 package mechanics are documented in [`EVALUATION_BUNDLE.md`](EVALUATION_BUNDLE.md) and the observed findings in [`RC3_QUALIFICATION_CLOSEOUT.md`](RC3_QUALIFICATION_CLOSEOUT.md); internal evaluator prompts are not part of the public source tree.
 
 ## 7. OpenAI-compatible tool envelopes
 
@@ -344,11 +330,11 @@ Before calling one host integration technically complete:
 
 ## 14. Next step
 
-The active next step is product implementation, not another rc3 qualification pass:
+The selected r25 behavior is implemented. The active release gate is to prove that exact behavior from one immutable v1 grounding package rather than continue prompt/version experimentation:
 
-- compile constrained request assets into every normal AI-facing capability;
-- add deterministic pre-inference runtime envelope selection;
-- update qualification identity/efficiency reporting;
-- test the new product path before freezing any new candidate.
+- regenerate the candidate under the current v0.3 A/G isolation identity;
+- build and verify the immutable grounding evaluation package that binds the adapter, selected model surface, scorer, model inventory and runtime record;
+- preregister and repeat the seven-model A/G matrix from the extracted package without source-checkout fallback;
+- publish only the resulting package-bound accuracy/cost table, then complete final install/documentation/publication audits before a stable v1 tag.
 
-See [`MODEL_INTERFACE_RC4.md`](MODEL_INTERFACE_RC4.md) and [`../ROADMAP.md`](../ROADMAP.md). The old rc3 qualification handoff/prompt/matrix remain historical audit records.
+The old rc3 model-interface work remains historical quantitative evidence. It is not the active grounding integration plan and does not replace the v1 package qualification path in [`BENCHMARK.md`](BENCHMARK.md) and [`GROUNDING_EVALUATION_PACKAGE.md`](GROUNDING_EVALUATION_PACKAGE.md).

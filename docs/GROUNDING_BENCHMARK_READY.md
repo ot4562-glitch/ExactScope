@@ -157,9 +157,6 @@ Those require the separate frozen A/G validation session. Physical ARM64 target 
 
 Do not modify candidate source, package bytes, corpus, provider/profile, projection, scorer, generation config, model file, or runtime under these identities.
 
-Start the separate validation session with:
+This readiness record is historical. The subsequent integrity-corrected r5 candidate completed the five-model benchmark, and r25 was later selected from the controlled source-run optimization chain. Current release qualification is governed by [`BENCHMARK.md`](BENCHMARK.md); internal experiment logs, validator prompts and handoffs are stored outside the public repository.
 
-1. [`GROUNDING_BENCHMARK_HANDOFF.md`](GROUNDING_BENCHMARK_HANDOFF.md)
-2. [`NEXT_SESSION_PROMPT.md`](NEXT_SESSION_PROMPT.md)
-
-If benchmark results motivate a product change, preserve this candidate/raw evidence and create a new candidate identity. Do not repair or resume this one in place.
+If benchmark results motivate a product change, preserve the prior candidate/raw evidence and create a new candidate identity. Do not repair or resume an evidence identity in place.

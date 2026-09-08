@@ -1,10 +1,10 @@
 # Compatibility contract
 
-Release context: **rc4 grounding-contract design after completed v1.0.0-rc.3 qualification**. rc3 remains prerelease/historical quantitative evidence and is not automatically promoted to Tier 1/Tier 2. rc4 adds a compatibility layer above ABI/runtime: a grounding result is compatible only when source scope, authority, retrieval-provider/index identity, Evidence Policy and Grounding Frame semantics are all bound. Native-tool compatibility remains relevant only to optional model-generated quantitative/rewrite paths.
+Release context: **ExactScope v1.0.0 ships a stable Linux x86-64 native grounding software/package scope.** Compatibility remains evidence attached to the exact runtime, provider/profile, and target: source scope, authority, retrieval-provider/index identity, Evidence Policy, Grounding Frame semantics, package identity, and target evidence must all remain bound. rc3 quantitative evidence remains historical and is not transferred into v1 grounding claims; physical ARM64 qualification remains unclaimed.
 
 Compatibility is evidence attached to an exact artifact **and behavior-affecting grounding profile**, not a statement that source code compiled or one search query returned a plausible hit.
 
-The current product strategy separates the already-published **rc3 quantitative profiles** from the not-yet-frozen **rc4 grounding provider/profile contract** so grounding design can converge without falsely promoting prototype retrieval code or old platform packages.
+The current product strategy separates the historical **rc3 quantitative profiles** from the stable v1 grounding software/package scope. The logical Grounding Contract is provider-neutral, while the stable v1 package currently qualifies only the Linux x86-64 native `.xsgi` retrieval/projection software path; other providers and targets require their own evidence before support promotion.
 
 ## 1. Support vocabulary
 
@@ -15,7 +15,7 @@ The current product strategy separates the already-published **rc3 quantitative 
 
 No README badge or release note may call an artifact supported without the corresponding evidence.
 
-## 2. Grounding compatibility identity — active rc4 design
+## 2. Grounding compatibility identity — v1 contract
 
 Grounding compatibility is provider-neutral. Two integrations are not the same compatibility target merely because they emit the same JSON fields.
 
@@ -57,14 +57,14 @@ A compatible provider/profile must prove:
 
 Support/Tier promotion for a grounding profile additionally requires representative end-to-end evidence; a retrieval unit test alone is insufficient.
 
-## 3. Published rc3 quantitative compatibility scope
+## 3. Historical rc3 quantitative compatibility scope
 
-The currently published prerelease compatibility candidates remain:
+The historical rc3 quantitative compatibility candidates were:
 
 1. **Native static C ABI**
 2. **No-import `wasm32v1-none`**
 
-These describe the rc3 quantitative subsystem and its release assets. They do not imply that an rc4 grounding SDK/profile is already published.
+These describe the rc3 quantitative subsystem and its release assets. The v1 grounding release is a separate native Linux x86-64 software/package scope and does not promote the historical quantitative profiles or Wasm grounding to stable support.
 
 Secondary/experimental quantitative paths include dynamic packs/discovery, convenience wrappers, wider native OS/architecture targets, embedded/bare-metal targets and additional shared-library profiles.
 
@@ -74,16 +74,16 @@ The quantitative invariant remains that any profile exposing the same operation 
 
 | Path | Current evidence | Current claim |
 |---|---|---|
-| rc4 grounding logical contract | architecture/specification review only; no frozen provider/profile candidate or model evidence yet | design-stage / **no accuracy, hallucination-reduction, provider-support or Tier claim** |
-| prototype exact/lexical recall code | local prototype/self-test evidence only | non-normative implementation probe; not the grounding compatibility definition |
-| Native scalar/statistics C ABI | source/unit/conformance coverage; zero-copy vector path; rc3 evaluation packaging | implemented quantitative candidate path; not Tier 1/Tier 2 yet |
+| v1 Grounding Contract + selected r25 host policy | frozen contract, seven-model matched screen, provider/corpus-scoped accuracy evidence | implemented v1 behavior; accuracy claims remain candidate/provider/corpus scoped |
+| Linux x86-64 native `.xsgi` C ABI/package | exact Python/Rust/C-ABI parity, deterministic package, footprint hard caps, final-archive C11 clean room | **stable v1 software/package scope** |
+| Default demonstration provider | tiny immutable XSGI packaged only for integration smoke | demonstration-only; not a general knowledge corpus |
+| Other grounding providers | contract-compatible in principle, but require exact provider/profile evidence | experimental until separately qualified |
+| Native scalar/statistics C ABI | source/unit/conformance coverage; rc3 evaluation packaging | retained quantitative subsystem; separate from v1 grounding support scope |
 | Dynamic statistics `.xsp` path | shared kernel and fused/dynamic parity tests for implemented slice | implemented secondary path |
-| No-import Wasm | source/build inspection and runtime/component tests; rc3 evaluation packaging | implemented candidate path; not Tier 1/Tier 2 yet |
-| Android AArch64 static SDK | cross-build/package workflow, CMake target, doctor/reference host infrastructure | Experimental rc3 candidate until published artifact/target evidence exists |
-| Linux AArch64 musl static SDK | cross-build/package workflow, doctor/ELF/reference host infrastructure | Experimental rc3 candidate until published artifact/target evidence exists |
+| No-import Wasm | source/build inspection and runtime/component tests; rc3 evaluation packaging | retained quantitative path; grounding Wasm not included in v1 |
+| Android / Linux ARM64 grounding | build/design infrastructure exists, but no representative physical v1 grounding device measurements | experimental; no stable RAM/latency/energy/thermal claim |
 | Wearable reference | C host, A/B, benchmark/qualification framework | integration reference, not generic device support |
-| Real constrained-target performance | unmeasured for rc3 | no performance Tier claim |
-| GitHub prerelease assets | rc3 workflow configured with manifest/checksum publication | candidate distribution only; actual release page is authoritative |
+| Real constrained-target grounding performance | physical ARM64 measurements not performed | no wearable/embedded hardware-performance claim |
 
 `tools/record_release_compatibility.py` can now create an **experimental** compatibility record for one deterministic release-shaped archive. The record binds the archive digest, release-manifest digest, exact runtime digest, capability bundle/profile revision, ABI, model-surface digest, target and toolchain. The tool deliberately refuses Tier 1/Tier 2 output; it is an identity/evidence container, not support promotion.
 

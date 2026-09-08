@@ -1,0 +1,36 @@
+{
+  "format": "exactscope.grounding-runtime-record",
+  "format_version": "0.1",
+  "runtime_id": "llama.cpp-0.3.0-dev-b10797-832fd6f17-windows-x86_64",
+  "family": "llama.cpp",
+  "version": "0.3.0-dev",
+  "build": 10797,
+  "commit": "832fd6f17",
+  "build_description": "Clang 20.1.8 for Windows x86_64",
+  "executable_name": "llama-server.exe",
+  "executable_sha256": "8537923e0297804e65c5f1f0065abff4b41d4e5361191f3f3bb3d19ade36e864",
+  "server_ready_timeout_seconds": 180,
+  "launch": {
+    "alias": "exactscope-model",
+    "host": "127.0.0.1",
+    "port": 8080,
+    "context": 4096,
+    "threads": 6,
+    "parallel": 1,
+    "jinja": true,
+    "webui": false,
+    "offline": true,
+    "mmproj": false,
+    "reasoning": "off",
+    "cache_prompt": false
+  },
+  "hardware": {
+    "architecture": "x86_64",
+    "cpu": "AMD Ryzen 5 5600G with Radeon Graphics",
+    "logical_cpus": 12,
+    "physical_cores": 6,
+    "memory_bytes": 16419270656,
+    "environment": "Microsoft Windows 11 Home 10.0.26200 x64"
+  },
+  "measurement_note": "Windows-native public development benchmark runtime. It is distinct from the frozen WSL2 qualification runtime; cross-runtime latency comparisons are not release evidence."
+}

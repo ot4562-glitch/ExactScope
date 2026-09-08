@@ -1,6 +1,6 @@
 # First implementation slice: `econ.ped.mid`
 
-> **Historical implementation record.** This document describes the original vertical slice that established the shared evaluator/ABI/Wasm semantics. That slice is complete and is no longer the current product-priority plan. For current rc2 sequencing use [`PRODUCT_DIRECTION.md`](PRODUCT_DIRECTION.md), [`QUICKSTART.md`](QUICKSTART.md), [`BENCHMARK.md`](BENCHMARK.md), and [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md). Statements below such as “no later milestone begins” apply only to the historical first-slice acceptance process, not to the current release/qualification order.
+> **Historical implementation record.** This document describes the original vertical slice that established the shared evaluator/ABI/Wasm semantics. That slice is complete and is no longer the current product-priority plan. Current work is defined by [`PRODUCT_DIRECTION.md`](PRODUCT_DIRECTION.md), [`QUICKSTART.md`](QUICKSTART.md), [`BENCHMARK.md`](BENCHMARK.md), and [`../ROADMAP.md`](../ROADMAP.md). Statements below such as “no later milestone begins” apply only to the historical first-slice acceptance process, not to the current release/qualification order.
 
 This document is the executable coding plan for the first ExactScope runtime commit. It deliberately implements one complete operation across every portability boundary before expanding the catalog.
 

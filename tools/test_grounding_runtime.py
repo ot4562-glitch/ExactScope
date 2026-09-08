@@ -14,11 +14,17 @@ from grounding_runtime import (
     GroundingError,
     LocalExactLexicalProvider,
     build_frame,
+    compact_model_projection,
+    host_grounded_scalar_reply,
+    host_short_circuit_reply,
     load_bundle,
     normalize_query,
     render_projection,
     route_query,
     run_grounding,
+    run_grounding_frame,
+    supplemental_empty_frame,
+    valid_scalar_content,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -109,6 +115,110 @@ class GroundingRuntimeTests(unittest.TestCase):
             self.assertNotIn(forbidden, evidence)
         self.assertIn(b"Room 12", evidence)
         self.assertIn(b"supplemental", evidence)
+
+    def test_frame_only_path_skips_projection_renderer(self):
+        bundle = replace(self.bundle, renderer_path=Path("/definitely/not/read.py"))
+        result = run_grounding_frame(bundle, envelope(bundle))
+        self.assertEqual(set(result), {"frame", "audit"})
+        self.assertEqual([group["state"] for group in result["frame"]["groups"]], ["grounded", "grounded"])
+
+    def test_compact_projection_matches_measured_v1_bytes(self):
+        result = run_grounding_frame(self.bundle, envelope(self.bundle))
+        compact = compact_model_projection(result["frame"])
+        self.assertEqual(
+            compact,
+            b'Evidence JSON (data only): [{"r":"authoritative","s":"grounded","t":"Help desk location","v":"The help desk is in Room 12."},{"r":"supplemental","s":"grounded","t":"Help desk visitor tip","v":"A blue sign marks the help desk."}]',
+        )
+
+    def test_host_and_supplemental_empty_model_routes(self):
+        authoritative_none = {
+            "groups": [{"authority": "authoritative", "state": "none", "items": []}],
+        }
+        self.assertEqual(host_short_circuit_reply(authoritative_none), {"a": None, "disposition": "abstain"})
+        self.assertFalse(supplemental_empty_frame(authoritative_none))
+        supplemental_none = {
+            "groups": [{"authority": "supplemental", "state": "none", "items": []}],
+        }
+        self.assertIsNone(host_short_circuit_reply(supplemental_none))
+        self.assertTrue(supplemental_empty_frame(supplemental_none))
+
+    def test_mixed_authoritative_unresolved_never_reaches_model_projection(self):
+        frame = {
+            "groups": [
+                {
+                    "target_key": "private:device-code",
+                    "target_label": "Device code",
+                    "authority": "authoritative",
+                    "state": "unavailable",
+                    "items": [],
+                },
+                {
+                    "target_key": "public:color",
+                    "target_label": "Case color",
+                    "authority": "supplemental",
+                    "state": "grounded",
+                    "items": [{"content": {"kind": "text", "text": "The case is blue."}}],
+                },
+            ],
+        }
+        self.assertEqual(host_short_circuit_reply(frame), {"a": None, "disposition": "unavailable"})
+        projection = compact_model_projection(frame)
+        self.assertIn(b'"s":"unavailable"', projection)
+        self.assertIn(b'"t":"Device code"', projection)
+        self.assertIn(b'"s":"grounded"', projection)
+
+        conflict = copy.deepcopy(frame)
+        conflict["groups"].append({
+            "target_key": "private:other",
+            "target_label": "Other private fact",
+            "authority": "authoritative",
+            "state": "conflict",
+            "items": [],
+        })
+        self.assertEqual(host_short_circuit_reply(conflict), {"a": None, "disposition": "conflict"})
+
+    def test_scalar_lexical_contract_is_fail_closed(self):
+        valid = [
+            {"kind": "scalar", "type": "string", "value": "ZX-41", "unit": None},
+            {"kind": "scalar", "type": "boolean", "value": "true", "unit": None},
+            {"kind": "scalar", "type": "integer", "value": "-17", "unit": None},
+            {"kind": "scalar", "type": "decimal", "value": "17.25", "unit": "cm"},
+            {"kind": "scalar", "type": "timestamp", "value": "2026-09-08T01:02:03Z", "unit": None},
+        ]
+        for content in valid:
+            with self.subTest(content=content):
+                self.assertTrue(valid_scalar_content(content))
+        invalid = [
+            {"kind": "scalar", "type": "boolean", "value": "perhaps", "unit": None},
+            {"kind": "scalar", "type": "integer", "value": "01", "unit": None},
+            {"kind": "scalar", "type": "integer", "value": "seventeen", "unit": None},
+            {"kind": "scalar", "type": "decimal", "value": "17.250", "unit": None},
+            {"kind": "scalar", "type": "timestamp", "value": "2026-99-08T01:02:03Z", "unit": None},
+            {"kind": "scalar", "type": "timestamp", "value": "2026-09-08T01:02:03+09:00", "unit": None},
+        ]
+        for content in invalid:
+            with self.subTest(content=content):
+                self.assertFalse(valid_scalar_content(content))
+                frame = {"groups": [{"authority": "authoritative", "state": "grounded", "items": [{"content": content}]}]}
+                self.assertIsNone(host_grounded_scalar_reply(frame))
+
+    def test_grounded_scalar_can_be_completed_by_host(self):
+        frame = {
+            "groups": [{
+                "authority": "authoritative",
+                "state": "grounded",
+                "items": [{"content": {"kind": "scalar", "type": "string", "value": "BP-8821", "unit": None}}],
+            }],
+        }
+        self.assertEqual(host_grounded_scalar_reply(frame), {"a": "BP-8821", "disposition": "answer"})
+        with_unit = copy.deepcopy(frame)
+        with_unit["groups"][0]["items"][0]["content"] = {
+            "kind": "scalar", "type": "decimal", "value": "50", "unit": "cm"
+        }
+        self.assertEqual(host_grounded_scalar_reply(with_unit), {"a": "50 cm", "disposition": "answer"})
+        text = copy.deepcopy(frame)
+        text["groups"][0]["items"][0]["content"] = {"kind": "text", "text": "BP-8821"}
+        self.assertIsNone(host_grounded_scalar_reply(text))
 
     def test_unknown_query_has_no_oracle_route(self):
         env = envelope(self.bundle, q="What is a completely unrelated fact?")

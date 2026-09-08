@@ -12,6 +12,8 @@ import shutil
 import tarfile
 from typing import Any
 
+from grounding_v1_surface import surface_sha256
+
 ROOT = Path(__file__).resolve().parents[1]
 COMMIT_RE = re.compile(r"^[a-f0-9]{40}$")
 
@@ -33,6 +35,15 @@ def load_json(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise PackageBuildError(f"JSON root must be object: {path}")
     return value
+
+
+def answer_call_policy_binding(policy: dict[str, Any]) -> str:
+    if policy.get("format") != "exactscope.grounding-isolation-policy":
+        raise PackageBuildError("invalid grounding isolation policy identity")
+    version = policy.get("format_version")
+    if not isinstance(version, str) or not version:
+        raise PackageBuildError("grounding isolation policy version missing")
+    return f"bound-by-benchmark-isolation-policy-v{version}"
 
 
 def copy_file(source: Path, destination: Path) -> None:
@@ -85,11 +96,21 @@ def deterministic_tar(package_root: Path, archive: Path, archive_root_name: str)
 def build(args: argparse.Namespace) -> dict[str, Any]:
     if not COMMIT_RE.fullmatch(args.source_commit):
         raise PackageBuildError("--source-commit must be 40 lowercase hex chars")
+    isolation_policy_source = ROOT / "benchmarks/grounding-isolation-policy.json"
+    isolation_policy = load_json(isolation_policy_source)
+    expected_call_policy = answer_call_policy_binding(isolation_policy)
     candidate = args.candidate.resolve()
     candidate_manifest_path = candidate / "manifests/candidate-manifest.json"
     candidate_manifest = load_json(candidate_manifest_path)
     if candidate_manifest.get("status") != "generated-before-inference" or candidate_manifest.get("model_inference_performed") is not False:
         raise PackageBuildError("candidate is not pre-inference")
+    if candidate_manifest.get("answer_call_policy") != expected_call_policy:
+        raise PackageBuildError("candidate answer-call policy is not bound to the selected isolation policy")
+    if candidate_manifest.get("arms") != isolation_policy.get("arms") or candidate_manifest.get("rewrite_calls") != 0:
+        raise PackageBuildError("candidate A/G execution contract drift")
+    candidate_sha_path = candidate / "CANDIDATE_SHA256.txt"
+    if not candidate_sha_path.is_file() or candidate_sha_path.read_text(encoding="ascii").strip() != sha256(candidate_manifest_path):
+        raise PackageBuildError("candidate manifest digest file drift")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     package_name = f"exactscope-grounding-eval-{args.version}"
@@ -110,15 +131,22 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         "benchmarks/run_grounding_benchmark.py": ROOT / "benchmarks/run_grounding_benchmark.py",
         "benchmarks/score_grounding.py": ROOT / "benchmarks/score_grounding.py",
         "benchmarks/grounding-generation-config.json": ROOT / "benchmarks/grounding-generation-config.json",
-        "benchmarks/grounding-isolation-policy.json": ROOT / "benchmarks/grounding-isolation-policy.json",
+        "benchmarks/grounding-isolation-policy.json": isolation_policy_source,
         "benchmarks/grounding-model-inventory.json": model_inventory_source,
         "benchmarks/grounding-runtime-llama-v040.json": runtime_record_source,
         "tools/grounding_canonical.py": ROOT / "tools/grounding_canonical.py",
+        "tools/grounding_corpus.py": ROOT / "tools/grounding_corpus.py",
         "tools/grounding_match.py": ROOT / "tools/grounding_match.py",
+        "tools/grounding_projection.py": ROOT / "tools/grounding_projection.py",
         "tools/grounding_runtime.py": ROOT / "tools/grounding_runtime.py",
+        "tools/grounding_v1_surface.py": ROOT / "tools/grounding_v1_surface.py",
         "tools/verify_grounding_package.py": ROOT / "tools/verify_grounding_package.py",
+        "adapters/llama-cpp/grounding_v1.py": ROOT / "adapters/llama-cpp/grounding_v1.py",
+        "adapters/llama-cpp/README.md": ROOT / "adapters/llama-cpp/README.md",
         "spec/GROUNDING_CONTRACT_V0_1.md": ROOT / "spec/GROUNDING_CONTRACT_V0_1.md",
         "docs/GROUNDING_ARCHITECTURE.md": ROOT / "docs/GROUNDING_ARCHITECTURE.md",
+        "docs/GROUNDING_RUNTIME_RC4.md": ROOT / "docs/GROUNDING_RUNTIME_RC4.md",
+        "docs/AI_INTEGRATION.md": ROOT / "docs/AI_INTEGRATION.md",
         "docs/BENCHMARK.md": ROOT / "docs/BENCHMARK.md",
         "README.md": ROOT / "docs/GROUNDING_EVALUATION_PACKAGE.md",
     }
@@ -137,10 +165,15 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
     generation_sha = sha256(package_root / "benchmarks/grounding-generation-config.json")
     isolation_sha = sha256(package_root / "benchmarks/grounding-isolation-policy.json")
     scorer_sha = sha256(package_root / "benchmarks/score_grounding.py")
+    model_surface_sha = surface_sha256()
+    model_surface_module_sha = sha256(package_root / "tools/grounding_v1_surface.py")
+    corpus_module_sha = sha256(package_root / "tools/grounding_corpus.py")
+    projection_module_sha = sha256(package_root / "tools/grounding_projection.py")
+    adapter_sha = sha256(package_root / "adapters/llama-cpp/grounding_v1.py")
     manifest = {
         "v": 1,
         "format": "exactscope.grounding-evaluation-package",
-        "format_version": "0.1",
+        "format_version": "0.3",
         "product_version": args.version,
         "source_commit": args.source_commit,
         "candidate_id": candidate_manifest["candidate_id"],
@@ -150,6 +183,11 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         "generation_config_sha256": generation_sha,
         "isolation_policy_sha256": isolation_sha,
         "scorer_sha256": scorer_sha,
+        "model_surface_sha256": model_surface_sha,
+        "model_surface_module_sha256": model_surface_module_sha,
+        "grounding_corpus_module_sha256": corpus_module_sha,
+        "grounding_projection_module_sha256": projection_module_sha,
+        "llama_cpp_adapter_sha256": adapter_sha,
         "model_inference_performed": False,
         "benchmark_state": "pre-inference",
         "files": [file_entry(package_root, path) for path in payload_files],
@@ -182,7 +220,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--version", default="1.0.0-rc.4")
     parser.add_argument("--source-commit", required=True)
-    parser.add_argument("--model-inventory", type=Path, help="override packaged model identity inventory; default is the tracked five-model rc4 inventory")
+    parser.add_argument("--model-inventory", type=Path, help="override packaged model identity inventory; default is the tracked seven-model rc4/v1 qualification inventory")
     parser.add_argument("--runtime-record", type=Path, help="override packaged inference-runtime identity record; default is the tracked llama.cpp rc4 record")
     args = parser.parse_args()
     result = build(args)

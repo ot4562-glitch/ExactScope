@@ -10,9 +10,12 @@ from check_model_surface_compat import CompatibilityError, check_acceptance
 from compile_capability import (
     ROOT,
     canonical,
+    constrained_request_grammar,
+    constrained_request_prompt,
     digest,
     load,
     model_surface_contract,
+    model_surface_measurements,
     source_identity,
     verify_bundle,
 )
@@ -27,7 +30,7 @@ def write_bundle_fixture(root: Path) -> Path:
         "abi": "1.0",
         "binding_sha256": "1" * 64,
         "packs": [{"id": "unit-pack", "version": "0.1"}],
-        "operations": [{"op": "stats.mean", "revision": 1}],
+        "operations": [{"op": "stats.mean", "revision": 1, "sig": "stats.mean(v:vector)"}],
     }
     assets = {
         "catalog.json": canonical(catalog),
@@ -36,6 +39,8 @@ def write_bundle_fixture(root: Path) -> Path:
         "xs-eval.gbnf": b"root ::= \"{}\"\n",
         "xs-eval.tool.json": b'{"type":"function"}\n',
     }
+    assets["constrained-prompt.txt"] = constrained_request_prompt(catalog, include_calc=False)
+    assets["xs-request.gbnf"] = constrained_request_grammar(assets["xs-eval.gbnf"], None)
     profile = {
         "profile_id": "surface-unit",
         "profile_revision": 1,
@@ -65,10 +70,10 @@ def write_bundle_fixture(root: Path) -> Path:
                 "xs-eval.tool.json": digest(assets["xs-eval.tool.json"]),
             })),
             "grammar_sha256": digest(canonical({
-                "xs-eval.gbnf": digest(assets["xs-eval.gbnf"]),
+                name: digest(assets[name]) for name in sorted(n for n in assets if n.endswith(".gbnf"))
             })),
             "prompt_sha256": digest(canonical({
-                "prompt-fragment.txt": digest(assets["prompt-fragment.txt"]),
+                name: digest(assets[name]) for name in ("prompt-fragment.txt", "constrained-prompt.txt")
             })),
             "artifact_sha256": None,
         },
@@ -83,13 +88,7 @@ def write_bundle_fixture(root: Path) -> Path:
         "format": "exactscope.capability.bundle",
         "format_version": "0.1",
         "files": {name: digest(data) for name, data in sorted(assets.items())},
-        "measurements": {
-            "prompt_fragment_bytes": len(assets["prompt-fragment.txt"]),
-            "schema_bytes": len(assets["xs-eval.tool.json"]),
-            "grammar_bytes": len(assets["xs-eval.gbnf"]),
-            "top_level_tool_count": 1,
-            "visible_semantic_operation_count": 1,
-        },
+        "measurements": model_surface_measurements(assets, catalog),
         "operation_revisions": {"stats.mean": 1},
     }
     manifest_bytes = canonical(manifest)
@@ -152,6 +151,7 @@ class ModelSurfaceCompatibilityTests(unittest.TestCase):
             profile = load(profile_path.read_bytes())
             profile["bindings"]["prompt_sha256"] = digest(canonical({
                 "prompt-fragment.txt": digest(prompt_path.read_bytes()),
+                "constrained-prompt.txt": digest((root / "constrained-prompt.txt").read_bytes()),
             }))
             profile_bytes = canonical(profile)
             profile_path.write_bytes(profile_bytes)
@@ -160,7 +160,13 @@ class ModelSurfaceCompatibilityTests(unittest.TestCase):
             manifest = load(manifest_path.read_bytes())
             manifest["files"]["prompt-fragment.txt"] = digest(prompt_path.read_bytes())
             manifest["files"]["profile.json"] = digest(profile_bytes)
-            manifest["measurements"]["prompt_fragment_bytes"] = prompt_path.stat().st_size
+            model_files = {
+                name: (root / name).read_bytes()
+                for name in ("prompt-fragment.txt", "constrained-prompt.txt", "xs-eval.gbnf", "xs-eval.tool.json", "xs-request.gbnf")
+            }
+            manifest["measurements"] = model_surface_measurements(
+                model_files, load((root / "catalog.json").read_bytes())
+            )
             manifest_bytes = canonical(manifest)
             manifest_path.write_bytes(manifest_bytes)
             (root / "bundle-sha256.txt").write_text(digest(manifest_bytes) + "\n", encoding="ascii")

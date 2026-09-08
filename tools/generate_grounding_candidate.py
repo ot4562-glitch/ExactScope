@@ -15,9 +15,20 @@ from grounding_match import frozen_alias
 
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = ROOT / "grounding/reference-profile-v0.1"
+ISOLATION_POLICY = ROOT / "benchmarks/grounding-isolation-policy.json"
 PROVIDER_ID = "local-exact-lexical"
 SCOPE = "benchmark-synthetic-public"
-GENERATION_REVISION = "r5"
+GENERATION_REVISION = "r8"
+
+
+def answer_call_policy_binding() -> str:
+    policy = json.loads(ISOLATION_POLICY.read_text(encoding="utf-8"))
+    if not isinstance(policy, dict) or policy.get("format") != "exactscope.grounding-isolation-policy":
+        raise RuntimeError("invalid grounding isolation policy identity")
+    version = policy.get("format_version")
+    if not isinstance(version, str) or not version:
+        raise RuntimeError("grounding isolation policy version missing")
+    return f"bound-by-benchmark-isolation-policy-v{version}"
 
 
 def sha256(data: bytes) -> str:
@@ -76,17 +87,16 @@ class CandidateBuilder:
             raise ValueError("source revision drift")
         self.sources.setdefault(source_id, {"revision": revision, "items": []})
 
-    def item(
+    def _item(
         self,
         source_id: str,
         revision: str,
         target_key: str,
         item_id: str,
-        text: str,
+        content: dict[str, Any],
         aliases: list[str],
     ) -> dict[str, Any]:
         self.source(source_id, revision)
-        content = {"kind": "text", "text": text}
         item = {
             "source_id": source_id,
             "item_id": item_id,
@@ -99,6 +109,32 @@ class CandidateBuilder:
         normalized_aliases = sorted({frozen_alias(alias) for alias in aliases}, key=lambda value: value.encode("utf-8"))
         self.index.append({**item, "aliases": normalized_aliases})
         return item
+
+    def item(
+        self,
+        source_id: str,
+        revision: str,
+        target_key: str,
+        item_id: str,
+        text: str,
+        aliases: list[str],
+    ) -> dict[str, Any]:
+        return self._item(source_id, revision, target_key, item_id, {"kind": "text", "text": text}, aliases)
+
+    def scalar_item(
+        self,
+        source_id: str,
+        revision: str,
+        target_key: str,
+        item_id: str,
+        value: str,
+        aliases: list[str],
+        *,
+        scalar_type: str = "string",
+        unit: str | None = None,
+    ) -> dict[str, Any]:
+        content = {"kind": "scalar", "type": scalar_type, "value": value, "unit": unit}
+        return self._item(source_id, revision, target_key, item_id, content, aliases)
 
     def target(
         self,
@@ -202,7 +238,7 @@ class CandidateBuilder:
         for slug, alias, question, answer, text in public:
             key = f"public:{slug}"
             self.target(key, alias.title(), "public.reference", "supplemental", ["public-common"], route_aliases=[alias])
-            item = self.item("public-common", "facts:1", key, slug, text, [alias])
+            item = self.scalar_item("public-common", "facts:1", key, slug, answer, [alias], scalar_type="integer")
             self.case(f"public-{slug}", "stable_public", question, [key], allowed_answers=[answer], answer_expected=True,
                       expected_states={key: "grounded"}, valid_evidence=[("public-common", slug, "facts:1")], authority_class="supplemental")
 
@@ -228,7 +264,7 @@ class CandidateBuilder:
                 question = f"What is {person.title()}'s current private project code?"
                 text = f"{person.title()}'s current private project code is {value}."
             self.target(key, f"{person.title()} {prop}", "private.memory", "authoritative", ["private-memory"], route_aliases=[alias])
-            self.item("private-memory", f"seed:{self.seed}", key, slug, text, [alias])
+            self.scalar_item("private-memory", f"seed:{self.seed}", key, slug, value, [alias])
             self.case(f"private-{slug}", "synthetic_private", question, [key], allowed_answers=[value], answer_expected=True,
                       expected_states={key: "grounded"}, valid_evidence=[("private-memory", slug, f"seed:{self.seed}")])
 
@@ -254,7 +290,7 @@ class CandidateBuilder:
             question = f"What is {name.title()}'s current saved setting?"
             text = f"{name.title()}'s current saved setting is {current_value}."
             self.target(key, f"{name.title()} current setting", "revision.current", "authoritative", ["current-state"], route_aliases=[alias])
-            self.item("current-state", f"current:{self.seed}", key, f"{name}-current", text, [alias])
+            self.scalar_item("current-state", f"current:{self.seed}", key, f"{name}-current", current_value, [alias])
             self.case(f"stale-{name}", "stale_revision", question, [key], allowed_answers=[current_value], answer_expected=True,
                       expected_states={key: "grounded"}, valid_evidence=[("current-state", f"{name}-current", f"current:{self.seed}")], obsolete_answer=old_value)
 
@@ -266,7 +302,7 @@ class CandidateBuilder:
             alias = f"{device} serial number"
             question = f"What is the serial number of the {device.title()}?"
             self.target(key, f"{device.title()} serial number", "device.identity", "authoritative", ["device-registry"], route_aliases=[alias])
-            self.item("device-registry", "devices:5", key, f"{slug}-serial", f"The {device.title()} serial number is {serial}.", [alias])
+            self.scalar_item("device-registry", "devices:5", key, f"{slug}-serial", serial, [alias])
             sibling = "bedroom-purifier-serial" if slug == "hall-purifier" else "hall-purifier-serial"
             self.case(f"distractor-{slug}", "distractor", question, [key], allowed_answers=[serial], answer_expected=True,
                       expected_states={key: "grounded"}, valid_evidence=[("device-registry", f"{slug}-serial", "devices:5")],
@@ -339,7 +375,7 @@ class CandidateBuilder:
             alias = f"{name} 보관함 라벨 색상"
             item_id = f"label-{len(self.sources['ko-private']['items']) + 1}"
             self.target(key, f"{name} 보관함 라벨 색상", "multilingual.private", "authoritative", ["ko-private"], route_aliases=[alias])
-            self.item("ko-private", f"ko:{self.seed}", key, item_id, f"{name} 보관함 라벨 색상은 {color}이다.", [alias])
+            self.scalar_item("ko-private", f"ko:{self.seed}", key, item_id, color, [alias])
             self.case(f"ko-{item_id}", "multilingual", f"{name} 보관함 라벨 색상은 무엇인가?", [key], allowed_answers=[color], answer_expected=True,
                       expected_states={key: "grounded"}, valid_evidence=[("ko-private", item_id, f"ko:{self.seed}")])
 
@@ -594,7 +630,8 @@ class CandidateBuilder:
             "grounding_manifest_sha256": manifest_sha,
             "item_count": len(self.questions),
             "class_counts": {key: class_counts[key] for key in sorted(class_counts)},
-            "answer_calls_per_arm": 1,
+            "answer_call_policy": answer_call_policy_binding(),
+            "isolation_policy_sha256": file_sha(ISOLATION_POLICY),
             "arms": ["A", "G"],
             "rewrite_calls": 0,
             "model_inference_performed": False,

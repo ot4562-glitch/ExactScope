@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.org/spec/schemas/grounding-benchmark-preregistration-v0.4.schema.json",
+  "title": "ExactScope grounding benchmark preregistration v0.4",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "v": {"const": 1},
+    "format": {"const": "exactscope.grounding-benchmark-preregistration"},
+    "format_version": {"const": "0.4"},
+    "state": {"const": "frozen-before-inference"},
+    "run_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "writer_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "planned_output": {"type": "string", "minLength": 1, "maxLength": 1024},
+    "source_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "candidate_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "serving_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "gold_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "grounding_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "grounding_profile_sha256": {"$ref": "#/$defs/sha256"},
+        "source_snapshot_sha256": {"type": "array", "items": {"$ref": "#/$defs/sha256"}, "minItems": 1, "uniqueItems": true},
+        "provider_identity_sha256": {"type": "array", "items": {"$ref": "#/$defs/sha256"}, "minItems": 1, "uniqueItems": true},
+        "projection_template_sha256": {"$ref": "#/$defs/sha256"},
+        "projection_policy_sha256": {"$ref": "#/$defs/sha256"},
+        "projection_renderer_sha256": {"$ref": "#/$defs/sha256"},
+        "generator_sha256": {"$ref": "#/$defs/sha256"},
+        "isolation_policy_sha256": {"$ref": "#/$defs/sha256"},
+        "generator_seed": {"type": "string", "minLength": 1, "maxLength": 256},
+        "item_count": {"type": "integer", "minimum": 1, "maximum": 9007199254740991}
+      },
+      "required": ["candidate_id", "candidate_manifest_sha256", "serving_manifest_sha256", "gold_manifest_sha256", "grounding_manifest_sha256", "grounding_profile_sha256", "source_snapshot_sha256", "provider_identity_sha256", "projection_template_sha256", "projection_policy_sha256", "projection_renderer_sha256", "generator_sha256", "isolation_policy_sha256", "generator_seed", "item_count"]
+    },
+    "evaluation_package": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "package_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "archive_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"}
+      },
+      "required": ["package_manifest_sha256", "archive_sha256"]
+    },
+    "model_inventory_sha256": {"$ref": "#/$defs/sha256"},
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "repository": {"type": "string", "minLength": 1, "maxLength": 512},
+        "resolved_revision": {"type": "string", "minLength": 1, "maxLength": 256},
+        "requested_file": {"type": "string", "minLength": 1, "maxLength": 512},
+        "runtime": {"type": "string", "minLength": 1, "maxLength": 256},
+        "quantization": {"type": "string", "minLength": 1, "maxLength": 128},
+        "bytes": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "path": {"type": "string", "minLength": 1, "maxLength": 2048}
+      },
+      "required": ["id", "repository", "resolved_revision", "requested_file", "runtime", "quantization", "bytes", "sha256", "path"]
+    },
+    "runtime_record_sha256": {"$ref": "#/$defs/sha256"},
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "runtime_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "executable_sha256": {"$ref": "#/$defs/sha256"},
+        "executable_path": {"type": "string", "minLength": 1, "maxLength": 2048},
+        "version": {"type": "string", "minLength": 1, "maxLength": 256},
+        "commit": {"type": "string", "minLength": 1, "maxLength": 256},
+        "launch": {"type": "object"},
+        "hardware": {"type": "object"}
+      },
+      "required": ["runtime_id", "executable_sha256", "executable_path", "version", "commit", "launch", "hardware"]
+    },
+    "generation_config_sha256": {"$ref": "#/$defs/sha256"},
+    "isolation_policy_sha256": {"$ref": "#/$defs/sha256"},
+    "scorer_sha256": {"$ref": "#/$defs/sha256"},
+    "model_surface_sha256": {"$ref": "#/$defs/sha256"},
+    "model_surface_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "selector": {"const": "answer-object-auto-v2"},
+        "candidates": {"const": ["answer-object-v1", "answer-object-v3", "answer-object-v4"]},
+        "tie_preference": {"const": ["answer-object-v3", "answer-object-v4", "answer-object-v1"]},
+        "calibration_case_count": {"const": 4},
+        "calibration_model_requests": {"const": 12},
+        "answer_contract_application": {"const": "matched-a-g-v1"},
+        "supplemental_empty": {"const": "ordinary-knowledge-no-grounding-context"},
+        "grounded_text_projection": {"const": "compact-stateful-v1"},
+        "grounding_policy": {"const": "full-profile-policy"},
+        "retry_count": {"const": 0}
+      },
+      "required": ["selector", "candidates", "tie_preference", "calibration_case_count", "calibration_model_requests", "answer_contract_application", "supplemental_empty", "grounded_text_projection", "grounding_policy", "retry_count"]
+    },
+    "answer_call_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "A": {"const": "exactly-one-model-answer-matched-selected-contract"},
+        "G": {"const": "zero-or-one-model-answer-after-deterministic-host"},
+        "host_completion": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "authoritative_unresolved": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "authority": {"const": "authoritative"},
+                "block_if_any_target_unresolved": {"const": true},
+                "state_precedence": {"const": ["conflict", "ambiguous", "unavailable", "none"]},
+                "state_to_disposition": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "none": {"const": "abstain"},
+                    "unavailable": {"const": "unavailable"},
+                    "ambiguous": {"const": "clarify"},
+                    "conflict": {"const": "conflict"}
+                  },
+                  "required": ["none", "unavailable", "ambiguous", "conflict"]
+                }
+              },
+              "required": ["authority", "block_if_any_target_unresolved", "state_precedence", "state_to_disposition"]
+            },
+            "canonical_scalar": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "single_target_group_only": {"const": true},
+                "state": {"const": "grounded"},
+                "item_count": {"const": 1},
+                "content_kind": {"const": "scalar"},
+                "canonical_lexical_required": {"const": true}
+              },
+              "required": ["single_target_group_only", "state", "item_count", "content_kind", "canonical_lexical_required"]
+            }
+          },
+          "required": ["authoritative_unresolved", "canonical_scalar"]
+        }
+      },
+      "required": ["A", "G", "host_completion"]
+    },
+    "arms": {"const": ["A", "G"]},
+    "rewrite_calls": {"const": 0},
+    "retry_count": {"const": 0},
+    "hidden_repair": {"const": false},
+    "manual_correction": {"const": false},
+    "futility_rule": {"const": "deterministic-host-completion-serving-derived-v1"},
+    "duplicate_rule": {"const": "reject-(arm,item_id)"},
+    "drift_rule": {"const": "reject-any-bound-byte-or-config-drift"},
+    "model_inference_performed": {"const": false},
+    "claim": {"const": "Frozen identity/configuration record only; creating or verifying this file performs zero model inference."}
+  },
+  "required": ["v", "format", "format_version", "state", "run_id", "writer_id", "planned_output", "source_commit", "candidate", "evaluation_package", "model_inventory_sha256", "model", "runtime_record_sha256", "runtime", "generation_config_sha256", "isolation_policy_sha256", "scorer_sha256", "model_surface_sha256", "model_surface_policy", "answer_call_policy", "arms", "rewrite_calls", "retry_count", "hidden_repair", "manual_correction", "futility_rule", "duplicate_rule", "drift_rule", "model_inference_performed", "claim"],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

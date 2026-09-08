@@ -27,7 +27,7 @@ The files in this directory define the v0.1 runtime/data/wire contracts plus cle
 | [BUILD_INPUT_IDENTITY_V0_1.md](BUILD_INPUT_IDENTITY_V0_1.md) | Experimental deterministic record of current-source/toolchain/feature/package inputs; prerequisite metadata, not independent reproducible-build proof |
 | [MODEL_SURFACE_NEGOTIATION_V0_1.md](MODEL_SURFACE_NEGOTIATION_V0_1.md) | Experimental host/build contract for exact tool-schema/grammar/prompt ID, version, and digest negotiation |
 | [OPERATION_REVISION_POLICY_V0_1.md](OPERATION_REVISION_POLICY_V0_1.md) | Active prerelease immutability, revision-bump, transparent-upgrade, and future supported-release-line policy |
-| [RELEASE_BUNDLE_V0_1.md](RELEASE_BUNDLE_V0_1.md) | Experimental deterministic native-static/no-import-Wasm integration archive; packaging contract only, not qualification |
+| [RELEASE_BUNDLE_V0_1.md](RELEASE_BUNDLE_V0_1.md) | Experimental deterministic native-static/no-import-Wasm integration archive with optional SHA-256-bound native `.xsgi` grounding payload; packaging contract only, not qualification |
 | [REPRODUCIBLE_BUILD_COMPARISON_V0_1.md](REPRODUCIBLE_BUILD_COMPARISON_V0_1.md) | Experimental byte-comparison evidence record for two labeled outputs of one pinned build-input identity |
 
 ## Machine-readable schemas

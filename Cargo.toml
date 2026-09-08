@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/exactscope-kernel",
     "crates/exactscope-pack",
+    "crates/exactscope-grounding",
     "crates/exactscope-cabi",
     "crates/exactscope-wasm",
     "crates/exactscope-tinyjson",
@@ -12,13 +13,14 @@ members = [
 default-members = [
     "crates/exactscope-kernel",
     "crates/exactscope-pack",
+    "crates/exactscope-grounding",
     "crates/exactscope-cabi",
     "crates/exactscope-wasm",
     "crates/exactscope-tinyjson",
 ]
 
 [workspace.package]
-version = "1.0.0-rc.4"
+version = "1.0.0"
 edition = "2021"
 rust-version = "1.84"
 license = "MIT OR Apache-2.0"
@@ -47,6 +49,6 @@ overflow-checks = true
 [profile.dev]
 overflow-checks = true
 
-# This workspace is a release candidate, not a stable or certified release.
-# Support labels remain gated on artifact-level ABI/Wasm conformance,
-# measured footprint, and target qualification.
+# v1 stable support is intentionally narrow: the packaged Linux x86-64 native
+# grounding C ABI/software path. Other targets remain separately qualified and
+# must not inherit physical-device performance claims from x86-64 evidence.

@@ -1,14 +1,16 @@
 /*
- * ExactScope C ABI design baseline v1.0.
+ * ExactScope C ABI v1.0.
  *
- * This header freezes the intended portable ABI shape before runtime
- * implementation. No released library is claimed to implement it yet.
+ * This header describes the implemented native ABI. Exact stable support is
+ * release-asset scoped; v1.0.0 promotes the packaged Linux x86-64 grounding
+ * software path and does not imply physical ARM64 qualification.
  *
  * SPDX-License-Identifier: MIT OR Apache-2.0
  */
 #ifndef EXACTSCOPE_H_INCLUDED
 #define EXACTSCOPE_H_INCLUDED
 
+#include <stddef.h>
 #include <stdint.h>
 
 #if defined(_WIN32)
@@ -124,13 +126,42 @@ extern "C" {
 /* Match flags. */
 #define XS_MATCH_TRUNCATED_V1 0x0001u
 
+/* Native grounding bounds. Query tokens are already normalized by the host. */
+#define XS_GROUNDING_MAX_QUERY_TOKENS_V1 64u
+#define XS_GROUNDING_MAX_TOKEN_BYTES_V1 256u
+#define XS_GROUNDING_MAX_HITS_V1 16u
+#define XS_GROUNDING_MAX_SENTENCES_PER_DOCUMENT_V1 4u
+
 typedef uint16_t xs_status;
 typedef struct xs_context xs_context;
+typedef struct xs_grounding_index xs_grounding_index;
 
 typedef struct xs_bytes_v1 {
     const uint8_t* ptr;
     uint32_t len;
 } xs_bytes_v1;
+
+typedef struct xs_grounding_search_scratch_v1 {
+    double score;
+    uint16_t matched_query_terms;
+    uint16_t reserved;
+} xs_grounding_search_scratch_v1;
+
+typedef struct xs_grounding_search_hit_v1 {
+    uint32_t document_ordinal;
+    double score;
+    uint16_t matched_query_terms;
+    uint16_t reserved;
+} xs_grounding_search_hit_v1;
+
+typedef struct xs_grounding_projection_result_v1 {
+    uint32_t struct_size;
+    uint32_t written;
+    uint16_t emitted_count;
+    uint8_t has_evidence;
+    uint8_t reserved0;
+    uint32_t reserved[2];
+} xs_grounding_projection_result_v1;
 
 typedef struct xs_decimal_v1 {
     int64_t coefficient;
@@ -248,6 +279,42 @@ XS_API xs_status XS_CALL xs_context_init(
     xs_context** out_context) XS_NOEXCEPT;
 XS_API xs_status XS_CALL xs_context_reset(xs_context* context) XS_NOEXCEPT;
 
+/*
+ * Grounding index bytes are borrowed, not copied. After successful init they
+ * must remain readable, immutable, alive, and not concurrently mutated until
+ * all calls using the returned xs_grounding_index have finished. Handle memory
+ * is caller-owned and must remain at its initialized address. No destroy call is
+ * required because the handle owns no allocation or external resource.
+ */
+XS_API uint32_t XS_CALL xs_grounding_index_align(void) XS_NOEXCEPT;
+XS_API uint32_t XS_CALL xs_grounding_index_size(void) XS_NOEXCEPT;
+XS_API xs_status XS_CALL xs_grounding_index_init(
+    void* memory,
+    uint32_t memory_len,
+    xs_bytes_v1 xsgi,
+    xs_grounding_index** out_index,
+    uint32_t* out_document_count) XS_NOEXCEPT;
+XS_API xs_status XS_CALL xs_grounding_index_search(
+    const xs_grounding_index* index,
+    const xs_bytes_v1* query_tokens,
+    uint16_t token_count,
+    xs_grounding_search_scratch_v1* scratch,
+    uint32_t scratch_count,
+    xs_grounding_search_hit_v1* output,
+    uint16_t output_capacity,
+    uint16_t* out_hit_count) XS_NOEXCEPT;
+XS_API xs_status XS_CALL xs_grounding_index_project(
+    const xs_grounding_index* index,
+    const xs_grounding_search_hit_v1* hits,
+    uint16_t hit_count,
+    const xs_bytes_v1* query_tokens,
+    uint16_t token_count,
+    uint32_t max_bytes,
+    uint8_t max_sentences_per_document,
+    uint8_t* output,
+    uint32_t output_capacity,
+    xs_grounding_projection_result_v1* out_result) XS_NOEXCEPT;
+
 XS_API xs_status XS_CALL xs_pack_mount(
     xs_context* context,
     const uint8_t* pack_bytes,
@@ -320,11 +387,23 @@ static_assert(sizeof(xs_decimal_v1) == 16u, "xs_decimal_v1 ABI size must be 16 b
 static_assert(sizeof(xs_plan_value_v1) == 32u, "xs_plan_value_v1 ABI size must be 32 bytes");
 static_assert(sizeof(xs_plan_step_v1) == 80u, "xs_plan_step_v1 ABI size must be 80 bytes");
 static_assert(sizeof(xs_plan_result_v1) == 48u, "xs_plan_result_v1 ABI size must be 48 bytes");
+static_assert(sizeof(xs_grounding_projection_result_v1) == 20u, "grounding projection result ABI size must be 20 bytes");
+#  if UINTPTR_MAX == UINT64_MAX
+static_assert(sizeof(xs_grounding_search_scratch_v1) == 16u, "grounding scratch ABI size must be 16 bytes on 64-bit targets");
+static_assert(sizeof(xs_grounding_search_hit_v1) == 24u, "grounding hit ABI size must be 24 bytes on 64-bit targets");
+static_assert(offsetof(xs_grounding_search_hit_v1, score) == 8u, "grounding hit score offset must be 8 bytes on 64-bit targets");
+#  endif
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 _Static_assert(sizeof(xs_decimal_v1) == 16u, "xs_decimal_v1 ABI size must be 16 bytes");
 _Static_assert(sizeof(xs_plan_value_v1) == 32u, "xs_plan_value_v1 ABI size must be 32 bytes");
 _Static_assert(sizeof(xs_plan_step_v1) == 80u, "xs_plan_step_v1 ABI size must be 80 bytes");
 _Static_assert(sizeof(xs_plan_result_v1) == 48u, "xs_plan_result_v1 ABI size must be 48 bytes");
+_Static_assert(sizeof(xs_grounding_projection_result_v1) == 20u, "grounding projection result ABI size must be 20 bytes");
+#  if UINTPTR_MAX == UINT64_MAX
+_Static_assert(sizeof(xs_grounding_search_scratch_v1) == 16u, "grounding scratch ABI size must be 16 bytes on 64-bit targets");
+_Static_assert(sizeof(xs_grounding_search_hit_v1) == 24u, "grounding hit ABI size must be 24 bytes on 64-bit targets");
+_Static_assert(offsetof(xs_grounding_search_hit_v1, score) == 8u, "grounding hit score offset must be 8 bytes on 64-bit targets");
+#  endif
 #endif
 
 #endif /* EXACTSCOPE_H_INCLUDED */

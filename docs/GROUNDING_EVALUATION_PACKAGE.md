@@ -1,10 +1,10 @@
 # Grounding evaluation package
 
-Status: **rc4 pre-inference evaluation/qualification package contract**.
+Status: **benchmark/evaluation package contract retained for reproducible A/G evidence. Stable v1 deployment uses the separate Linux x86-64 native grounding runtime bundle defined in `spec/GROUNDING_RUNTIME_BUNDLE_V1.md`.**
 
-The previous r3 package at source `125ad9403f22eece7f552701d4c7376bba3b697f` is excluded because the runner emitted float latency values into the canonical raw-record format. The r4 package at source `aac351644f8c6059721ede4c10c6ac2c0a6c7b54` corrected that defect and completed all five model runs, but post-run integrity checking showed that `SHA256SUMS` was written before `llama-server` termination, allowing the shutdown log append to invalidate `logs/llama-server.log`. r4 scores are diagnostic only. The replacement r5 package must bind the corrected integer-microsecond runner/scorer **and** stop/wait for the server before run checksums are written, then complete the same pre-inference and five-model evidence gates.
+r3 at source `125ad9403f22eece7f552701d4c7376bba3b697f` is excluded because of float latency serialization; r4 at `aac351644f8c6059721ede4c10c6ac2c0a6c7b54` is diagnostic only because run checksums preceded model-server shutdown. Integrity-corrected **r5** at `e6c3558642c77e379358b9f59aedd92abf7473f4` remains frozen historical comparison evidence. The selected r25 behavior adds serving-derived authoritative-unresolved and canonical-scalar host completion plus a one-time calibrated compact G answer surface. Model-accuracy evidence remains bound to its exact candidate/provider/corpus/model/runtime identity and is separate from the stable native software-package claim.
 
-This package exists to let an independent session reach the first model request without using a developer checkout. It is not a production deployment package and does not claim that grounding improves model accuracy before the A/G benchmark is run.
+This package exists to let an independent session reproduce a frozen benchmark candidate without using a developer checkout. It is not a production deployment package. Every selected candidate must be packaged and preregistered independently; historical run evidence is never copied into a new package identity.
 
 ## Purpose
 
@@ -13,11 +13,12 @@ The package freezes and carries:
 - one generated rc4 grounding candidate with physically separated `candidate/serving/` and `candidate/gold/` trees;
 - the provider-neutral grounding reference runtime and its exact profile/source/provider/projection assets;
 - the A/G generation configuration and gold-isolation policy;
-- the five-model identity inventory, without copying multi-gigabyte GGUF files into the archive;
+- the selected seven-model identity inventory, without copying GGUF files into the archive;
 - the frozen llama.cpp runtime/hardware configuration record, without copying the runtime binary;
 - zero-inference dry-run, preregistration, package verification and scorer tools;
+- the selected `grounding_v1` model surface and llama.cpp adapter bytes;
 - the model runner that is permitted to perform inference only after a frozen preregistration is supplied;
-- the relevant grounding contract, architecture and benchmark documents.
+- the relevant grounding contract, runtime, integration, architecture and benchmark documents.
 
 The package intentionally keeps model weights and `llama-server` external. Preregistration resolves their local paths and verifies their byte hashes against the packaged identities before any model call.
 
@@ -41,12 +42,19 @@ tools/
   grounding_canonical.py
   grounding_match.py
   grounding_runtime.py
+  grounding_v1_surface.py
   verify_grounding_package.py
+adapters/
+  llama-cpp/
+    grounding_v1.py
+    README.md
 spec/
   GROUNDING_CONTRACT_V0_1.md
   schemas/grounding-*.schema.json
 docs/
   GROUNDING_ARCHITECTURE.md
+  GROUNDING_RUNTIME_RC4.md
+  AI_INTEGRATION.md
   BENCHMARK.md
 package-manifest.json
 SHA256SUMS
@@ -81,7 +89,7 @@ For a real preregistration, provide the local model root or model path, the exac
 - an existing or wrong output directory;
 - a changed A/G arm set, retry count, answer-call count or hidden-repair policy.
 
-The runner uses exactly one answer-generation request per item in A and one in G. G performs grounding before its one answer request; A does not. Neither arm uses model-visible retrieval tools or query-rewrite calls.
+The runner uses exactly one answer-generation request per item in A. G performs grounding first and then uses either zero model calls under the two preregistered deterministic host-completion rules (one authoritative unresolved target, or one grounded canonical scalar item) or exactly one model answer request for every remaining item. G never uses more than one answer request, retries, model-visible retrieval tools, or query-rewrite calls. The run record reports unresolved-host, scalar-host, and G-model counts separately.
 
 ## Claims
 

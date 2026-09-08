@@ -2,7 +2,7 @@
 
 No dates are promised. This roadmap is ordered by **everyday factual reliability, false-grounding avoidance, small-model cost, evidence quality, and retrofit economics**.
 
-Release context: **rc4 grounding architecture/contract completion followed by implementation up to benchmark-ready freeze; v1.0.0-rc.3 remains immutable historical quantitative evidence**.
+Release context: **ExactScope v1.0.0 is the stable Linux x86-64 native grounding software/package release. The selected r25 behavior, native C ABI, footprint-gated package, and final-archive C11 clean-room path are complete. v1.0.0-rc.3 remains immutable historical quantitative evidence; physical ARM64 qualification remains unclaimed.**
 
 The flagship product question is:
 
@@ -10,30 +10,23 @@ The flagship product question is:
 
 ## Current checkpoint
 
-The rc3 public release and its external-user qualification are closed and immutable. Its constrained/native quantitative model-interface work remains useful infrastructure, but the flagship rc4 path is now:
+The rc3 public release and its external-user qualification are closed and immutable. The selected **r25** grounding behavior is now integrated with the native C ABI and stable Linux x86-64 v1 package. The frozen seven-model matched screen spans 135M to 3.8B local models, and its semantic scores were unchanged after native/release integration. r5 remains frozen historical comparison evidence.
+
+The post-v1 path is product expansion and target qualification, not another broad prompt search:
 
 ```text
-original question
- -> host security/application scope
- -> Grounding Router / TargetPlan(s)
- -> Retrieval Provider(s)
- -> ProviderOutcome(s)
- -> deterministic Evidence Policy
- -> grouped GroundingFrame
- -> deterministic Model Projection
- -> one small-model answer call
+stable Linux x86-64 grounding runtime
+ -> preserve deterministic r25 semantics and Python/Rust/C-ABI parity
+ -> add provider integrations only behind the Grounding Contract
+ -> keep default-install footprint bounded and provider data accounted separately
+ -> improve integration/discovery/LTS without broadening claims beyond evidence
+ -> qualify representative physical ARM64 hardware before wearable resource claims
+ -> add further stable targets only after target-specific clean-room/resource evidence
 ```
 
-The current task proceeds in this order:
+No new result may reuse historical run evidence or be tuned under the same identity after inference. The normative Grounding Contract remains v0.1; benchmark/package identities carry the selected implementation behavior and qualification evidence.
 
-1. complete/freeze documentation and logical contracts;
-2. obtain a read-only Codex architecture review with no P0 blocker;
-3. freeze concrete machine-readable GroundingProfile/frame/provider schemas;
-4. implement the frozen contract without preserving prototype mistakes;
-5. complete no-inference conformance, security, packaging and preregistration dry-runs;
-6. stop at **READY_FOR_GROUNDING_BENCHMARK** before any new model inference.
-
-Academic-domain expansion is deferred.
+Academic-domain expansion remains secondary to grounding reliability, provider integrations, and real-device qualification.
 
 ## Historical/retained implementation baseline
 
@@ -190,7 +183,7 @@ Success criterion: two independent implementations could build the same logical 
 
 ## P2 — implement frozen contract
 
-Use Codex CLI for independent review/implementation where available. The logical P0 review completed with `NO_P0_BLOCKERS`; later CLI work became credit-limited, so CodexPro Local direct edits/tests continue under the same frozen contract rather than changing the design around tool availability.
+Implementation and review must follow the frozen contract and preserve the public evidence/identity rules. Tool availability is never a reason to change product semantics or weaken verification.
 
 ### P2.1 Host/provider core
 
@@ -291,53 +284,54 @@ Before model benchmark:
 - [x] actual five-model preregistration dry-run from the extracted final package only;
 - [x] native Windows/Linux package verification and zero-inference dry-run commands verified.
 
-Success criterion: package is independently usable up to preregistration without a developer checkout and without launching a model. **Met for candidate source `125ad9403f22eece7f552701d4c7376bba3b697f`.**
+Success criterion: package is independently usable up to preregistration without a developer checkout and without launching a model. **Met by the r5 baseline and retained as a mandatory gate for every optimization candidate.**
 
-## P5 — stop at benchmark-ready candidate
+## P5 — historical five-model baseline — COMPLETE
 
-The current user request ends here.
+Integrity-corrected **r5** source `e6c3558642c77e379358b9f59aedd92abf7473f4` completed the five-model A/G benchmark with post-shutdown run checksum verification. r5 remains immutable historical comparison evidence.
 
-Frozen candidate: **READY_FOR_GROUNDING_BENCHMARK**. Exact package/preregistration identities are recorded in [`docs/GROUNDING_BENCHMARK_READY.md`](docs/GROUNDING_BENCHMARK_READY.md).
+## P6 — behavior selection — COMPLETE
 
-- [x] current docs/contracts are internally consistent;
-- [x] Codex read-only review has no unresolved P0 blocker;
-- [x] Grounding Contract/profile/schema/projection bytes are frozen;
-- [x] source/provider/index identities are frozen;
-- [x] serving/gold data are separated and hashed;
-- [x] no-inference conformance/security/determinism tests pass;
-- [x] packaging/clean-room tests pass;
-- [x] preregistration dry-run passes from the frozen package for all five models;
-- [x] benchmark model inventory is downloaded/hashed and byte-verified;
-- [x] **no new rc4 grounding model inference has been run**.
+- [x] preserve r5 as historical comparison evidence;
+- [x] isolate deterministic unresolved-state host completion;
+- [x] test compact evidence/policy and multiple answer contracts independently;
+- [x] add one-time model-identity-bound contract calibration rather than per-question retries;
+- [x] expand the model matrix to 135M and 1B wearable-class models;
+- [x] preserve contract-native scalar facts instead of flattening them into text;
+- [x] select r25 after the seven-model source-run comparison;
+- [x] reject later forced-contract variants that regressed low-end models.
 
-The implementation session stops here. The separate benchmark/validation session must use [`docs/GROUNDING_BENCHMARK_HANDOFF.md`](docs/GROUNDING_BENCHMARK_HANDOFF.md) / [`docs/NEXT_SESSION_PROMPT.md`](docs/NEXT_SESSION_PROMPT.md) and run A/G on the frozen diverse small-model matrix before any efficacy claim or product redesign.
+## P7 — productionize and qualify the selected behavior — ACTIVE
 
-## P6 — actual benchmark and target qualification — NOT PART OF CURRENT TASK
+- [x] expose deterministic unresolved/scalar host completion in the shared grounding runtime;
+- [x] implement the selected compact model surface in `tools/grounding_v1_surface.py`;
+- [x] implement the loopback-only llama.cpp reference adapter;
+- [x] add adapter/surface identity and regression tests;
+- [ ] make the immutable-package benchmark runner execute exactly the selected r25 behavior rather than the historical r5/r6 path;
+- [ ] freeze the final source commit and rebuild the scalar candidate from that exact source;
+- [ ] build and verify a deterministic grounding evaluation package containing the selected adapter/surface;
+- [ ] preregister and rerun the seven-model matrix from the extracted immutable package;
+- [ ] replace source-run-only README claims with release-qualified evidence where appropriate;
+- [ ] run clean-room package, publication, security, license, native, Wasm and SDK gates on the exact release tree.
 
-Later validation session only:
+## P8 — target qualification and release
 
-- run A/G on the diverse small-model matrix;
-- optionally run Q/L only when preregistered and justified;
-- publish factual accuracy, wrong-confident-answer, false-grounding, abstention/useful-answer and cost breakdowns;
+Before a public/stable claim:
+
 - qualify a representative physical ARM64 target for actual storage/RAM/latency/energy/thermal behavior;
-- compare against a larger-model/heavier-grounding alternative only where it reflects a real product decision.
-
-## P7 — support promotion only after evidence
-
-After successful benchmark/target evidence:
-
-- choose exact supported provider/profile/platform identities;
-- define update/security/privacy/LTS policy;
+- define supported provider/profile/platform identities and update/security/privacy/LTS policy;
+- run `python3 tools/audit_publication.py` on the exact Git tree and again on extracted release archives;
+- keep internal agent prompts, handoffs, local paths, raw runs and preregistrations outside the public repository/package;
 - obtain independent external-style integration feedback;
-- publish compatibility/qualification records;
+- publish only deliberately public compatibility/qualification records;
 - consider stable `v1.0.0` only after unresolved release/security/evidence gates are closed.
 
 ## Deferred — academic/technical expansion
 
 [`docs/DOMAIN_EXPANSION.md`](docs/DOMAIN_EXPANSION.md) remains design history/guidance for the quantitative subsystem. Statistics/Economics breadth and Finance/Physics/Chemistry additions are not a near-term flagship objective.
 
-Resume domain expansion only after grounding demonstrates measured value or a concrete customer workload requires a narrow deterministic method slice. Never create one runtime per discipline, a general CAS, a formula dump, or a giant model-visible catalog.
+Resume domain expansion only after grounding optimization/lightweighting demonstrates measured product value or a concrete customer workload requires a narrow deterministic method slice.
 
 ## Current single next action
 
-**P0 is complete and the logical contract is `FROZEN_FOR_IMPLEMENTATION`. Proceed immediately through P1-P5: freeze machine-readable profile/schemas, implement the provider-neutral grounding path, complete no-inference conformance/security/package/preregistration checks, and stop at `READY_FOR_GROUNDING_BENCHMARK` without launching model inference.**
+**Freeze and benchmark r6, compare it with immutable r5, then let the measured result determine r7 and the final lightweighting target. Do not push or release to GitHub before the publication audit passes on the final cleaned tree.**

@@ -4,12 +4,14 @@ Release context: **historical development tooling; not the v1.0.0-rc.3 benchmark
 
 `benchmarks/capability_benchmark.py` was built during the pre-rc3 Statistics evidence chain. It can still be useful for reproducing or inspecting that historical benchmark contract, but its old bundle defaults, five-arm A/B/C/D/E layout, token-budget compatibility knobs, and historical artifact-cost assumptions must not be treated as rc3 evidence.
 
-For new rc3 qualification, start with:
+For public historical context, use:
 
-1. [`../docs/QUALIFICATION_HANDOFF.md`](../docs/QUALIFICATION_HANDOFF.md)
+1. [`../docs/RC3_QUALIFICATION_CLOSEOUT.md`](../docs/RC3_QUALIFICATION_CLOSEOUT.md)
 2. [`NEXT_MODEL_MATRIX.md`](NEXT_MODEL_MATRIX.md)
 3. [`../docs/BENCHMARK.md`](../docs/BENCHMARK.md)
-4. [`../docs/NEXT_SESSION_PROMPT.md`](../docs/NEXT_SESSION_PROMPT.md)
+4. [`../docs/PUBLICATION_BOUNDARY.md`](../docs/PUBLICATION_BOUNDARY.md)
+
+Internal rc3 evaluator prompts/handoffs are stored outside the public repository.
 
 ## Historical purpose
 

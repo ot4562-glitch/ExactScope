@@ -88,7 +88,12 @@ class GroundingProfileTests(unittest.TestCase):
         generic_schema_names = {"grounding-" + k + "-v0.1.schema.json" for k in fixtures}
         self.assertEqual(
             set(SCHEMAS),
-            generic_schema_names | {"grounding-benchmark-preregistration-v0.1.schema.json"},
+            generic_schema_names | {
+                "grounding-benchmark-preregistration-v0.1.schema.json",
+                "grounding-benchmark-preregistration-v0.2.schema.json",
+                "grounding-benchmark-preregistration-v0.3.schema.json",
+                "grounding-benchmark-preregistration-v0.4.schema.json",
+            },
         )
         for kind, value in fixtures.items():
             with self.subTest(schema=kind):

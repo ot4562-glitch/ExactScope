@@ -18,6 +18,7 @@ discovery = []
 standalone-staticlib = []
 
 [dependencies]
+exactscope-grounding = { path = "../exactscope-grounding", default-features = false }
 exactscope-kernel = { path = "../exactscope-kernel", default-features = false }
 exactscope-pack = { path = "../exactscope-pack", default-features = false }
 

@@ -8,9 +8,13 @@ import unittest
 from pathlib import Path
 
 from build_input_identity import file_hashes, recipe_document, write_identity
-from compile_capability import ROOT, canonical, digest, load, model_surface_contract, source_identity
+from compile_capability import (ROOT, canonical, constrained_request_grammar,
+                                constrained_request_prompt, digest, load,
+                                model_surface_contract, model_surface_measurements,
+                                source_identity)
 from package_release_bundle import (
     AR_MAGIC,
+    GROUNDING_RELEASE_PATH,
     ReleasePackagingError,
     build_archive,
     sha256_file,
@@ -30,7 +34,7 @@ def write_capability(root: Path, *, native: bool) -> Path:
         "abi": "1.0",
         "binding_sha256": "1" * 64,
         "packs": [{"id": "unit-pack", "version": "0.1"}],
-        "operations": [{"op": "stats.mean", "revision": 1}],
+        "operations": [{"op": "stats.mean", "revision": 1, "sig": "stats.mean(v:vector)"}],
     }
     assets = {
         "catalog.json": canonical(catalog),
@@ -39,6 +43,8 @@ def write_capability(root: Path, *, native: bool) -> Path:
         "xs-eval.gbnf": b"root ::= \"{}\"\n",
         "xs-eval.tool.json": b'{"type":"function"}\n',
     }
+    assets["constrained-prompt.txt"] = constrained_request_prompt(catalog, include_calc=False)
+    assets["xs-request.gbnf"] = constrained_request_grammar(assets["xs-eval.gbnf"], None)
     profile = {
         "profile_id": "release-unit",
         "profile_revision": 1,
@@ -73,8 +79,12 @@ def write_capability(root: Path, *, native: bool) -> Path:
             "registry_sha256": digest(canonical(catalog["packs"])),
             "hotset_sha256": "1" * 64,
             "tool_schema_sha256": digest(canonical({"xs-eval.tool.json": digest(assets["xs-eval.tool.json"])})),
-            "grammar_sha256": digest(canonical({"xs-eval.gbnf": digest(assets["xs-eval.gbnf"])})),
-            "prompt_sha256": digest(canonical({"prompt-fragment.txt": digest(assets["prompt-fragment.txt"])})),
+            "grammar_sha256": digest(canonical({
+                name: digest(assets[name]) for name in sorted(n for n in assets if n.endswith(".gbnf"))
+            })),
+            "prompt_sha256": digest(canonical({
+                name: digest(assets[name]) for name in ("prompt-fragment.txt", "constrained-prompt.txt")
+            })),
             "artifact_sha256": None,
         },
     }
@@ -89,13 +99,7 @@ def write_capability(root: Path, *, native: bool) -> Path:
         "format": "exactscope.capability.bundle",
         "format_version": "0.1",
         "files": {name: digest(data) for name, data in sorted(assets.items())},
-        "measurements": {
-            "prompt_fragment_bytes": len(assets["prompt-fragment.txt"]),
-            "schema_bytes": len(assets["xs-eval.tool.json"]),
-            "grammar_bytes": len(assets["xs-eval.gbnf"]),
-            "top_level_tool_count": 1,
-            "visible_semantic_operation_count": 1,
-        },
+        "measurements": model_surface_measurements(assets, catalog),
         "operation_revisions": {"stats.mean": 1},
     }
     manifest_bytes = canonical(manifest)
@@ -157,6 +161,50 @@ class ReleaseBundleTests(unittest.TestCase):
             self.assertEqual(manifest["qualification"], "unqualified")
             self.assertEqual(manifest["runtime"]["sha256"], sha256_file(library))
             self.assertEqual(manifest["capability"]["surface_negotiation"], "exact-version-and-digest")
+
+    def test_native_release_hash_binds_optional_grounding_index(self):
+        with tempfile.TemporaryDirectory(prefix="xs-release-grounding-unit-") as temporary:
+            root = Path(temporary)
+            capability = write_capability(root, native=True)
+            library = root / "libexactscope_cabi.a"
+            library.write_bytes(AR_MAGIC + b"unit-static-archive")
+            grounding = root / "fixture.xsgi"
+            grounding.write_bytes(b"XSGI" + bytes(range(64)))
+            archive = build_archive(
+                kind="native-static",
+                capability=capability,
+                target="x86_64-unknown-linux-gnu",
+                source_commit=SOURCE_COMMIT,
+                toolchain="unit-toolchain",
+                output_dir=root / "out",
+                library=library,
+                grounding_index=grounding,
+            )
+            release = verify_archive(archive)
+            self.assertEqual(release["grounding"]["path"], GROUNDING_RELEASE_PATH)
+            self.assertEqual(release["grounding"]["size_bytes"], grounding.stat().st_size)
+            self.assertEqual(release["grounding"]["sha256"], sha256_file(grounding))
+            self.assertEqual(release["files"][GROUNDING_RELEASE_PATH], sha256_file(grounding))
+
+    def test_native_release_rejects_non_xsgi_grounding_payload(self):
+        with tempfile.TemporaryDirectory(prefix="xs-release-grounding-bad-unit-") as temporary:
+            root = Path(temporary)
+            capability = write_capability(root, native=True)
+            library = root / "libexactscope_cabi.a"
+            library.write_bytes(AR_MAGIC + b"unit-static-archive")
+            grounding = root / "not-xsgi.bin"
+            grounding.write_bytes(b"NOT-AN-XSGI")
+            with self.assertRaisesRegex(ReleasePackagingError, "XSGI magic"):
+                build_archive(
+                    kind="native-static",
+                    capability=capability,
+                    target="x86_64-unknown-linux-gnu",
+                    source_commit=SOURCE_COMMIT,
+                    toolchain="unit-toolchain",
+                    output_dir=root / "out",
+                    library=library,
+                    grounding_index=grounding,
+                )
 
     def test_native_release_rejects_artifact_bound_profile(self):
         with tempfile.TemporaryDirectory(prefix="xs-release-bound-unit-") as temporary:

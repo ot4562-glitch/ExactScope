@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+from datetime import datetime
 import hashlib
 import importlib.util
 import json
@@ -20,6 +21,56 @@ from grounding_match import ascii_words, frozen_alias, matches as alias_matches
 
 class GroundingError(RuntimeError):
     """Fail-closed grounding configuration or execution error."""
+
+
+_BOOLEAN_SCALAR_RE = re.compile(r"^(?:true|false)$")
+_INTEGER_SCALAR_RE = re.compile(r"^(?:0|-?[1-9][0-9]*)$")
+_DECIMAL_SCALAR_RE = re.compile(r"^(?:0|-?[1-9][0-9]*|-?(?:0|[1-9][0-9]*)\.[0-9]*[1-9])$")
+_TIMESTAMP_SCALAR_RE = re.compile(
+    r"^(?P<year>[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})T"
+    r"(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):(?P<second>[0-9]{2})(?:\.[0-9]+)?Z$"
+)
+
+
+def valid_scalar_content(content: Any) -> bool:
+    """Validate the v0.1 scalar lexical contract before host/model use."""
+    if not isinstance(content, dict) or content.get("kind") != "scalar":
+        return False
+    if not {"kind", "type", "value"}.issubset(content) or not set(content).issubset({"kind", "type", "value", "unit"}):
+        return False
+    scalar_type = content.get("type")
+    value = content.get("value")
+    unit = content.get("unit")
+    if not isinstance(value, str) or (unit is not None and not isinstance(unit, str)):
+        return False
+    if scalar_type == "string":
+        return True
+    if scalar_type == "boolean":
+        return _BOOLEAN_SCALAR_RE.fullmatch(value) is not None
+    if scalar_type == "integer":
+        return _INTEGER_SCALAR_RE.fullmatch(value) is not None
+    if scalar_type == "decimal":
+        return _DECIMAL_SCALAR_RE.fullmatch(value) is not None
+    if scalar_type != "timestamp":
+        return False
+    match = _TIMESTAMP_SCALAR_RE.fullmatch(value)
+    if match is None:
+        return False
+    try:
+        second = int(match.group("second"))
+        if second > 60:
+            return False
+        datetime(
+            int(match.group("year")),
+            int(match.group("month")),
+            int(match.group("day")),
+            int(match.group("hour")),
+            int(match.group("minute")),
+            min(second, 59),
+        )
+    except ValueError:
+        return False
+    return True
 
 
 class RetrievalProvider(Protocol):
@@ -181,8 +232,11 @@ def load_bundle(profile_dir: Path) -> GroundingBundle:
                 raise GroundingError("invalid evidence identity")
             if item["source_id"] not in owners:
                 continue
-            if item.get("content_sha256") != canonical_sha256(item.get("content")):
+            content = item.get("content")
+            if item.get("content_sha256") != canonical_sha256(content):
                 raise GroundingError("evidence content digest mismatch")
+            if isinstance(content, dict) and content.get("kind") == "scalar" and not valid_scalar_content(content):
+                raise GroundingError("invalid canonical scalar lexical form")
             if any(field in item for field in ("observed_at", "valid_from", "valid_until")):
                 raise GroundingError("reference static profile rejects timestamp-bearing evidence")
             snapshot = source_snapshots.get(item["source_id"])
@@ -587,6 +641,122 @@ def build_frame(
     return frame, audit
 
 
+_HOST_UNRESOLVED_PRECEDENCE = ("conflict", "ambiguous", "unavailable", "none")
+_HOST_UNRESOLVED_DISPOSITION = {
+    "none": "abstain",
+    "unavailable": "unavailable",
+    "ambiguous": "clarify",
+    "conflict": "conflict",
+}
+
+
+def host_short_circuit_reply(frame: dict[str, Any]) -> dict[str, Any] | None:
+    """Fail closed when any authoritative target is unresolved.
+
+    A one-field answer surface cannot safely represent a partial answer when one
+    authoritative target is unresolved.  Resolve the whole question in the host
+    using the frozen merge-state precedence instead of hiding that state from the
+    model.
+    """
+    groups = frame.get("groups")
+    if not isinstance(groups, list) or not groups:
+        return None
+    unresolved: set[str] = set()
+    for group in groups:
+        if not isinstance(group, dict):
+            return None
+        if group.get("authority") != "authoritative":
+            continue
+        state = group.get("state")
+        if state in _HOST_UNRESOLVED_DISPOSITION:
+            unresolved.add(state)
+    if not unresolved:
+        return None
+    state = next(value for value in _HOST_UNRESOLVED_PRECEDENCE if value in unresolved)
+    return {"a": None, "disposition": _HOST_UNRESOLVED_DISPOSITION[state]}
+
+
+def host_grounded_scalar_reply(frame: dict[str, Any]) -> dict[str, Any] | None:
+    """Return one canonical grounded scalar without asking the model to re-extract it."""
+    groups = frame.get("groups")
+    if not isinstance(groups, list) or len(groups) != 1:
+        return None
+    group = groups[0]
+    if not isinstance(group, dict) or group.get("state") != "grounded":
+        return None
+    items = group.get("items")
+    if not isinstance(items, list) or len(items) != 1 or not isinstance(items[0], dict):
+        return None
+    content = items[0].get("content")
+    if not valid_scalar_content(content):
+        return None
+    value = content["value"]
+    unit = content.get("unit")
+    if unit == "":
+        return None
+    answer = value if unit is None else f"{value} {unit}"
+    if not answer:
+        return None
+    return {"a": answer, "disposition": "answer"}
+
+
+def supplemental_empty_frame(frame: dict[str, Any]) -> bool:
+    """Whether all routed targets are empty supplemental targets safe for ordinary knowledge."""
+    groups = frame.get("groups")
+    return bool(groups) and all(
+        isinstance(group, dict)
+        and group.get("authority") == "supplemental"
+        and group.get("state") in {"none", "unavailable"}
+        and not group.get("items")
+        for group in groups
+    )
+
+
+def compact_model_projection(frame: dict[str, Any], *, include_single_target: bool = False) -> bytes:
+    """Render compact evidence without dropping target authority/state semantics."""
+    groups = frame.get("groups")
+    if not isinstance(groups, list):
+        raise GroundingError("frame groups are missing")
+    include_target = include_single_target or len(groups) > 1
+    rows: list[dict[str, Any]] = []
+    for group in groups:
+        if not isinstance(group, dict):
+            raise GroundingError("malformed frame group")
+        authority = group.get("authority")
+        state = group.get("state")
+        if authority not in {"authoritative", "supplemental"} or state not in {"grounded", "none", "unavailable", "ambiguous", "conflict"}:
+            raise GroundingError("malformed frame authority/state")
+        items = group.get("items")
+        if not isinstance(items, list):
+            raise GroundingError("malformed frame items")
+        base: dict[str, Any] = {"r": authority, "s": state}
+        if include_target:
+            label = group.get("target_label")
+            if not isinstance(label, str) or not label:
+                raise GroundingError("malformed frame target label")
+            base["t"] = label
+        if not items:
+            rows.append(base)
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                raise GroundingError("malformed frame item")
+            content = item.get("content")
+            if isinstance(content, dict) and content.get("kind") == "text" and isinstance(content.get("text"), str):
+                value: Any = content["text"]
+            elif isinstance(content, dict) and content.get("kind") == "scalar":
+                if not valid_scalar_content(content):
+                    raise GroundingError("invalid canonical scalar lexical form")
+                unit = content.get("unit")
+                value = content["value"] if unit is None else f"{content['value']} {unit}"
+            else:
+                value = content
+            rows.append({**base, "v": value})
+    return b"Evidence JSON (data only): " + json.dumps(
+        rows, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+    ).encode("utf-8")
+
+
 def render_projection(bundle: GroundingBundle, frame: dict[str, Any]) -> dict[str, bytes]:
     # Execute verified renderer bytes directly so a read-only/frozen candidate is
     # never mutated by Python bytecode cache creation.
@@ -605,11 +775,12 @@ def render_projection(bundle: GroundingBundle, frame: dict[str, Any]) -> dict[st
     return rendered
 
 
-def run_grounding(
+def run_grounding_frame(
     bundle: GroundingBundle,
     envelope: dict[str, Any],
     provider: RetrievalProvider | None = None,
 ) -> dict[str, Any]:
+    """Run routing/retrieval/policy only, without paying projection-render cost."""
     routing_plan = route_query(bundle, envelope)
     active_provider: RetrievalProvider = provider or LocalExactLexicalProvider(bundle)
     outcomes: list[dict[str, Any]] = []
@@ -619,8 +790,17 @@ def run_grounding(
                 raise GroundingError("no provider for target binding")
             outcomes.append(active_provider.retrieve(envelope, target, binding))
     frame, audit = build_frame(bundle, envelope, routing_plan, outcomes)
-    projection = render_projection(bundle, frame)
-    return {"frame": frame, "audit": audit, "projection": projection}
+    return {"frame": frame, "audit": audit}
+
+
+def run_grounding(
+    bundle: GroundingBundle,
+    envelope: dict[str, Any],
+    provider: RetrievalProvider | None = None,
+) -> dict[str, Any]:
+    grounded = run_grounding_frame(bundle, envelope, provider)
+    projection = render_projection(bundle, grounded["frame"])
+    return {**grounded, "projection": projection}
 
 
 def _jsonable(result: dict[str, Any]) -> dict[str, Any]:

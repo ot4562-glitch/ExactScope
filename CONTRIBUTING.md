@@ -1,10 +1,10 @@
 # Contributing to ExactScope
 
-ExactScope is a tiny grounding and deterministic capability layer for small/on-device AI. The flagship rc4 objective is **everyday factual accuracy and hallucination reduction at low token/latency/footprint cost**; quantitative `xs_calc`/`xs_eval` remains a secondary deterministic subsystem. Contributions are evaluated by **product leverage, grounding precision, deterministic correctness, integration simplicity, footprint, portability, privacy and evidence**—not by raw feature count.
+ExactScope is a lightweight grounding runtime and accuracy retrofit layer for small/local/on-device AI. The flagship v1 objective is **everyday factual accuracy and wrong-confident-answer reduction at low token/latency/footprint cost**; quantitative `xs_calc`/`xs_eval` remains a secondary deterministic subsystem. Contributions are evaluated by **product leverage, grounding precision, deterministic correctness, integration simplicity, footprint, portability, privacy and evidence**—not by raw feature count.
 
 ## Current project phase
 
-`v1.0.0-rc.3` qualification is closed and its evidence is immutable. The frozen rc4 grounding candidate source `125ad9403f22eece7f552701d4c7376bba3b697f` is **READY_FOR_GROUNDING_BENCHMARK** after no-inference Linux/Windows package and five-model preregistration gates. Do not change candidate behavior under that identity; the next phase is the separate A/G validation session. Original-question prefetch, compact Grounding Frames, authority modes and retrieval-provider identity are the active product design; constrained/native quantitative interfaces remain supporting infrastructure.
+`v1.0.0` is the stable Linux x86-64 native grounding software/package scope. The selected **r25** behavior, native `.xsgi` C ABI, deterministic package, footprint gates, and final-archive C11 clean-room path are complete. Historical r5 and rc3 evidence remains frozen. Active work after v1 is provider integration, compatibility/LTS, and target-specific qualification—especially physical ARM64 resource/energy/thermal evidence before wearable hardware claims. Original-question grounding, explicit authority/failure semantics, accuracy uplift and small-model cost remain the product priorities; quantitative interfaces remain supporting infrastructure.
 
 Read this order first:
 
@@ -37,7 +37,7 @@ Before proposing a large feature, ask whether it improves one of these:
 - five-minute integration and reproducible model/target qualification evidence;
 - exact release packaging, compatibility, update and rollback behavior.
 
-Broad platform support, academic catalog expansion, per-domain feature work, and retrieval-algorithm novelty are secondary until the grounding contract is frozen and the everyday benchmark proves product value.
+Broad platform support, academic catalog expansion, per-domain feature work, and retrieval-algorithm novelty remain secondary to preserving the stable v1 grounding contract, improving provider integrations, and collecting target-specific evidence before broader support claims.
 
 ## Core invariants
 
@@ -57,7 +57,7 @@ Do not casually weaken:
 
 ## AI integration changes
 
-The normal rc4 hot path is **grounding prefetch before the answer model call**. Quantitative `xs_calc`/`xs_eval` remains available when the task actually needs deterministic calculation; `xs_find` is quantitative cold-path discovery.
+The normal v1 hot path is **grounding prefetch, deterministic host completion when the frame is sufficient, and an answer-model call only when interpretation is still required**. Quantitative `xs_calc`/`xs_eval` remains available when the task actually needs deterministic calculation; `xs_find` is quantitative cold-path discovery.
 
 Grounding contributions should prefer:
 
@@ -91,7 +91,7 @@ Forbidden examples:
 
 ## Benchmark changes
 
-Benchmark contributions should follow `docs/BENCHMARK.md`. The flagship rc4 comparison is **A model-only vs G original-question-prefetch grounding**, with one answer-generation model call per arm. Optional query rewrite/tool profiles are separate ablations because they spend extra inference/tokens. Historical quantitative A/B/C/D arms remain valid only for the quantitative subsystem.
+Benchmark contributions should follow `docs/BENCHMARK.md`. The flagship v1 comparison is **A model-only vs G original-question-prefetch grounding**; A always makes one answer-generation call, while G may use zero only under the frozen deterministic host-completion rules and otherwise makes one. Optional query rewrite/tool profiles are separate ablations because they spend extra inference/tokens. Historical quantitative A/B/C/D arms remain valid only for the quantitative subsystem.
 
 Do not publish one blended score without retrieval/policy/model failure stages and cost metrics. Report false grounding, wrong-confident answers, correct abstention, grounding penalties and useful-answer rate together.
 

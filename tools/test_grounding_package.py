@@ -72,6 +72,29 @@ class GroundingPackageTests(unittest.TestCase):
         self.assertEqual(len(roots), 1)
         return roots[0]
 
+    def test_candidate_and_package_bind_current_isolation_policy(self):
+        manifest_path = self.candidate / "manifests/candidate-manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["answer_call_policy"], candidate_mod.answer_call_policy_binding())
+        self.assertEqual(manifest["answer_call_policy"], prereg_mod.EXPECTED_CANDIDATE_ANSWER_CALL_POLICY)
+
+        stale = dict(manifest)
+        stale["answer_call_policy"] = "bound-by-benchmark-isolation-policy-v0.2"
+        manifest_path.write_bytes(candidate_mod.canonical_bytes(stale))
+        (self.candidate / "CANDIDATE_SHA256.txt").write_text(
+            hashlib.sha256(manifest_path.read_bytes()).hexdigest() + "\n",
+            encoding="ascii",
+        )
+        with self.assertRaisesRegex(package_mod.PackageBuildError, "answer-call policy"):
+            self.build_package("stale-policy")
+        with self.assertRaisesRegex(prereg_mod.PreregistrationError, "answer-call policy"):
+            prereg_mod.verify_candidate(self.candidate)
+
+    def test_package_rejects_stale_candidate_digest_file(self):
+        (self.candidate / "CANDIDATE_SHA256.txt").write_text("0" * 64 + "\n", encoding="ascii")
+        with self.assertRaisesRegex(package_mod.PackageBuildError, "manifest digest file drift"):
+            self.build_package("stale-candidate-digest")
+
     def test_package_is_deterministic_and_self_verifying(self):
         out1, result1 = self.build_package("pkg1")
         out2, result2 = self.build_package("pkg2")
@@ -85,6 +108,12 @@ class GroundingPackageTests(unittest.TestCase):
         self.assertTrue((root / "candidate/gold/answers.jsonl").is_file())
         self.assertTrue((root / "candidate/serving/questions.jsonl").is_file())
         self.assertTrue((root / "benchmarks/run_grounding_benchmark.py").is_file())
+        self.assertTrue((root / "tools/grounding_corpus.py").is_file())
+        self.assertTrue((root / "tools/grounding_projection.py").is_file())
+        manifest = json.loads((root / "package-manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["format_version"], "0.3")
+        self.assertEqual(manifest["grounding_corpus_module_sha256"], hashlib.sha256((root / "tools/grounding_corpus.py").read_bytes()).hexdigest())
+        self.assertEqual(manifest["grounding_projection_module_sha256"], hashlib.sha256((root / "tools/grounding_projection.py").read_bytes()).hexdigest())
         self.assertEqual(result1["file_count"], result2["file_count"])
 
     def test_packaged_python_commands_do_not_mutate_package_with_bytecode(self):
@@ -97,6 +126,7 @@ class GroundingPackageTests(unittest.TestCase):
             [sys.executable, "benchmarks/grounding_preregister.py", "--help"],
             [sys.executable, "benchmarks/run_grounding_benchmark.py", "--help"],
             [sys.executable, "benchmarks/score_grounding.py", "--help"],
+            [sys.executable, "adapters/llama-cpp/grounding_v1.py", "--help"],
         ]
         for command in commands:
             with self.subTest(command=command[1]):
@@ -207,6 +237,7 @@ class GroundingPackageTests(unittest.TestCase):
         args = argparse.Namespace(
             candidate=package_root / "candidate",
             package_manifest=package_root / "package-manifest.json",
+            archive=Path(result["archive"]),
             archive_sha256=result["archive_sha256"],
             source_commit=self.SOURCE_COMMIT,
             model_inventory=packaged_inventory,
@@ -229,6 +260,12 @@ class GroundingPackageTests(unittest.TestCase):
         prereg_mod.verify_document(prereg_mod.load_cjson(prereg_path), prereg_path)
         self.assertFalse(document["model_inference_performed"])
         self.assertEqual(document["model"]["sha256"], hashlib.sha256(model_file.read_bytes()).hexdigest())
+
+        # The runtime verifier must not depend on or hash scorer-only gold bytes.
+        for gold_file in (package_root / "candidate/gold").rglob("*"):
+            if gold_file.is_file():
+                gold_file.unlink()
+        (package_root / "candidate/manifests/gold-manifest.json").unlink()
 
         old_root = runner_mod.ROOT
         try:
@@ -265,6 +302,52 @@ class GroundingPackageTests(unittest.TestCase):
             with self.subTest(invalid=invalid):
                 self.assertIsNone(runner_mod.parse_model_output_strict(invalid))
 
+    def test_host_short_circuit_blocks_any_authoritative_unresolved_target(self):
+        mapping = {
+            "none": "abstain",
+            "unavailable": "unavailable",
+            "ambiguous": "clarify",
+            "conflict": "conflict",
+        }
+        for state, disposition in mapping.items():
+            frame = {"groups": [{"authority": "authoritative", "state": state}]}
+            self.assertEqual(runner_mod.host_short_circuit_reply(frame), {"a": None, "disposition": disposition})
+        self.assertIsNone(runner_mod.host_short_circuit_reply({"groups": [{"authority": "authoritative", "state": "grounded"}]}))
+        self.assertIsNone(runner_mod.host_short_circuit_reply({"groups": [{"authority": "supplemental", "state": "none"}]}))
+        self.assertEqual(runner_mod.host_short_circuit_reply({"groups": [
+            {"authority": "authoritative", "state": "none"},
+            {"authority": "authoritative", "state": "unavailable"},
+        ]}), {"a": None, "disposition": "unavailable"})
+
+    def test_preregistration_rejects_archive_drift(self):
+        model_root, _, inventory_path, runtime_file, runtime_path = self.make_dummy_identity()
+        _, result = self.build_package("archive-drift", model_inventory=inventory_path, runtime_record=runtime_path)
+        archive = Path(result["archive"])
+        package_root = self.extract(archive, self.work / "archive-drift-extract")
+        archive.write_bytes(archive.read_bytes() + b"drift")
+        args = argparse.Namespace(
+            candidate=package_root / "candidate",
+            package_manifest=package_root / "package-manifest.json",
+            archive=archive,
+            archive_sha256=result["archive_sha256"],
+            source_commit=self.SOURCE_COMMIT,
+            model_inventory=package_root / "benchmarks/grounding-model-inventory.json",
+            model_id="dummy-small",
+            model_root=model_root,
+            model_path=None,
+            runtime_record=package_root / "benchmarks/grounding-runtime-llama-v040.json",
+            runtime_executable=runtime_file,
+            generation_config=package_root / "benchmarks/grounding-generation-config.json",
+            isolation_policy=package_root / "benchmarks/grounding-isolation-policy.json",
+            scorer=package_root / "benchmarks/score_grounding.py",
+            run_id="unit-run-archive-drift",
+            writer_id="unit-writer",
+            planned_output=str((self.work / "archive-drift-out").resolve()),
+            output=self.work / "archive-drift-prereg.json",
+        )
+        with self.assertRaisesRegex(prereg_mod.PreregistrationError, "archive sha256 drift"):
+            prereg_mod.create_document(args)
+
     def test_preregistration_rejects_model_drift(self):
         model_root, model_file, inventory_path, runtime_file, runtime_path = self.make_dummy_identity()
         _, result = self.build_package("pkg", model_inventory=inventory_path, runtime_record=runtime_path)
@@ -275,6 +358,7 @@ class GroundingPackageTests(unittest.TestCase):
         args = argparse.Namespace(
             candidate=package_root / "candidate",
             package_manifest=package_root / "package-manifest.json",
+            archive=Path(result["archive"]),
             archive_sha256=result["archive_sha256"],
             source_commit=self.SOURCE_COMMIT,
             model_inventory=packaged_inventory,

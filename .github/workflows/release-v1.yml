@@ -1,0 +1,151 @@
+name: stable-grounding-release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  RUST_TOOLCHAIN: "1.98.0"
+  TARGET: "x86_64-unknown-linux-gnu"
+
+jobs:
+  release:
+    name: ExactScope stable grounding v1
+    if: github.event_name == 'workflow_dispatch' || !contains(github.ref_name, '-')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install validation dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Install pinned Rust
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt --component clippy
+
+      - name: Verify tag and stable project version
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          PROJECT_VERSION="$(python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')"
+          python -c 'import re,sys; assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", sys.argv[1])' "$PROJECT_VERSION"
+          test "$GITHUB_REF_NAME" = "v$PROJECT_VERSION"
+          test -f "RELEASE_NOTES_${GITHUB_REF_NAME}.md"
+
+      - name: Grounding release preflight
+        shell: bash
+        run: |
+          cargo "+$RUST_TOOLCHAIN" fmt -p exactscope-grounding -p exactscope-cabi -- --check
+          cargo "+$RUST_TOOLCHAIN" clippy -p exactscope-cabi --all-targets -- -D warnings
+          cargo "+$RUST_TOOLCHAIN" test -p exactscope-grounding
+          cargo "+$RUST_TOOLCHAIN" test -p exactscope-cabi
+          python tools/test_grounding_corpus.py
+          python tools/test_grounding_projection.py
+          PYTHONPATH=tools:benchmarks python tools/test_grounding_v1_adapter.py
+          python tools/test_package_grounding_runtime.py
+          python tools/test_package_release_bundle.py
+          python tools/validate_design.py
+          python tools/audit_security_surface.py
+          python tools/audit_publication.py
+
+      - name: Build native grounding runtime
+        shell: bash
+        run: >-
+          cargo "+$RUST_TOOLCHAIN" rustc --release
+          --package exactscope-cabi --lib --features standalone-staticlib
+          --crate-type staticlib
+
+      - name: Build tiny demonstration provider
+        shell: bash
+        run: |
+          python tools/grounding_corpus.py build --input-dir examples/grounding/sample-docs --output target/sample-corpus.json
+          python tools/grounding_corpus.py compile-binary --index target/sample-corpus.json --output target/sample-index-v1.xsgi
+
+      - name: Verify source-tree C11 integration
+        shell: bash
+        run: |
+          cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic -Iinclude examples/c/grounding.c target/release/libexactscope_cabi.a -o target/grounding-demo
+          target/grounding-demo target/sample-index-v1.xsgi warranty period | grep -F "24 months"
+          target/grounding-demo target/sample-index-v1.xsgi battery level | grep -F "73 percent"
+
+      - name: Build deterministic grounding SDK
+        shell: bash
+        run: >-
+          python tools/package_grounding_runtime.py build
+          --library target/release/libexactscope_cabi.a
+          --sample-index target/sample-index-v1.xsgi
+          --target "$TARGET"
+          --source-commit "$GITHUB_SHA"
+          --toolchain "rustc-$RUST_TOOLCHAIN-$TARGET"
+          --output-dir dist
+
+      - name: Verify final archive in clean room
+        shell: bash
+        run: |
+          python tools/package_grounding_runtime.py verify dist/exactscope-grounding-*-$TARGET.tar.gz
+          python tools/test_grounding_runtime_bundle.py dist/exactscope-grounding-*-$TARGET.tar.gz
+
+      - name: Create release manifest and checksums
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib, json, os, tarfile
+          from pathlib import Path
+
+          root = Path("dist")
+          archives = sorted(root.glob("exactscope-grounding-*.tar.gz"))
+          if len(archives) != 1:
+              raise SystemExit(f"expected one grounding archive, found {len(archives)}")
+          archive = archives[0]
+          with tarfile.open(archive, "r:gz") as tar:
+              regular = [member for member in tar.getmembers() if member.isfile()]
+              unpacked = sum(member.size for member in regular)
+          asset = {
+              "name": archive.name,
+              "bytes": archive.stat().st_size,
+              "unpacked_file_bytes": unpacked,
+              "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+          }
+          manifest = {
+              "release": os.environ.get("GITHUB_REF_NAME", "workflow-dispatch"),
+              "source_commit": os.environ["GITHUB_SHA"],
+              "stable": "-" not in os.environ.get("GITHUB_REF_NAME", ""),
+              "product": "ExactScope native grounding runtime",
+              "supported_target": os.environ["TARGET"],
+              "physical_arm64_qualification": "not claimed",
+              "artifacts": [asset],
+          }
+          (root / "release-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          files = [archive, root / "release-manifest.json"]
+          (root / "SHA256SUMS").write_text(
+              "".join(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n" for path in files),
+              encoding="ascii",
+          )
+          PY
+
+      - name: Upload verified release artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: exactscope-grounding-${{ env.TARGET }}
+          path: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
+            dist/release-manifest.json
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Publish stable GitHub release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          --verify-tag
+          --title "ExactScope $GITHUB_REF_NAME — Grounding Runtime for Small & On-Device AI"
+          --notes-file "RELEASE_NOTES_${GITHUB_REF_NAME}.md"
+          dist/*.tar.gz dist/SHA256SUMS dist/release-manifest.json

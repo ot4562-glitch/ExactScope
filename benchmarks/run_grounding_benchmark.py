@@ -31,10 +31,31 @@ from grounding_preregister import (  # noqa: E402
     file_sha,
     load_cjson,
     load_json,
-    verify_candidate,
+    validate_answer_call_policy,
+    validate_model_surface_policy,
     verify_document,
+    verify_serving_candidate,
 )
-from grounding_runtime import run_grounding  # noqa: E402
+from grounding_runtime import (  # noqa: E402
+    compact_model_projection,
+    host_grounded_scalar_reply,
+    host_short_circuit_reply,
+    run_grounding_frame,
+    supplemental_empty_frame,
+)
+from grounding_v1_surface import (  # noqa: E402
+    ANSWER_OBJECT_SCHEMA,
+    AUTO_CONTRACT_CALIBRATION,
+    AUTO_CONTRACT_CANDIDATES,
+    AUTO_V2_TIE_PREFERENCE,
+    calibration_messages,
+    messages as grounding_v1_messages,
+    normalize_answer,
+    parse_answer_object,
+    select_contract,
+    surface_sha256,
+)
+from verify_grounding_package import verify as verify_package_root  # noqa: E402
 
 
 class BenchmarkRunError(RuntimeError):
@@ -53,23 +74,27 @@ def verify_frozen_inputs(prereg_path: Path, output: Path) -> tuple[dict[str, Any
     if output.exists():
         raise BenchmarkRunError("output directory already exists; resume/reuse is forbidden")
     candidate_path = ROOT / "candidate" if (ROOT / "candidate").is_dir() else ROOT / "target/grounding-candidate-rc4-001"
-    candidate = verify_candidate(candidate_path)
+    candidate = verify_serving_candidate(candidate_path)
     if candidate != prereg["candidate"]:
         raise BenchmarkRunError("candidate identity drift")
     package_manifest = ROOT / "package-manifest.json"
     if not package_manifest.is_file():
         raise BenchmarkRunError("run must start from extracted evaluation package")
-    if file_sha(package_manifest) != prereg["evaluation_package"]["package_manifest_sha256"]:
-        raise BenchmarkRunError("package manifest digest drift")
+    package_verification = verify_package_root(ROOT, serving_only=True)
+    if package_verification.get("package_manifest_sha256") != prereg["evaluation_package"]["package_manifest_sha256"]:
+        raise BenchmarkRunError("package manifest/payload digest drift")
     package = load_json(package_manifest)
     if package.get("source_commit") != prereg["source_commit"]:
         raise BenchmarkRunError("package/source commit drift")
+    if package.get("model_surface_sha256") != prereg.get("model_surface_sha256") or package.get("model_surface_sha256") != surface_sha256():
+        raise BenchmarkRunError("package/model-surface identity drift")
     expected_files = {
         ROOT / "benchmarks/grounding-model-inventory.json": prereg["model_inventory_sha256"],
         ROOT / "benchmarks/grounding-runtime-llama-v040.json": prereg["runtime_record_sha256"],
         ROOT / "benchmarks/grounding-generation-config.json": prereg["generation_config_sha256"],
         ROOT / "benchmarks/grounding-isolation-policy.json": prereg["isolation_policy_sha256"],
         ROOT / "benchmarks/score_grounding.py": prereg["scorer_sha256"],
+        ROOT / "tools/grounding_v1_surface.py": package["model_surface_module_sha256"],
     }
     for path, digest in expected_files.items():
         if not path.is_file() or file_sha(path) != digest:
@@ -82,8 +107,17 @@ def verify_frozen_inputs(prereg_path: Path, output: Path) -> tuple[dict[str, Any
         raise BenchmarkRunError("runtime executable drift")
     generation = load_json(ROOT / "benchmarks/grounding-generation-config.json")
     isolation = load_json(ROOT / "benchmarks/grounding-isolation-policy.json")
-    if isolation.get("arms") != ["A", "G"] or isolation.get("model_answer_calls_per_item_per_arm") != 1 or isolation.get("rewrite_calls") != 0:
-        raise BenchmarkRunError("A/G fairness config drift")
+    if isolation.get("format_version") != "0.4" or isolation.get("arms") != ["A", "G"] or isolation.get("rewrite_calls") != 0:
+        raise BenchmarkRunError("selected A/G isolation config drift")
+    try:
+        validate_answer_call_policy(isolation.get("answer_call_policy"))
+        validate_model_surface_policy(isolation.get("model_surface_policy"))
+    except PreregistrationError as exc:
+        raise BenchmarkRunError("selected grounding policy drift") from exc
+    if prereg.get("model_surface_sha256") != surface_sha256():
+        raise BenchmarkRunError("selected grounding model-surface drift")
+    if prereg.get("model_surface_policy") != isolation.get("model_surface_policy"):
+        raise BenchmarkRunError("preregistered grounding model-surface policy drift")
     if generation.get("retry_count") != 0 or generation.get("hidden_repair") is not False:
         raise BenchmarkRunError("retry/repair config drift")
     return prereg, candidate_path, generation, isolation
@@ -208,14 +242,81 @@ def request_model(prereg: dict[str, Any], generation: dict[str, Any], messages: 
         raise BenchmarkRunError("llama.cpp response lacks textual content")
     content = message["content"]
     parsed = parse_model_output_strict(content)
-    usage = raw.get("usage") if isinstance(raw.get("usage"), dict) else {}
+    usage = raw.get("usage") if isinstance(raw.get("usage"), dict) else None
+    if not isinstance(usage, dict):
+        raise BenchmarkRunError("llama.cpp response lacks usage accounting")
+    input_tokens = usage.get("prompt_tokens")
+    output_tokens = usage.get("completion_tokens")
+    if type(input_tokens) is not int or input_tokens <= 0:
+        raise BenchmarkRunError("llama.cpp response lacks positive prompt token accounting")
+    if type(output_tokens) is not int or output_tokens <= 0:
+        raise BenchmarkRunError("llama.cpp response lacks positive completion token accounting")
     return {
         "raw_content": content,
         "model_output": parsed,
-        "input_tokens": usage.get("prompt_tokens") if isinstance(usage.get("prompt_tokens"), int) else None,
-        "output_tokens": usage.get("completion_tokens") if isinstance(usage.get("completion_tokens"), int) else None,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
         "model_latency_us": latency_us,
         "finish_reason": choices[0].get("finish_reason") if isinstance(choices[0].get("finish_reason"), str) else None,
+    }
+
+
+def request_grounding_v1_model(
+    prereg: dict[str, Any],
+    generation: dict[str, Any],
+    request_messages: list[dict[str, str]],
+    contract: str,
+) -> dict[str, Any]:
+    if contract not in AUTO_CONTRACT_CANDIDATES:
+        raise BenchmarkRunError("unsupported selected G answer contract")
+    selected_generation = dict(generation)
+    selected_generation["answer_schema"] = ANSWER_OBJECT_SCHEMA
+    reply = request_model(prereg, selected_generation, request_messages)
+    valid, value = parse_answer_object(reply["raw_content"])
+    reply.update(
+        model_contract=contract,
+        model_contract_valid=valid,
+        model_contract_output=value,
+        model_output=normalize_answer(valid, value),
+    )
+    return reply
+
+
+def calibrate_grounding_v1_contract(
+    prereg: dict[str, Any],
+    generation: dict[str, Any],
+    policy: bytes,
+) -> tuple[str, dict[str, Any]]:
+    scores: dict[str, int] = {}
+    profiles = []
+    for contract in AUTO_CONTRACT_CANDIDATES:
+        cases = []
+        for case_id, question, evidence, expected in AUTO_CONTRACT_CALIBRATION:
+            result = request_grounding_v1_model(
+                prereg,
+                generation,
+                calibration_messages(contract, question, evidence, policy),
+                contract,
+            )
+            correct = result["model_contract_valid"] and result["model_contract_output"] == expected
+            cases.append({
+                "case_id": case_id,
+                "expected": expected,
+                "actual": result["model_contract_output"] if result["model_contract_valid"] else None,
+                "valid": result["model_contract_valid"],
+                "correct": correct,
+            })
+        scores[contract] = sum(case["correct"] for case in cases)
+        profiles.append({"contract": contract, "score": scores[contract], "case_count": len(cases), "cases": cases})
+    selected = select_contract(scores)
+    return selected, {
+        "format": "exactscope.grounding-v1-contract-calibration",
+        "format_version": "0.1",
+        "model_surface_sha256": surface_sha256(),
+        "selected_contract": selected,
+        "tie_preference": list(AUTO_V2_TIE_PREFERENCE),
+        "model_request_count": len(AUTO_CONTRACT_CANDIDATES) * len(AUTO_CONTRACT_CALIBRATION),
+        "profiles": profiles,
     }
 
 
@@ -256,7 +357,9 @@ def execute(prereg_path: Path, output: Path) -> None:
         "model_id": prereg["model"]["id"],
         "preregistration_sha256": file_sha(prereg_path),
         "server_command": command,
-        "answer_calls_per_arm": 1,
+        "answer_call_policy": prereg["answer_call_policy"],
+        "model_surface_sha256": prereg["model_surface_sha256"],
+        "model_surface_policy": prereg["model_surface_policy"],
         "arms": ["A", "G"],
         "rewrite_calls": 0,
         "retry_count": 0,
@@ -267,6 +370,10 @@ def execute(prereg_path: Path, output: Path) -> None:
     runtime_dir = str(Path(prereg["runtime"]["executable_path"]).resolve().parent)
     env["LD_LIBRARY_PATH"] = runtime_dir + (":" + env["LD_LIBRARY_PATH"] if env.get("LD_LIBRARY_PATH") else "")
     records: list[dict[str, Any]] = []
+    a_model_request_attempts = 0
+    g_model_request_attempts = 0
+    calibration_model_requests = 0
+    selected_model_contract: str | None = None
     process: subprocess.Popen[bytes] | None = None
     try:
         with server_log_path.open("wb") as server_log:
@@ -274,15 +381,18 @@ def execute(prereg_path: Path, output: Path) -> None:
             launch = prereg["runtime"]["launch"]
             runtime_record = load_json(ROOT / "benchmarks/grounding-runtime-llama-v040.json")
             wait_server(process, launch["host"], int(launch["port"]), float(runtime_record["server_ready_timeout_seconds"]))
+            selected_model_contract, calibration = calibrate_grounding_v1_contract(prereg, generation, bundle.policy)
+            calibration_model_requests = calibration["model_request_count"]
+            if calibration_model_requests != prereg["model_surface_policy"]["calibration_model_requests"]:
+                raise BenchmarkRunError("calibration request-count drift")
+            (output / "contract-calibration.json").write_bytes(canonical_bytes(calibration))
             with raw_path.open("wb") as raw_handle:
                 for question in questions:
                     item_id = question["item_id"]
-                    base_messages = [
-                        {"role": "system", "content": generation["system_prompt"]},
-                        {"role": "user", "content": question["question"]},
-                    ]
-                    a_reply = request_model(prereg, generation, base_messages)
-                    a_record = {"v": 1, "item_id": item_id, "arm": "A", **a_reply}
+                    a_messages = grounding_v1_messages(selected_model_contract, question["question"])
+                    a_model_request_attempts += 1
+                    a_reply = request_grounding_v1_model(prereg, generation, a_messages, selected_model_contract)
+                    a_record = {"v": 1, "item_id": item_id, "arm": "A", "output_source": "model", **a_reply}
                     records.append(a_record)
                     raw_handle.write(canonical_bytes(a_record) + b"\n")
                     raw_handle.flush()
@@ -295,24 +405,61 @@ def execute(prereg_path: Path, output: Path) -> None:
                         "security_scope_id": question["security_scope_id"],
                     }
                     retrieval_started = time.perf_counter_ns()
-                    grounding = run_grounding(bundle, envelope, FaultProvider(bundle, faults.get(item_id)))
+                    grounding = run_grounding_frame(bundle, envelope, FaultProvider(bundle, faults.get(item_id)))
                     retrieval_us = (time.perf_counter_ns() - retrieval_started + 500) // 1_000
-                    policy = grounding["projection"]["policy"].decode("utf-8")
-                    evidence = grounding["projection"]["evidence"].decode("utf-8")
-                    g_messages = [
-                        {"role": "system", "content": generation["system_prompt"] + "\n\n" + policy},
-                        {"role": "user", "content": question["question"] + "\n\n" + evidence},
-                    ]
-                    g_reply = request_model(prereg, generation, g_messages)
+                    frame = grounding["frame"]
+                    host_reply = host_short_circuit_reply(frame)
+                    host_decision = "unresolved-state" if host_reply is not None else None
+                    if host_reply is None:
+                        host_reply = host_grounded_scalar_reply(frame)
+                        if host_reply is not None:
+                            host_decision = "grounded-scalar"
+
+                    evidence = b""
+                    grounding_context_sent = False
+                    if host_reply is not None:
+                        g_reply = {
+                            "raw_content": None,
+                            "model_output": host_reply,
+                            "input_tokens": 0,
+                            "output_tokens": 0,
+                            "model_latency_us": 0,
+                            "finish_reason": f"host-{host_decision}",
+                        }
+                        output_source = "host"
+                        context_route = f"host-{host_decision}"
+                    else:
+                        ordinary_knowledge = not frame.get("groups") or supplemental_empty_frame(frame)
+                        if ordinary_knowledge:
+                            g_messages = grounding_v1_messages(selected_model_contract, question["question"])
+                            context_route = "ordinary-knowledge"
+                        else:
+                            evidence = compact_model_projection(frame)
+                            g_messages = grounding_v1_messages(
+                                selected_model_contract,
+                                question["question"],
+                                evidence=evidence,
+                                policy=bundle.policy,
+                            )
+                            grounding_context_sent = True
+                            context_route = "grounded-context"
+                        g_model_request_attempts += 1
+                        g_reply = request_grounding_v1_model(prereg, generation, g_messages, selected_model_contract)
+                        output_source = "model"
                     g_record = {
                         "v": 1,
                         "item_id": item_id,
                         "arm": "G",
+                        "output_source": output_source,
                         **g_reply,
                         "retrieval_latency_us": retrieval_us,
-                        "projection_bytes": len(grounding["projection"]["evidence"]),
-                        "projection_sha256": sha256_bytes(grounding["projection"]["evidence"]),
-                        "frame": grounding["frame"],
+                        "host_decision": host_decision,
+                        "grounding_context_sent": grounding_context_sent,
+                        "context_route": context_route,
+                        "projection_bytes": len(evidence),
+                        "projection_sha256": sha256_bytes(evidence),
+                        "model_surface_sha256": surface_sha256(),
+                        "frame": frame,
                         "audit": grounding["audit"],
                     }
                     records.append(g_record)
@@ -321,14 +468,41 @@ def execute(prereg_path: Path, output: Path) -> None:
         expected = len(questions) * 2
         if len(records) != expected or len({(row["item_id"], row["arm"]) for row in records}) != expected:
             raise BenchmarkRunError("incomplete or duplicate run records")
+        a_model_requests = sum(row["arm"] == "A" and row.get("output_source") == "model" for row in records)
+        g_model_requests = sum(row["arm"] == "G" and row.get("output_source") == "model" for row in records)
+        host_short_circuits = sum(row["arm"] == "G" and row.get("output_source") == "host" for row in records)
+        host_unresolved = sum(row["arm"] == "G" and row.get("host_decision") == "unresolved-state" for row in records)
+        host_scalar = sum(row["arm"] == "G" and row.get("host_decision") == "grounded-scalar" for row in records)
+        if host_short_circuits != host_unresolved + host_scalar:
+            raise BenchmarkRunError("host completion subtype accounting mismatch")
+        if a_model_requests != len(questions) or g_model_requests + host_short_circuits != len(questions):
+            raise BenchmarkRunError("model/host answer-source accounting mismatch")
+        model_answer_requests = a_model_requests + g_model_requests
+        expected_model_answer_requests = len(questions) * 2 - host_short_circuits
+        if model_answer_requests != expected_model_answer_requests:
+            raise BenchmarkRunError("model answer-call count mismatch")
+        if a_model_request_attempts != a_model_requests or g_model_request_attempts != g_model_requests:
+            raise BenchmarkRunError("successful run has unrecorded model request attempts")
         status = {
             "state": "complete",
             "run_id": prereg["run_id"],
             "model_id": prereg["model"]["id"],
             "item_count": len(questions),
             "record_count": len(records),
-            "model_answer_requests": len(records),
-            "expected_model_answer_requests": len(questions) * 2,
+            "model_answer_requests": model_answer_requests,
+            "expected_model_answer_requests": expected_model_answer_requests,
+            "max_model_answer_requests": len(questions) * 2,
+            "a_model_answer_requests": a_model_requests,
+            "g_model_answer_requests": g_model_requests,
+            "model_answer_request_attempts": a_model_request_attempts + g_model_request_attempts,
+            "a_model_request_attempts": a_model_request_attempts,
+            "g_model_request_attempts": g_model_request_attempts,
+            "host_short_circuit_count": host_short_circuits,
+            "host_unresolved_state_count": host_unresolved,
+            "host_grounded_scalar_count": host_scalar,
+            "selected_model_contract": selected_model_contract,
+            "model_surface_sha256": surface_sha256(),
+            "calibration_model_requests": calibration_model_requests,
             "rewrite_calls": 0,
             "retry_count": 0,
             "preregistration_sha256": file_sha(prereg_path),
@@ -344,6 +518,9 @@ def execute(prereg_path: Path, output: Path) -> None:
             "run_id": prereg["run_id"],
             "model_id": prereg["model"]["id"],
             "record_count": len(records),
+            "model_answer_request_attempts": a_model_request_attempts + g_model_request_attempts,
+            "a_model_request_attempts": a_model_request_attempts,
+            "g_model_request_attempts": g_model_request_attempts,
             "error": "user-interrupt",
             "resume_permitted": False,
         }
@@ -358,6 +535,9 @@ def execute(prereg_path: Path, output: Path) -> None:
             "run_id": prereg["run_id"],
             "model_id": prereg["model"]["id"],
             "record_count": len(records),
+            "model_answer_request_attempts": a_model_request_attempts + g_model_request_attempts,
+            "a_model_request_attempts": a_model_request_attempts,
+            "g_model_request_attempts": g_model_request_attempts,
             "error": str(exc),
             "resume_permitted": False,
         }
@@ -389,6 +569,9 @@ def main() -> int:
             "model_id": prereg["model"]["id"],
             "item_count": len(questions),
             "arms": isolation["arms"],
+            "answer_call_policy": isolation["answer_call_policy"],
+            "model_surface_sha256": prereg["model_surface_sha256"],
+            "model_surface_policy": prereg["model_surface_policy"],
             "max_output_tokens": generation["max_output_tokens"],
             "model_inference_performed": False,
         }, indent=2, sort_keys=True))

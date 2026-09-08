@@ -67,8 +67,6 @@ PUBLIC_FILES: tuple[tuple[str, str], ...] = (
     ("docs/MODEL_INTERFACE_RC4.md", "docs/MODEL_INTERFACE_RC4.md"),
     ("docs/RC3_QUALIFICATION_CLOSEOUT.md", "docs/RC3_QUALIFICATION_CLOSEOUT.md"),
     ("docs/EVALUATION_BUNDLE.md", "docs/EVALUATION_BUNDLE.md"),
-    ("docs/QUALIFICATION_HANDOFF.md", "docs/QUALIFICATION_HANDOFF.md"),
-    ("docs/NEXT_SESSION_PROMPT.md", "docs/NEXT_SESSION_PROMPT.md"),
     ("LICENSE-MIT", "licenses/LICENSE-MIT"),
     ("LICENSE-APACHE", "licenses/LICENSE-APACHE"),
     ("THIRD_PARTY_NOTICES.md", "licenses/THIRD_PARTY_NOTICES.md"),
