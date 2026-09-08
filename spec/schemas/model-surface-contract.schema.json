@@ -33,7 +33,7 @@
     "assets": {
       "type": "array",
       "minItems": 1,
-      "maxItems": 5,
+      "maxItems": 7,
       "uniqueItems": true,
       "items": {
         "type": "object",
@@ -42,12 +42,12 @@
         "properties": {
           "path": {
             "type": "string",
-            "enum": ["prompt-fragment.txt", "xs-calc.gbnf", "xs-calc.tool.json", "xs-eval.gbnf", "xs-eval.tool.json"]
+            "enum": ["constrained-prompt.txt", "prompt-fragment.txt", "xs-calc.gbnf", "xs-calc.tool.json", "xs-eval.gbnf", "xs-eval.tool.json", "xs-request.gbnf"]
           },
           "kind": {"type": "string", "enum": ["tool-schema", "grammar", "prompt"]},
           "contract_id": {
             "type": "string",
-            "enum": ["exactscope.xs-calc.tool", "exactscope.xs-eval.tool", "exactscope.xs-calc.gbnf", "exactscope.xs-eval.gbnf", "exactscope.prompt-fragment"]
+            "enum": ["exactscope.constrained-prompt", "exactscope.prompt-fragment", "exactscope.xs-calc.gbnf", "exactscope.xs-calc.tool", "exactscope.xs-eval.gbnf", "exactscope.xs-eval.tool", "exactscope.xs-request.gbnf"]
           },
           "contract_version": {"const": "0.1"},
           "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}

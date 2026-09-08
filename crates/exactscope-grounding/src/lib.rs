@@ -1310,7 +1310,8 @@ mod tests {
             push_u32(&mut term_refs, value);
         }
 
-        let documents_offset = GROUNDING_INDEX_HEADER_SIZE as u32;
+        let header_size = u32::try_from(GROUNDING_INDEX_HEADER_SIZE).unwrap();
+        let documents_offset = header_size;
         let terms_offset = documents_offset + u32::try_from(documents.len()).unwrap();
         let postings_offset = terms_offset + u32::try_from(terms.len()).unwrap();
         let strings_offset = postings_offset
@@ -1329,7 +1330,7 @@ mod tests {
         header.extend_from_slice(GROUNDING_INDEX_MAGIC);
         push_u16(&mut header, 1);
         push_u16(&mut header, 1);
-        for value in [GROUNDING_INDEX_HEADER_SIZE as u32, 0, 2, 2, 3] {
+        for value in [header_size, 0, 2, 2, 3] {
             push_u32(&mut header, value);
         }
         push_u64(&mut header, 4);
@@ -1385,10 +1386,10 @@ mod tests {
             .unwrap();
         assert_eq!(count, 2);
         assert_eq!(output[0].document_ordinal, 0);
-        assert_eq!(output[0].score, 3.0);
+        assert_eq!(output[0].score.to_bits(), 3.0_f64.to_bits());
         assert_eq!(output[0].matched_query_terms, 2);
         assert_eq!(output[1].document_ordinal, 1);
-        assert_eq!(output[1].score, 3.0);
+        assert_eq!(output[1].score.to_bits(), 3.0_f64.to_bits());
         assert_eq!(output[1].matched_query_terms, 1);
 
         let count = index
@@ -1412,7 +1413,7 @@ mod tests {
                 &mut output,
             )
             .unwrap();
-        assert_eq!(output[0].score, 3.0);
+        assert_eq!(output[0].score.to_bits(), 3.0_f64.to_bits());
         assert_eq!(output[0].matched_query_terms, 1);
     }
 

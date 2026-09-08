@@ -1,5 +1,6 @@
 [package]
 name = "exactscope-packc"
+default-run = "exactscope-packc"
 description = "Build-time canonical scope-pack compiler for ExactScope"
 version.workspace = true
 edition.workspace = true
