@@ -8,7 +8,9 @@ from run_benchmark import Case
 from run_qualification import (
     ModelReply,
     QualificationFailure,
+    constrained_body,
     parse_json_strict,
+    score_constrained_reply,
     score_model_only,
     score_tool_reply,
     validate_calc_call,
@@ -50,8 +52,9 @@ def surface(*, calc: bool = False) -> CapabilitySurface:
         contract={"assets": []},
         catalog=catalog,
         prompt="test",
+        constrained_prompt="emit request",
         tools={},
-        grammars={},
+        grammars={"request": "root ::= no-call\nno-call ::= \"{\\\"n\\\":true}\"\n"},
         bundle_sha256="1" * 64,
         surface_contract_sha256="2" * 64,
         artifact_sha256="3" * 64,
@@ -133,6 +136,80 @@ class QualificationValidationTests(unittest.TestCase):
             raw={},
         )
         self.assertFalse(score_model_only(case, wrong)["final_answer_correct"])
+
+    def test_constrained_body_uses_bound_prompt_and_request_grammar_without_tools(self):
+        body = constrained_body(
+            Case(
+                identifier="mean",
+                domain="statistics-core",
+                method="ordered",
+                prompt="mean",
+                expected_call={"op": "stats.mean", "a": [["1", "2", "3"]]},
+                expected_core={"status": "OK", "value": "2"},
+                should_fail=False,
+            ),
+            surface(),
+        )
+        self.assertEqual(body["messages"][0]["content"], "emit request")
+        self.assertIn("grammar", body)
+        self.assertNotIn("tools", body)
+
+    def test_constrained_eval_request_reaches_core_and_scores_exactly(self):
+        case = Case(
+            identifier="mean",
+            domain="statistics-core",
+            method="ordered",
+            prompt="mean",
+            expected_call={"op": "stats.mean", "a": [["1", "2", "3"]]},
+            expected_core={"status": "OK", "value": "2"},
+            should_fail=False,
+        )
+        reply = ModelReply(
+            message={"content": '{"op":"stats.mean","a":[["1","2","3"]]}'},
+            input_tokens=1,
+            output_tokens=1,
+            latency_ms=1.0,
+            raw={},
+        )
+        result = score_constrained_reply(
+            case=case,
+            reply=reply,
+            surface=surface(),
+            core=FakeCore(),
+            arm="C",
+        )
+        self.assertEqual(result["selected_lane"], "xs_eval")
+        self.assertTrue(result["tool_call_validity"])
+        self.assertTrue(result["final_answer_correct"])
+
+    def test_constrained_no_call_is_fail_closed_for_missing_information(self):
+        case = Case(
+            identifier="missing",
+            domain="economics-core",
+            method="midpoint",
+            prompt="missing quantity",
+            expected_call=None,
+            expected_core={"status": "MISSING_INPUT"},
+            should_fail=True,
+        )
+        reply = ModelReply(
+            message={"content": '{"n":true}'},
+            input_tokens=1,
+            output_tokens=1,
+            latency_ms=1.0,
+            raw={},
+        )
+        result = score_constrained_reply(
+            case=case,
+            reply=reply,
+            surface=surface(),
+            core=FakeCore(),
+            arm="C",
+        )
+        self.assertEqual(result["selected_lane"], "none")
+        self.assertTrue(result["lane_selection"])
+        self.assertTrue(result["final_answer_correct"])
+        self.assertTrue(result["failure_fidelity"])
 
     def test_combined_calc_on_semantic_item_is_wrong_lane_even_if_numeric_matches(self):
         case = Case(

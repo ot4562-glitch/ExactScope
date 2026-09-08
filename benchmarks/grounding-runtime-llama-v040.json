@@ -1,0 +1,36 @@
+{
+  "format": "exactscope.grounding-runtime-record",
+  "format_version": "0.1",
+  "runtime_id": "llama.cpp-0.4.0-dev-5266f24-linux-x86_64",
+  "family": "llama.cpp",
+  "version": "0.4.0-dev",
+  "build": 1,
+  "commit": "5266f24",
+  "build_description": "GNU 15.2.0 for Linux x86_64",
+  "executable_name": "llama-server",
+  "executable_sha256": "23cd72427da11ec0ab919699c28520b55d55ac702e7c436c2ef764c2e166b221",
+  "server_ready_timeout_seconds": 180,
+  "launch": {
+    "alias": "exactscope-model",
+    "host": "127.0.0.1",
+    "port": 8080,
+    "context": 4096,
+    "threads": 6,
+    "parallel": 1,
+    "jinja": true,
+    "webui": false,
+    "offline": true,
+    "mmproj": false,
+    "reasoning": "off",
+    "cache_prompt": false
+  },
+  "hardware": {
+    "architecture": "x86_64",
+    "cpu": "AMD Ryzen 5 5600G with Radeon Graphics",
+    "logical_cpus": 12,
+    "physical_cores": 6,
+    "memory_bytes": 16419270656,
+    "environment": "WSL2 / Microsoft hypervisor"
+  },
+  "measurement_note": "This record freezes the benchmark host/runtime configuration. Physical ARM64 product qualification remains separate and NOT MEASURED by this record."
+}

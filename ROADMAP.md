@@ -1,242 +1,337 @@
 # ExactScope roadmap
 
-No dates are promised. This roadmap is ordered by **capability density, weak-model usability, evidence quality, and retrofit economics**, not by operation count.
+No dates are promised. This roadmap is ordered by **everyday factual reliability, false-grounding avoidance, small-model cost, evidence quality, and retrofit economics**.
 
-Release context: **v1.0.0-rc.3 integration & qualification candidate**.
+Release context: **ExactScope v1.0.0 is the stable Linux x86-64 native grounding software/package release. The selected r25 behavior, native C ABI, footprint-gated package, and final-archive C11 clean-room path are complete. v1.0.0-rc.3 remains immutable historical quantitative evidence; physical ARM64 qualification remains unclaimed.**
 
-The product question is:
+The flagship product question is:
 
-> Can a tiny deterministic capability component let an already-deployed small/on-device model recover a useful narrow quantitative skill cheaply enough that keeping the existing model/hardware is the better engineering choice for that task family?
+> Can a compact provider-neutral grounding layer make an already-deployed small/on-device model more correct and less confidently wrong on ordinary factual questions, at low enough storage/RAM/token/latency/integration cost to beat a larger model, much larger context, heavyweight RAG stack, remote dependency, or hardware upgrade?
 
-## Current checkpoint — rc3
+## Current checkpoint
 
-The active code architecture and public prerelease packaging are implemented.
+The rc3 public release and its external-user qualification are closed and immutable. The selected **r25** grounding behavior is now integrated with the native C ABI and stable Linux x86-64 v1 package. The frozen seven-model matched screen spans 135M to 3.8B local models, and its semantic scores were unchanged after native/release integration. r5 remains frozen historical comparison evidence.
 
-### Product code implemented
+The post-v1 path is product expansion and target qualification, not another broad prompt search:
+
+```text
+stable Linux x86-64 grounding runtime
+ -> preserve deterministic r25 semantics and Python/Rust/C-ABI parity
+ -> add provider integrations only behind the Grounding Contract
+ -> keep default-install footprint bounded and provider data accounted separately
+ -> improve integration/discovery/LTS without broadening claims beyond evidence
+ -> qualify representative physical ARM64 hardware before wearable resource claims
+ -> add further stable targets only after target-specific clean-room/resource evidence
+```
+
+No new result may reuse historical run evidence or be tuned under the same identity after inference. The normative Grounding Contract remains v0.1; benchmark/package identities carry the selected implementation behavior and qualification evidence.
+
+Academic-domain expansion remains secondary to grounding reliability, provider integrations, and real-device qualification.
+
+## Historical/retained implementation baseline
+
+### Mature quantitative subsystem
+
+Retained and protected from regressions:
 
 - [x] deterministic `no_std` decimal/rational numeric kernel;
 - [x] explicit deterministic rounding/domain/status behavior;
 - [x] bounded scalar VM and Plan v0.1;
-- [x] `xs_calc`: 1–8 steps over `add/sub/mul/div/powi/sqrt`, backward-only references;
-- [x] strict bounded Tiny JSON boundary;
+- [x] `xs_calc`: 1-8 steps over `add/sub/mul/div/powi/sqrt` with backward-only references;
+- [x] strict bounded Tiny JSON and optional TinyWire boundaries;
 - [x] native typed C ABI;
 - [x] no-import Wasm boundary;
-- [x] TinyWire optional binary transport;
 - [x] reviewed Statistics and Economics semantic execution;
-- [x] selected `xs_eval` surface and optional/cold `xs_find`;
-- [x] pack/packc infrastructure and optional dynamic packs;
-- [x] profile-driven selected specialization;
-- [x] D-057 Statistics metadata phase 2: generated/drift-checked operation declarations, stable kernel IDs, arity/output contracts, selected lookup, dispatch and packc kernel-name lookup;
-- [x] Economics selected operation/Cargo wiring checks;
-- [x] exact capability/model-surface contracts and fail-closed negotiation;
-- [x] operation revision compatibility policy/checks;
-- [x] source-level public export/unsafe-boundary audit;
-- [x] build-input identity and reproducibility/compatibility-record infrastructure;
-- [x] maintained strict llama.cpp `xs_eval` and `xs_calc` envelopes.
+- [x] selected `xs_eval` and optional quantitative `xs_find`;
+- [x] pack/packc and capability/profile specialization infrastructure;
+- [x] model-surface identity/fail-closed negotiation;
+- [x] constrained JSON/GBNF quantitative compatibility baseline;
+- [x] optional native-tool selection from pre-inference runtime capability metadata;
+- [x] release/package identity, checksums, security/export audit and qualification tooling.
 
-### Public package implemented for rc3
+### Historical rc3 public package/evidence
 
-- [x] clean source-release policy: reviewed source/specs/generators retained, mutable generated capability/evidence directories and benchmark output payloads excluded from the product source tag;
-- [x] version-driven release workflow rather than rc1 filename hardcoding;
-- [x] Windows x86-64 evaluation SDK job;
-- [x] Linux x86-64 evaluation SDK job;
-- [x] Android ARM64 static OEM SDK job;
-- [x] Linux ARM64 musl static OEM SDK job;
-- [x] release manifest + SHA256SUMS;
-- [x] evaluation SDK includes AI integration assets and qualification/model-download documentation;
-- [x] model downloader resolves upstream repository revision and hashes downloaded model files without launching inference;
-- [x] copy-paste next-session qualification prompt.
+- [x] Windows/Linux x86-64 evaluation SDKs;
+- [x] Android/Linux ARM64 static OEM SDK assets and doctor checks;
+- [x] release manifest and SHA256SUMS;
+- [x] Linux/Windows clean-room package checks;
+- [x] frozen five-model A/C/D matrix;
+- [x] chat-template/tool-protocol diagnostics;
+- [x] physical ARM64 performance/RAM/energy/thermal preserved as **NOT MEASURED** because no suitable target was available.
 
-A workflow being implemented does not become “published/supporting” until the actual GitHub release asset exists and its integrity checks succeed.
+### Prototype grounding experiments — explicitly non-normative
+
+The branch contains early recall/fact-pack/benchmark experiments, including a zero-allocation `RecallIndex`, an `xs_recall` tool shape, fact-pack tooling and synthetic benchmark scripts.
+
+These are implementation probes only. They do **not** freeze:
+
+- `xs_recall` as the product API;
+- one fact-pack schema as the universal Source format;
+- exact/alias lexical retrieval as the only provider;
+- the current benchmark runner/corpus as the release benchmark;
+- current C/Wasm/API shapes for grounding.
+
+Implementation after the contract freeze may reuse useful code, refactor it behind the provider contract, or replace it.
 
 ## Historical evidence boundary
 
-The older Statistics model evidence accumulated through `statistics-core-8-ai-r20` is frozen to a **45,804-byte r17 serving runtime**. It remains useful historical design evidence but is not rc3 evidence.
+`statistics-core-8-ai-r20` is historical evidence tied to its exact older r17 runtime. `v1.0.0-rc.3` evidence belongs only to the exact rc3 release/model/runtime/corpus/surface identities. Neither transfers to rc4 grounding.
 
-Historical work established two useful lessons:
+Accepted rc3 lessons:
 
-1. a reviewed semantic slice can materially improve some weak-model task configurations;
-2. uplift magnitude and the best semantic-only/combined surface can vary sharply by model, and a sufficiently weak model may still fail operation selection/argument extraction.
+1. native tool-call success is not monotonic with model size;
+2. chat-template/tool-protocol compatibility materially affects small-model integration;
+3. large model-visible schemas can multiply prompt cost;
+4. valid requests reaching ExactScope were much stronger than end-to-end model selection;
+5. therefore ordinary grounding should not require a model-visible retrieval tool turn.
 
-Therefore target-model qualification is part of the product, not optional marketing polish.
+## P0 — freeze grounding design and contracts
 
-## P0 — publish and independently verify rc3
+### P0.1 Product and logical architecture
 
-### P0.1 Release artifact integrity
+- [x] make everyday factual grounding/hallucination reduction the flagship objective;
+- [x] make original-question prefetch the default path;
+- [x] keep model-generated query rewrite/tool retrieval as optional separately costed profiles;
+- [x] separate Source, Retrieval Provider, ProviderOutcome, Evidence Policy, GroundingFrame and Model Projection;
+- [x] keep retrieval provider implementation replaceable;
+- [x] make the minimum embedded core independent from network/clock/tokenizer/JSON requirements;
+- [x] keep quantitative `xs_calc`/`xs_eval` as a secondary retained subsystem.
 
-- [ ] confirm GitHub `v1.0.0-rc.3` tag points to the intended clean commit;
-- [ ] confirm release manifest source commit/tag consistency;
-- [ ] verify all release-level SHA256SUMS;
-- [ ] verify the internal inventory/checksums of each evaluation/OEM SDK archive;
-- [ ] record exact archive bytes/digests;
-- [ ] confirm the expected Windows/Linux/Android/ARM64 assets actually exist.
+### P0.2 Authority, coverage and failure semantics
 
-Success criterion: a fresh external checkout/download can identify and verify every rc3 input without relying on the developer working tree.
+- [x] assign authority per target/source binding, never from provider/evidence text;
+- [x] use target-grouped frames so authoritative and supplemental facts can coexist;
+- [x] define `grounded | none | ambiguous | conflict | unavailable`;
+- [x] require completed/sufficient authoritative coverage before `none` is legal;
+- [x] keep timeout/error/denied/budget/incomplete coverage distinct from `none`;
+- [x] freeze required-provider/sufficiency behavior;
+- [x] prevent supplemental evidence from silently filling unresolved authoritative targets;
+- [x] define compound-question claim coverage per `target_key`.
 
-### P0.2 External-user integration baseline
+### P0.3 Identity, determinism and privacy
 
-From the published archive, not a source build:
+- [x] define `GroundingProfile` as immutable behavior identity;
+- [x] bind router, source snapshot, provider/index, policy, timeout/budget and projection identities;
+- [x] bind embedding/tokenizer/vector/index identity when semantic retrieval is used;
+- [x] require captured/replayable evidence for remote-provider benchmark runs;
+- [x] freeze deterministic merge/order/tie-break/dedup/truncation rules;
+- [x] define stable Evidence Item source/item/revision/content identity;
+- [x] define typed text/scalar/canonical-JSON evidence;
+- [x] establish opaque host security scope before retrieval;
+- [x] prohibit implicit cross-user/tenant cache/evidence reuse;
+- [x] keep security/access metadata out of model projection;
+- [x] define evidence as untrusted data rather than instructions;
+- [x] explicitly avoid claiming that delimiters alone solve prompt injection.
 
-- [ ] native static-library smoke;
-- [ ] Wasm import/export/memory/static inspection;
-- [ ] Wasm local smoke/conformance;
-- [ ] capability/model-surface identity check;
-- [ ] no-model benchmark-corpus/core self-test;
-- [ ] record every command/environment/result.
+### P0.4 Benchmark contract
 
-Success criterion: an evaluator can attach and exercise the release artifact without modifying product source.
+- [x] define A=model-only and G=one-call original-question-prefetch with equal answer-generation call count;
+- [x] physically/logically isolate serving data from scorer gold;
+- [x] prohibit serving access to expected answer/target/source/evidence/provider labels;
+- [x] define workload strata for public facts, private/device memory, manuals, stale revisions, distractors, authoritative no-answer, partial provider failure, ambiguity/conflict, multilingual/paraphrase, adversarial evidence and supplemental no-hit;
+- [x] define stage-level routing/provider/policy/model failure taxonomy;
+- [x] define raw numerators/denominators and exact metric formulas;
+- [x] define false-grounding, grounding-penalty and unsupported-authoritative-assertion metrics;
+- [x] define cost metrics for evidence/index/token/latency/RAM/storage/energy;
+- [x] prohibit post-result alias/index/reranker/profile tuning under the same candidate identity.
 
-### P0.3 Freeze rc3 model qualification inputs
+### P0.5 Documentation convergence / architecture review
 
-Core five:
+- [x] align every current integration/security/install/compatibility/README/handoff document with the target-group contract;
+- [x] mark prototype recall/fact-pack documents/code clearly non-normative wherever still ambiguous;
+- [x] remove remaining current-state wording that makes academic operations/tool calls the flagship product;
+- [x] run read-only Codex architecture review across normative/current docs;
+- [x] resolve every P0 contradiction;
+- [x] mark logical Grounding Contract v0.1 **FROZEN_FOR_IMPLEMENTATION** only after the review reports no P0 blocker.
 
-- [ ] Gemma 3 270M IT Q8_0;
-- [ ] LFM2.5 350M Q4_K_M;
-- [ ] Qwen3.5 0.8B Q4_0;
-- [ ] Qwen3.5 2B Q4_K_M;
-- [ ] Phi-4-mini-instruct 3.8B Q4_K_M.
+Success criterion: one coherent product and logical contract exists before implementation resumes.
 
-Optional separate product profile:
+## P1 — freeze concrete machine-readable grounding profile
 
-- [ ] Gemma 3n E2B IT.
+After P0:
 
-Before inference:
+### P1.1 Schemas and canonical encodings
 
-- [ ] resolve model repository revisions;
-- [ ] hash exact downloaded files;
-- [ ] freeze `model-inventory.json`;
-- [ ] freeze inference runtime/build/command line;
-- [ ] freeze corpus/generator/SHA-256;
-- [ ] freeze prompt/tool/GBNF/model-surface bytes/digests;
-- [ ] freeze generation settings;
-- [ ] freeze scoring/failure taxonomy;
-- [ ] freeze timeout/retry/no-hidden-repair rules;
-- [ ] freeze single-writer/duplicate policy and any early-stop rule.
+- [x] add/version machine-readable GroundingProfile schema;
+- [x] add QueryEnvelope schema;
+- [x] add RoutingPlan/TargetPlan schema;
+- [x] add ProviderOutcome schema;
+- [x] add EvidenceItem schema;
+- [x] add GroundingFrame schema;
+- [x] add source-snapshot/provider-identity manifest schemas;
+- [x] add grounding preregistration schema;
+- [x] select and document canonical JSON/digest rules for build/audit artifacts;
+- [x] freeze deterministic Model Projection template/escaping/order rules.
 
-Success criterion: a model score cannot exist without the exact release/model/runtime/corpus identity needed to reproduce and audit it.
+### P1.2 Reference profile
 
-### P0.4 Run the minimum diverse model matrix
+Choose a **minimum local reference provider** for the first benchmark candidate without making it the universal contract. The default likely reuses/refactors exact/lexical prototype code because it is small/offline/deterministic, but the provider boundary must permit later vector/application providers without changing frame semantics.
 
-Primary arms:
+Freeze:
 
-- [ ] A — model only;
-- [ ] C — selected semantic `xs_eval` only;
-- [ ] D — `xs_calc + xs_eval` only where the exact selected profile contains both;
-- [ ] B — `xs_calc` only where needed as a diagnostic.
+- [x] target namespaces/labels;
+- [x] authoritative/supplemental source bindings;
+- [x] required coverage/sufficiency;
+- [x] provider implementation and index identity;
+- [x] preprocessing/ranking/tie-break/dedup rules;
+- [x] timeout/retry/cancellation policy;
+- [x] evidence/frame/model-context budgets;
+- [x] privacy/network policy;
+- [x] Model Projection identity.
 
-Report per model/task family:
+Success criterion: two independent implementations could build the same logical profile/frame semantics from the schemas/docs.
 
-- [ ] correct count/rate;
-- [ ] malformed-output count;
-- [ ] wrong-tool/operation-selection count;
-- [ ] argument-extraction/order count;
-- [ ] deterministic runtime failure count;
-- [ ] final numeric/rendering mismatch count;
-- [ ] token-limit/timeout count;
-- [ ] exact artifact/model bytes/digests;
-- [ ] raw per-item output and run status.
+## P2 — implement frozen contract
 
-Do not force a larger-model replacement headline or CRR when the baseline/reference contract makes the comparison misleading.
+Implementation and review must follow the frozen contract and preserve the public evidence/identity rules. Tool availability is never a reason to change product semantics or weaken verification.
 
-Success criterion: identify whether ExactScope creates useful end-to-end capability on more than one architecture/vendor/model-size class and which minimal surface each target model should receive.
+### P2.1 Host/provider core
 
-### P0.5 Measure exact released footprint
+- [x] define provider-neutral host types/interfaces;
+- [x] implement QueryEnvelope validation and profile binding;
+- [x] implement deterministic Router/TargetPlan for the reference profile;
+- [x] refactor/reuse prototype RecallIndex only behind the provider interface where appropriate;
+- [x] implement typed ProviderOutcome including timeout/error/denied/budget/incomplete semantics;
+- [x] implement source snapshot/provider identity records;
+- [x] ensure no serving component can read benchmark gold.
 
-For every released/qualified capability profile:
+### P2.2 Evidence policy / frame
 
-- [ ] binary bytes and SHA-256;
-- [ ] selected operation/tool count;
-- [ ] prompt/schema/grammar bytes/tokens;
-- [ ] component linear-memory declaration;
-- [ ] native context/scratch contract;
-- [ ] model-visible generated request size distribution.
+- [x] validate inherited authority and allowed source/provider bindings;
+- [x] implement required coverage/sufficiency;
+- [x] implement freshness/validity selection;
+- [x] implement deterministic dedup/merge/order/tie-break;
+- [x] implement ambiguity/conflict detection for the reference profile;
+- [x] implement whole-item budget/truncation behavior;
+- [x] implement grouped GroundingFrame with exact state precedence;
+- [x] implement audit sidecar records.
 
-Guideline: a general selected no-import Wasm should normally remain near/below ~128 KiB when practical; >192 KiB needs explanation; >256 KiB requires major design review. Profile-specific budgets can be much lower.
+### P2.3 Model Projection
 
-Correctness, deterministic semantics, fail-closed behavior, and ABI stability are non-negotiable. Do not delete useful robustness for a cosmetic byte win.
+- [x] implement deterministic compact projection;
+- [x] keep scope/provider scores/internal metadata host-side;
+- [x] preserve per-target authority/state;
+- [x] escape/delimit evidence as untrusted data;
+- [x] add authoritative/supplemental model policy text;
+- [x] byte-for-byte projection tests;
+- [x] adversarial evidence fixtures.
 
-## P1 — qualify representative constrained hardware
+### P2.4 Transport/package integration
 
-### P1.1 Android ARM64 or embedded Linux ARM64 target
+- [x] decide which grounding functions genuinely belong in Rust/C/Wasm versus host-side tooling;
+- [x] do not force vector/network providers into the no-import core;
+- [x] add stable native/Wasm grounding transport only where the frozen profile needs it;
+- [x] preserve rc3 quantitative ABI/semantics;
+- [x] package the grounding profile/source/provider/model-projection assets with manifests/checksums;
+- [x] keep public rc3 quantitative release descriptions historical and unchanged.
 
-Choose at least one representative product-style target and use the **exact published rc3 SDK**.
+Success criterion: the implemented serving path matches the frozen contract without relying on model tool calling or benchmark gold.
 
-- [ ] record device/SoC/OS/toolchain/runtime identity;
-- [ ] record exact installed ExactScope asset digest;
-- [ ] measure artifact/storage bytes;
-- [ ] measure process/VM RSS and heap where possible;
-- [ ] measure stack high-water/scratch where possible;
-- [ ] measure p50/p95/p99 latency with enough samples;
-- [ ] separate cold/warm behavior where relevant;
-- [ ] measure energy per operation/workload where the target permits credible instrumentation;
-- [ ] record sustained thermal/throttling behavior where relevant;
-- [ ] exercise malformed-input/fail-closed behavior;
-- [ ] confirm offline operation;
-- [ ] qualify update/rollback/interrupted replacement/power-loss behavior if the product uses updatable packs/runtime assets.
+## P3 — build benchmark candidate without inference
 
-Success criterion: target cost is small enough for the retrofit thesis and there is no hidden device-integration failure.
+### P3.1 Corpus/source generator
 
-A 64 KiB Wasm linear-memory ceiling must never be reported as total process/device RAM.
+- [x] generate physically separated `serving/` and `gold/` trees;
+- [x] include all flagship workload strata;
+- [x] bind generator seed/revision and every output hash;
+- [x] generate candidate-bound synthetic/private facts unlikely to exist in model weights;
+- [x] include distractors/stale revisions/no-answer/provider-failure/ambiguity/conflict/injection fixtures;
+- [x] include project-authored/frozen public-reference and product-manual-style workloads without importing hidden scorer labels into serving data;
+- [x] validate no answer/source/evidence oracle leaks into serving inputs.
 
-### P1.2 Model + target combined decision
+### P3.2 Scorer
 
-Once model and device evidence are both frozen:
+- [x] implement exact benchmark metric definitions from `docs/BENCHMARK.md`;
+- [x] keep gold scorer-only until after model response;
+- [x] score routing, retrieval, policy/frame and model answer stages separately;
+- [x] report raw counts and denominators before ratios;
+- [x] report grounding recovery and grounding penalty;
+- [x] report false grounding and authoritative unsupported assertions;
+- [x] report token/evidence/index/latency/storage costs.
 
-- [ ] calculate capability uplift against its exact model-visible/token/binary/memory/latency/energy cost;
-- [ ] compare the candidate to a justified larger-model/newer-hardware alternative where practical;
-- [ ] report raw numerators/denominators alongside any density ratio;
-- [ ] separate product/task-specific conclusions from general AI claims.
+### P3.3 Preregistration / dry-run runner
 
-Success criterion: make a real engineering choice, not only a benchmark chart.
+- [x] add zero-inference preregistration command;
+- [x] bind source/profile/provider/projection/corpus/scorer/model/runtime identities;
+- [x] reject any byte/config drift after preregistration;
+- [x] enforce one writer and duplicate item/arm rejection;
+- [x] preserve complete/invalid/aborted run states with resume forbidden;
+- [x] ensure dry-run and runner `--verify-only` never start model inference.
 
-## P2 — harden support only after evidence
+## P4 — no-inference qualification and packaging
 
-### P2.1 Compatibility and release policy
+Before model benchmark:
 
-- [ ] decide which exact native/Wasm targets move from prerelease/experimental to supported;
-- [ ] publish compatibility records for exact release assets/toolchains;
-- [ ] define ABI/operation-revision/LTS change policy for supported lines;
-- [ ] define security response/support window;
-- [ ] verify reproducible-build expectations with sufficiently independent builders where claimed;
-- [ ] add signed provenance/attestation only when its trust model is defined.
+- [x] schema/canonicalization/digest tests;
+- [x] source snapshot integrity tests;
+- [x] serving/gold separation tests;
+- [x] deterministic router/provider replay;
+- [x] provider completion-order invariance tests;
+- [x] authoritative `none` coverage tests;
+- [x] partial provider/timeout/error/denied/budget => unavailable tests;
+- [x] mixed authority tests;
+- [x] freshness/stale revision tests;
+- [x] ambiguity/conflict tests;
+- [x] evidence canonicalization/content-digest tests;
+- [x] security-scope/cache-isolation tests;
+- [x] model projection byte-determinism tests;
+- [x] adversarial evidence/data-boundary tests;
+- [x] existing quantitative Rust/C/Wasm regression suites;
+- [x] source design/security/drift checks;
+- [x] fresh grounding evaluation package built from the frozen candidate source commit;
+- [x] package manifest/SHA256 verifier and deterministic-package tests;
+- [x] final clean-room first-use with zero model inference, including post-use package re-verification;
+- [x] actual five-model preregistration dry-run from the extracted final package only;
+- [x] native Windows/Linux package verification and zero-inference dry-run commands verified.
 
-### P2.2 Integrator feedback
+Success criterion: package is independently usable up to preregistration without a developer checkout and without launching a model. **Met by the r5 baseline and retained as a mandatory gate for every optimization candidate.**
 
-- [ ] collect at least one independent external-style integration beyond the developer's own machine;
-- [ ] record integration effort/friction rather than only runtime results;
-- [ ] identify missing packaging surfaces from actual OEM needs;
-- [ ] add convenience wrappers only where they do not create a second calculation authority.
+## P5 — historical five-model baseline — COMPLETE
 
-### P2.3 Stable v1.0.0 promotion
+Integrity-corrected **r5** source `e6c3558642c77e379358b9f59aedd92abf7473f4` completed the five-model A/G benchmark with post-shutdown run checksum verification. r5 remains immutable historical comparison evidence.
 
-Potential promotion gate:
+## P6 — behavior selection — COMPLETE
 
-- [ ] exact public candidate artifacts passed integrity/conformance;
-- [ ] minimum diverse model matrix or a documented equivalent product-specific matrix completed;
-- [ ] at least one representative ARM64 target qualified;
-- [ ] no unresolved high-severity security/ABI defect;
-- [ ] public claims rewritten from the exact frozen evidence;
-- [ ] support/compatibility label explicitly chosen.
+- [x] preserve r5 as historical comparison evidence;
+- [x] isolate deterministic unresolved-state host completion;
+- [x] test compact evidence/policy and multiple answer contracts independently;
+- [x] add one-time model-identity-bound contract calibration rather than per-question retries;
+- [x] expand the model matrix to 135M and 1B wearable-class models;
+- [x] preserve contract-native scalar facts instead of flattening them into text;
+- [x] select r25 after the seven-model source-run comparison;
+- [x] reject later forced-contract variants that regressed low-end models.
 
-Only then consider stable `v1.0.0`.
+## P7 — productionize and qualify the selected behavior — ACTIVE
 
-## P3 — expand breadth selectively
+- [x] expose deterministic unresolved/scalar host completion in the shared grounding runtime;
+- [x] implement the selected compact model surface in `tools/grounding_v1_surface.py`;
+- [x] implement the loopback-only llama.cpp reference adapter;
+- [x] add adapter/surface identity and regression tests;
+- [ ] make the immutable-package benchmark runner execute exactly the selected r25 behavior rather than the historical r5/r6 path;
+- [ ] freeze the final source commit and rebuild the scalar candidate from that exact source;
+- [ ] build and verify a deterministic grounding evaluation package containing the selected adapter/surface;
+- [ ] preregister and rerun the seven-model matrix from the extracted immutable package;
+- [ ] replace source-run-only README claims with release-qualified evidence where appropriate;
+- [ ] run clean-room package, publication, security, license, native, Wasm and SDK gates on the exact release tree.
 
-New domains/operations are not blockers for rc3. Add them only when they improve a real product profile.
+## P8 — target qualification and release
 
-Possible future work:
+Before a public/stable claim:
 
-- additional reviewed statistics/economics operations;
-- finance/engineering/science slices where the method contract is narrow and evidence-worthy;
-- additional host/runtime wrappers;
-- AAR/Prefab convenience packaging after Android evidence;
-- Apple/XCFramework only when a real integration target justifies it;
-- signed/remote capability distribution only with an explicit threat/trust/update model.
+- qualify a representative physical ARM64 target for actual storage/RAM/latency/energy/thermal behavior;
+- define supported provider/profile/platform identities and update/security/privacy/LTS policy;
+- run `python3 tools/audit_publication.py` on the exact Git tree and again on extracted release archives;
+- keep internal agent prompts, handoffs, local paths, raw runs and preregistrations outside the public repository/package;
+- obtain independent external-style integration feedback;
+- publish only deliberately public compatibility/qualification records;
+- consider stable `v1.0.0` only after unresolved release/security/evidence gates are closed.
 
-Do not turn ExactScope into a general scientific runtime or a giant model-visible catalog.
+## Deferred — academic/technical expansion
+
+[`docs/DOMAIN_EXPANSION.md`](docs/DOMAIN_EXPANSION.md) remains design history/guidance for the quantitative subsystem. Statistics/Economics breadth and Finance/Physics/Chemistry additions are not a near-term flagship objective.
+
+Resume domain expansion only after grounding optimization/lightweighting demonstrates measured product value or a concrete customer workload requires a narrow deterministic method slice.
 
 ## Current single next action
 
-**Publish/verify `v1.0.0-rc.3`, then start a new external-user qualification session using `docs/NEXT_SESSION_PROMPT.md`.**
-
-Benchmark and target evidence should be collected from the immutable public candidate, not from the release-preparation working tree.
+**Freeze and benchmark r6, compare it with immutable r5, then let the measured result determine r7 and the final lightweighting target. Do not push or release to GitHub before the publication audit passes on the final cleaned tree.**

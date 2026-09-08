@@ -1,19 +1,85 @@
-# llama.cpp `xs_calc` reference
+# llama.cpp ExactScope model-interface reference
 
-Release context: **v1.0.0-rc.3**
-Status: **reference integration; rc3 model benchmark is intentionally unmeasured**
+Release context: **retained quantitative-subsystem model-interface reference after completed v1.0.0-rc.3 qualification**
+Status: **reference integration for model-generated quantitative requests; ordinary rc4 grounding prefetch does not depend on this path and no new model evidence is created from this source tree**
 
-This path keeps planning and deterministic execution separate:
+rc3 demonstrated that native OpenAI-style tool calling is not portable across all small-model chat templates. The quantitative subsystem therefore separates the model envelope from the deterministic semantic lane. The flagship rc4 everyday grounding path instead prefetches evidence before the model answer call and does not require a llama.cpp tool envelope.
 
 ```text
-question -> llama.cpp + xs-calc.gbnf -> bounded plan -> ExactScope -> result/failure
+question
+   |
+   v
+llama.cpp runtime /props capability probe
+   |
+   +--> native_tools      only when required support is proven
+   |
+   `--> constrained_json  compatibility baseline
+              |
+              v
+     ExactScope request validator
+              |
+       +------+------+
+       |             |
+     xs_calc       xs_eval
+       |             |
+       +------+------+
+              |
+              v
+     deterministic core
 ```
 
-The grammar constrains structure. ExactScope still rejects invalid decimals, wrong arity, forward references, domain errors, overflow and resource violations. The host must not repair a model-selected plan.
+## 1. Probe the model interface without inference
 
-## Local development smoke
+With a running llama.cpp server:
 
-After building the local core bridge:
+```powershell
+py -3 tools/llama_cpp_interface.py `
+  --base-url http://127.0.0.1:8080/v1 `
+  --model-interface auto
+```
+
+The probe performs a GET on llama.cpp `/props`. It does **not** send a model prompt. `auto` resolves to `native_tools` only when the active runtime/template explicitly reports all of:
+
+- tool-definition support;
+- assistant tool-call support;
+- object-argument support.
+
+Otherwise it resolves to `constrained_json`.
+
+A saved `/props` document can be inspected offline:
+
+```powershell
+py -3 tools/llama_cpp_interface.py `
+  --props-file C:\path\to\props.json `
+  --model-interface auto
+```
+
+The output includes normalized capability booleans plus hashes of the exact props/chat-template identities used for selection.
+
+There is no output-driven fallback. A model failure does not cause the same request to be retried through another interface.
+
+## 2. Constrained compatibility path
+
+Every rc4 AI-facing capability is designed to contain:
+
+```text
+constrained-prompt.txt
+xs-request.gbnf
+```
+
+The request grammar composes the exact selected `xs_eval`/`xs_calc` lane grammars plus explicit fail-closed `{"n":true}`.
+
+The model's job is only to select the lane/operation and extract explicit inputs. It should not calculate a supported answer itself.
+
+## 3. Native tool path
+
+When `/props` proves compatible native tool support, the same capability may expose the bound `xs-eval.tool.json` and optional `xs-calc.tool.json` assets.
+
+The native path is an optimization, not a semantic authority. It reaches the same validators and deterministic core as constrained JSON.
+
+## 4. Local `xs_calc` development smoke
+
+The older direct llama-cli smoke remains useful for bounded-plan development:
 
 ```powershell
 cargo build --release -p exactscope-conformance --bin exactscope-core
@@ -24,22 +90,20 @@ py -3 examples/llama.cpp/run_xs_calc.py `
   --question "What is (12 * 7 - 4) / 5?"
 ```
 
-The runner records the raw plan, structural/runtime acceptance, deterministic result, generated-token estimate, plan-step count and wall-clock latency. A wrong but structurally valid plan remains a model planning failure.
+The grammar constrains structure. ExactScope still rejects invalid decimals, wrong arity, forward references, domain errors, overflow and resource violations. The host must not repair a model-selected plan.
 
-This is useful for adapter development, but **do not use an ad-hoc run from a dirty checkout as rc3 evidence**.
+## 5. Qualification boundary
 
-## rc3 qualification path
+The rc3 five-model qualification is complete and frozen. Its historical plan/runbook remain under `benchmarks/NEXT_MODEL_MATRIX.md` and `docs/QUALIFICATION_HANDOFF.md`, but they are not instructions to continue rc3 inference.
 
-For actual `v1.0.0-rc.3` model evidence:
+Any rc4 benchmark must first freeze a new immutable candidate and record:
 
-1. start from the immutable GitHub release archive;
-2. verify `release-manifest.json` and `SHA256SUMS`;
-3. use the five-model matrix in `../../benchmarks/NEXT_MODEL_MATRIX.md`;
-4. freeze `model-inventory.json`, llama.cpp build/command, corpus, prompt/grammar/tool assets, generation settings and scorer before inference;
-5. use the comparison/failure rules in `../../docs/QUALIFICATION_HANDOFF.md`.
+- exact runtime/model/capability identities;
+- requested and resolved model interface;
+- normalized `/props` capability record and template hashes;
+- prompt/tool/grammar bytes;
+- generation/scoring settings;
+- raw outputs;
+- input-token/model-latency deltas and efficiency ratios.
 
-The core five are Gemma 3 270M, LFM2.5 350M, Qwen3.5 0.8B, Qwen3.5 2B and Phi-4-mini 3.8B. The old five-case Qwen3/Llama smoke is historical integration evidence only and is not the rc3 benchmark matrix.
-
-Use the maintained `adapters/llama-cpp/` semantic-only envelope for selected `xs_eval` qualification. The normal product path should expose only the selected surface; `xs_find` remains optional/cold.
-
-Historical r20 Statistics model scores belong to an older 45,804-byte r17 runtime and must not be reused for rc3.
+See `docs/MODEL_INTERFACE_RC4.md`, `docs/RC3_QUALIFICATION_CLOSEOUT.md`, and `docs/BENCHMARK.md`.

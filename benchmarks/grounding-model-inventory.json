@@ -1,0 +1,78 @@
+{
+  "format": "exactscope.grounding-model-inventory",
+  "format_version": "0.1",
+  "source_inventory_sha256": "2b0a5e6841b1ec50e80a0762c1f6c8946ce8af72cf6fad80d7db1a35746c37de",
+  "identity_reuse_note": "The original five model identities are reused from rc3 only; wearable expansion models are separately pinned by repository revision, byte size, and SHA-256. No prior scores or run evidence transfer to rc4 grounding.",
+  "records": [
+    {
+      "id": "gemma3-270m-it-q8",
+      "repository": "ggml-org/gemma-3-270m-it-GGUF",
+      "resolved_revision": "e7647be17ae1108f2f605ed061ca0608b171afff",
+      "requested_file": "gemma-3-270m-it-Q8_0.gguf",
+      "runtime": "llama.cpp",
+      "quantization": "Q8_0",
+      "bytes": 291545600,
+      "sha256": "0ef57d2c838458a1952664260dcba38e5bdda37494f3af732f06e4add24068e3"
+    },
+    {
+      "id": "lfm25-350m-q4km",
+      "repository": "LiquidAI/LFM2.5-350M-GGUF",
+      "resolved_revision": "9969000761ce34de907bf20017cbfc3d52d6eaf9",
+      "requested_file": "LFM2.5-350M-Q4_K_M.gguf",
+      "runtime": "llama.cpp",
+      "quantization": "Q4_K_M",
+      "bytes": 229312224,
+      "sha256": "7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4"
+    },
+    {
+      "id": "qwen35-08b-q4",
+      "repository": "ggml-org/Qwen3.5-0.8B-GGUF",
+      "resolved_revision": "8fea620810c4afa23dd6443f999a48574c1611a3",
+      "requested_file": "Qwen3.5-0.8B-Q4_0.gguf",
+      "runtime": "llama.cpp",
+      "quantization": "Q4_0",
+      "bytes": 563036064,
+      "sha256": "57d1997790d1744fba5b40a7317df71ea5e2acee28c47e78f0cce39c0703f8cf"
+    },
+    {
+      "id": "qwen35-2b-q4km",
+      "repository": "lmstudio-community/Qwen3.5-2B-GGUF",
+      "resolved_revision": "bb84e11355a036e28f080c7793fa6d22b7c4e344",
+      "requested_file": "Qwen3.5-2B-Q4_K_M.gguf",
+      "runtime": "llama.cpp",
+      "quantization": "Q4_K_M",
+      "bytes": 1270808032,
+      "sha256": "0bfe35afc9f05b7fac3fa04925e051ac7939a42a8a17ea11afc99701bea826cc"
+    },
+    {
+      "id": "phi4-mini-38b-q4km",
+      "repository": "bartowski/microsoft_Phi-4-mini-instruct-GGUF",
+      "resolved_revision": "7ff82c2aaa4dde30121698a973765f39be5288c0",
+      "requested_file": "microsoft_Phi-4-mini-instruct-Q4_K_M.gguf",
+      "runtime": "llama.cpp",
+      "quantization": "Q4_K_M",
+      "bytes": 2491874688,
+      "sha256": "01999f17c39cc3074afae5e9c539bc82d45f2dd7faa3917c66cbef76fce8c0c2"
+    },
+    {
+      "id": "smollm2-135m-instruct-q4km",
+      "repository": "unsloth/SmolLM2-135M-Instruct-GGUF",
+      "resolved_revision": "9e6855bc4be717fca1ef21360a1db4b29d5c559a",
+      "requested_file": "SmolLM2-135M-Instruct-Q4_K_M.gguf",
+      "runtime": "llama.cpp",
+      "quantization": "Q4_K_M",
+      "bytes": 105454144,
+      "sha256": "ed5fa30c487b282ec156c29062f1222e5c20875a944ac98289dbd242e947f747"
+    },
+    {
+      "id": "llama32-1b-instruct-q4km",
+      "repository": "bartowski/Llama-3.2-1B-Instruct-GGUF",
+      "resolved_revision": "067b946cf014b7c697f3654f621d577a3e3afd1c",
+      "requested_file": "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+      "runtime": "llama.cpp",
+      "quantization": "Q4_K_M",
+      "bytes": 807694464,
+      "sha256": "6f85a640a97cf2bf5b8e764087b1e83da0fdb51d7c9fab7d0fece9385611df83"
+    }
+  ]
+}

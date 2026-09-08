@@ -1,11 +1,12 @@
 # ExactScope specification index
 
-The files in this directory define the v0.1 runtime/data/wire contracts plus clearly labeled product-format drafts. Runtime code must not silently diverge from normative contracts. Product sequencing—weak-model `xs_calc`, compact semantic capability slices, benchmark-first evidence, and native-static/no-import-Wasm primary release scope—is defined in `../docs/CAPABILITY_PRODUCT_ARCHITECTURE.md`, `../docs/PRODUCT_DIRECTION.md`, and `../ROADMAP.md`.
+The files in this directory define the v0.1 runtime/data/wire contracts plus clearly labeled product-format drafts. Runtime code must not silently diverge from normative contracts. The active rc4 flagship is provider-neutral everyday grounding, defined by `GROUNDING_CONTRACT_V0_1.md`, `../docs/GROUNDING_ARCHITECTURE.md`, `../docs/PRODUCT_DIRECTION.md`, and `../docs/BENCHMARK.md`. The existing `xs_calc`/`xs_eval`, capability-slice, native-static and no-import-Wasm specifications remain the retained quantitative subsystem rather than the flagship product definition.
 
 ## Normative specifications
 
 | Document | Authority |
 |---|---|
+| [GROUNDING_CONTRACT_V0_1.md](GROUNDING_CONTRACT_V0_1.md) | Provider-neutral rc4 grounding contract: profile/query/target/provider/evidence/frame/projection semantics, authority, privacy, reproducibility, and benchmark isolation |
 | [NUMERIC_V0_1.md](NUMERIC_V0_1.md) | Decimal representation, lexical grammar, arithmetic, rounding, deterministic kernels |
 | [ERRORS_V0_1.md](ERRORS_V0_1.md) | Stable status codes and failure behavior |
 | [CORE_ABI_V0_1.md](CORE_ABI_V0_1.md) | Logical native C ABI, ownership, structures, and function contract |
@@ -26,13 +27,24 @@ The files in this directory define the v0.1 runtime/data/wire contracts plus cle
 | [BUILD_INPUT_IDENTITY_V0_1.md](BUILD_INPUT_IDENTITY_V0_1.md) | Experimental deterministic record of current-source/toolchain/feature/package inputs; prerequisite metadata, not independent reproducible-build proof |
 | [MODEL_SURFACE_NEGOTIATION_V0_1.md](MODEL_SURFACE_NEGOTIATION_V0_1.md) | Experimental host/build contract for exact tool-schema/grammar/prompt ID, version, and digest negotiation |
 | [OPERATION_REVISION_POLICY_V0_1.md](OPERATION_REVISION_POLICY_V0_1.md) | Active prerelease immutability, revision-bump, transparent-upgrade, and future supported-release-line policy |
-| [RELEASE_BUNDLE_V0_1.md](RELEASE_BUNDLE_V0_1.md) | Experimental deterministic native-static/no-import-Wasm integration archive; packaging contract only, not qualification |
+| [RELEASE_BUNDLE_V0_1.md](RELEASE_BUNDLE_V0_1.md) | Experimental deterministic native-static/no-import-Wasm integration archive with optional SHA-256-bound native `.xsgi` grounding payload; packaging contract only, not qualification |
 | [REPRODUCIBLE_BUILD_COMPARISON_V0_1.md](REPRODUCIBLE_BUILD_COMPARISON_V0_1.md) | Experimental byte-comparison evidence record for two labeled outputs of one pinned build-input identity |
 
 ## Machine-readable schemas
 
 | File | Purpose |
 |---|---|
+| [schemas/grounding-profile-v0.1.schema.json](schemas/grounding-profile-v0.1.schema.json) | Frozen rc4 GroundingProfile behavior/identity shape |
+| [schemas/grounding-query-envelope-v0.1.schema.json](schemas/grounding-query-envelope-v0.1.schema.json) | Host-bound original query, profile and security-scope envelope |
+| [schemas/grounding-routing-plan-v0.1.schema.json](schemas/grounding-routing-plan-v0.1.schema.json) | Router output bound to profile/router identity |
+| [schemas/grounding-target-plan-v0.1.schema.json](schemas/grounding-target-plan-v0.1.schema.json) | Per-target namespace, authority, binding and sufficiency contract |
+| [schemas/grounding-provider-outcome-v0.1.schema.json](schemas/grounding-provider-outcome-v0.1.schema.json) | Typed provider completion/failure outcome and candidates |
+| [schemas/grounding-evidence-item-v0.1.schema.json](schemas/grounding-evidence-item-v0.1.schema.json) | Provider-neutral evidence content and provenance identity |
+| [schemas/grounding-frame-v0.1.schema.json](schemas/grounding-frame-v0.1.schema.json) | Grouped per-target grounding states and approved evidence |
+| [schemas/grounding-source-snapshot-v0.1.schema.json](schemas/grounding-source-snapshot-v0.1.schema.json) | Immutable source/adapter snapshot identity |
+| [schemas/grounding-provider-identity-v0.1.schema.json](schemas/grounding-provider-identity-v0.1.schema.json) | Provider implementation/index/preprocessing/ranking identity |
+| [schemas/grounding-preregistration-v0.1.schema.json](schemas/grounding-preregistration-v0.1.schema.json) | Provider-neutral grounding identity record for profile/source/provider/projection/corpus/model/runtime binding; not the full benchmark-run wrapper |
+| [schemas/grounding-benchmark-preregistration-v0.1.schema.json](schemas/grounding-benchmark-preregistration-v0.1.schema.json) | Benchmark-specific zero-inference wrapper that additionally freezes source commit, evaluation package, planned output, exact model path/hash, llama.cpp runtime/launch/hardware, scorer/config identities, A/G fairness, no-retry/no-repair and pre-inference state |
 | [schemas/xs-find-tool.schema.json](schemas/xs-find-tool.schema.json) | Arguments generated by a model for `xs_find` |
 | [schemas/xs-eval-tool.schema.json](schemas/xs-eval-tool.schema.json) | Arguments generated by a model for `xs_eval` |
 | [schemas/hotset-source.schema.json](schemas/hotset-source.schema.json) | Build-time direct-eval hot-set selection manifest |
@@ -46,6 +58,21 @@ The files in this directory define the v0.1 runtime/data/wire contracts plus cle
 | [schemas/compatibility-manifest.schema.json](schemas/compatibility-manifest.schema.json) | Release target/conformance record; current experimental records may bind exact release/runtime/capability/model-surface identity |
 | [schemas/wearable-edge-profile.schema.json](schemas/wearable-edge-profile.schema.json) | Machine-readable wearable product ceilings, targets, and evidence states |
 | [schemas/wearable-qualification-record.schema.json](schemas/wearable-qualification-record.schema.json) | Target-device qualification record: device identity, artifact digests, latency, energy, footprint, and destructive-test evidence |
+
+## Grounding reference implementation and benchmark assets
+
+The normative grounding contract is provider-neutral. The repository additionally carries one **benchmark reference implementation** so the first candidate can be reproduced without turning that implementation into the universal product contract:
+
+- `../grounding/reference-profile-v0.1/` — frozen small offline exact/lexical profile, provider/index/source identities, merge policy and byte-exact Model Projection fixtures;
+- `../tools/grounding_runtime.py` / `grounding_match.py` — host-side reference router/provider/policy/frame/projection path; it has no benchmark-gold dependency;
+- `../tools/generate_grounding_candidate.py` — deterministic serving/gold candidate generator;
+- `../benchmarks/grounding_dry_run.py` — zero-inference serving replay and scorer-side gold verification;
+- `../benchmarks/grounding_preregister.py` — benchmark-run identity freeze; it verifies actual model/runtime bytes without starting inference;
+- `../benchmarks/run_grounding_benchmark.py` — A/G model runner, gated by a frozen preregistration and supporting `--verify-only` for the pre-inference readiness gate;
+- `../benchmarks/score_grounding.py` — gold-only scorer;
+- `../tools/package_grounding_evaluation.py` / `verify_grounding_package.py` — deterministic clean-room evaluation package and integrity checks.
+
+The reference exact/lexical provider is frozen only for the first benchmark candidate. A vector, application-native, or captured host provider must bind its own implementation/index/scope identity but can reuse the same ProviderOutcome, Evidence Policy and GroundingFrame semantics.
 
 ## Canonical ID registries
 

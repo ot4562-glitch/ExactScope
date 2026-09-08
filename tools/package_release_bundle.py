@@ -41,6 +41,8 @@ FORMAT_VERSION = "0.1"
 SOURCE_COMMIT_RE = re.compile(r"^[a-f0-9]{40}$")
 SAFE_COMPONENT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 AR_MAGIC = b"!<arch>\n"
+GROUNDING_MAGIC = b"XSGI"
+GROUNDING_RELEASE_PATH = "grounding/corpus-index-v1.xsgi"
 RELEASE_SCHEMA = ROOT / "spec/schemas/release-bundle.schema.json"
 MAX_ARCHIVE_MEMBERS = 512
 MAX_ARCHIVE_MEMBER_BYTES = 64 * 1024 * 1024
@@ -171,6 +173,17 @@ def validate_native_input(capability: Path, library: Path) -> tuple[dict[str, An
     return manifest, profile, surface
 
 
+def validate_grounding_input(grounding_index: Path) -> None:
+    if grounding_index.is_symlink() or not grounding_index.is_file():
+        raise ReleasePackagingError("grounding index must be a regular .xsgi file")
+    size = grounding_index.stat().st_size
+    if size <= len(GROUNDING_MAGIC) or size > MAX_ARCHIVE_MEMBER_BYTES:
+        raise ReleasePackagingError("grounding index size is invalid for the release bundle")
+    with grounding_index.open("rb") as handle:
+        if handle.read(len(GROUNDING_MAGIC)) != GROUNDING_MAGIC:
+            raise ReleasePackagingError("grounding index is missing the XSGI magic")
+
+
 def validate_wasm_input(capability: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     manifest, profile, surface = capability_metadata(capability)
     runtime = capability / "runtime.wasm"
@@ -252,6 +265,7 @@ def stage_bundle(
     toolchain: str,
     library: Path | None = None,
     build_inputs: Path | None = None,
+    grounding_index: Path | None = None,
 ) -> tuple[Path, dict[str, Any]]:
     safe_component(target, "target")
     if not SOURCE_COMMIT_RE.fullmatch(source_commit):
@@ -263,9 +277,13 @@ def stage_bundle(
         if library is None:
             raise ReleasePackagingError("native release requires a static library")
         _, profile, surface = validate_native_input(capability, library)
+        if grounding_index is not None:
+            validate_grounding_input(grounding_index)
     elif kind == "no-import-wasm":
         if library is not None:
             raise ReleasePackagingError("Wasm release must use runtime.wasm from the bound capability")
+        if grounding_index is not None:
+            raise ReleasePackagingError("Wasm release does not yet carry the native grounding index")
         _, profile, surface = validate_wasm_input(capability)
     else:
         raise ReleasePackagingError(f"unsupported release kind: {kind}")
@@ -296,6 +314,8 @@ def stage_bundle(
         copy_file(ROOT / "cmake/ExactScopeConfig.cmake", root / "lib/cmake/ExactScope/ExactScopeConfig.cmake")
         runtime_path = f"lib/{target}/{library.name}"
         copy_file(library, root / runtime_path)
+        if grounding_index is not None:
+            copy_file(grounding_index, root / GROUNDING_RELEASE_PATH)
     else:
         copy_file(ROOT / "include/exactscope.h", root / "include/exactscope.h")
         copy_file(ROOT / "include/exactscope_wasm.h", root / "include/exactscope_wasm.h")
@@ -335,6 +355,13 @@ def stage_bundle(
             "path": "build-inputs.json",
             "sha256": files["build-inputs.json"],
             "source_identity_sha256": build_input_document["source_identity_sha256"],
+        }
+    if grounding_index is not None:
+        staged_grounding = root / GROUNDING_RELEASE_PATH
+        manifest["grounding"] = {
+            "path": GROUNDING_RELEASE_PATH,
+            "size_bytes": staged_grounding.stat().st_size,
+            "sha256": files[GROUNDING_RELEASE_PATH],
         }
     validate_release_manifest(manifest)
     (root / "manifest.json").write_bytes(canonical(manifest))
@@ -476,6 +503,20 @@ def verify_extracted(root: Path) -> dict[str, Any]:
                 or profile.get("bindings", {}).get("core_revision") != "sha256:" + build_identity.get("source_identity_sha256", ""):
             raise ReleasePackagingError("embedded build-input source identity mismatch")
 
+    grounding_identity = manifest.get("grounding")
+    grounding_path = None
+    if grounding_identity is not None:
+        if manifest.get("profile") != "native-static" or not isinstance(grounding_identity, dict):
+            raise ReleasePackagingError("grounding payload is only supported by the native-static release")
+        grounding_path = grounding_identity.get("path")
+        if grounding_path != GROUNDING_RELEASE_PATH or grounding_path not in files:
+            raise ReleasePackagingError("release grounding path is invalid")
+        grounding_file = root / grounding_path
+        if grounding_identity.get("sha256") != sha256_file(grounding_file) \
+                or grounding_identity.get("size_bytes") != grounding_file.stat().st_size:
+            raise ReleasePackagingError("release grounding measurement mismatch")
+        validate_grounding_input(grounding_file)
+
     runtime_path = manifest.get("runtime", {}).get("path")
     if not isinstance(runtime_path, str) or runtime_path not in files:
         raise ReleasePackagingError("release manifest runtime path is invalid")
@@ -502,6 +543,8 @@ def verify_extracted(root: Path) -> dict[str, Any]:
             "lib/cmake/ExactScope/ExactScopeConfig.cmake",
             runtime_path,
         }
+        if grounding_path is not None:
+            expected_outer.add(grounding_path)
         if actual_outer != expected_outer:
             raise ReleasePackagingError("native release contains unexpected outer payloads")
         if not runtime.read_bytes().startswith(AR_MAGIC):
@@ -557,13 +600,14 @@ def verify_archive(path: Path) -> dict[str, Any]:
 def build_archive(
     *, kind: str, capability: Path, target: str, source_commit: str, toolchain: str,
     output_dir: Path, library: Path | None = None, build_inputs: Path | None = None,
+    grounding_index: Path | None = None,
 ) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="exactscope-release-stage-") as temporary:
         root, _ = stage_bundle(
             Path(temporary), kind=kind, capability=capability, target=target,
             source_commit=source_commit, toolchain=toolchain, library=library,
-            build_inputs=build_inputs,
+            build_inputs=build_inputs, grounding_index=grounding_index,
         )
         payload = deterministic_archive_bytes(root)
         output = output_dir / f"{root.name}.tar.gz"
@@ -588,6 +632,7 @@ def parse_args() -> argparse.Namespace:
         sub.add_argument("--build-inputs", type=Path)
         if kind == "native-static":
             sub.add_argument("--library", type=Path, required=True)
+            sub.add_argument("--grounding-index", type=Path)
     verify = subparsers.add_parser("verify")
     verify.add_argument("archive", type=Path)
     return parser.parse_args()
@@ -612,6 +657,7 @@ def main() -> int:
             output_dir=args.output_dir,
             library=getattr(args, "library", None),
             build_inputs=getattr(args, "build_inputs", None),
+            grounding_index=getattr(args, "grounding_index", None),
         )
         print(f"PASS release archive={archive} sha256={sha256_file(archive)}")
         return 0

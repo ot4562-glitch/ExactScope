@@ -4,7 +4,11 @@ import path from "node:path";
 import process from "node:process";
 import { loadCapabilityBundle } from "../examples/javascript/capability-host.mjs";
 
-const bundle = path.resolve(process.argv[2] ?? "adapters/capabilities/statistics-core-8-ai-r24");
+const bundleArg = process.argv[2];
+if (!bundleArg) {
+  throw new Error("usage: node tools/test_capability_host.mjs <combined-capability-bundle>");
+}
+const bundle = path.resolve(bundleArg);
 const host = await loadCapabilityBundle(bundle);
 
 const mean = await host.executeTinyJson('{"op":"stats.mean","a":[["1","2","3"]]}');

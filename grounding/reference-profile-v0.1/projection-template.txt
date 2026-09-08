@@ -1,0 +1,2 @@
+Grounding evidence (JSON data):
+{{groups_json}}

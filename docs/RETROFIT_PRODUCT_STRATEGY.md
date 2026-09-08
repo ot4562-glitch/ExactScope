@@ -1,93 +1,98 @@
 # ExactScope retrofit product strategy
 
-> **v1.0.0-rc.3 status:** the bounded `xs_calc` lane, selected semantic capability/profile compiler, Statistics/Economics specialization, model-surface identity and public packaging are implemented code-side. Model uplift and representative real-target qualification remain evidence work and are intentionally deferred to the external-user qualification session.
+> **Current status:** v1.0.0-rc.3 external-user qualification is complete and frozen. It confirmed the package/core path but showed that model-visible tool protocols and prompt cost are first-order constraints. Active rc4 design therefore pivots the flagship product to provider-neutral everyday grounding: original-question prefetch, compact Grounding Frames, explicit authority modes, and one-call small-model answering. Representative physical ARM64 RAM/latency/energy/thermal qualification remains NOT MEASURED.
 >
-> See [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) for the active product-unit/build-vs-buy architecture and [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md) for the rc3 evidence procedure.
+> See [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md) and [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md) for the active flagship architecture. [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) and [`MODEL_INTERFACE_RC4.md`](MODEL_INTERFACE_RC4.md) remain quantitative-subsystem references; [`RC3_QUALIFICATION_CLOSEOUT.md`](RC3_QUALIFICATION_CLOSEOUT.md) records completed rc3 evidence.
 
 ## 1. Product thesis
 
-ExactScope is a **tiny deterministic quantitative coprocessor for small and on-device AI**.
+ExactScope is a **tiny grounding and deterministic capability layer for small and on-device AI**.
 
-Its primary product value is more specific:
+Its primary product value is:
 
-> **Upgrade constrained on-device AI through software instead of requiring a hardware upgrade for every quantitative capability gap.**
+> **Upgrade an existing small model's everyday factual reliability through software instead of requiring a larger model, larger context, heavyweight remote RAG stack, or immediate hardware replacement.**
 
-Many deployed AI devices have hard limits on model size and inference cost: memory capacity, memory bandwidth, accelerator capability, storage, thermal budget, battery budget, latency, and product qualification constraints. Better models, quantization, distillation, prompting, routing, and orchestration can improve an existing device, but eventually some capability gaps remain expensive to solve by making the model larger.
+Many deployed AI devices have hard limits on model size and inference cost: memory capacity, memory bandwidth, accelerator capability, storage, thermal budget, battery budget, latency, and qualification constraints. Better models, quantization, distillation and prompting help, but small models still forget, confuse, stale, or invent facts that a compact local evidence layer can provide more cheaply.
 
-ExactScope targets that gap.
-
-It does not try to make the model generally more intelligent. It removes a narrow class of work that is a poor use of scarce model capacity: bounded deterministic quantitative execution.
+ExactScope targets that gap first. It does not claim to make model weights generally more intelligent. It moves factual grounding outside the weights and, where appropriate, keeps deterministic calculation outside model reasoning as a secondary capability.
 
 ```text
 existing device
   + existing small/local model
-  + tiny ExactScope component delivered in software
-  = stronger quantitative capability without replacing the device
+  + tiny provider-neutral grounding layer
+  + optional deterministic calculation layer
+  = better everyday factual reliability without replacing the device
 ```
 
-This is a **capability retrofit** strategy, not a calculator-app strategy. The runtime user is the AI model/system itself. A developer or OEM engineer integrates ExactScope into the product; a human end user should not have to install, configure, browse, or invoke ExactScope directly.
+This is a **capability retrofit** strategy, not a calculator-app or giant RAG-framework strategy. A developer or OEM engineer integrates ExactScope into the product; a human end user should experience more reliable answers without explicitly invoking an "ExactScope tool."
 
 ## 2. The customer problem
 
 The important customer is not only a developer building a new model stack. It is also an OEM or product team with devices already designed, qualified, shipped, or physically constrained.
 
-When the on-device model is weak on a deterministic quantitative task, the usual options include:
+When the on-device model is weak on ordinary factual questions, the usual options include:
 
 1. ship a larger/newer model if the hardware can support it;
-2. wait for a better compressed model;
-3. send the task to a cloud service;
-4. improve prompts, routing, context, or tool use;
-5. defer the capability to the next hardware generation.
+2. increase context or bundle large documents into prompts;
+3. add a heavyweight vector/RAG stack;
+4. send the question to a cloud/search service;
+5. improve prompts, tool routing or fine-tuning;
+6. defer the capability to the next hardware generation.
 
 ExactScope adds another option:
 
-6. **retrofit the existing AI stack with a very small deterministic coprocessor.**
+7. **retrofit the existing AI stack with a small provider-neutral grounding layer that supplies only the evidence needed for the current question.**
 
-The product hypothesis is therefore not merely "external calculation can help an LLM." The hypothesis is:
+The product hypothesis is therefore not merely "RAG can help an LLM" or "external calculation can help an LLM." The hypothesis is:
 
-> **For constrained on-device models, can a tiny bounded coprocessor remove enough quantitative error at sufficiently low binary, RAM, token, latency, energy, integration, and qualification cost that the existing hardware remains useful for capabilities that would otherwise push toward a larger model or newer device?**
+> **For constrained on-device models, can compact high-precision grounding materially raise everyday factual accuracy and reduce wrong-confident answers at sufficiently low storage, RAM, token, latency, energy, integration and qualification cost that the existing hardware remains useful?**
 
-That is the proposition every major benchmark and release decision must test.
+That is the proposition every major benchmark and release decision must test. Quantitative capability is a secondary value layer inside the same retrofit thesis.
 
 ## 3. What ExactScope is not
 
 ExactScope is not:
 
-- a calculator UI;
-- a general Python replacement;
-- a symbolic algebra system;
+- a chatbot UI;
+- a universal web search engine;
+- a full enterprise RAG/orchestration platform;
+- a model training/fine-tuning framework;
+- a truth oracle for arbitrary conflicting internet claims;
+- a calculator UI, general Python replacement or symbolic algebra system;
 - an MCP server as the core product;
-- an AI model;
-- a model fine-tuning framework;
-- a cloud calculation service;
+- a mandatory cloud service;
 - a general code interpreter;
-- a claim that all hardware upgrades can be avoided.
+- a claim that all hallucinations or hardware upgrades can be avoided.
 
-Some AI limitations are recognition, world knowledge, planning, perception, language understanding, memory, or model-capacity problems. ExactScope must not pretend to solve them.
+Some AI limitations are perception, deep planning, language understanding, generation quality or raw model capacity. ExactScope does not pretend to solve them.
 
-Its authority is deliberately narrow: **validated deterministic quantitative execution after the model or host has selected/extracted the required quantities and semantics.**
+Its flagship authority is deliberately narrower: **bind a user question to a small, scoped, provenance/revision-aware evidence frame under explicit source authority rules.** The quantitative subsystem separately provides validated deterministic execution where calculation is the actual failure mode.
 
 ## 4. Target insertion point
 
-The desired OEM integration is intentionally small.
+The desired OEM integration is intentionally small and normally runs **before** the model answer call.
 
 ```text
 sensor / user input
         |
         v
-small on-device model
+Grounding Router
         |
-        | structured quantitative request
         v
-ExactScope
+configured source/provider set
         |
-        | exact result or explicit failure
         v
-small on-device model / host renderer
+Evidence Policy
+        |
+        | compact Grounding Frame
+        v
+small on-device model -- one answer call
         |
         v
 user response / product action
 ```
+
+If the request also needs deterministic arithmetic or a reviewed quantitative method, the host may invoke `xs_calc`/`xs_eval` as a separate bounded lane. Ordinary factual questions should not be forced through that path.
 
 ExactScope must not require a replacement model, fine-tuning step, daemon, network connection, account, Python runtime, or target-side package manager.
 

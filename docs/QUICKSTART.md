@@ -1,178 +1,174 @@
-# ExactScope v1.0.0-rc.3 quickstart
+# ExactScope v1 quickstart
 
-ExactScope is a tiny deterministic quantitative capability component for small and on-device AI. `v1.0.0-rc.3` is an **integration & qualification candidate**: code-side implementation and packaging are intended to be usable, while model and real-device qualification are deliberately performed from the published release in a later session.
+ExactScope v1 is a lightweight native grounding runtime and accuracy retrofit layer for small, local, and on-device AI. The stable public software scope is the **Linux x86-64 native C ABI grounding package**. It does not require a model replacement, fine-tuning, an agent loop, a network service, or Python on the deployed target.
 
-## 1. Prefer the release asset when evaluating as a user
+ARM64/wearable hardware remains an important design target, but physical ARM64 RAM, latency, energy, and thermal qualification has not been performed. Do not inherit x86-64 measurements as wearable claims.
 
-Choose only an asset that actually appears on the GitHub `v1.0.0-rc.3` release page:
+## 1. Download the stable grounding package
 
-| Platform | Asset role |
-|---|---|
-| Windows x86-64 | evaluation SDK for local-AI/model integration |
-| Linux x86-64 | evaluation SDK for local-AI/model integration |
-| Android ARM64 | OEM/edge static SDK |
-| Linux ARM64 musl | embedded/wearable static SDK |
-
-Download `SHA256SUMS` and `release-manifest.json` with the archive. Verify the outer checksum before extraction, then inspect the bundle's own `manifest.json` and `SHA256SUMS`.
-
-The prebuilt evaluation SDK is designed to avoid a Rust build requirement for first integration. It includes a native static library, local core bridge, no-import Wasm, headers/CMake metadata, examples, constrained model-facing assets, qualification documentation, model-download metadata/tooling, licenses, and hashes.
-
-See [EVALUATION_BUNDLE.md](EVALUATION_BUNDLE.md) for archive details.
-
-## 2. Pick the smallest AI-facing lane
+From the GitHub release page, download:
 
 ```text
-small / on-device model
-        |
-        +-- knows arithmetic decomposition --> xs_calc --> ExactScope
-        |
-        +-- needs reviewed method -----------> xs_eval --> ExactScope
-        |
-        `-- operation genuinely unknown -----> xs_find  (optional cold/dev path)
+exactscope-grounding-1.0.0-x86_64-unknown-linux-gnu.tar.gz
+SHA256SUMS
+release-manifest.json
 ```
 
-Use fewer model-visible choices whenever possible. `xs_find` is not a mandatory serving hop.
+Verify the outer SHA-256 before extraction, then inspect the archive's own `manifest.json` and `SHA256SUMS`.
 
-### `xs_calc`
+The default archive intentionally contains no universal knowledge base and no large benchmark corpus. It ships a tiny demonstration-only provider so the integration path can be exercised immediately.
 
-Plan v0.1 accepts at most eight backward-referencing steps over:
+## 2. Compile the native C11 demo
+
+From the extracted archive root:
+
+```bash
+cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
+  -Iinclude \
+  examples/c/grounding.c \
+  lib/x86_64-unknown-linux-gnu/libexactscope_cabi.a \
+  -o grounding-demo
+```
+
+The standalone static profile requires the host `xs_platform_panic_abort` symbol; the bundled example supplies it.
+
+## 3. Query the demonstration provider
+
+```bash
+./grounding-demo grounding/sample-index-v1.xsgi warranty period
+./grounding-demo grounding/sample-index-v1.xsgi battery level
+```
+
+Expected evidence includes:
 
 ```text
-add  sub  mul  div  powi  sqrt
+The demo warranty period is 24 months.
+The demo device battery level is 73 percent.
 ```
 
-Example request:
+This proves the extracted public C ABI + static library + immutable XSGI path. It is not a benchmark and the tiny demo provider is not intended for real-world knowledge coverage.
 
-```json
-{"p":[{"o":"mul","a":["12","7"]},{"o":"sub","a":["#0","4"]},{"o":"div","a":["#1","5"]}]}
+## 4. Build deployment-specific provider data
+
+The compiler lives in the source repository and is off-target tooling:
+
+```bash
+python3 tools/grounding_corpus.py build \
+  --input-dir ./my-docs \
+  --output ./my-corpus.json
+
+python3 tools/grounding_corpus.py compile-binary \
+  --index ./my-corpus.json \
+  --output ./my-corpus.xsgi
 ```
 
-Expected canonical result:
+The current compiler accepts deterministic `.txt`/`.md` corpus inputs. The native runtime binds the resulting immutable `.xsgi` bytes, validates their structure/CRC, performs bounded deterministic retrieval, and produces compact evidence projection.
 
-```json
-{"s":0,"v":"16","f":0,"p":"plan-v0.1","r":1}
-```
+Provider data is deployment-specific. Count its size in the footprint of the deployment that actually uses it; do not pretend the benchmark NQ index is part of the generic runtime install.
 
-### `xs_eval`
+## 5. Integrate the C ABI
 
-Use a generated selected capability for reviewed domain methods. The model should see only operations needed by the task family, not the whole maintenance catalog. Decimal inputs are strings at the Tiny JSON boundary so host JSON parsing does not silently change the value.
-
-## 3. Native C integration
-
-Public header:
+The normal native lifecycle is:
 
 ```text
-include/exactscope.h
+load immutable .xsgi bytes
+  -> xs_grounding_index_size / xs_grounding_index_align
+  -> caller allocates aligned opaque handle storage
+  -> xs_grounding_index_init
+  -> caller allocates one scratch cell per document
+  -> normalize/tokenize query under compiler-compatible contract
+  -> xs_grounding_index_search
+  -> xs_grounding_index_project
+  -> host applies authority / policy / answer disposition
+  -> model only when generation is still necessary
 ```
 
-The release archive contains a target static library. `examples/xs_calc.c` demonstrates caller-owned context and a typed bounded-plan call. On Unix-like hosts the pattern is:
+Important ownership rules:
 
-```sh
-cc -std=c11 -Wall -Wextra -Werror -pedantic \
-  -Iinclude examples/xs_calc.c \
-  lib/<target>/libexactscope_cabi.a \
-  -o xs-calc
-./xs-calc
-```
+- the `.xsgi` backing bytes remain readable and immutable for the index-handle lifetime;
+- query tokens passed to the C ABI are already normalized/tokenized;
+- search scratch and hit/projection output are caller-owned;
+- the native search/projection core does not assign application authority;
+- the native core does not open files, make network requests, or invoke a model.
 
-Expected output: `16`.
+See [`../include/exactscope.h`](../include/exactscope.h) and [`INSTALLATION.md`](INSTALLATION.md).
 
-Windows consumers link the packaged `exactscope_cabi.lib`. Do not assume a native target is supported if no matching release archive exists.
+## 6. Add Grounding Contract semantics
 
-## 4. Wasm integration
-
-The evaluation SDK includes a no-import WebAssembly artifact and a dependency-free JavaScript example. The generic source-build path is:
-
-```powershell
-cargo build --locked --release -p exactscope-wasm --target wasm32v1-none --no-default-features --features fused,tinyjson
-python tools/inspect_wasm.py target/wasm32v1-none/release/exactscope_wasm.wasm
-node examples/javascript/wasm-xs-calc.mjs target/wasm32v1-none/release/exactscope_wasm.wasm
-```
-
-The **release archive** ships two complete artifact-bound evaluation capabilities and one archive-local host:
+The native runtime is the deterministic retrieval/projection core. Product behavior also needs the Grounding Contract around it:
 
 ```text
-capabilities/quant-core-16-semantic-ai/   # xs_eval only
-capabilities/quant-core-16-combined-ai/   # xs_eval + xs_calc
-examples/capability-host.mjs
+original user question
+  -> application/security scope
+  -> bounded retrieval provider(s)
+  -> ProviderOutcome(s)
+  -> evidence policy
+       authority
+       coverage
+       freshness/revision
+       ambiguity
+       conflict
+       budget
+  -> GroundingFrame
+  -> authoritative unresolved? host disposition, 0 model calls
+  -> canonical scalar? host value, 0 model calls
+  -> otherwise compact projection + at most one answer-generation call
 ```
 
-The host verifies `manifest.json`, `bundle-sha256.txt`, `profile.json`, `surface-contract.json`, every bound model-surface digest, and the exact `runtime.wasm` before execution. From the extracted archive:
+Authoritative `none` means required source coverage completed and found no usable evidence. Timeout/error/denied/incomplete coverage is `unavailable`, not `none`. Unresolved contradictions remain `conflict` and unresolved candidates remain `ambiguous`.
 
-```sh
-node examples/capability-host.mjs \
-  capabilities/quant-core-16-semantic-ai \
-  '{"op":"stats.mean","a":[["1","2","3"]]}'
+See [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md) and [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md).
+
+## 7. llama.cpp integration
+
+ExactScope does not own the inference engine. A local llama.cpp deployment can remain the answer-generation runtime.
+
+The maintained reference adapter is:
+
+```text
+adapters/llama-cpp/grounding_v1.py
 ```
 
-The source checkout path is `examples/javascript/capability-host.mjs`; the packaged path above is intentionally shorter and is the path to use when evaluating a GitHub release.
+It connects only to an already-running loopback OpenAI-compatible llama.cpp endpoint. Its calibrated path can complete authoritative unresolved or single canonical-scalar cases in the host and use at most one model answer call for the remaining cases.
 
-## 5. llama.cpp / local-model qualification
+See [`../adapters/llama-cpp/README.md`](../adapters/llama-cpp/README.md) and [`AI_INTEGRATION.md`](AI_INTEGRATION.md).
 
-The evaluation archive includes `benchmarks/run_qualification.py` and its stdlib-only capability verifier. The qualification runner has two separate phases:
+## 8. Reproduce the release package from source
 
-```sh
-python benchmarks/run_qualification.py preregister --help
-python benchmarks/run_qualification.py run --help
+```bash
+cargo build -p exactscope-cabi --release --features standalone-staticlib
+
+python3 tools/grounding_corpus.py build \
+  --input-dir examples/grounding/sample-docs \
+  --output target/sample-corpus.json
+
+python3 tools/grounding_corpus.py compile-binary \
+  --index target/sample-corpus.json \
+  --output target/sample-index-v1.xsgi
+
+python3 tools/package_grounding_runtime.py build \
+  --library target/release/libexactscope_cabi.a \
+  --sample-index target/sample-index-v1.xsgi \
+  --target x86_64-unknown-linux-gnu \
+  --source-commit <40-hex-commit> \
+  --toolchain <toolchain-id> \
+  --output-dir dist
 ```
 
-`preregister` performs **zero inference calls** and freezes the release archive SHA-256, model bytes/revision/SHA-256, llama.cpp executable SHA/version/launch command, corpus, core, semantic/combined capability identities, seed, generation budget, timeout, scoring rules, and no-retry policy. `run` refuses to start if any frozen byte identity has changed and writes one immutable single-writer evidence directory.
+Then verify and clean-room test the final archive:
 
-The frozen comparison is:
+```bash
+python3 tools/package_grounding_runtime.py verify \
+  dist/exactscope-grounding-1.0.0-x86_64-unknown-linux-gnu.tar.gz
 
-- **A** — model only, no ExactScope tool;
-- **C** — `capabilities/quant-core-16-semantic-ai`, exact `xs_eval` only;
-- **D** — `capabilities/quant-core-16-combined-ai`, exact `xs_eval + xs_calc` surface.
-
-The benchmark corpus is semantic, so D must choose `xs_eval` for supported corpus items; choosing `xs_calc` is preserved as a wrong-lane failure even if a coincidental arithmetic result is numerically correct. There are no hidden retries or answer repair.
-
-Developer checkouts still contain the narrower `adapters/llama-cpp/` protocol-adapter self-tests, but release qualification does not depend on those source-only paths. Follow [AI_INTEGRATION.md](AI_INTEGRATION.md) and [QUALIFICATION_HANDOFF.md](QUALIFICATION_HANDOFF.md). Do not reuse older model scores as rc3 evidence.
-
-## 6. Source checkout sanity checks
-
-When developing rather than evaluating the published release:
-
-```powershell
-cargo check --workspace --all-targets
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace --lib
-py -3 tools/generate_statistics_metadata.py --check
-py -3 tools/generate_domain_metadata.py --check
-py -3 tools/validate_design.py
-py -3 tools/audit_security_surface.py
+python3 tools/test_grounding_runtime_bundle.py \
+  dist/exactscope-grounding-1.0.0-x86_64-unknown-linux-gnu.tar.gz
 ```
 
-These prove code/build contracts, not model uplift or target-device qualification.
+The clean-room test extracts the final archive and recompiles/runs the C11 demo using only files from that extracted package.
 
-## 7. Download the planned benchmark models without running them
+## 9. Secondary quantitative subsystem
 
-Keep weights outside the repository:
+The repository still contains the earlier deterministic `xs_calc` / `xs_eval` capability subsystem and the historical rc3 evaluation SDK machinery. Those are retained capabilities and evidence, not the flagship v1 grounding product boundary.
 
-```powershell
-py -3 -m pip install -r requirements-benchmark.txt
-py -3 tools/fetch_benchmark_models.py --list
-py -3 tools/fetch_benchmark_models.py core --root C:\AIModels\ExactScopeBench
-```
-
-The downloader resolves repository revisions and records file SHA-256 values in `model-inventory.json`. It does not launch inference.
-
-See [the minimum model matrix](../benchmarks/NEXT_MODEL_MATRIX.md) before adding more models.
-
-## 8. Fail closed
-
-Adapters may normalize transport syntax. They may not:
-
-- invent a missing value;
-- silently convert a percentage/unit/currency without a declared contract;
-- swap argument meaning;
-- choose a statistical/economic method by guess;
-- recompute or repair the deterministic result;
-- turn a typed failure into a plausible number.
-
-The product boundary is valuable precisely because it can return a deterministic typed failure instead of guessing.
-
-## 9. Before claiming the product is qualified
-
-Use [QUALIFICATION_HANDOFF.md](QUALIFICATION_HANDOFF.md). The next session must start from the immutable GitHub rc3 release, bind every result to exact artifact/model/runtime/corpus identities, and then measure a representative real ARM64 target before making target RAM/latency/energy claims.
-
-Historical r20 Statistics model evidence belongs to an older runtime and is not rc3 evidence.
+Do not transfer old rc3 model scores or ARM64 package checks into v1 grounding claims. New claims stay bound to the exact runtime/provider/model/device evidence that produced them.

@@ -1,22 +1,34 @@
 # ExactScope architecture baseline v0.1
 
-This document defines the runtime architecture. Product priority is defined in `PRODUCT_DIRECTION.md`, while `CAPABILITY_PRODUCT_ARCHITECTURE.md` defines the next-stage product unit and capability-slice architecture. Where older wording conflicts, shared-core invariants remain binding while product sequencing follows those documents.
+This document defines the runtime architecture. Product priority is defined in `PRODUCT_DIRECTION.md`; [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md) and [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md) define the active rc4 grounding architecture; `CAPABILITY_PRODUCT_ARCHITECTURE.md` and `MODEL_INTERFACE_RC4.md` remain valid for the quantitative capability lanes. Where older wording conflicts, the grounding contract governs the flagship rc4 product path while shared deterministic-core invariants remain binding.
 
 ## 1. System boundary
 
-ExactScope is a deterministic quantitative execution component embedded inside another AI system.
+ExactScope is a compact grounding and deterministic-capability component embedded inside another AI system.
 
 The host owns:
 
 - model inference and natural-language understanding;
 - sensor/UI input and output;
-- extraction of candidate values from the request;
-- model/tool routing;
-- capability-slice/hot-set selection and cache binding;
-- optional discovery invocation;
-- storage, updates, authentication/signature policy, and lifecycle.
+- user/application/tenant scope and access control;
+- source registration, storage, updates, signatures and lifecycle;
+- optional network/search/vector providers;
+- final model invocation and answer rendering.
 
-ExactScope owns:
+The ExactScope grounding layer owns the provider-neutral logical contract between a scoped user query and a deterministic model projection:
+
+- immutable GroundingProfile and router identity;
+- factual TargetPlan identity and per-target/source authority (`authoritative` vs `supplemental`);
+- explicit provider/source bindings and required coverage/sufficiency;
+- typed ProviderOutcome including complete no-hit versus timeout/error/denied/budget/incomplete coverage;
+- revision/freshness/validity policy;
+- deterministic dedup/merge/order/tie-break and conflict/ambiguity policy;
+- evidence/model-context budgets;
+- stable source/item/revision/content identity;
+- target-grouped `grounded/none/ambiguous/conflict/unavailable` states;
+- deterministic Model Projection identity and data-versus-instruction boundary.
+
+The existing deterministic quantitative layer owns:
 
 - exact operation identity;
 - input count/type/semantic/constraint validation;
@@ -26,60 +38,100 @@ ExactScope owns:
 - stable status/error codes;
 - pack/operation provenance.
 
-ExactScope does not own model inference, retrieval, forecasting, live market/economic data, arbitrary code execution, or general symbolic reasoning.
+ExactScope does not own model inference, arbitrary code execution, unrestricted network browsing, user authentication, or a universal truth-ranking algorithm. Retrieval implementations may be local, vector-based, application-native, or host/network provided as long as they map into the Grounding Contract and expose a frozen identity for qualification.
 
 ## 2. Product call paths
 
-The architecture has two current model-facing execution paths: bounded generic `xs_calc` arithmetic and reviewed semantic `xs_eval`. Both converge on the same deterministic core.
+The flagship rc4 path is **grounding before generation**, not model-selected tool invocation.
 
 ```text
-                         small/local model
-                                |
-                 +--------------+--------------+
-                 |                             |
-                 v                             v
-        generic short arithmetic       known semantic method
-                 |                             |
-                 v                             v
-        xs_calc(bounded plan)            xs_eval(op,args)
-      IMPLEMENTED / EXPERIMENTAL       IMPLEMENTED / REVIEWED
-                 |                             |
-                 +--------------+--------------+
-                                |
-                                v
-                     ExactScope shared core
+original user question + host security/application scope
+    |
+    v
+Grounding Router -> TargetPlan(s)
+    |
+    +--> exact/lexical provider
+    +--> optional semantic/vector provider
+    +--> optional application/network provider
+    |
+    v
+ProviderOutcome(s)
+    |
+    v
+Evidence Policy
+    |
+    +--> required coverage / sufficiency
+    +--> target-scoped authority
+    +--> freshness / revision / validity
+    +--> deterministic merge / order / tie-break
+    +--> ambiguity / conflict
+    +--> evidence/context budget
+    |
+    v
+grouped GroundingFrame
+    |
+    v
+deterministic Model Projection
+    |
+    v
+small/local model called once
+    |
+    v
+final answer
 ```
 
-### 2.1 Current experimental `xs_calc` plan path
+The normal prefetch profile does not require the model to choose a retrieval tool, operation, or provider. Providers and target/source bindings are host/profile configuration, and the original user question is the default query.
 
-`xs_calc` is implemented as a single model turn followed by one bounded deterministic execution. Plan v0.1 contains at most eight arithmetic steps and only a fixed vocabulary (`add`, `sub`, `mul`, `div`, `powi`, `sqrt`). Previous-result references are backward-only. Loops, arbitrary branches, variables, arbitrary functions, arbitrary expression text, and arbitrary code are forbidden.
+### 2.1 Grounding prefetch path — default rc4 product path
 
-The plan path must lower into the existing bounded VM/numeric kernel. It must not create a second arithmetic semantics.
+The host establishes effective security/application scope, creates a QueryEnvelope, and routes the original question into bounded factual TargetPlans before answer generation. Providers return typed outcomes per target. Evidence Policy converts those outcomes into one **grouped** GroundingFrame and a deterministic compact Model Projection. A model-generated query rewrite is optional and belongs to a separate profile because it adds model tokens/latency and a new failure mode.
 
-### 2.2 Existing `xs_eval` semantic path
+The grounding path is provider-neutral. Exact/alias lookup is a minimum deterministic baseline, not the universal retrieval algorithm. Product integrations may use compact lexical search, a frozen embedding index, application-native memory, or captured host/network results as long as provider identity, source/security scope, target authority/coverage, evidence identity, merge policy and projection identity are frozen for qualification. Authoritative `none` is legal only after required/sufficient authoritative coverage completes successfully; provider timeout/error/denial/budget exhaustion/incomplete coverage remains `unavailable`.
 
-`xs_eval` remains a first-class hot path for reviewed operations whose identity carries method or domain semantics. Examples include sample versus population statistics and economics operations. A fixed product may bind these operations ahead of time.
+### 2.2 Quantitative `xs_calc` path
 
-### 2.3 `xs_find` cold/development path
+`xs_calc` remains a bounded deterministic arithmetic lane. Plan v0.1 contains at most eight arithmetic steps and only a fixed vocabulary (`add`, `sub`, `mul`, `div`, `powi`, `sqrt`). Previous-result references are backward-only. Loops, arbitrary branches, variables, arbitrary functions, arbitrary expression text, and arbitrary code are forbidden.
 
-`xs_find` remains a discovery helper for unknown semantic operations and developer/setup workflows. It is no longer treated as a primary tiny-model serving path. Successful discovery may still be cached against registry/pack digest and operation revision.
+The plan path lowers into the existing bounded VM/numeric kernel and must not create a second arithmetic semantics.
+
+### 2.3 Quantitative `xs_eval` path
+
+`xs_eval` remains a first-class path for reviewed operations whose identity carries method or domain semantics. It is useful when a factual question becomes a deterministic calculation after grounding or when a product genuinely needs a reviewed quantitative capability.
+
+### 2.4 `xs_find` cold/development path
+
+`xs_find` remains operation discovery for the quantitative subsystem. It is not the factual-memory contract and is not a mandatory serving hop.
 
 ## 3. Model-surface architecture
 
-A constrained product should expose the smallest useful surface rather than the full catalog.
+The grounding design reduces the normal model-visible surface rather than adding another broad tool catalog.
 
 ```text
-ordinary short arithmetic
-        -> one bounded xs_calc schema/grammar
+ordinary factual question
+        -> host-side prefetch
+        -> grouped GroundingFrame
+        -> deterministic compact Model Projection
+        -> one model answer call
 
-reviewed domain methods
-        -> compact xs_eval capability slice
+question requiring retrieval rewrite
+        -> optional constrained rewrite profile
+        -> Providers / Policy / grouped Frame / Projection
+        -> model answer
 
-unknown semantic operation
-        -> optional xs_find cold/development path
+short arithmetic
+        -> constrained xs_calc request grammar
+        -> optional native xs_calc tool envelope
+
+reviewed quantitative method
+        -> constrained xs_eval request grammar over a compact capability slice
+        -> optional native xs_eval tool envelope
 ```
 
-A semantic hot set may still generate compact catalog/hints, OpenAI-compatible tool assets, GBNF, digest bindings, and typed operation IDs. The full catalog remains host/tooling metadata and should not be injected into a tiny-model prompt by default.
+The common factual path exposes **target-scoped evidence and state, not retrieval internals**. Similarity scores, embedding vectors, security-scope IDs, full source catalogs, provider schemas, rejected candidates, and large audit metadata remain host-side. The Model Projection renderer/template is deterministic and identity-bound because wording/order can change weak-model behavior.
+
+For quantitative capability calls, constrained JSON/GBNF remains the universal model-facing compatibility baseline and native tools remain optional when proven by pre-inference runtime metadata.
+
+A fail-closed signal in either subsystem must preserve its exact scope and meaning. An authoritative target in `none/ambiguous/conflict/unavailable` state is not permission to invent that protected value, but an unrelated supplemental target may still use normal model knowledge according to host policy. A typed deterministic calculation rejection likewise must not be converted into a plausible result.
 
 ## 4. Strict semantic core and adapter boundary
 
@@ -94,7 +146,7 @@ Adapters may normalize transport syntax, but may not:
 - choose ambiguous methods;
 - turn an ExactScope error into a plausible number.
 
-This separation is central to benchmark design: the project must measure whether constrained decoding/hot sets make strict validation practical for small models.
+This separation is central to benchmark design: the grounding path must measure routing/retrieval/policy/model failures independently while preserving A/G one-call fairness, and the retained quantitative subsystem must continue to measure request-selection/validation failures separately from deterministic core correctness.
 
 ## 5. Workspace boundaries
 

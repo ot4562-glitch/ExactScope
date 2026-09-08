@@ -1,0 +1,1 @@
+{"id":"local-json-v1","io":"Only digest-bound local source/index assets. No network, environment expansion, symlinks or external paths.","item_identity":"Explicit source_id/item_id/source_revision tuple; reject duplicates.","revision":"Opaque nonempty string; equality only. Never parse as time, version or digest.","scope":"reference-public"}

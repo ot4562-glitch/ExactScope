@@ -50,6 +50,16 @@
         "source_identity_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
       }
     },
+    "grounding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "size_bytes", "sha256"],
+      "properties": {
+        "path": {"const": "grounding/corpus-index-v1.xsgi"},
+        "size_bytes": {"type": "integer", "minimum": 1},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
     "files": {
       "type": "object",
       "minProperties": 1,

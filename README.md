@@ -2,302 +2,571 @@
 
 # ExactScope
 
-### Tiny deterministic quantitative capability layers for small and on-device AI
+### Make small, local, and on-device AI more accurate — without replacing the model.
 
-**Add reviewed quantitative capability without replacing the model.**
+**A lightweight grounding runtime and AI accuracy retrofit layer for small LLMs, local AI, edge AI, and on-device models.**
 
-[![Release](https://img.shields.io/badge/release-v1.0.0--rc.3-orange)](https://github.com/ot4562-glitch/ExactScope/releases/tag/v1.0.0-rc.3)
-![Status](https://img.shields.io/badge/status-integration%20%26%20qualification%20candidate-yellow)
-![ABI](https://img.shields.io/badge/C%20ABI-1.0-informational)
-![Wasm](https://img.shields.io/badge/Wasm-no--import-success)
+No fine-tuning. No model replacement. No mandatory agent loop. No heavyweight RAG stack.
 
-**Code-side implementation is complete for the active Statistics/Economics architecture. Model and real-device qualification for rc.3 are intentionally unmeasured until the public release is evaluated as an external user.**
+> **Keep the model you already have. Move factual uncertainty outside the model.**
 
-[Quickstart](docs/QUICKSTART.md) · [AI integration](docs/AI_INTEGRATION.md) · [Qualification handoff](docs/QUALIFICATION_HANDOFF.md) · [한국어 요약](#한국어-요약)
+[Releases](https://github.com/ot4562-glitch/ExactScope/releases) · [30-second quickstart](#30-second-native-demo) · [Benchmark evidence](#benchmark-evidence) · [Grounding Contract](spec/GROUNDING_CONTRACT_V0_1.md) · [Architecture](docs/GROUNDING_ARCHITECTURE.md)
+
+[![Release](https://img.shields.io/github/v/release/ot4562-glitch/ExactScope)](https://github.com/ot4562-glitch/ExactScope/releases)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
+[![Rust](https://img.shields.io/badge/native-Rust%20%2B%20C%20ABI-orange.svg)](crates/exactscope-grounding)
+[![Grounding](https://img.shields.io/badge/runtime-no__std%20%7C%20allocation--free-informational.svg)](crates/exactscope-grounding)
 
 </div>
 
 ---
 
-## What ExactScope is
+## Why ExactScope?
 
-ExactScope is a **small model-adjacent quantitative coprocessor** for constrained/local AI. It is intended for OEMs, device makers, embedded-AI teams, and local-inference developers who already have a small model but need a narrow deterministic numerical capability without replacing the whole model or hardware stack.
+Small language models are now useful enough to run on laptops, phones, robots, embedded systems, smart glasses, and other constrained devices. Factual reliability is still a hard problem.
 
-It is not a chatbot, hosted API, general scientific runtime, or human calculator application.
+A small model often has to answer from imperfect model memory. When the fact is missing, stale, private, device-specific, or simply outside the model's capacity, the model can still produce a plausible answer with confidence.
 
-The product idea is:
+The usual fixes are expensive or invasive:
+
+- replace the model with a larger one;
+- send requests to a cloud model;
+- increase the context window;
+- build a full RAG platform;
+- add an agent/tool-calling loop;
+- fine-tune and qualify a new model.
+
+ExactScope takes a different approach:
+
+> **Instead of asking the model to become better at handling facts, ExactScope moves factual grounding into a small deterministic runtime outside the model.**
 
 ```text
-existing small model
-      |
-      | tiny constrained request
-      v
-+--------------------+
-| ExactScope surface |
-|  xs_calc / xs_eval |
-+--------------------+
-      |
-      v
-bounded deterministic core
-      |
-      v
-canonical decimal result or typed failure
+User question
+     |
+     v
+Application / security scope
+     |
+     v
+ExactScope grounding
+     |
+     +--> retrieve bounded evidence
+     +--> apply authority / coverage / freshness policy
+     +--> preserve none / ambiguity / conflict / unavailable states
+     +--> resolve deterministic facts when possible
+     `--> project only the evidence the model needs
+                    |
+             0 model calls when
+             the host can decide
+                    |
+             otherwise at most
+             1 answer-generation call
+                    v
+              existing small LLM
 ```
 
-The important constraint is **small surface, not broad catalog**. A weak model should see the fewest choices needed for its task family.
+The model stays a model. ExactScope handles the parts that should not depend on probabilistic guessing.
 
-## v1.0.0-rc.3 status
+---
 
-`v1.0.0-rc.3` is an **integration & qualification candidate**.
+## 30-second native demo
 
-| Area | rc.3 state |
+The stable v1 product package is deliberately small. It contains the Linux x86-64 native C ABI runtime, public headers, a C11 example, and a **1.6 KB demonstration-only grounding index**.
+
+Download `exactscope-grounding-1.0.0-x86_64-unknown-linux-gnu.tar.gz` from [GitHub Releases](https://github.com/ot4562-glitch/ExactScope/releases), extract it, and run:
+
+```bash
+cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
+  -Iinclude \
+  examples/c/grounding.c \
+  lib/x86_64-unknown-linux-gnu/libexactscope_cabi.a \
+  -o grounding-demo
+
+./grounding-demo grounding/sample-index-v1.xsgi warranty period
+./grounding-demo grounding/sample-index-v1.xsgi battery level
+```
+
+Expected evidence includes:
+
+```text
+The demo warranty period is 24 months.
+The demo device battery level is 73 percent.
+```
+
+That executable is using only the extracted public headers, static library, and `.xsgi` provider bytes. No Python runtime, network service, inference server, or agent loop is required by the deployed grounding core.
+
+For the package-local walkthrough see [Native grounding quickstart](docs/GROUNDING_NATIVE_QUICKSTART.md).
+
+### Build your own local evidence index
+
+The off-target compiler lives in the source repository. Point it at your own `.txt` or `.md` evidence:
+
+```bash
+python3 tools/grounding_corpus.py build \
+  --input-dir ./my-docs \
+  --output ./my-corpus.json
+
+python3 tools/grounding_corpus.py compile-binary \
+  --index ./my-corpus.json \
+  --output ./my-corpus.xsgi
+```
+
+Python is compiler/reference/benchmark tooling. It is **not** a deployment dependency of the native grounding runtime.
+
+---
+
+## What ExactScope is
+
+ExactScope is a **provider-neutral grounding and deterministic capability layer** designed to retrofit factual reliability around an existing constrained model.
+
+It provides the pieces needed to:
+
+- retrieve evidence from local or application-defined sources;
+- distinguish authoritative evidence from supplemental evidence;
+- preserve explicit `grounded`, `none`, `ambiguous`, `conflict`, and `unavailable` states;
+- fail closed when authoritative information cannot actually be established;
+- resolve simple canonical facts in the host without invoking an LLM;
+- reduce arbitrary retrieval/tool decisions made by a weak model;
+- project a small deterministic evidence payload instead of dumping large documents into context;
+- keep provider indexes, scores, security metadata, and rejected candidates outside the model context;
+- run with local/offline provider configurations;
+- bind runtime/provider artifacts by exact identity for reproducible qualification.
+
+The goal is not to make model weights universally more intelligent. The goal is to **remove factual work that the model should not have been guessing about in the first place**.
+
+---
+
+## What ExactScope is NOT
+
+### Not an LLM harness
+
+If by **LLM harness** you mean a framework that owns prompt orchestration, sessions, autonomous agent loops, tool selection, retries, or model execution, that is not ExactScope's product boundary.
+
+ExactScope does not need to control your inference stack. Your application can keep using llama.cpp or another local model runtime exactly where generation is useful.
+
+The normal grounding path is **zero or one answer-generation call**. The model does not need to choose a retrieval provider before answering.
+
+### Not just another RAG framework
+
+A common RAG path is:
+
+```text
+question
+-> similarity search
+-> several retrieved chunks
+-> put them in the prompt
+-> let the LLM decide what they mean
+```
+
+ExactScope separates retrieval from evidence policy:
+
+```text
+question
+-> bounded provider retrieval
+-> authority
+-> coverage
+-> freshness
+-> ambiguity / conflict
+-> deterministic evidence policy
+-> compact projection
+-> model only when generation is still required
+```
+
+That distinction matters. A source returning **no result** is not the same as a source being unavailable. Two authoritative sources disagreeing is not the same as one valid fact. A supplemental source is not automatically allowed to replace missing authoritative state.
+
+ExactScope makes those states explicit instead of asking a small model to infer operational truth from prose.
+
+### Not a new model
+
+ExactScope does not change model weights and does not require fine-tuning.
+
+It is designed to be evaluated across different models and inference engines so that an existing device or product can gain a factual capability layer without making model replacement the default answer.
+
+---
+
+## Why this matters for small and on-device LLMs
+
+Large models can sometimes hide weak application architecture behind more parameters, more context, or stronger tool-use behavior. Small models have less room to compensate.
+
+Asking a constrained model to do all of this itself is a fragile design:
+
+1. understand the question;
+2. decide whether retrieval is needed;
+3. select a tool/provider;
+4. formulate a search;
+5. inspect several chunks;
+6. resolve conflicts;
+7. determine which source is authoritative;
+8. answer correctly.
+
+ExactScope deliberately removes much of that responsibility from the model.
+
+This makes the architecture relevant to:
+
+- small LLMs and small language models;
+- local LLM and private local AI applications;
+- on-device AI and edge AI;
+- embedded AI assistants;
+- smart glasses and wearable AI;
+- phones and mobile AI;
+- robots and industrial systems;
+- automotive assistants;
+- offline AI;
+- already-deployed devices where hardware cannot simply be upgraded.
+
+The retrofit thesis is simple:
+
+```text
+Option A                         Option B
+--------                         --------
+small model                      small model
+    |                                |
+more RAM / compute                   + ExactScope
+    |                                |
+larger replacement model             v
+                                 better grounded
+                                 factual behavior
+```
+
+For some products, upgrading the capability around the model can be cheaper and easier than upgrading the model itself.
+
+---
+
+## Benchmark evidence
+
+ExactScope is tested against model-only baselines. The project reports failure modes and provider scope rather than treating retrieval as proof by itself.
+
+### Frozen seven-model matched causal screen
+
+A frozen 30-item factual screen was run across seven local models from **135M to 3.8B parameters**. The same semantic screen was repeated after the native C ABI/release integration work and the scored behavior remained exactly unchanged.
+
+| Local model | Model only (A) | ExactScope (G) | Uplift |
+|---|---:|---:|---:|
+| SmolLM2 135M Instruct Q4_K_M | 3.3% | 86.7% | +83.3pp |
+| Gemma 3 270M IT Q8 | 3.3% | 86.7% | +83.3pp |
+| LFM2.5 350M Q4_K_M | 6.7% | 93.3% | +86.7pp |
+| Qwen3.5 0.8B Q4 | 13.3% | 96.7% | +83.3pp |
+| Llama 3.2 1B Instruct Q4_K_M | 6.7% | 90.0% | +83.3pp |
+| Qwen3.5 2B Q4_K_M | 10.0% | 100.0% | +90.0pp |
+| Phi-4-mini-instruct 3.8B Q4_K_M | 13.3% | 100.0% | +86.7pp |
+| **Mean** | **8.1%** | **93.3%** | **+85.2pp** |
+
+In those grounded runs:
+
+- false grounding: **0%**;
+- unsupported authoritative assertions: **0%**;
+- format failures: **0%**;
+- deterministic host completion: **23/30** grounded items;
+- model inference required: **7/30** grounded items.
+
+**Scope warning:** this is a candidate-bound causal screen with a frozen provider/corpus/policy. It is strong evidence that the selected ExactScope path caused the measured improvement on this task. It is **not** a claim that every dataset, provider, or model gains +85.2 percentage points.
+
+### Broader public-benchmark development evidence
+
+The effect is workload-dependent, which is exactly why the project also records less dramatic results.
+
+| Benchmark / model | Model only | ExactScope | Change |
+|---|---:|---:|---:|
+| HotpotQA screen · Qwen 0.8B · F1 · 4 KiB evidence | 20.25 | 42.33 | +22.08pp |
+| HotpotQA screen · Llama 1B · F1 · 4 KiB evidence | 9.47 | 14.21 | +4.74pp |
+| NQ development mirror · Qwen 0.8B · F1 | 5.0 | 23.7 | +18.7pp |
+| NQ development mirror · Llama 1B · F1 | 12.4 | 23.1 | +10.7pp |
+
+The NQ work uses a derived public development mirror because the official GCS bytes were not anonymously available during qualification. It must not be presented as an official-byte reproduction.
+
+FEVER arbitrary-label classification remains an experimental/control workload rather than flagship v1 efficacy evidence.
+
+See [Benchmark methodology](docs/BENCHMARK.md) for identities, isolation rules, and reporting requirements.
+
+---
+
+## Native runtime design
+
+The native grounding core is implemented in Rust and exported through a stable C ABI.
+
+`crates/exactscope-grounding` is:
+
+- `no_std`;
+- allocation-free in the grounding core;
+- `forbid(unsafe_code)`;
+- zero-copy over an immutable validated `.xsgi` index;
+- bounded to at most 16 ranked hits;
+- caller-owned for search scratch and output memory;
+- deterministic in BM25-v1 ranking and evidence projection;
+- independent of network and inference ownership.
+
+The C ABI exposes:
+
+```text
+xs_grounding_index_init
+xs_grounding_index_search
+xs_grounding_index_project
+```
+
+Python remains the compiler/reference/benchmark layer. The deployed native core does not require Python.
+
+### Native parity
+
+The current native implementation has been checked against the Python reference path on the NQ development mirror and HotpotQA screen:
+
+- top-k search ordering parity;
+- exact `f64` score-bit parity;
+- byte-exact evidence projection at 2 KiB and 4 KiB;
+- clean-room parity using only the extracted release header, static library, and packaged `.xsgi` bytes.
+
+Exact floating-point tie comparison in the ranker is intentional because parity is part of the deterministic contract.
+
+---
+
+## Grounding states and fail-closed authority
+
+ExactScope intentionally distinguishes these target states:
+
+| State | Meaning |
 |---|---|
-| Deterministic numeric core | implemented |
-| Native C ABI | implemented |
-| No-import Wasm adapter | implemented |
-| Tiny JSON bounded boundary | implemented |
-| `xs_calc` bounded plan lane | implemented |
-| Selected `xs_eval` semantic lane | implemented |
-| Statistics specialization metadata | generated/drift-checked |
-| Economics PED selected specialization | implemented/drift-checked |
-| Model-surface identity negotiation | implemented, fail closed |
-| Release-shaped packaging | implemented |
-| Android/Linux ARM64 SDK packaging | implemented in release workflow |
-| rc.3 model benchmark | **not run yet** |
-| rc.3 real-device RAM/latency/energy qualification | **not run yet** |
-| Stable support claim | **not made** |
+| `grounded` | policy-approved evidence established the target |
+| `none` | required source coverage completed and found no usable evidence |
+| `ambiguous` | multiple plausible targets/candidates remain unresolved |
+| `conflict` | relevant evidence contradicts and policy cannot resolve it |
+| `unavailable` | required evidence could not be established because retrieval/coverage failed |
 
-That separation is deliberate: the candidate is packaged first, then benchmarked and qualified from the immutable public release so results are not attached to a moving development tree.
+For an **authoritative** target, `unavailable` or unresolved conflict must not silently become a plausible model-memory answer.
 
-## Pick the right release asset
+For a **supplemental** target, a miss does not mean the world contains no answer; host policy can still allow ordinary model knowledge.
 
-The rc.3 workflow is configured to publish these integration shapes. Only use an asset that actually exists on the GitHub release page.
+This is one of the key differences between ExactScope and simply pasting search results into a prompt.
 
-| Platform | Expected archive | Use |
+---
+
+## Small model-visible context
+
+ExactScope optimizes for **small evidence, not large context**.
+
+The model normally needs only the policy-approved facts required for the current answer. These remain host-side:
+
+- full provider indexes;
+- raw retrieval scores;
+- rejected candidate sets;
+- security/tenant scope identifiers;
+- access-control metadata;
+- verbose audit state;
+- unrelated document content.
+
+The current flagship evidence budget is 4 KiB because it outperformed 2 KiB in the measured HotpotQA screens while remaining small enough for constrained models.
+
+---
+
+## Runtime footprint and latency
+
+The default v1 runtime package deliberately excludes benchmark-specific NQ provider data.
+
+Current Linux x86-64 stable-package measurements for the v1 native path are approximately:
+
+- default compressed SDK: **0.94 MB**;
+- default unpacked files: **4.66 MB**;
+- demonstration index: **1.6 KB**;
+- static library: **4.62 MB**.
+
+The default-install hard caps are 10,000,000 compressed bytes and 20,000,000 unpacked file bytes.
+
+The larger **19.71 MB NQ `.xsgi` is qualification/provider data, not a universal built-in corpus**. If a real deployment needs a provider of that size, that provider must be counted in that deployment's own footprint.
+
+On the NQ x86-64 clean-room measurement path:
+
+- one-time index bind/validation: about **161–163 ms**;
+- warm search mean: about **100–101 µs/query**;
+- 4 KiB projection mean: about **84–86 µs/query**;
+- combined warm search + projection mean: about **0.185 ms/query**;
+- observed whole-process max RSS: about **21.8 MiB**.
+
+The RSS figure is a whole x86-64 process measurement, **not** a clean incremental-memory measurement excluding the base model.
+
+Do not extrapolate these numbers to a physical ARM64 wearable. Physical ARM64 RAM, latency, energy, and thermal qualification has not yet been performed.
+
+---
+
+## Support matrix
+
+| Target | v1 status | What is claimed |
 |---|---|---|
-| Windows x86-64 | `exactscope-eval-1.0.0-rc.3-x86_64-pc-windows-msvc.tar.gz` | local-model / desktop integration |
-| Linux x86-64 | `exactscope-eval-1.0.0-rc.3-x86_64-unknown-linux-gnu.tar.gz` | local-model / server integration |
-| Android ARM64 | `exactscope-wearable-sdk-1.0.0-rc.3-aarch64-linux-android.tar.gz` | Android / edge OEM integration |
-| Linux ARM64 musl | `exactscope-wearable-sdk-1.0.0-rc.3-aarch64-unknown-linux-musl.tar.gz` | embedded Linux / wearable integration |
+| Linux x86-64 native C ABI | **Stable v1 package scope** | deterministic build/verify, C11 integration, final-archive clean-room execution |
+| Windows native | Experimental/source integration | no stable v1 grounding asset claim yet |
+| ARM64 / Android / wearable | Experimental design target | no physical-device RAM/energy/thermal claim yet |
+| Grounding Wasm | Deferred | not included in v1 grounding release |
+| Python compiler/reference tools | Development tooling | off-target corpus compilation, reference behavior, benchmarks |
 
-Every published archive is accompanied by release-level `SHA256SUMS` and `release-manifest.json`. The evaluation archives also contain their own manifest and checksums.
+“Stable” here means the declared v1 software package/API scope. It does not mean hardware certification or universal accuracy qualification for arbitrary providers.
 
-### Fastest evaluation path
+The earlier deterministic quantitative `xs_calc` / `xs_eval` subsystem remains in the repository as a secondary capability. It is not the flagship definition of ExactScope v1.
 
-1. Download the matching release archive plus `SHA256SUMS` and `release-manifest.json`.
-2. Verify the release checksum before extracting.
-3. Follow [the 5-minute quickstart](docs/QUICKSTART.md).
-4. Attach the selected model-facing surface using [AI integration](docs/AI_INTEGRATION.md).
-5. For real benchmark/qualification, start a clean session with [the qualification handoff](docs/QUALIFICATION_HANDOFF.md) and [copy-paste prompt](docs/NEXT_SESSION_PROMPT.md).
+---
 
-## Model-facing lanes
+## When should I use ExactScope?
 
-### `xs_calc` — bounded generic arithmetic
+ExactScope is worth evaluating if you are searching for a way to:
 
-Use this when the model already knows the arithmetic decomposition.
+- **improve small LLM accuracy without fine-tuning**;
+- **reduce factual hallucinations in a local LLM** by grounding answers in application evidence;
+- add **grounding to an on-device LLM**;
+- keep private/device facts local instead of sending them to a cloud model;
+- avoid replacing a deployed small model just to improve factual reliability;
+- build a **lightweight RAG alternative for edge AI** where a full RAG platform is too large;
+- reduce model-driven tool selection and agent-loop complexity;
+- give llama.cpp or another local inference stack compact trusted evidence;
+- add deterministic authority/conflict/failure semantics around retrieval;
+- retrofit factual capability onto embedded or already-shipped hardware.
 
-Plan v0.1 deliberately limits the model's search space:
+You may **not** need ExactScope if your model already answers the target workload reliably, large/cloud models have no meaningful cost, your task is mainly creative generation, or you already have a small trusted grounding stack with equivalent evidence semantics.
 
-- 1–8 steps;
-- at most 2 arguments per step;
-- `add`, `sub`, `mul`, `div`, `powi`, `sqrt`;
-- backward-only references;
-- 512-byte Tiny JSON request cap;
-- exact decimal/rational intermediates where defined;
-- deterministic half-even quantization;
-- fail-closed validation with no semantic repair.
+ExactScope should solve a measured reliability problem, not become infrastructure for its own sake.
 
-Example:
+---
 
-```json
-{"p":[{"o":"mul","a":["12","7"]},{"o":"sub","a":["#0","4"]},{"o":"div","a":["#1","5"]}]}
-```
+## FAQ for local AI / edge AI developers
 
-Canonical result:
+### How do I improve a small local LLM without training it again?
 
-```json
-{"s":0,"v":"16","f":0,"p":"plan-v0.1","r":1}
-```
+Put volatile, private, application-specific, or high-authority facts outside model memory. ExactScope retrieves and policy-checks those facts before generation, then sends the model only compact approved evidence when generation is still needed.
 
-A failed step returns a typed failure, not a guessed number.
+### Is ExactScope a hallucination-reduction library?
 
-### `xs_eval` — reviewed semantic operations
+It can reduce **factual errors caused by missing or unreliable model memory** when the deployment has suitable evidence. It does not claim to eliminate every type of hallucination, reasoning error, or generation failure.
 
-Use this when **method identity matters**. A selected capability can encode distinctions such as sample vs population statistics, reviewed rounding, argument order, method variants, and domain constraints that a weak model should not rediscover on every call.
+### Is ExactScope a RAG alternative?
 
-The active Statistics slice includes reviewed operations such as sum, mean, weighted mean, population/sample variance and standard deviation, and Pearson correlation. The Economics proof includes a reviewed midpoint price-elasticity operation.
+For constrained deployments, it can replace part of what teams build a larger RAG stack to accomplish: retrieval, evidence selection, compact projection, and explicit failure semantics. It is intentionally narrower than an enterprise RAG platform and does not try to own every ingestion, vector-database, orchestration, or UI concern.
 
-The deployed binary and model assets should contain only the selected task-family slice.
+### Does ExactScope work with llama.cpp?
 
-### `xs_find` — optional cold/development discovery
+ExactScope does not own the inference engine, so llama.cpp can remain the model runtime. The repository includes a maintained llama.cpp grounding adapter for benchmark/integration work under [`adapters/llama-cpp`](adapters/llama-cpp).
 
-`xs_find` is not required in the normal hot path. Keep it out of small-model serving prompts unless the product genuinely needs discovery.
+### Does ExactScope need the internet?
 
-## Integration surfaces
+No. The native runtime itself performs no network request. A deployment may use purely local provider data or adapt a host/network search provider behind the same Grounding Contract.
 
-### Native C
+### Does ExactScope contain its own knowledge base?
 
-Public header: [`include/exactscope.h`](include/exactscope.h)
+No universal one. That would defeat the provider-neutral product boundary and make the generic package large without guaranteeing useful coverage. The stable package ships only a tiny demonstration provider; real deployments supply the evidence that matters to them.
 
-The native API uses caller-owned bounded storage and stable checked layouts. No daemon, account, database, or network service is required for the deterministic core path.
+### Why not just use a bigger model?
 
-### WebAssembly
+Sometimes you should. ExactScope is aimed at cases where RAM, storage, bandwidth, accelerator capability, latency, privacy, thermals, battery, hardware qualification, or an already-shipped device makes model replacement expensive.
 
-The Wasm adapter is designed for local embedding with a bounded request/response boundary. Selected profile builds can remove excluded serving paths instead of keeping a broad runtime hidden behind metadata.
-
-### llama.cpp / local models
-
-Maintained strict envelopes live in [`adapters/llama-cpp/`](adapters/llama-cpp/):
-
-- semantic-only `xs_eval`;
-- calc-only `xs_calc`.
-
-They validate model-surface identity and output shape and do not contain alternative calculation logic or semantic repair.
-
-## Fail-closed design
-
-Adapters may normalize syntax and transport. They must not:
-
-- invent missing operands;
-- guess unit/percentage/currency conversions;
-- swap argument meaning;
-- silently choose a statistical/economic method;
-- recompute or repair an ExactScope result;
-- turn a typed error into a plausible number.
-
-Stable operation revisions and internal kernel IDs are treated as semantic identity. Pack-local operation IDs are a separate namespace.
-
-## Build-time specialization
-
-The broad domain catalog is a maintenance/build-time asset. A capability profile selects the reviewed task-family operations and derives a small model-visible surface and corresponding runtime features.
-
-Current code-side infrastructure includes:
-
-- domain descriptors for Statistics and Economics;
-- deterministic generated/drift-checked Statistics operation/kernel/dispatch metadata;
-- reviewed Economics selection metadata;
-- Cargo feature-forwarding checks;
-- exact model-surface contracts and asset digests;
-- build-input identity;
-- operation revision compatibility checks;
-- deterministic release-bundle packaging;
-- reproducible-build comparison records;
-- experimental compatibility records.
-
-Numeric algorithms remain handwritten/reviewed rather than generated from arbitrary formulas.
-
-See [Capability Compiler](docs/CAPABILITY_COMPILER.md), [Architecture](docs/ARCHITECTURE.md), and [Operation Revision Policy](spec/OPERATION_REVISION_POLICY_V0_1.md).
+---
 
 ## Build from source
 
-Requirements: the pinned Rust toolchain, Python 3, and Node.js for Wasm examples/checks.
+Requirements for the native Linux development path include a Rust toolchain and C compiler.
 
-```powershell
-cargo check --workspace --all-targets
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace --lib
-cargo build --locked --release -p exactscope-wasm --target wasm32v1-none --no-default-features --features fused,tinyjson
-python tools/inspect_wasm.py target/wasm32v1-none/release/exactscope_wasm.wasm
-node examples/javascript/wasm-xs-calc.mjs target/wasm32v1-none/release/exactscope_wasm.wasm
+```bash
+git clone https://github.com/ot4562-glitch/ExactScope.git
+cd ExactScope
+
+cargo build -p exactscope-cabi --release --features standalone-staticlib
+cargo test -p exactscope-grounding
+cargo clippy -p exactscope-cabi --all-targets -- -D warnings
 ```
 
-Source/unit/static checks are not model or hardware qualification evidence.
+Build the demonstration provider:
 
-## Next benchmark: minimum diverse model matrix
+```bash
+python3 tools/grounding_corpus.py build \
+  --input-dir examples/grounding/sample-docs \
+  --output target/sample-corpus.json
 
-The rc.3 benchmark plan intentionally uses **five core models**, not a giant leaderboard sweep:
-
-| Model | Role |
-|---|---|
-| Gemma 3 270M IT | extreme-small independent lower bound |
-| LFM2.5 350M | edge/on-device-first lower bound |
-| Qwen3.5 0.8B | primary modern sub-1B model |
-| Qwen3.5 2B | same-family scale comparison |
-| Phi-4-mini-instruct 3.8B | independent upper-small reasoning reference |
-
-Optional: Gemma 3n E2B as a separate low-resource-device product profile.
-
-The repository includes a downloader that **only downloads and inventories model weights**; it does not run inference:
-
-```powershell
-py -3 -m pip install -r requirements-benchmark.txt
-py -3 tools/fetch_benchmark_models.py --list
-py -3 tools/fetch_benchmark_models.py core --root C:\AIModels\ExactScopeBench
+python3 tools/grounding_corpus.py compile-binary \
+  --index target/sample-corpus.json \
+  --output target/sample-index-v1.xsgi
 ```
 
-See [`benchmarks/NEXT_MODEL_MATRIX.md`](benchmarks/NEXT_MODEL_MATRIX.md). New rc.3 scores remain **unmeasured** until a separate qualification session freezes exact release/model/runtime/corpus/scoring identities and runs them.
+Compile the C example:
 
-## Historical model evidence — do not transfer to rc.3
+```bash
+cc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
+  -Iinclude examples/c/grounding.c \
+  target/release/libexactscope_cabi.a \
+  -o target/grounding-demo
 
-An older internal preregistered Statistics development chain, accumulated through `statistics-core-8-ai-r20`, showed that reviewed semantic capability could materially change end-to-end results for some weak-model configurations. It also showed an important failure boundary: uplift magnitude and the best model-facing surface varied substantially by model, and a sufficiently weak model could still fail selection/argument extraction.
+target/grounding-demo target/sample-index-v1.xsgi warranty period
+```
 
-Those results belong to an older **45,804-byte r17 Statistics serving runtime**. They are retained as historical design evidence only and are **not rc.3 benchmark results**. Re-running those models against rc.3 creates new evidence.
+The public stable package additionally passes a clean-room test that recompiles this example from the extracted archive rather than from the repository.
 
-For the exact historical numbers and caveats, see the result interpretation documents under `benchmarks/STATISTICS_R17_*_RESULT.md`.
+---
 
-## Qualification before stable claims
+## Release integrity
 
-Before calling ExactScope production-qualified for a target, bind results to the exact public release and measure:
+The stable grounding package has its own deterministic packaging contract: [GROUNDING_RUNTIME_BUNDLE_V1.md](spec/GROUNDING_RUNTIME_BUNDLE_V1.md).
 
-- end-to-end model correctness and failure decomposition;
-- exact artifact/model/runtime identities;
-- binary/storage footprint;
-- resident memory and stack/scratch on target;
-- latency distribution on target;
-- energy and thermal behavior when relevant;
-- malformed-input/fail-closed behavior;
-- update/rollback/power-loss behavior where relevant.
+The package binds:
 
-A selected Wasm linear-memory ceiling is **not** total process/device RAM.
+- product version;
+- source commit;
+- toolchain identity;
+- runtime size and SHA-256;
+- demonstration provider size and SHA-256;
+- every packaged payload;
+- an explicit support/deployment boundary.
 
-Use [`docs/QUALIFICATION_HANDOFF.md`](docs/QUALIFICATION_HANDOFF.md) as the evidence contract.
+The verifier rejects unsafe archive paths, links, duplicate members, unexpected files, digest drift, malformed XSGI samples, and package hard-cap violations.
 
-## Repository hygiene and evidence policy
+The large benchmark qualification data is distributed/accounted separately instead of being disguised as default product footprint.
 
-Release source tags intentionally do not accumulate generated capability revision directories or mutable benchmark output payloads. They keep:
-
-- reviewed source/specifications;
-- generators and binders;
-- model-facing source assets;
-- benchmark harnesses and preregistration inputs;
-- historical result interpretation documents.
-
-New generated capability/evidence revisions and benchmark outputs are kept outside tracked product source until deliberately frozen as separate immutable evidence.
+---
 
 ## Documentation
 
-- [Quickstart](docs/QUICKSTART.md)
-- [Installation](docs/INSTALLATION.md)
+- [Product direction](docs/PRODUCT_DIRECTION.md)
+- [Grounding architecture](docs/GROUNDING_ARCHITECTURE.md)
+- [Grounding Contract v0.1](spec/GROUNDING_CONTRACT_V0_1.md)
+- [Native grounding quickstart](docs/GROUNDING_NATIVE_QUICKSTART.md)
 - [AI integration](docs/AI_INTEGRATION.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Capability compiler](docs/CAPABILITY_COMPILER.md)
-- [Evaluation bundle](docs/EVALUATION_BUNDLE.md)
+- [Installation](docs/INSTALLATION.md)
 - [Benchmark methodology](docs/BENCHMARK.md)
-- [Minimum model matrix](benchmarks/NEXT_MODEL_MATRIX.md)
-- [Qualification handoff](docs/QUALIFICATION_HANDOFF.md)
-- [Next-session prompt](docs/NEXT_SESSION_PROMPT.md)
-- [Marketing claim boundary](docs/MARKETING_CLAIMS.md)
+- [Stable grounding runtime bundle](spec/GROUNDING_RUNTIME_BUNDLE_V1.md)
 - [Security](SECURITY.md)
 - [Roadmap](ROADMAP.md)
 
+---
+
+## Related concepts and discovery terms
+
+ExactScope is relevant to developers working on **small LLM**, **local LLM**, **local AI**, **on-device AI**, **edge AI**, **embedded AI**, **AI grounding**, **LLM grounding**, **factual accuracy**, **hallucination reduction**, **RAG alternatives**, **lightweight RAG**, **offline AI**, **llama.cpp**, **deterministic AI**, **AI reliability**, **wearable AI**, and **smart-glasses AI**.
+
+The project deliberately uses those familiar terms while keeping a narrower product definition: **an accuracy retrofit and grounding runtime, not an LLM harness**.
+
+---
+
 ## License
 
-ExactScope is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE). Model weights downloaded for qualification keep their own upstream licenses and terms.
+ExactScope is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE). Model weights used for qualification retain their upstream licenses and terms.
 
 ---
 
 # 한국어 요약
 
-ExactScope는 **작은 온디바이스/로컬 AI에 필요한 좁은 정량 계산 능력을 작은 deterministic component로 붙이는 제품**입니다. 모델 전체를 키우거나 하드웨어를 바꾸기 전에, 필요한 통계·경제·일반 산술 능력만 제한된 도구 표면으로 추가하는 것이 목적입니다.
+**ExactScope는 작은 로컬·온디바이스 AI의 사실 정확도를 기존 모델을 교체하지 않고 보강하는 경량 grounding runtime / accuracy retrofit layer입니다.**
 
-`v1.0.0-rc.3`는 **제품 코드 구현과 공개 패키징을 끝내고 실제 사용자 방식의 검증을 시작하기 위한 릴리즈 후보**입니다. 아직 rc3에 대한 모델 성능·실기기 RAM/지연시간/에너지 결과는 만들지 않았습니다. 그 검증은 공개된 동일한 GitHub 릴리즈를 새 세션에서 내려받아 수행합니다.
+일반적인 LLM harness처럼 agent loop, 세션, 프롬프트 orchestration, 모델 실행 전체를 장악하는 제품이 아닙니다. 단순히 검색 문서를 프롬프트에 넣고 LLM에게 판단을 맡기는 범용 RAG 프레임워크도 아닙니다.
 
-가장 먼저 읽을 문서:
+기본 철학은 간단합니다.
 
-1. [`docs/QUICKSTART.md`](docs/QUICKSTART.md) — 설치/실행
-2. [`docs/AI_INTEGRATION.md`](docs/AI_INTEGRATION.md) — AI 모델에 붙이는 방법
-3. [`benchmarks/NEXT_MODEL_MATRIX.md`](benchmarks/NEXT_MODEL_MATRIX.md) — 최소 5개 모델 검증 설계
-4. [`docs/QUALIFICATION_HANDOFF.md`](docs/QUALIFICATION_HANDOFF.md) — 실제 benchmark/target qualification 절차
-5. [`docs/NEXT_SESSION_PROMPT.md`](docs/NEXT_SESSION_PROMPT.md) — 다음 세션에 그대로 붙여넣을 프롬프트
+> **모델이 사실을 더 잘 추측하게 만들지 말고, 추측해야 하는 사실 문제를 모델 밖으로 빼낸다.**
 
-과거 r20 모델 성능은 이전 45,804 B r17 runtime의 역사적 증거이며 rc3에 상속하지 않습니다.
+```text
+사용자 질문
+  -> 앱/보안 scope
+  -> provider에서 근거 검색
+  -> authority / coverage / freshness / conflict 판단
+  -> 확정 가능한 사실은 host가 0회 모델 호출로 처리
+  -> 나머지만 작은 evidence projection과 함께 모델 1회 호출
+```
+
+135M~3.8B의 7개 로컬 모델을 사용한 동결 30문항 matched screen에서는 모델 단독 평균 **8.1%**가 ExactScope 경로 **93.3%**로 상승했고 평균 uplift는 **+85.2%p**였습니다. grounded 경로에서 false grounding, unsupported authoritative assertion, format failure는 모두 0%였으며 30문항 중 23개는 모델 inference 없이 host가 처리했습니다.
+
+다만 이 수치는 특정 frozen provider/corpus/policy에 묶인 causal benchmark 결과이며 모든 데이터셋에서 +85.2%p를 보장한다는 뜻이 아닙니다. HotpotQA와 NQ development mirror에서는 모델/조건에 따라 더 작은 개선폭도 관측됐고, README에 그 결과도 함께 공개합니다.
+
+v1의 stable 배포 범위는 **Linux x86-64 native C ABI grounding package**입니다. 기본 패키지는 약 0.94MB 압축 크기이며 대형 NQ qualification index는 제품 기본 설치물이 아니라 별도 benchmark/provider 데이터입니다.
+
+ARM64·스마트글래스·워치 등은 중요한 설계 타깃이지만 실제 ARM64 기기에서 RAM·지연·전력·열 qualification은 아직 수행하지 않았으므로 stable 하드웨어 성능을 주장하지 않습니다.
+
+처음 사용하려면 [Releases](https://github.com/ot4562-glitch/ExactScope/releases)의 `exactscope-grounding-1.0.0-x86_64-unknown-linux-gnu.tar.gz`를 받아 위의 [30-second native demo](#30-second-native-demo)를 실행하면 됩니다.

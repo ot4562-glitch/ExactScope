@@ -40,6 +40,10 @@ pub extern "C" fn rust_eh_personality() -> ! {
     unsafe { xs_platform_panic_abort() }
 }
 
+use exactscope_grounding::{
+    GroundingIndex, GroundingSearchHit, GroundingSearchScratch, MAX_GROUNDING_HITS,
+    MAX_GROUNDING_QUERY_TOKENS, MAX_GROUNDING_TOKEN_BYTES,
+};
 use exactscope_kernel::{
     evaluate_operation, evaluate_plan, evaluate_statistics_operation, Decimal64, DecimalVector,
     EvaluationResult, PlanOperation, PlanStep, PlanValue, ScalarValue, StatisticsOperationDecl,
@@ -59,6 +63,7 @@ use exactscope_pack::{PackView, ECON_UNDERGRAD_PACK_ID, STATISTICS_CORE_PACK_ID}
 pub use exactscope_kernel::{DESIGN_ABI_MAJOR, DESIGN_ABI_MINOR};
 
 const CONTEXT_MAGIC: u32 = 0x5853_4331;
+const GROUNDING_INDEX_HANDLE_MAGIC: u32 = 0x5853_4749;
 const ABI_VERSION: u32 = 0x0001_0000;
 const CONFIG_ALLOW_DYNAMIC_PACKS: u16 = 0x0001;
 const CONFIG_FREEZE_AFTER_INIT: u16 = 0x0002;
@@ -118,6 +123,57 @@ pub struct XsContext {
     reserved1: u32,
     #[cfg(feature = "dynamic-packs")]
     dynamic_slots: [DynamicSlot; MAX_PACKS],
+}
+
+/// Opaque caller-owned grounding-index handle backing the C forward declaration.
+///
+/// The stored view borrows immutable `.xsgi` bytes whose foreign lifetime is
+/// guaranteed by the C caller for the complete handle lifetime.
+#[repr(C)]
+pub struct XsGroundingIndex {
+    magic: u32,
+    reserved: u32,
+    index: GroundingIndex<'static>,
+}
+
+/// Caller-owned per-document grounding search accumulator.
+///
+/// This is the exact `repr(C)` core layout; search overwrites every usable cell
+/// before reading it, so callers may provide uninitialized scratch storage.
+pub type XsGroundingSearchScratchV1 = GroundingSearchScratch;
+
+/// One ranked grounding search hit using the exact parity-proven core layout.
+pub type XsGroundingSearchHitV1 = GroundingSearchHit;
+
+/// Result metadata for one compact grounding projection.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct XsGroundingProjectionResultV1 {
+    /// Caller structure size.
+    pub struct_size: u32,
+    /// Exact UTF-8 bytes written to the output buffer.
+    pub written: u32,
+    /// Number of ranked hits that contributed one evidence row.
+    pub emitted_count: u16,
+    /// One when evidence bytes were emitted, zero for a valid no-evidence result.
+    pub has_evidence: u8,
+    /// Reserved zero.
+    pub reserved0: u8,
+    /// Reserved zero fields.
+    pub reserved: [u32; 2],
+}
+
+impl XsGroundingProjectionResultV1 {
+    const fn empty(struct_size: u32) -> Self {
+        Self {
+            struct_size,
+            written: 0,
+            emitted_count: 0,
+            has_evidence: 0,
+            reserved0: 0,
+            reserved: [0; 2],
+        }
+    }
 }
 
 /// Borrowed byte slice used by metadata results.
@@ -520,6 +576,254 @@ pub unsafe extern "C" fn xs_context_init(
     unsafe { context_ptr.write(context) };
     unsafe { out_context.write(context_ptr) };
     Status::OK.code()
+}
+
+/// Returns the required alignment of caller-owned grounding-index handle memory.
+#[unsafe(no_mangle)]
+pub extern "C" fn xs_grounding_index_align() -> u32 {
+    u32::try_from(align_of::<XsGroundingIndex>()).unwrap_or(0)
+}
+
+/// Returns the required byte size of caller-owned grounding-index handle memory.
+#[unsafe(no_mangle)]
+pub extern "C" fn xs_grounding_index_size() -> u32 {
+    size_u32::<XsGroundingIndex>()
+}
+
+/// Validates and binds one immutable `.xsgi` payload exactly once.
+///
+/// The handle owns no heap storage. It keeps a zero-copy borrowed view over the
+/// caller-owned payload so later search/projection calls do not repeat CRC and
+/// record validation.
+///
+/// # Safety
+///
+/// `memory` must designate writable storage of at least
+/// [`xs_grounding_index_size`] bytes and the required alignment, and must remain
+/// at the same address until all uses of the returned handle finish. `xsgi.ptr`
+/// must designate `xsgi.len` readable bytes. Those bytes must remain readable,
+/// immutable, alive, and not concurrently mutated for the complete handle
+/// lifetime. `out_index` and `out_document_count` must be valid writable aligned
+/// pointers. Input/output/handle regions must not overlap in a way that violates
+/// Rust aliasing rules.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn xs_grounding_index_init(
+    memory: *mut c_void,
+    memory_len: u32,
+    xsgi: XsBytesV1,
+    out_index: *mut *mut XsGroundingIndex,
+    out_document_count: *mut u32,
+) -> u16 {
+    if !valid_mut_ptr(out_index) || !valid_mut_ptr(out_document_count) {
+        return Status::INVALID_REQUEST.code();
+    }
+    unsafe {
+        out_index.write(ptr::null_mut());
+        out_document_count.write(0);
+    }
+
+    let required = size_u32::<XsGroundingIndex>();
+    if memory_len < required {
+        return Status::BUFFER_TOO_SMALL.code();
+    }
+    let handle_ptr = memory.cast::<XsGroundingIndex>();
+    if memory.is_null() || !handle_ptr.is_aligned() {
+        return Status::INVALID_REQUEST.code();
+    }
+
+    // The foreign caller's documented lifetime contract permits the C ABI
+    // boundary to retain this borrow beyond the init call. The safe grounding
+    // crate itself remains lifetime-correct and contains no unsafe code.
+    let bytes: &'static [u8] = match unsafe { byte_slice(xsgi.ptr, xsgi.len, false) } {
+        Ok(bytes) => bytes,
+        Err(status) => return status.code(),
+    };
+    let index = match GroundingIndex::parse(bytes) {
+        Ok(index) => index,
+        Err(status) => return status.code(),
+    };
+    let document_count = index.document_count();
+    let handle = XsGroundingIndex {
+        magic: GROUNDING_INDEX_HANDLE_MAGIC,
+        reserved: 0,
+        index,
+    };
+    unsafe {
+        handle_ptr.write(handle);
+        out_index.write(handle_ptr);
+        out_document_count.write(document_count);
+    }
+    Status::OK.code()
+}
+
+/// Searches one bound grounding index using already-normalized query tokens.
+///
+/// `scratch_count` is measured in [`XsGroundingSearchScratchV1`] cells and must
+/// be at least the document count returned by [`xs_grounding_index_init`].
+/// `output_capacity` is the requested top-k and must be in `1..=16`.
+///
+/// # Safety
+///
+/// `index` must be a live handle created by [`xs_grounding_index_init`]. The
+/// bound `.xsgi` bytes must still satisfy that function's immutable lifetime
+/// contract. `query_tokens` must point to `token_count` readable descriptors;
+/// each non-empty descriptor must point to its readable token bytes. `scratch`
+/// and `output` must provide the declared writable aligned arrays and must not
+/// overlap the handle, bound payload, query inputs, each other, or other active
+/// writable ranges. `out_hit_count` must be a valid writable aligned pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn xs_grounding_index_search(
+    index: *const XsGroundingIndex,
+    query_tokens: *const XsBytesV1,
+    token_count: u16,
+    scratch: *mut XsGroundingSearchScratchV1,
+    scratch_count: u32,
+    output: *mut XsGroundingSearchHitV1,
+    output_capacity: u16,
+    out_hit_count: *mut u16,
+) -> u16 {
+    if !valid_mut_ptr(out_hit_count) {
+        return Status::INVALID_REQUEST.code();
+    }
+    unsafe { out_hit_count.write(0) };
+    let index = match unsafe { grounding_index_ref(index) } {
+        Ok(index) => index,
+        Err(status) => return status.code(),
+    };
+    if usize::from(token_count) > MAX_GROUNDING_QUERY_TOKENS {
+        return Status::RESOURCE_LIMIT.code();
+    }
+    if output_capacity == 0 || usize::from(output_capacity) > MAX_GROUNDING_HITS {
+        return Status::BUFFER_TOO_SMALL.code();
+    }
+    if scratch_count < index.index.document_count() {
+        return Status::BUFFER_TOO_SMALL.code();
+    }
+
+    let mut tokens = [&[][..]; MAX_GROUNDING_QUERY_TOKENS];
+    let token_count =
+        match unsafe { load_grounding_query_tokens(query_tokens, token_count, &mut tokens) } {
+            Ok(count) => count,
+            Err(status) => return status.code(),
+        };
+    let Ok(scratch_count) = usize::try_from(scratch_count) else {
+        return Status::RESOURCE_LIMIT.code();
+    };
+    let scratch = match unsafe { typed_slice_mut(scratch, scratch_count) } {
+        Ok(scratch) => scratch,
+        Err(status) => return status.code(),
+    };
+    let output = match unsafe { typed_slice_mut(output, usize::from(output_capacity)) } {
+        Ok(output) => output,
+        Err(status) => return status.code(),
+    };
+
+    match index.index.search(&tokens[..token_count], scratch, output) {
+        Ok(count) => {
+            let Ok(count) = u16::try_from(count) else {
+                return Status::INTERNAL_ERROR.code();
+            };
+            unsafe { out_hit_count.write(count) };
+            Status::OK.code()
+        }
+        Err(status) => status.code(),
+    }
+}
+
+/// Projects ranked grounding hits into the parity-frozen compact evidence bytes.
+///
+/// A valid no-evidence result returns `OK` with `has_evidence == 0`, `written ==
+/// 0`, and `emitted_count == 0`. No model-policy or authority semantics are
+/// introduced here; this function only exposes the deterministic corpus
+/// projection already implemented by the grounding core.
+///
+/// # Safety
+///
+/// `index` and its bound payload must satisfy the same lifetime contract as
+/// [`xs_grounding_index_search`]. `hits` and `query_tokens` must provide their
+/// declared readable arrays; hit `reserved` fields must be zero. `output` must
+/// provide `output_capacity` writable bytes when nonzero. `out_result` must be a
+/// writable aligned [`XsGroundingProjectionResultV1`] whose `struct_size` was
+/// initialized by the caller. Readable and writable regions must not overlap in
+/// a way that violates Rust aliasing rules.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn xs_grounding_index_project(
+    index: *const XsGroundingIndex,
+    hits: *const XsGroundingSearchHitV1,
+    hit_count: u16,
+    query_tokens: *const XsBytesV1,
+    token_count: u16,
+    max_bytes: u32,
+    max_sentences_per_document: u8,
+    output: *mut u8,
+    output_capacity: u32,
+    out_result: *mut XsGroundingProjectionResultV1,
+) -> u16 {
+    let result_struct_size = match unsafe { grounding_projection_result_output_size(out_result) } {
+        Ok(size) => size,
+        Err(status) => return status.code(),
+    };
+    unsafe { out_result.write(XsGroundingProjectionResultV1::empty(result_struct_size)) };
+    let index = match unsafe { grounding_index_ref(index) } {
+        Ok(index) => index,
+        Err(status) => return status.code(),
+    };
+    if usize::from(hit_count) > MAX_GROUNDING_HITS
+        || usize::from(token_count) > MAX_GROUNDING_QUERY_TOKENS
+    {
+        return Status::RESOURCE_LIMIT.code();
+    }
+
+    let hits = match unsafe { typed_slice(hits, usize::from(hit_count)) } {
+        Ok(hits) => hits,
+        Err(status) => return status.code(),
+    };
+    if hits.iter().any(|hit| hit.reserved != 0) {
+        return Status::INVALID_REQUEST.code();
+    }
+    let mut tokens = [&[][..]; MAX_GROUNDING_QUERY_TOKENS];
+    let token_count =
+        match unsafe { load_grounding_query_tokens(query_tokens, token_count, &mut tokens) } {
+            Ok(count) => count,
+            Err(status) => return status.code(),
+        };
+    let output = match unsafe { byte_slice_mut(output, output_capacity, true) } {
+        Ok(output) => output,
+        Err(status) => return status.code(),
+    };
+    let Ok(max_bytes) = usize::try_from(max_bytes) else {
+        return Status::RESOURCE_LIMIT.code();
+    };
+
+    match index.index.compact_evidence_projection(
+        hits,
+        &tokens[..token_count],
+        max_bytes,
+        usize::from(max_sentences_per_document),
+        output,
+    ) {
+        Ok(None) => Status::OK.code(),
+        Ok(Some(projected)) => {
+            let Ok(written) = u32::try_from(projected.written) else {
+                return Status::RESOURCE_LIMIT.code();
+            };
+            let Ok(emitted_count) = u16::try_from(projected.emitted_count) else {
+                return Status::INTERNAL_ERROR.code();
+            };
+            unsafe {
+                out_result.write(XsGroundingProjectionResultV1 {
+                    struct_size: result_struct_size,
+                    written,
+                    emitted_count,
+                    has_evidence: 1,
+                    reserved0: 0,
+                    reserved: [0; 2],
+                });
+            }
+            Status::OK.code()
+        }
+        Err(status) => status.code(),
+    }
 }
 
 /// Resets mutable context state while preserving fused tables.
@@ -1797,6 +2101,40 @@ unsafe fn context_mut<'a>(context: *mut XsContext) -> Result<&'a mut XsContext, 
     Ok(context)
 }
 
+unsafe fn grounding_index_ref<'a>(
+    index: *const XsGroundingIndex,
+) -> Result<&'a XsGroundingIndex, Status> {
+    if index.is_null() || !index.is_aligned() {
+        return Err(Status::INVALID_REQUEST);
+    }
+    let index = unsafe { &*index };
+    if index.magic != GROUNDING_INDEX_HANDLE_MAGIC || index.reserved != 0 {
+        return Err(Status::INVALID_REQUEST);
+    }
+    Ok(index)
+}
+
+unsafe fn load_grounding_query_tokens(
+    query_tokens: *const XsBytesV1,
+    token_count: u16,
+    storage: &mut [&[u8]; MAX_GROUNDING_QUERY_TOKENS],
+) -> Result<usize, Status> {
+    let count = usize::from(token_count);
+    if count > MAX_GROUNDING_QUERY_TOKENS {
+        return Err(Status::RESOURCE_LIMIT);
+    }
+    let descriptors = unsafe { typed_slice(query_tokens, count) }?;
+    for (index, descriptor) in descriptors.iter().enumerate() {
+        if usize::try_from(descriptor.len).map_err(|_| Status::RESOURCE_LIMIT)?
+            > MAX_GROUNDING_TOKEN_BYTES
+        {
+            return Err(Status::RESOURCE_LIMIT);
+        }
+        storage[index] = unsafe { byte_slice(descriptor.ptr, descriptor.len, false) }?;
+    }
+    Ok(count)
+}
+
 unsafe fn byte_slice<'a>(
     pointer: *const u8,
     length: u32,
@@ -1816,6 +2154,25 @@ unsafe fn byte_slice<'a>(
     Ok(unsafe { slice::from_raw_parts(pointer, length) })
 }
 
+unsafe fn byte_slice_mut<'a>(
+    pointer: *mut u8,
+    length: u32,
+    allow_empty: bool,
+) -> Result<&'a mut [u8], Status> {
+    let length = usize::try_from(length).map_err(|_| Status::RESOURCE_LIMIT)?;
+    if length == 0 {
+        return if allow_empty {
+            Ok(&mut [])
+        } else {
+            Err(Status::INVALID_REQUEST)
+        };
+    }
+    if pointer.is_null() {
+        return Err(Status::INVALID_REQUEST);
+    }
+    Ok(unsafe { slice::from_raw_parts_mut(pointer, length) })
+}
+
 unsafe fn typed_slice<'a, T>(pointer: *const T, length: usize) -> Result<&'a [T], Status> {
     if length == 0 {
         return Ok(&[]);
@@ -1824,6 +2181,16 @@ unsafe fn typed_slice<'a, T>(pointer: *const T, length: usize) -> Result<&'a [T]
         return Err(Status::INVALID_REQUEST);
     }
     Ok(unsafe { slice::from_raw_parts(pointer, length) })
+}
+
+unsafe fn typed_slice_mut<'a, T>(pointer: *mut T, length: usize) -> Result<&'a mut [T], Status> {
+    if length == 0 {
+        return Ok(&mut []);
+    }
+    if pointer.is_null() || !pointer.is_aligned() {
+        return Err(Status::INVALID_REQUEST);
+    }
+    Ok(unsafe { slice::from_raw_parts_mut(pointer, length) })
 }
 
 fn plan_operation_from_id(operation: u8) -> Result<PlanOperation, Status> {
@@ -1920,6 +2287,19 @@ unsafe fn validate_options(options: *const XsEvalOptionsV1) -> Result<(), Status
         return Err(Status::INVALID_REQUEST);
     }
     Ok(())
+}
+
+unsafe fn grounding_projection_result_output_size(
+    output: *mut XsGroundingProjectionResultV1,
+) -> Result<u32, Status> {
+    if output.is_null() || !output.is_aligned() {
+        return Err(Status::INVALID_REQUEST);
+    }
+    let caller_size = unsafe { ptr::addr_of!((*output).struct_size).read() };
+    if caller_size < size_u32::<XsGroundingProjectionResultV1>() {
+        return Err(Status::INVALID_REQUEST);
+    }
+    Ok(caller_size)
 }
 
 unsafe fn plan_result_output_size(output: *mut XsPlanResultV1) -> Result<u32, Status> {
@@ -2029,6 +2409,7 @@ mod tests {
 
     use super::*;
     use exactscope_kernel::{SEMANTIC_PRICE, SEMANTIC_QUANTITY};
+    use std::vec::Vec;
 
     fn config(flags: u16) -> XsConfigV1 {
         XsConfigV1 {
@@ -2118,12 +2499,336 @@ mod tests {
         }
     }
 
+    fn push_u16(out: &mut Vec<u8>, value: u16) {
+        out.extend_from_slice(&value.to_le_bytes());
+    }
+
+    fn push_u32(out: &mut Vec<u8>, value: u32) {
+        out.extend_from_slice(&value.to_le_bytes());
+    }
+
+    fn push_u64(out: &mut Vec<u8>, value: u64) {
+        out.extend_from_slice(&value.to_le_bytes());
+    }
+
+    fn push_f64(out: &mut Vec<u8>, value: f64) {
+        push_u64(out, value.to_bits());
+    }
+
+    fn fixture_crc32(bytes: &[u8]) -> u32 {
+        let mut crc = 0xffff_ffffu32;
+        for &byte in bytes {
+            crc ^= u32::from(byte);
+            for _ in 0..8 {
+                let mask = 0u32.wrapping_sub(crc & 1);
+                crc = (crc >> 1) ^ (0xedb8_8320 & mask);
+            }
+        }
+        !crc
+    }
+
+    fn grounding_fixture() -> Vec<u8> {
+        let mut strings = Vec::new();
+        let mut add = |value: &[u8]| {
+            let offset = u32::try_from(strings.len()).unwrap();
+            strings.extend_from_slice(value);
+            (offset, u32::try_from(value.len()).unwrap())
+        };
+        let (a_id_o, a_id_l) = add(b"a");
+        let (a_title_o, a_title_l) = add(b"A");
+        let (a_text_o, a_text_l) = add(b"alpha beta");
+        let (b_id_o, b_id_l) = add(b"b");
+        let (b_title_o, b_title_l) = add(b"B");
+        let (b_text_o, b_text_l) = add(b"beta beta");
+        let (alpha_o, alpha_l) = add(b"alpha");
+        let (beta_o, beta_l) = add(b"beta");
+
+        let mut documents = Vec::new();
+        for (id_o, id_l, title_o, title_l, text_o, text_l) in [
+            (a_id_o, a_id_l, a_title_o, a_title_l, a_text_o, a_text_l),
+            (b_id_o, b_id_l, b_title_o, b_title_l, b_text_o, b_text_l),
+        ] {
+            for value in [id_o, id_l, title_o, title_l, text_o, text_l, 2, 0] {
+                push_u32(&mut documents, value);
+            }
+        }
+
+        let mut terms = Vec::new();
+        for (token_o, token_l, first, count, idf) in
+            [(alpha_o, alpha_l, 0, 1, 1.0), (beta_o, beta_l, 1, 2, 0.5)]
+        {
+            for value in [token_o, token_l, first, count] {
+                push_u32(&mut terms, value);
+            }
+            push_f64(&mut terms, idf);
+        }
+
+        let mut postings = Vec::new();
+        for (document, score) in [(0, 2.0), (0, 1.0), (1, 3.0)] {
+            push_u32(&mut postings, document);
+            push_f64(&mut postings, score);
+        }
+
+        let mut sentences = Vec::new();
+        for (document, position, text_offset, text_length, first_ref, ref_count) in [
+            (0, 0, a_text_o, a_text_l, 0, 2),
+            (1, 0, b_text_o, b_text_l, 2, 1),
+        ] {
+            for value in [
+                document,
+                position,
+                text_offset,
+                text_length,
+                first_ref,
+                ref_count,
+            ] {
+                push_u32(&mut sentences, value);
+            }
+        }
+        let mut term_refs = Vec::new();
+        for value in [0, 1, 1] {
+            push_u32(&mut term_refs, value);
+        }
+
+        let header_size = exactscope_grounding::GROUNDING_INDEX_HEADER_SIZE;
+        let documents_offset = u32::try_from(header_size).unwrap();
+        let terms_offset = documents_offset + u32::try_from(documents.len()).unwrap();
+        let postings_offset = terms_offset + u32::try_from(terms.len()).unwrap();
+        let strings_offset = postings_offset
+            + u32::try_from(postings.len()).unwrap()
+            + u32::try_from(sentences.len()).unwrap()
+            + u32::try_from(term_refs.len()).unwrap();
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&documents);
+        payload.extend_from_slice(&terms);
+        payload.extend_from_slice(&postings);
+        payload.extend_from_slice(&sentences);
+        payload.extend_from_slice(&term_refs);
+        payload.extend_from_slice(&strings);
+
+        let mut header = Vec::new();
+        header.extend_from_slice(exactscope_grounding::GROUNDING_INDEX_MAGIC);
+        push_u16(&mut header, exactscope_grounding::GROUNDING_INDEX_MAJOR);
+        push_u16(&mut header, exactscope_grounding::GROUNDING_INDEX_MINOR);
+        for value in [u32::try_from(header_size).unwrap(), 0, 2, 2, 3] {
+            push_u32(&mut header, value);
+        }
+        push_u64(&mut header, 4);
+        for value in [
+            documents_offset,
+            terms_offset,
+            postings_offset,
+            strings_offset,
+            u32::try_from(strings.len()).unwrap(),
+            fixture_crc32(&payload),
+            2,
+        ] {
+            push_u32(&mut header, value);
+        }
+        assert_eq!(header.len(), header_size);
+        header.extend_from_slice(&payload);
+        header
+    }
+
+    fn bytes_ref(value: &[u8]) -> XsBytesV1 {
+        XsBytesV1 {
+            ptr: value.as_ptr(),
+            len: u32::try_from(value.len()).unwrap(),
+        }
+    }
+
+    unsafe fn initialized_grounding_index(
+        memory: &mut MaybeUninit<XsGroundingIndex>,
+        bytes: &[u8],
+    ) -> *mut XsGroundingIndex {
+        let mut index = ptr::null_mut();
+        let mut document_count = 0u32;
+        let status = unsafe {
+            xs_grounding_index_init(
+                memory.as_mut_ptr().cast::<c_void>(),
+                xs_grounding_index_size(),
+                bytes_ref(bytes),
+                ptr::from_mut(&mut index),
+                ptr::from_mut(&mut document_count),
+            )
+        };
+        assert_eq!(status, Status::OK.code());
+        assert_eq!(document_count, 2);
+        index
+    }
+
+    #[test]
+    fn grounding_c_abi_search_and_projection_preserve_core_bits_and_bytes() {
+        let bytes = grounding_fixture();
+        let mut memory = MaybeUninit::<XsGroundingIndex>::uninit();
+        let index = unsafe { initialized_grounding_index(&mut memory, &bytes) };
+        let tokens = [bytes_ref(b"alpha"), bytes_ref(b"beta")];
+        let mut scratch = [GroundingSearchScratch::EMPTY; 2];
+        let mut hits = [GroundingSearchHit::EMPTY; 2];
+        let mut hit_count = 0u16;
+        let status = unsafe {
+            xs_grounding_index_search(
+                index,
+                tokens.as_ptr(),
+                2,
+                scratch.as_mut_ptr(),
+                2,
+                hits.as_mut_ptr(),
+                2,
+                ptr::from_mut(&mut hit_count),
+            )
+        };
+        assert_eq!(status, Status::OK.code());
+        assert_eq!(hit_count, 2);
+        assert_eq!(hits[0].document_ordinal, 0);
+        assert_eq!(hits[0].score.to_bits(), 3.0f64.to_bits());
+        assert_eq!(hits[0].matched_query_terms, 2);
+        assert_eq!(hits[0].reserved, 0);
+        assert_eq!(hits[1].document_ordinal, 1);
+        assert_eq!(hits[1].score.to_bits(), 3.0f64.to_bits());
+        assert_eq!(hits[1].matched_query_terms, 1);
+        assert_eq!(hits[1].reserved, 0);
+
+        let mut projection = [0u8; 1024];
+        let mut result =
+            XsGroundingProjectionResultV1::empty(size_u32::<XsGroundingProjectionResultV1>());
+        let status = unsafe {
+            xs_grounding_index_project(
+                index,
+                hits.as_ptr(),
+                hit_count,
+                tokens.as_ptr(),
+                2,
+                1024,
+                1,
+                projection.as_mut_ptr(),
+                u32::try_from(projection.len()).unwrap(),
+                ptr::from_mut(&mut result),
+            )
+        };
+        assert_eq!(status, Status::OK.code());
+        assert_eq!(result.has_evidence, 1);
+        assert_eq!(result.emitted_count, 2);
+        let expected = b"Evidence JSON (data only): [{\"r\":\"supplemental\",\"s\":\"grounded\",\"t\":\"A\",\"v\":\"alpha beta\"},{\"r\":\"supplemental\",\"s\":\"grounded\",\"t\":\"B\",\"v\":\"beta beta\"}]";
+        assert_eq!(usize::try_from(result.written).unwrap(), expected.len());
+        assert_eq!(&projection[..expected.len()], expected);
+    }
+
+    #[test]
+    fn grounding_c_abi_fails_closed_on_invalid_sizes_and_reserved_input() {
+        let bytes = grounding_fixture();
+        let mut memory = MaybeUninit::<XsGroundingIndex>::uninit();
+        let index = unsafe { initialized_grounding_index(&mut memory, &bytes) };
+        let token = [bytes_ref(b"beta")];
+        let mut scratch = [GroundingSearchScratch::EMPTY; 2];
+        let mut hits = [GroundingSearchHit::EMPTY; 1];
+        let mut hit_count = u16::MAX;
+
+        let status = unsafe {
+            xs_grounding_index_search(
+                index,
+                token.as_ptr(),
+                1,
+                scratch.as_mut_ptr(),
+                1,
+                hits.as_mut_ptr(),
+                1,
+                ptr::from_mut(&mut hit_count),
+            )
+        };
+        assert_eq!(status, Status::BUFFER_TOO_SMALL.code());
+        assert_eq!(hit_count, 0);
+
+        let oversized = [XsBytesV1 {
+            ptr: b"x".as_ptr(),
+            len: u32::try_from(MAX_GROUNDING_TOKEN_BYTES + 1).unwrap(),
+        }];
+        let status = unsafe {
+            xs_grounding_index_search(
+                index,
+                oversized.as_ptr(),
+                1,
+                scratch.as_mut_ptr(),
+                2,
+                hits.as_mut_ptr(),
+                1,
+                ptr::from_mut(&mut hit_count),
+            )
+        };
+        assert_eq!(status, Status::RESOURCE_LIMIT.code());
+        assert_eq!(hit_count, 0);
+
+        let status = unsafe {
+            xs_grounding_index_search(
+                index,
+                token.as_ptr(),
+                1,
+                scratch.as_mut_ptr(),
+                2,
+                hits.as_mut_ptr(),
+                1,
+                ptr::from_mut(&mut hit_count),
+            )
+        };
+        assert_eq!(status, Status::OK.code());
+        assert_eq!(hit_count, 1);
+        hits[0].reserved = 1;
+        let mut projection = [0u8; 512];
+        let mut result =
+            XsGroundingProjectionResultV1::empty(size_u32::<XsGroundingProjectionResultV1>());
+        let status = unsafe {
+            xs_grounding_index_project(
+                index,
+                hits.as_ptr(),
+                1,
+                token.as_ptr(),
+                1,
+                512,
+                1,
+                projection.as_mut_ptr(),
+                u32::try_from(projection.len()).unwrap(),
+                ptr::from_mut(&mut result),
+            )
+        };
+        assert_eq!(status, Status::INVALID_REQUEST.code());
+        assert_eq!(result.has_evidence, 0);
+        assert_eq!(result.written, 0);
+
+        let mut corrupt = grounding_fixture();
+        let last = corrupt.len() - 1;
+        corrupt[last] ^= 1;
+        let mut corrupt_memory = MaybeUninit::<XsGroundingIndex>::uninit();
+        let mut rejected = index;
+        let mut document_count = u32::MAX;
+        let status = unsafe {
+            xs_grounding_index_init(
+                corrupt_memory.as_mut_ptr().cast::<c_void>(),
+                xs_grounding_index_size(),
+                bytes_ref(&corrupt),
+                ptr::from_mut(&mut rejected),
+                ptr::from_mut(&mut document_count),
+            )
+        };
+        assert_eq!(status, Status::INTEGRITY_ERROR.code());
+        assert!(rejected.is_null());
+        assert_eq!(document_count, 0);
+    }
+
     #[test]
     fn abi_layout_and_version_are_stable() {
         assert_eq!(size_of::<XsDecimalV1>(), 16);
         assert_eq!(size_of::<XsPlanValueV1>(), 32);
         assert_eq!(size_of::<XsPlanStepV1>(), 80);
         assert_eq!(size_of::<XsPlanResultV1>(), 48);
+        assert_eq!(size_of::<XsGroundingSearchScratchV1>(), 16);
+        assert_eq!(size_of::<XsGroundingSearchHitV1>(), 24);
+        assert_eq!(core::mem::offset_of!(XsGroundingSearchHitV1, score), 8);
+        assert_eq!(size_of::<XsGroundingProjectionResultV1>(), 20);
+        assert_eq!(
+            xs_grounding_index_align(),
+            u32::try_from(align_of::<XsGroundingIndex>()).unwrap()
+        );
+        assert_eq!(xs_grounding_index_size(), size_u32::<XsGroundingIndex>());
         assert_eq!(xs_abi_version(), 0x0001_0000);
         assert_eq!(
             [

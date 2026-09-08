@@ -11,13 +11,14 @@ This document defines the logical ABI major `1`, minor `0`. The generated `exact
 - no exception or unwind crossing the boundary; malformed input returns typed status rather than panic/trap;
 - fixed-width status and identity fields;
 - caller-owned buffers and explicit lifetimes;
-- same logical surface in no-import WebAssembly.
+- the retained quantitative core maps to the no-import WebAssembly surface; newly added grounding exports may be native-first and become required Wasm exports only after separate Wasm parity/qualification.
 
 ## 2. Common types
 
 ```c
 typedef uint16_t xs_status;
 typedef struct xs_context xs_context;
+typedef struct xs_grounding_index xs_grounding_index;
 ```
 
 The public header defines numeric constants rather than C enums for versioned values.
@@ -244,6 +245,82 @@ Rules:
 - reset invalidates borrowed slices and mounted dynamic pack registrations;
 - fused pack tables remain available after reset.
 
+### 7.2.1 Native grounding index binding, search, and projection
+
+The native v1 grounding slice exposes the parity-frozen immutable `.xsgi` corpus core without adding filesystem, network, allocation, authority, routing, or model-policy semantics to the runtime. Query tokenization/normalization and Grounding Contract authority decisions remain host responsibilities.
+
+```c
+#define XS_GROUNDING_MAX_QUERY_TOKENS_V1 64u
+#define XS_GROUNDING_MAX_TOKEN_BYTES_V1 256u
+#define XS_GROUNDING_MAX_HITS_V1 16u
+#define XS_GROUNDING_MAX_SENTENCES_PER_DOCUMENT_V1 4u
+
+typedef struct xs_grounding_search_scratch_v1 {
+    double score;
+    uint16_t matched_query_terms;
+    uint16_t reserved;
+} xs_grounding_search_scratch_v1;
+
+typedef struct xs_grounding_search_hit_v1 {
+    uint32_t document_ordinal;
+    double score;
+    uint16_t matched_query_terms;
+    uint16_t reserved;
+} xs_grounding_search_hit_v1;
+
+typedef struct xs_grounding_projection_result_v1 {
+    uint32_t struct_size;
+    uint32_t written;
+    uint16_t emitted_count;
+    uint8_t has_evidence;
+    uint8_t reserved0;
+    uint32_t reserved[2];
+} xs_grounding_projection_result_v1;
+
+uint32_t xs_grounding_index_align(void);
+uint32_t xs_grounding_index_size(void);
+xs_status xs_grounding_index_init(
+    void* memory,
+    uint32_t memory_len,
+    xs_bytes_v1 xsgi,
+    xs_grounding_index** out_index,
+    uint32_t* out_document_count);
+xs_status xs_grounding_index_search(
+    const xs_grounding_index* index,
+    const xs_bytes_v1* query_tokens,
+    uint16_t token_count,
+    xs_grounding_search_scratch_v1* scratch,
+    uint32_t scratch_count,
+    xs_grounding_search_hit_v1* output,
+    uint16_t output_capacity,
+    uint16_t* out_hit_count);
+xs_status xs_grounding_index_project(
+    const xs_grounding_index* index,
+    const xs_grounding_search_hit_v1* hits,
+    uint16_t hit_count,
+    const xs_bytes_v1* query_tokens,
+    uint16_t token_count,
+    uint32_t max_bytes,
+    uint8_t max_sentences_per_document,
+    uint8_t* output,
+    uint32_t output_capacity,
+    xs_grounding_projection_result_v1* out_result);
+```
+
+Rules:
+
+- `xs_grounding_index_init` validates the complete immutable `.xsgi` payload exactly once, including version/layout/integrity/record checks, then installs a zero-copy borrowed view in caller-owned handle memory. The payload bytes and handle storage must remain readable, immutable, alive, at their initialized addresses, and not concurrently mutated for every later use of that handle.
+- The handle owns no heap allocation or external resource, so v1 has no destroy/reset function. The caller may reclaim handle memory only after all calls using it have completed.
+- `out_document_count` is the required number of `xs_grounding_search_scratch_v1` cells. Search overwrites usable scratch before reading it; callers need not preinitialize scratch cells.
+- `query_tokens` are already-normalized UTF-8 token byte slices. At most 64 are accepted, each at most 256 bytes and containing no ASCII whitespace. Duplicate query tokens are ignored by the parity-frozen search semantics.
+- `output_capacity` is the requested top-k and must be `1..=16`. Search ordering and `double` score bits are deterministic and identical to the grounding core: score descending, matched-query-term count descending, then document ordinal ascending.
+- On 64-bit Linux/Windows/ARM64 C ABIs targeted by v1, grounding scratch is 16 bytes, grounding hit is 24 bytes, and the hit `score` field begins at offset 8. The public header carries compile-time assertions for these qualified layouts.
+- Projection accepts at most 16 ranked hits and the same bounded normalized query tokens. Input hit `reserved` fields must be zero. `max_bytes` is at least 256 and `max_sentences_per_document` is `1..=4`; output bytes are the parity-frozen compact evidence projection and are never re-ranked or normalized by the ABI wrapper.
+- `xs_grounding_projection_result_v1.struct_size` must be initialized by the caller. A successful no-evidence result is `OK` with `has_evidence = 0`, `written = 0`, and `emitted_count = 0`; emitted evidence uses `has_evidence = 1` and exact byte count `written`.
+- The wrapper preserves existing `xs_status` meanings. Malformed/unsupported/integrity-failed `.xsgi` input and invalid resource/buffer requests fail closed; the C ABI does not invent a parallel grounding-specific status namespace.
+- No public document-ID lookup is added in this minimal slice. Search hit ordinals feed directly into projection; richer metadata surfaces require a separately justified ABI addition.
+- This native grounding slice is not yet a required no-import Wasm export. Wasm exposure is deferred until native parity/conformance and separate Wasm qualification are complete.
+
 ### 7.3 Pack mounting
 
 ```c
@@ -368,9 +445,9 @@ Every unsafe block requires an adjacent safety invariant comment and dedicated t
 
 ## 10. WebAssembly mapping
 
-The `wasm32v1-none` module maps this logical ABI to 32-bit linear-memory offsets. Exact memory ownership, required exports, one-call Tiny JSON/TinyWire helper, buffer metadata, trap policy, linker layout, and module-inspection gates are normative in [`WASM_ABI_V0_1.md`](WASM_ABI_V0_1.md) and `include/exactscope_wasm.h`.
+The `wasm32v1-none` module maps the retained quantitative ABI subset to 32-bit linear-memory offsets. Exact memory ownership, required exports, one-call Tiny JSON/TinyWire helper, buffer metadata, trap policy, linker layout, and module-inspection gates are normative in [`WASM_ABI_V0_1.md`](WASM_ABI_V0_1.md) and `include/exactscope_wasm.h`. The native grounding exports in section 7.2.1 are intentionally not part of the required Wasm v0.1 surface until a separate grounding Wasm parity/qualification gate is completed.
 
-The WebAssembly wrapper delegates to the same registry/evaluator and cannot become a separate calculation implementation. Canonical native and WebAssembly result bytes must match the shared conformance corpus.
+The WebAssembly wrapper delegates to the same registry/evaluator and cannot become a separate calculation implementation. Canonical native and WebAssembly quantitative result bytes must match the shared conformance corpus; a future grounding Wasm wrapper must likewise delegate to the parity-frozen grounding core rather than reimplement search or projection.
 
 ## 11. Symbol visibility
 

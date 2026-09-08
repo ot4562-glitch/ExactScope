@@ -153,6 +153,16 @@ def test_capabilities(root: Path, manifest: dict, archive: Path) -> None:
     if "preregister" not in help_output or "run" not in help_output:
         raise SmokeError("packaged qualification runner does not expose preregister/run")
 
+    probe_relative = integration.get("model_interface_probe")
+    if not isinstance(probe_relative, str):
+        raise SmokeError("manifest lacks model-interface probe path")
+    probe = root / probe_relative
+    if not probe.is_file():
+        raise SmokeError("packaged model-interface probe is missing")
+    probe_help = run([sys.executable, str(probe), "--help"], cwd=root)
+    if "--model-interface" not in probe_help or "--props-file" not in probe_help:
+        raise SmokeError("packaged model-interface probe does not expose the expected CLI")
+
     model_bytes = b"exactscope-qualification-preregistration-smoke\n"
     model_path = root / "qualification-smoke-model.gguf"
     model_path.write_bytes(model_bytes)
@@ -216,6 +226,8 @@ def test_capabilities(root: Path, manifest: dict, archive: Path) -> None:
             "64",
             "--timeout",
             "1",
+            "--model-interface",
+            "constrained_json",
             "--corpus",
             str(root / "benchmarks/corpus-v0.1.jsonl"),
             "--core",

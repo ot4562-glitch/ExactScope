@@ -1,6 +1,6 @@
 # ExactScope Statistics flagship capability slice
 
-Status: **code-side capability slice implemented; v1.0.0-rc.3 model/target qualification unmeasured**. This document defines the flagship Statistics task families and evidence contract built from the reviewed eight-operation set. The compiler/specialization/runtime plumbing exists, but the exact public rc3 release must still pass the benchmark and target gates below before the slice is called qualified.
+Status: **code-side capability slice implemented; rc3 model qualification completed/frozen, physical target qualification still NOT MEASURED**. This document defines the flagship Statistics task families and evidence contract built from the reviewed eight-operation set. rc4 does not change the reviewed Statistics semantics; it changes the model-facing envelope so the selected slice can be reached through a constrained request baseline even when native tool calls are unavailable.
 
 Implemented corpus: `benchmarks/statistics_corpus.py` emits the checked-in
 `statistics-v0.1.jsonl` from an explicit 32-bit LCG seed and five presentation
@@ -337,4 +337,4 @@ If those answers are weak, ExactScope should improve the slice/interface/evidenc
 
 The build-time [capability compiler](CAPABILITY_COMPILER.md) validates Statistics/Economics task selections, binds operation revisions and canonical model assets, enforces static budgets, emits exact model-surface negotiation metadata, and drives operation-selected no-import Wasm specialization. The active Statistics metadata generation/dispatch plumbing is code-side complete.
 
-Existing capability benchmark runners remain useful implementation/evidence tooling, and older local-model experiments remain historical interface evidence. They are **not** the rc3 benchmark result. The rc3 qualification session must start from the immutable public release, use the frozen minimum model matrix/preregistration contract, and create new evidence identities under [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md).
+Existing capability benchmark runners remain useful implementation/evidence tooling, and older local-model experiments remain historical interface evidence. They are **not** the rc3 benchmark result. Public rc3 findings are summarized in [`RC3_QUALIFICATION_CLOSEOUT.md`](RC3_QUALIFICATION_CLOSEOUT.md); internal evaluator prompts and local preregistration work instructions are stored outside the public repository.

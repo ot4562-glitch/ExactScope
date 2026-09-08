@@ -19,11 +19,13 @@ function readJson(file) {
 }
 
 const MODEL_SURFACE_ASSETS = new Map([
+  ["constrained-prompt.txt", ["prompt", "exactscope.constrained-prompt", "0.1"]],
   ["prompt-fragment.txt", ["prompt", "exactscope.prompt-fragment", "0.1"]],
   ["xs-calc.gbnf", ["grammar", "exactscope.xs-calc.gbnf", "0.1"]],
   ["xs-calc.tool.json", ["tool-schema", "exactscope.xs-calc.tool", "0.1"]],
   ["xs-eval.gbnf", ["grammar", "exactscope.xs-eval.gbnf", "0.1"]],
   ["xs-eval.tool.json", ["tool-schema", "exactscope.xs-eval.tool", "0.1"]],
+  ["xs-request.gbnf", ["grammar", "exactscope.xs-request.gbnf", "0.1"]],
 ]);
 
 export function verifyModelSurfaceContract(bundleDir, manifest, profile) {

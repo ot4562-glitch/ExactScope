@@ -90,7 +90,15 @@ class CompilerTests(unittest.TestCase):
         self.assertEqual(contract["hotset"]["binding_sha256"], profile["bindings"]["hotset_sha256"])
         self.assertEqual(
             [asset["path"] for asset in contract["assets"]],
-            ["prompt-fragment.txt", "xs-calc.gbnf", "xs-calc.tool.json", "xs-eval.gbnf", "xs-eval.tool.json"],
+            [
+                "constrained-prompt.txt",
+                "prompt-fragment.txt",
+                "xs-calc.gbnf",
+                "xs-calc.tool.json",
+                "xs-eval.gbnf",
+                "xs-eval.tool.json",
+                "xs-request.gbnf",
+            ],
         )
 
     def test_immutable_write_and_tamper(self):
@@ -220,9 +228,24 @@ class CompilerTests(unittest.TestCase):
         measurements = load(bundle["manifest.json"])["measurements"]
         self.assertEqual(measurements["top_level_tool_count"], 1)
         self.assertEqual(measurements["visible_semantic_operation_count"], 1)
-        self.assertEqual(measurements["prompt_fragment_bytes"], 129)
+        self.assertEqual(measurements["native_prompt_bytes"], 129)
+        self.assertGreater(measurements["constrained_prompt_bytes"], measurements["native_prompt_bytes"])
+        self.assertEqual(
+            measurements["prompt_fragment_bytes"],
+            max(measurements["native_prompt_bytes"], measurements["constrained_prompt_bytes"]),
+        )
         self.assertEqual(measurements["schema_bytes"], 811)
-        self.assertEqual(measurements["grammar_bytes"], 407)
+        self.assertEqual(measurements["native_grammar_bytes"], 411)
+        self.assertGreater(
+            measurements["constrained_request_grammar_bytes"],
+            measurements["native_grammar_bytes"],
+        )
+        self.assertEqual(
+            measurements["grammar_bytes"],
+            max(measurements["native_grammar_bytes"], measurements["constrained_request_grammar_bytes"]),
+        )
+        self.assertIn(b"ws ::= [ \\t\\n\\r]{0,2}", bundle["xs-eval.gbnf"])
+        self.assertNotIn(b"ws ::= [ \\t\\n\\r]*", bundle["xs-eval.gbnf"])
         self.assertNotIn("xs-calc.tool.json", bundle)
 
         combined = copy.deepcopy(request)

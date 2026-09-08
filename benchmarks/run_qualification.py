@@ -26,6 +26,18 @@ from capability_surface import CapabilityError, CapabilitySurface, digest_file, 
 from run_benchmark import Case, CoreBridge, core_matches, load_cases, normalize_core
 
 ROOT = Path(__file__).resolve().parents[1]
+TOOLS = ROOT / "tools"
+if str(TOOLS) not in sys.path:
+    sys.path.insert(0, str(TOOLS))
+
+from llama_cpp_interface import (  # noqa: E402
+    MODEL_INTERFACES,
+    InterfaceSelectionError,
+    fetch_runtime_props,
+    normalize_runtime_props,
+    select_model_interface,
+)
+
 ARMS = ("A", "C", "D")
 DECIMAL_RE = re.compile(r"^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$")
 REFERENCE_RE = re.compile(r"^#([0-7])$")
@@ -377,6 +389,101 @@ def tool_body(case: Case, surface: CapabilitySurface) -> dict[str, Any]:
     }
 
 
+def constrained_body(case: Case, surface: CapabilitySurface) -> dict[str, Any]:
+    return {
+        "messages": [
+            {"role": "system", "content": surface.constrained_prompt},
+            {"role": "user", "content": case.prompt},
+        ],
+        "grammar": surface.grammars["request"],
+    }
+
+
+def score_constrained_reply(
+    *,
+    case: Case,
+    reply: ModelReply,
+    surface: CapabilitySurface,
+    core: CoreBridge,
+    arm: str,
+) -> dict[str, Any]:
+    expected_lane = "none" if case.expected_call is None else "xs_eval"
+    selected_lane = "none"
+    call: dict[str, Any] | None = None
+    parsed: dict[str, Any] | None = None
+    core_response: dict[str, Any] | None = None
+    normalized_core: dict[str, Any] | None = None
+    core_latency: float | None = None
+    request_valid = True
+    malformed = False
+    try:
+        content = reply.message.get("content")
+        if not isinstance(content, str):
+            raise QualificationFailure("constrained response content must be a JSON string")
+        decoded = parse_json_strict(content)
+        if not isinstance(decoded, dict):
+            raise QualificationFailure("constrained response root must be an object")
+        parsed = decoded
+        if set(decoded) == {"n"} and decoded.get("n") is True:
+            selected_lane = "none"
+        elif set(decoded) == {"op", "a"}:
+            selected_lane = "xs_eval"
+            call = validate_eval_call(decoded, surface)
+            core_response, core_latency = core.eval(call)
+            normalized_core = normalize_core(core_response)
+        elif set(decoded) == {"p"} and surface.calc_enabled:
+            selected_lane = "xs_calc"
+            call = validate_calc_call(decoded)
+            core_response, core_latency = core.call("request", call)
+            normalized_core = normalize_core(core_response)
+        else:
+            raise QualificationFailure("constrained response is outside the frozen request grammar lanes")
+    except QualificationFailure:
+        request_valid = False
+        malformed = True
+
+    eval_call = call if selected_lane == "xs_eval" else None
+    stages = stage_metrics(case, eval_call)
+    stages["tool_use_recognition"] = (
+        selected_lane == "none" if case.expected_call is None else selected_lane != "none"
+    )
+    lane_correct = selected_lane == expected_lane
+    core_status_correct: bool | None = None
+    if selected_lane == "xs_eval" and normalized_core is not None:
+        core_status_correct = core_matches(case, normalized_core)
+    if case.expected_call is None:
+        final_correct = lane_correct and request_valid
+        failure_fidelity = final_correct
+    else:
+        final_correct = bool(
+            lane_correct
+            and request_valid
+            and stages["operation_selection"]
+            and stages["argument_extraction"]
+            and core_status_correct
+        )
+        failure_fidelity = final_correct if case.should_fail else None
+    return {
+        "expected_lane": expected_lane,
+        "selected_lane": selected_lane,
+        "lane_selection": lane_correct,
+        **stages,
+        "tool_call_validity": request_valid if selected_lane != "none" else None,
+        "core_status_correct": core_status_correct,
+        "final_answer_correct": final_correct,
+        "result_fidelity": final_correct if case.expected_core["status"] == "OK" else None,
+        "failure_fidelity": failure_fidelity,
+        "malformed_output": malformed,
+        "incorrect_numeric_answer": bool(
+            normalized_core is not None and normalized_core.get("status") == "OK" and not final_correct
+        ),
+        "model_output": parsed,
+        "call": call,
+        "core_response": core_response,
+        "core_latency_ms": round(core_latency, 6) if core_latency is not None else None,
+    }
+
+
 def score_tool_reply(
     *,
     case: Case,
@@ -512,9 +619,19 @@ def preregistration_document(args: argparse.Namespace) -> dict[str, Any]:
         raise QualificationFailure("evaluation archive SHA-256 differs from preregistration input")
     inventory_path = args.model_inventory.resolve()
     model = model_record(inventory_path, args.model_id)
+    try:
+        if args.model_interface == "constrained_json":
+            interface_selection = select_model_interface("constrained_json", None)
+        else:
+            runtime_props = fetch_runtime_props(args.base_url, min(args.timeout, 10.0))
+            runtime_capabilities = normalize_runtime_props(runtime_props)
+            interface_selection = select_model_interface(args.model_interface, runtime_capabilities)
+    except InterfaceSelectionError as exc:
+        raise QualificationFailure(f"model-interface preregistration failed: {exc}") from exc
+    resolved_interface = interface_selection["resolved"]
     return {
         "format": "exactscope.qualification.preregistration",
-        "format_version": "0.1",
+        "format_version": "0.2",
         "status": "frozen-before-inference",
         "created_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "release": {
@@ -546,6 +663,12 @@ def preregistration_document(args: argparse.Namespace) -> dict[str, Any]:
             "hidden_repair": False,
             "parallel_tool_calls": False,
         },
+        "model_interface": {
+            **interface_selection,
+            "mode": resolved_interface,
+            "native_tool_template_required": resolved_interface == "native_tools",
+            "constrained_no_call_sentinel": {"n": True} if resolved_interface == "constrained_json" else None,
+        },
         "corpus": {
             "path": str(corpus),
             "sha256": sha256_path(corpus),
@@ -560,16 +683,18 @@ def preregistration_document(args: argparse.Namespace) -> dict[str, Any]:
             "D": capability_identity(combined),
         },
         "arms": {
-            "A": "model-only; no ExactScope model-facing tool",
-            "C": "semantic capability; exact bound xs_eval only",
-            "D": "combined capability; exact bound xs_eval + xs_calc; semantic corpus expects xs_eval",
+            "A": "model-only; no ExactScope model-facing surface",
+            "C": f"semantic capability via {resolved_interface} (requested {args.model_interface}); exact bound xs_eval only plus explicit no-call",
+            "D": f"combined capability via {resolved_interface} (requested {args.model_interface}); exact bound xs_eval + xs_calc plus explicit no-call; semantic corpus expects xs_eval",
         },
         "order": {"type": "arm-major", "arms": list(ARMS), "corpus_order": "file-order"},
         "scoring": {
             "A_success": "exact expected decimal string; failures require null answer and nonempty error",
             "C_D_success": "expected lane + valid call + exact op + exact args + expected ExactScope status/value/classification",
             "D_lane_rule": "xs_calc on a benchmark semantic item is a wrong-lane failure even if its arithmetic result is numerically correct",
-            "missing_information": "no tool call",
+            "missing_information": (
+                "explicit no-call sentinel" if resolved_interface == "constrained_json" else "no tool call"
+            ),
         },
         "failure_policy": {
             "single_writer": True,
@@ -597,23 +722,55 @@ def capability_identity(surface: CapabilitySurface) -> dict[str, Any]:
         "operations": surface.operations,
         "calc_enabled": surface.calc_enabled,
         "model_surface_assets": assets,
+        "model_surface_bytes_total": sum((surface.root / name).stat().st_size for name in assets),
+        "model_surface_measurements": surface.manifest.get("measurements"),
     }
 
 
 def verify_preregistration(document: dict[str, Any]) -> tuple[list[Case], CoreBridge, CapabilitySurface, CapabilitySurface]:
     if document.get("format") != "exactscope.qualification.preregistration" or document.get("status") != "frozen-before-inference":
         raise QualificationFailure("unsupported or unfrozen preregistration")
+    version = document.get("format_version")
+    if version not in ("0.1", "0.2"):
+        raise QualificationFailure("unsupported preregistration format version")
+    interface = document.get("model_interface")
+    if (
+        not isinstance(interface, dict)
+        or interface.get("mode") not in ("constrained_json", "native_tools")
+        or interface.get("fallback") != "none"
+    ):
+        raise QualificationFailure("preregistration model interface is missing or unsupported")
     corpus_info = document.get("corpus")
     core_info = document.get("core")
     runtime_info = document.get("runtime")
+    generation = document.get("generation")
     model = document.get("model")
     model_inventory = document.get("model_inventory")
     release = document.get("release")
     if not all(
         isinstance(value, dict)
-        for value in (corpus_info, core_info, runtime_info, model, model_inventory, release)
+        for value in (corpus_info, core_info, runtime_info, generation, model, model_inventory, release)
     ):
         raise QualificationFailure("preregistration identity sections are incomplete")
+    if version == "0.2":
+        requested = interface.get("requested")
+        if requested not in MODEL_INTERFACES or interface.get("resolved") != interface.get("mode"):
+            raise QualificationFailure("preregistration model-interface request/resolution is invalid")
+        try:
+            if requested == "constrained_json":
+                current_selection = select_model_interface("constrained_json", None)
+            else:
+                current_props = fetch_runtime_props(
+                    runtime_info["base_url"],
+                    min(float(generation["timeout_seconds"]), 10.0),
+                )
+                current_capabilities = normalize_runtime_props(current_props)
+                current_selection = select_model_interface(requested, current_capabilities)
+        except (InterfaceSelectionError, KeyError, TypeError, ValueError) as exc:
+            raise QualificationFailure(f"runtime model-interface verification failed: {exc}") from exc
+        for key, value in current_selection.items():
+            if interface.get(key) != value:
+                raise QualificationFailure(f"frozen model-interface selection changed: {key}")
     corpus = Path(corpus_info["path"])
     core_path = Path(core_info["path"])
     runtime = Path(runtime_info["executable"])
@@ -648,7 +805,7 @@ def verify_preregistration(document: dict[str, Any]) -> tuple[list[Case], CoreBr
     return cases, CoreBridge(core_path), semantic, combined
 
 
-def aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
+def aggregate(records: list[dict[str, Any]], preregistration: dict[str, Any] | None = None) -> dict[str, Any]:
     summary: dict[str, Any] = {"record_count": len(records), "arms": {}}
     bool_metrics = (
         "lane_selection",
@@ -666,16 +823,24 @@ def aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
     )
     for arm in ARMS:
         subset = [record for record in records if record["arm"] == arm]
-        metrics: dict[str, Any] = {"count": len(subset), "correct": sum(bool(record["final_answer_correct"]) for record in subset)}
+        metrics: dict[str, Any] = {
+            "count": len(subset),
+            "correct": sum(bool(record["final_answer_correct"]) for record in subset),
+        }
         metrics["correct_rate"] = metrics["correct"] / len(subset) if subset else None
         for key in bool_metrics:
             values = [record[key] for record in subset if isinstance(record.get(key), bool)]
             metrics[key + "_count"] = sum(values) if values else None
             metrics[key + "_rate"] = (sum(values) / len(values)) if values else None
         for key in ("input_tokens", "output_tokens", "model_latency_ms", "core_latency_ms"):
-            values = [record[key] for record in subset if isinstance(record.get(key), (int, float)) and not isinstance(record.get(key), bool)]
+            values = [
+                record[key]
+                for record in subset
+                if isinstance(record.get(key), (int, float)) and not isinstance(record.get(key), bool)
+            ]
             metrics[key + "_mean"] = (sum(values) / len(values)) if values else None
         summary["arms"][arm] = metrics
+
     if all(arm in summary["arms"] for arm in ARMS):
         a = summary["arms"]["A"]["correct_rate"]
         c = summary["arms"]["C"]["correct_rate"]
@@ -685,6 +850,61 @@ def aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
             "D_minus_A": d - a if isinstance(a, float) and isinstance(d, float) else None,
             "D_minus_C": d - c if isinstance(c, float) and isinstance(d, float) else None,
         }
+
+    if isinstance(preregistration, dict):
+        interface = preregistration.get("model_interface")
+        if isinstance(interface, dict):
+            summary["model_interface"] = {
+                key: interface.get(key)
+                for key in ("requested", "resolved", "mode", "selection_phase", "selection_reason")
+                if key in interface
+            }
+        capabilities = preregistration.get("capabilities")
+        baseline = summary["arms"].get("A", {})
+        efficiency: dict[str, Any] = {}
+        if isinstance(capabilities, dict):
+            for arm in ("C", "D"):
+                arm_metrics = summary["arms"].get(arm, {})
+                identity = capabilities.get(arm)
+                if not isinstance(identity, dict):
+                    continue
+                uplift = None
+                if isinstance(arm_metrics.get("correct_rate"), float) and isinstance(baseline.get("correct_rate"), float):
+                    uplift = arm_metrics["correct_rate"] - baseline["correct_rate"]
+                added_tokens = None
+                if isinstance(arm_metrics.get("input_tokens_mean"), (int, float)) and isinstance(
+                    baseline.get("input_tokens_mean"), (int, float)
+                ):
+                    added_tokens = arm_metrics["input_tokens_mean"] - baseline["input_tokens_mean"]
+                added_model_ms = None
+                if isinstance(arm_metrics.get("model_latency_ms_mean"), (int, float)) and isinstance(
+                    baseline.get("model_latency_ms_mean"), (int, float)
+                ):
+                    added_model_ms = arm_metrics["model_latency_ms_mean"] - baseline["model_latency_ms_mean"]
+                surface_bytes = identity.get("model_surface_bytes_total")
+                efficiency[arm] = {
+                    "correctness_uplift": uplift,
+                    "added_input_tokens_mean": added_tokens,
+                    "added_model_latency_ms_mean": added_model_ms,
+                    "model_surface_bytes_total": surface_bytes,
+                    "uplift_per_added_input_token": (
+                        uplift / added_tokens
+                        if isinstance(uplift, (int, float)) and isinstance(added_tokens, (int, float)) and added_tokens != 0
+                        else None
+                    ),
+                    "uplift_per_model_surface_byte": (
+                        uplift / surface_bytes
+                        if isinstance(uplift, (int, float)) and isinstance(surface_bytes, int) and surface_bytes > 0
+                        else None
+                    ),
+                    "uplift_per_added_model_latency_ms": (
+                        uplift / added_model_ms
+                        if isinstance(uplift, (int, float)) and isinstance(added_model_ms, (int, float)) and added_model_ms != 0
+                        else None
+                    ),
+                }
+        if efficiency:
+            summary["efficiency"] = efficiency
     return summary
 
 
@@ -714,6 +934,7 @@ def execute_run(preregistration_path: Path, output_dir: Path) -> None:
     cases, core, semantic, combined = verify_preregistration(prereg)
     generation = prereg["generation"]
     runtime = prereg["runtime"]
+    model_interface = prereg["model_interface"]["mode"]
     client = QualificationClient(
         base_url=runtime["base_url"],
         model=runtime["server_model_name"],
@@ -754,11 +975,20 @@ def execute_run(preregistration_path: Path, output_dir: Path) -> None:
                         scored = score_model_only(case, reply)
                     else:
                         assert surface is not None
-                        reply = client.chat(tool_body(case, surface))
-                        scored = score_tool_reply(case=case, reply=reply, surface=surface, core=core, arm=arm)
+                        if model_interface == "constrained_json":
+                            reply = client.chat(constrained_body(case, surface))
+                            scored = score_constrained_reply(
+                                case=case, reply=reply, surface=surface, core=core, arm=arm
+                            )
+                        else:
+                            reply = client.chat(tool_body(case, surface))
+                            scored = score_tool_reply(
+                                case=case, reply=reply, surface=surface, core=core, arm=arm
+                            )
                     record = {
                         "case_id": case.identifier,
                         "arm": arm,
+                        "model_interface": "model_only" if arm == "A" else model_interface,
                         "timestamp_utc": started,
                         "model_turns": 1,
                         "input_tokens": reply.input_tokens,
@@ -784,7 +1014,7 @@ def execute_run(preregistration_path: Path, output_dir: Path) -> None:
             "results_sha256": sha256_path(raw_path),
             "model": prereg["model"],
             "release": prereg["release"],
-            "summary": aggregate(records),
+            "summary": aggregate(records, prereg),
         }
         (output_dir / "summary.json").write_bytes(canonical(summary))
         status.update(
@@ -805,7 +1035,7 @@ def execute_run(preregistration_path: Path, output_dir: Path) -> None:
         (output_dir / "SHA256MANIFEST.json").write_bytes(canonical(evidence_manifest(output_dir)))
         raise
     (output_dir / "SHA256MANIFEST.json").write_bytes(canonical(evidence_manifest(output_dir)))
-    print(json.dumps(aggregate(records), indent=2, sort_keys=True))
+    print(json.dumps(aggregate(records, prereg), indent=2, sort_keys=True))
 
 
 def parse_args() -> argparse.Namespace:
@@ -827,6 +1057,7 @@ def parse_args() -> argparse.Namespace:
     pre.add_argument("--seed", type=int, default=42)
     pre.add_argument("--max-tokens", type=int, default=256)
     pre.add_argument("--timeout", type=float, default=120.0)
+    pre.add_argument("--model-interface", choices=MODEL_INTERFACES, default="auto")
     pre.add_argument("--corpus", type=Path, default=ROOT / "benchmarks/corpus-v0.1.jsonl")
     pre.add_argument("--core", type=Path, required=True)
     pre.add_argument("--semantic-capability", type=Path, required=True)

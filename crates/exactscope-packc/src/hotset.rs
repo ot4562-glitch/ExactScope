@@ -726,7 +726,7 @@ fn eval_gbnf(operations: &[OperationBinding]) -> String {
     grammar.push_str(
         r#"decimal-vector ::= "[" ws (decimal-string (ws "," ws decimal-string)*)? ws "]"
 decimal-string ::= "\"" "-"? ("0" | [1-9] [0-9]*) ("." [0-9]+)? ([eE] [+-]? [0-9]+)? "\""
-ws ::= [ \t\n\r]*
+ws ::= [ \t\n\r]{0,2}
 "#,
     );
     grammar
@@ -735,7 +735,7 @@ ws ::= [ \t\n\r]*
 fn find_gbnf() -> String {
     r#"root ::= ws "{" ws "\"q\"" ws ":" ws query ws "," ws "\"n\"" ws ":" ws [1-5] ws "}" ws
 query ::= "\"" [A-Za-z0-9 _./:+-]* "\""
-ws ::= [ \t\n\r]*
+ws ::= [ \t\n\r]{0,2}
 "#
     .to_owned()
 }

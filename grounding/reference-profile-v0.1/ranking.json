@@ -1,0 +1,1 @@
+{"dedup":["source_id","source_revision","item_id","target_key"],"exact_first":true,"id":"exact-lexical-v1","minimum_overlap":2,"order":["exact-desc","overlap-desc","source_id-utf8-asc","source_revision-utf8-asc","item_id-utf8-asc","target_key-utf8-asc"],"score":"max distinct-token intersection over aliases","ties":"retain all; no authority from score"}

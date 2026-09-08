@@ -1,10 +1,59 @@
 # llama.cpp reference integration
 
-This directory maintains two deliberately narrow llama.cpp envelopes: the **one-tool direct `xs_eval` semantic path** and the **one-tool bounded `xs_calc` plan path**.
+This directory maintains three deliberately narrow llama.cpp integration paths:
 
-They are adapters only. They do not calculate, round, classify, convert units, choose a broader operation, or repair semantic errors. Each consumes one explicit ExactScope capability bundle and presents only that bundle's declared model-facing tool surface.
+- `grounding_v1.py` — the selected rc4/v1-candidate everyday factual grounding path;
+- `direct_eval_smoke.py` — the one-tool direct `xs_eval` semantic path;
+- `calc_plan_smoke.py` — the one-tool bounded `xs_calc` plan path.
 
-## Capability requirement
+The grounding path is the flagship consumer path. The quantitative adapters remain separate because ordinary factual grounding should not force a weak model through a tool catalog.
+
+These are adapters only. They do not calculate, round, invent values, convert units, choose a broader operation, or repair semantic errors.
+
+## Grounding v1 candidate
+
+`grounding_v1.py` connects to an already-running **loopback-only** llama.cpp OpenAI-compatible endpoint. It does not start another daemon and it never retries a failed model answer.
+
+The selected route order is fixed:
+
+```text
+GroundingFrame
+  -> unresolved authoritative state? host disposition, 0 model calls
+  -> exactly one grounded canonical scalar? host value, 0 model calls
+  -> no routed target / empty supplemental target? ordinary model knowledge
+  -> otherwise compact grounded text + policy, 1 model call
+```
+
+For model-required questions, installation performs a one-time 12-request calibration over three already-measured compact answer contracts (`answer-object-v1`, `v3`, `v4`). The resulting contract record is bound to an opaque immutable model key, the exact grounding policy SHA-256 and the selected model-surface SHA-256. Normal questions do not recalibrate.
+
+Typical setup against a running local server:
+
+```text
+python3 adapters/llama-cpp/grounding_v1.py calibrate \
+  --profile <grounding-profile-dir> \
+  --base-url http://127.0.0.1:8080/v1 \
+  --model local-model \
+  --model-key sha256:<model-file-sha256> \
+  --output grounding-contract.json
+```
+
+Then answer one factual question:
+
+```text
+python3 adapters/llama-cpp/grounding_v1.py answer \
+  --profile <grounding-profile-dir> \
+  --contract-record grounding-contract.json \
+  --model-key sha256:<model-file-sha256> \
+  --base-url http://127.0.0.1:8080/v1 \
+  --model local-model \
+  --question "Which replacement filter does the Rover Mini use?"
+```
+
+`plan` performs the same retrieval/authority/host-routing decision but never invokes the model. By default it prints only the route/model-call decision, reply (when host-completed), selected contract and profile digest so private evidence is not sprayed into terminal logs. Use `plan --verbose` only when you explicitly need the full frame, audit and model messages for debugging; that output may contain private/device evidence.
+
+The selected source-run r25 screen used 7 model calls for 30 G questions: 13 canonical scalar facts and 10 unresolved authoritative states were completed by the host. Those measurements are experimental optimization evidence until immutable-package qualification is repeated.
+
+## Quantitative capability requirement
 
 The maintained path requires a capability bundle with `surface-contract.json` and `bindings.surface_contract_sha256`. Legacy generated hot-set directories and frozen pre-contract capability revisions are not accepted implicitly.
 

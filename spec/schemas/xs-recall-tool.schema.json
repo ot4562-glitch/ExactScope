@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.org/spec/schemas/xs-recall-tool.schema.json",
+  "title": "ExactScope xs_recall arguments",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["q", "k"],
+  "properties": {
+    "q": {"type": "string", "minLength": 1, "maxLength": 192},
+    "k": {"type": "integer", "minimum": 1, "maximum": 4}
+  }
+}

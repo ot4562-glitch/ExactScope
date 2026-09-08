@@ -44,6 +44,7 @@ Each archive has one root directory and contains:
 capability/                 immutable capability bundle
 include/                    profile-relevant public headers
 lib/...                     native runtime/CMake files when native
+grounding/corpus-index-v1.xsgi   optional hash-bound native grounding index
 LICENSE-MIT
 LICENSE-APACHE
 THIRD_PARTY_NOTICES.md
@@ -60,6 +61,7 @@ SHA256SUMS                  digest of every payload plus manifest.json
 - nested capability bundle digest;
 - model-surface contract digest and negotiation mode;
 - exact runtime path, byte size, and SHA-256;
+- optional native grounding index path, byte size, and SHA-256 when `grounding/corpus-index-v1.xsgi` is packaged;
 - optional `build-inputs.json` digest/source identity when current-source reproducibility metadata is supplied;
 - SHA-256 for every packaged payload.
 
@@ -73,6 +75,7 @@ The v0.1 schema is `spec/schemas/release-bundle.schema.json`.
 python3 tools/package_release_bundle.py build-native \
   --capability <unbound-capability-dir> \
   --library <libexactscope_cabi.a-or-exactscope_cabi.lib> \
+  [--grounding-index <corpus-index-v1.xsgi>] \
   --target <exact-target> \
   --source-commit <40-hex-commit> \
   --toolchain <toolchain-id> \
@@ -90,6 +93,8 @@ python3 tools/package_release_bundle.py verify <archive.tar.gz>
 
 Archive generation is deterministic for identical inputs. If an archive with the same output identity already exists with different bytes, packaging fails closed instead of overwriting it.
 
+When `--grounding-index` is supplied for `native-static`, the packager accepts only a regular payload with the `XSGI` magic, copies it to the single canonical path `grounding/corpus-index-v1.xsgi`, and binds its exact byte size and SHA-256 in both `manifest.json` and the complete payload inventory/checksum set. This packaging check does not replace runtime format validation: native clean-room conformance must still bind the packaged bytes through `xs_grounding_index_init`, which performs the parity-frozen `.xsgi` layout/CRC/record validation. The current no-import Wasm release path rejects this native grounding payload until a separate Wasm grounding ABI is qualified.
+
 ## Verification boundary
 
 `verify` rejects:
@@ -101,6 +106,7 @@ Archive generation is deterministic for identical inputs. If an archive with the
 - broken nested capability identity or contradictions between nested profile/task-map/catalog/model assets/measurements/bindings;
 - model-surface identity or negotiation drift;
 - runtime digest/size drift;
+- native grounding path/size/digest/magic drift or any grounding payload on the current Wasm profile;
 - a native package carrying a bound Wasm capability;
 - a Wasm package whose static artifact properties disagree with its declared capability budget/measurements;
 - any bundle claiming support other than `experimental` or qualification other than `unqualified` in this packaging revision.

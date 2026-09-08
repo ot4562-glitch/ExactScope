@@ -1,64 +1,79 @@
 # ExactScope documentation map
 
-Release context: **v1.0.0-rc.3 integration & qualification candidate**
-Date: 2026-09-05
+Release context: **ExactScope v1.0.0 is the stable Linux x86-64 native grounding software release. The selected r25 behavior, native C ABI, deterministic package, footprint gate, and final-archive C11 clean-room path are complete. Physical ARM64 device qualification remains explicitly unclaimed.**
 
-This index separates current product/user contracts from historical design/evidence records so older development measurements are not mistaken for rc3 claims.
+Date: 2026-09-08
 
-## Start here
+This index contains the documents intended for users, integrators, reviewers and public reproducibility. Internal experiment logs, agent prompts, evaluator handoffs and release-operator notes are intentionally kept outside the public repository.
 
-For an evaluator or integrator:
+## Start here — grounding product path
 
-1. [`../README.md`](../README.md) — product scope and release status.
-2. [`QUICKSTART.md`](QUICKSTART.md) — install/load the published candidate.
-3. [`AI_INTEGRATION.md`](AI_INTEGRATION.md) — attach the smallest model-facing surface.
-4. [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md) — exact rc3 benchmark/target-evidence contract.
-5. [`NEXT_SESSION_PROMPT.md`](NEXT_SESSION_PROMPT.md) — copy-paste prompt for the external-user verification session.
-6. [`../benchmarks/NEXT_MODEL_MATRIX.md`](../benchmarks/NEXT_MODEL_MATRIX.md) — frozen minimum model plan.
+Read in this order:
 
-## Current normative / operational documents
+1. [`PRODUCT_DIRECTION.md`](PRODUCT_DIRECTION.md) — product objective, scope and decision test.
+2. [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md) — provider-neutral source/provider/policy/GroundingFrame architecture.
+3. [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md) — normative authority, provider, evidence and failure-state contract.
+4. [`AI_INTEGRATION.md`](AI_INTEGRATION.md) — selected host-first integration path and llama.cpp model surface.
+5. [`INSTALLATION.md`](INSTALLATION.md) — embedding and package requirements.
+6. [`QUICKSTART.md`](QUICKSTART.md) — shortest evaluation path.
+7. [`BENCHMARK.md`](BENCHMARK.md) — A/G benchmark, gold isolation, preregistration and qualification rules.
+8. [`GROUNDING_EVALUATION_PACKAGE.md`](GROUNDING_EVALUATION_PACKAGE.md) — immutable evaluation-package boundary.
+9. [`../SECURITY.md`](../SECURITY.md) — scope, privacy, evidence and prompt-injection trust boundaries.
+10. [`RC3_QUALIFICATION_CLOSEOUT.md`](RC3_QUALIFICATION_CLOSEOUT.md) — frozen historical findings that motivated the grounding-first product direction.
 
-These should describe the current rc3 architecture or current qualification boundary:
+The root [`README.md`](../README.md) contains the current paired model-only vs ExactScope accuracy table and the broader HotpotQA/NQ development evidence. The frozen seven-model screen spans 135M to 3.8B and was re-scored after the native C ABI/release integration with identical semantic results. Those model-accuracy measurements remain candidate/provider/corpus scoped; the stable v1 claim is the Linux x86-64 native grounding software/package scope, not universal accuracy across arbitrary providers.
 
-- [`PRODUCT_DIRECTION.md`](PRODUCT_DIRECTION.md)
-- [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md)
-- [`CAPABILITY_COMPILER.md`](CAPABILITY_COMPILER.md)
-- [`STATISTICS_CAPABILITY_SLICE.md`](STATISTICS_CAPABILITY_SLICE.md)
-- [`ARCHITECTURE.md`](ARCHITECTURE.md)
-- [`INSTALLATION.md`](INSTALLATION.md)
-- [`AI_INTEGRATION.md`](AI_INTEGRATION.md)
-- [`EVALUATION_BUNDLE.md`](EVALUATION_BUNDLE.md)
-- [`BENCHMARK.md`](BENCHMARK.md)
-- [`COMPATIBILITY.md`](COMPATIBILITY.md)
-- [`MARKETING_CLAIMS.md`](MARKETING_CLAIMS.md)
-- [`COMMERCIALIZATION.md`](COMMERCIALIZATION.md)
-- [`QUALIFICATION_HANDOFF.md`](QUALIFICATION_HANDOFF.md)
-- [`CODEX_CONTEXT.md`](CODEX_CONTEXT.md)
-- [`NEXT_AGENT_HANDOFF.md`](NEXT_AGENT_HANDOFF.md)
+## Current selected behavior
 
-## Historical/design context
+The stable v1 host order is:
 
-These files record how the architecture reached its current state. Historical checklists, revision names, measurements or planned phases inside them are not rc3 evidence unless a current document explicitly revalidates them:
+```text
+GroundingFrame
+  -> authoritative unresolved state: deterministic host disposition, 0 model calls
+  -> one grounded canonical scalar: deterministic host value, 0 model calls
+  -> no routed target / supplemental miss: ordinary model knowledge
+  -> remaining grounded text: compact evidence + one model answer call
+```
 
-- [`DECISIONS.md`](DECISIONS.md) — append-only decision history; old revisions are intentionally preserved.
-- [`FIRST_IMPLEMENTATION_SLICE.md`](FIRST_IMPLEMENTATION_SLICE.md) — early implementation-slice context.
-- [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) — historical productization sequence; current next work is in `../ROADMAP.md` and the qualification handoff.
-- [`RETROFIT_PRODUCT_STRATEGY.md`](RETROFIT_PRODUCT_STRATEGY.md) — product-thesis/design rationale, updated with the rc3 evidence boundary.
-- historical `STATISTICS_R17_*_RESULT.md` files — result interpretations tied to older exact runtimes, not rc3.
-- [`REFERENCES.md`](REFERENCES.md) — reference material rather than a release-status document.
+The reference llama.cpp integration is [`../adapters/llama-cpp/grounding_v1.py`](../adapters/llama-cpp/grounding_v1.py). It uses a loopback-only llama.cpp endpoint, no answer retry, and a one-time model-identity-bound calibration among the already measured compact answer contracts. The calibration is not paid per user question.
 
-## rc3 evidence rule
+## Supporting public documents
 
-The code-side implementation and packaging candidate can be described from source/build/package checks. Claims about model uplift, target RAM/latency/energy, production readiness, stable support, or hardware-life extension require new evidence bound to the exact immutable `v1.0.0-rc.3` release.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — combined grounding + deterministic quantitative system boundary.
+- [`GROUNDING_RUNTIME_RC4.md`](GROUNDING_RUNTIME_RC4.md) — host reference runtime and selected completion order.
+- [`COMPATIBILITY.md`](COMPATIBILITY.md) — compatibility and identity rules.
+- [`EVALUATION_BUNDLE.md`](EVALUATION_BUNDLE.md) — frozen rc3 quantitative evaluation bundle.
+- [`CAPABILITY_COMPILER.md`](CAPABILITY_COMPILER.md) — quantitative capability/profile compiler.
+- [`MODEL_INTERFACE_RC4.md`](MODEL_INTERFACE_RC4.md) — quantitative constrained/native model envelopes.
+- [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) — quantitative capability unit and model/device budgets.
+- [`../CONTRIBUTING.md`](../CONTRIBUTING.md) — contribution rules.
+- [`../ROADMAP.md`](../ROADMAP.md) — public product/release milestones.
 
-Historical `statistics-core-8-ai-r20` evidence belongs to an older **45,804-byte r17 Statistics serving runtime** and is never inherited by rc3.
+## Quantitative subsystem
 
-## Clean-source rule
+`xs_calc`, `xs_eval`, native C ABI and no-import Wasm remain supported deterministic infrastructure, but they are not the default everyday factual-answering path. The grounding layer avoids requiring weak models to navigate a broad tool catalog just to answer ordinary factual questions.
 
-The public source tag keeps reviewed source/specifications, generators, adapters, benchmark harnesses/preregistration inputs, and historical interpretation documents. It intentionally does not accumulate mutable generated capability/evidence revision directories or mutable benchmark output payloads.
+Historical quantitative documents and rc3 results remain valid only for their exact recorded runtime/model/package identities. They are not v1 grounding accuracy evidence and are not transferred into stable grounding claims.
 
-- `adapters/capabilities/` — policy/readme in the clean tag; generate new revisions for exact candidates.
-- `benchmarks/output/` — ignored work output.
-- `benchmarks/results/` — policy/readme in the clean tag; freeze publishable evidence separately with immutable identity.
+## Evidence identity rule
 
-Do not delete historical frozen evidence from a developer checkout to create a clean release. Prepare the release from a separate clean snapshot, as done for rc3.
+Grounding evidence belongs only to the exact combination of:
+
+- source/content revision or digest;
+- retrieval provider/index/preprocessing/ranking identity;
+- source scope and authority mode;
+- freshness/revision/conflict/ambiguity policy;
+- evidence top-k/byte/token budget;
+- GroundingFrame/model-projection/policy bytes;
+- selected model-answer contract;
+- model file/runtime/generation settings;
+- corpus/scorer identity;
+- candidate/package/source identity.
+
+Changing any behavior-affecting field creates a new evidence candidate. Source-run optimization scores are never copied into release-qualified claims.
+
+## Clean public-source rule
+
+The public source keeps reviewed product code/specifications, public adapters, generators, benchmark/qualification tooling, user-facing documentation and intentionally public historical findings. It does **not** keep internal experiment logs, local model/server paths, raw benchmark output, agent context, handoff notes, evaluator prompts or release-operator scratch files.
+
+`python3 tools/audit_publication.py` is a mandatory pre-push/release gate. Release packagers use explicit file maps instead of wildcard-copying the developer workspace.

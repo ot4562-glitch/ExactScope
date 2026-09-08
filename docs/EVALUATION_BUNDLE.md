@@ -1,8 +1,12 @@
-# ExactScope v1.0.0-rc.3 evaluation SDK
+# ExactScope v1.0.0-rc.3 evaluation SDK — frozen public artifact
 
-The evaluation SDK is the prerelease integration artifact for developers who want to evaluate ExactScope without first installing Rust or understanding the workspace.
+Status: **historical rc3 quantitative package contract; rc3 external-user qualification is complete**. Active rc4 work has a separate grounding contract/reference implementation and pre-inference grounding evaluation-package format; none of that mutates or reinterprets this frozen public rc3 release description.
 
-It proves a release-shaped integration path. Passing bundle integrity/smoke checks does **not** by itself prove model uplift, real-device qualification, target RAM/latency/energy, or stable support.
+The evaluation SDK is the prerelease **quantitative integration artifact** for developers who want to reproduce/evaluate rc3 without first installing Rust or understanding the workspace. It does **not** contain or imply the separate provider-neutral rc4 grounding product/profile now implemented in the rc4 source candidate.
+
+It proves a release-shaped quantitative integration path. Passing bundle integrity/smoke checks does **not** by itself prove grounding accuracy, hallucination reduction, false-grounding behavior, model uplift, real-device qualification, target RAM/latency/energy, or stable support.
+
+The separate rc4 grounding evaluation package defined in [`GROUNDING_EVALUATION_PACKAGE.md`](GROUNDING_EVALUATION_PACKAGE.md) binds source/provider/index/policy/GroundingFrame/projection/corpus/model/runtime/scorer identities separately; this rc3 capability bundle is not the grounding format.
 
 ## Contents
 
@@ -178,4 +182,4 @@ A Wasm linear-memory page maximum is not total process/device RSS.
 
 `v1.0.0-rc.3` provides permanent versioned public candidate assets so qualification can be performed against an immutable input. Stable/support promotion still requires evidence for the exact published artifacts, including the selected model matrix or justified product-specific subset and representative target-device qualification.
 
-Use [QUALIFICATION_HANDOFF.md](QUALIFICATION_HANDOFF.md) as the canonical continuation contract.
+Use [RC3_QUALIFICATION_CLOSEOUT.md](RC3_QUALIFICATION_CLOSEOUT.md) for the public historical qualification findings. Internal evaluator handoffs are stored outside the public repository.
