@@ -327,7 +327,10 @@ mod tests {
             .unwrap();
         assert_eq!(count, 1);
         let hit = out[0].unwrap();
-        assert_eq!(hit.fact.evidence, "Project Aster's orbital period is 37 hours.");
+        assert_eq!(
+            hit.fact.evidence,
+            "Project Aster's orbital period is 37 hours."
+        );
         assert_eq!(hit.fact.revision, 2);
     }
 

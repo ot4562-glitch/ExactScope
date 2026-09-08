@@ -9,7 +9,6 @@ For public historical context, use:
 1. [`../docs/RC3_QUALIFICATION_CLOSEOUT.md`](../docs/RC3_QUALIFICATION_CLOSEOUT.md)
 2. [`NEXT_MODEL_MATRIX.md`](NEXT_MODEL_MATRIX.md)
 3. [`../docs/BENCHMARK.md`](../docs/BENCHMARK.md)
-4. [`../docs/PUBLICATION_BOUNDARY.md`](../docs/PUBLICATION_BOUNDARY.md)
 
 Internal rc3 evaluator prompts/handoffs are stored outside the public repository.
 

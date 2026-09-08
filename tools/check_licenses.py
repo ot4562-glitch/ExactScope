@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INTERNAL = {
-    "exactscope-cabi", "exactscope-conformance", "exactscope-kernel",
+    "exactscope-cabi", "exactscope-conformance", "exactscope-grounding", "exactscope-kernel",
     "exactscope-pack", "exactscope-packc", "exactscope-tinyjson", "exactscope-wasm",
 }
 REVIEWED_EXTERNAL = {

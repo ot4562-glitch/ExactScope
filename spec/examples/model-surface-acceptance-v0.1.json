@@ -5,11 +5,13 @@
   "accepted_abi_revisions": ["1.0"],
   "accepted_hotset_format_versions": ["0.1"],
   "accepted_asset_contracts": {
+    "exactscope.constrained-prompt": ["0.1"],
     "exactscope.prompt-fragment": ["0.1"],
     "exactscope.xs-calc.gbnf": ["0.1"],
     "exactscope.xs-calc.tool": ["0.1"],
     "exactscope.xs-eval.gbnf": ["0.1"],
-    "exactscope.xs-eval.tool": ["0.1"]
+    "exactscope.xs-eval.tool": ["0.1"],
+    "exactscope.xs-request.gbnf": ["0.1"]
   },
   "require_exact_asset_digests": true
 }

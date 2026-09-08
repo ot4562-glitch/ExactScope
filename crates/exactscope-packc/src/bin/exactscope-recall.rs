@@ -24,7 +24,8 @@ fn string_field<'a>(value: &'a Value, key: &str) -> Result<&'a str, String> {
 
 fn load_facts(path: &str) -> Result<Vec<OwnedFact>, String> {
     let bytes = fs::read(path).map_err(|error| format!("cannot read fact pack: {error}"))?;
-    let root: Value = serde_json::from_slice(&bytes).map_err(|error| format!("invalid fact-pack JSON: {error}"))?;
+    let root: Value = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("invalid fact-pack JSON: {error}"))?;
     if root.get("format").and_then(Value::as_str) != Some("exactscope.fact-pack")
         || root.get("format_version").and_then(Value::as_str) != Some("0.1")
     {
@@ -44,7 +45,8 @@ fn load_facts(path: &str) -> Result<Vec<OwnedFact>, String> {
             .get("revision")
             .and_then(Value::as_u64)
             .ok_or_else(|| "fact revision must be an unsigned integer".to_owned())?;
-        let revision = u32::try_from(revision_u64).map_err(|_| "fact revision exceeds u32".to_owned())?;
+        let revision =
+            u32::try_from(revision_u64).map_err(|_| "fact revision exceeds u32".to_owned())?;
         if revision == 0 {
             return Err("fact revision must be positive".to_owned());
         }
@@ -85,7 +87,11 @@ fn run() -> Result<Value, String> {
         .ok_or_else(|| "usage: exactscope-recall <fact-pack.json> <query> [k]".to_owned())?;
     let k = args
         .next()
-        .map(|value| value.parse::<usize>().map_err(|_| "k must be an integer".to_owned()))
+        .map(|value| {
+            value
+                .parse::<usize>()
+                .map_err(|_| "k must be an integer".to_owned())
+        })
         .transpose()?
         .unwrap_or(2);
     if args.next().is_some() || !(1..=MAX_RECALL_MATCHES).contains(&k) {
@@ -131,7 +137,10 @@ fn run() -> Result<Value, String> {
         Err(status) if status == Status::MISSING_INFORMATION => {
             Ok(json!({"s": status.code(), "h": []}))
         }
-        Err(status) => Err(format!("recall request failed with status {}", status.code())),
+        Err(status) => Err(format!(
+            "recall request failed with status {}",
+            status.code()
+        )),
     }
 }
 

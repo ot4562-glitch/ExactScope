@@ -28,9 +28,12 @@ if str(TOOLS) not in sys.path:
 from check_model_surface_compat import CompatibilityError, check_acceptance  # noqa: E402
 from compile_capability import (  # noqa: E402
     canonical,
+    constrained_request_grammar,
+    constrained_request_prompt,
     digest,
     load,
     model_surface_contract,
+    model_surface_measurements,
     position_aware_calc_grammar,
     verify_bundle,
 )
@@ -439,12 +442,8 @@ def prepare_self_test_capability(destination: Path) -> Path:
             "tool_schema_sha256": digest(
                 canonical({"xs-calc.tool.json": digest(tool_bytes)})
             ),
-            "grammar_sha256": digest(
-                canonical({"xs-calc.gbnf": digest(grammar_bytes)})
-            ),
-            "prompt_sha256": digest(
-                canonical({"prompt-fragment.txt": digest(prompt_bytes)})
-            ),
+            "grammar_sha256": None,
+            "prompt_sha256": None,
             "artifact_sha256": None,
             "surface_contract_sha256": None,
             "profile_generator": "llama.cpp-calc-self-test-fixture",
@@ -468,6 +467,20 @@ def prepare_self_test_capability(destination: Path) -> Path:
         "xs-calc.grammar-source.json": grammar_source_bytes,
         "xs-calc.tool.json": tool_bytes,
     }
+    files["constrained-prompt.txt"] = constrained_request_prompt(
+        catalog, include_calc=True
+    )
+    files["xs-request.gbnf"] = constrained_request_grammar(None, grammar_bytes)
+    categories = {
+        "grammar": sorted(name for name in files if name.endswith(".gbnf")),
+        "prompt": sorted(
+            name for name in ("prompt-fragment.txt", "constrained-prompt.txt") if name in files
+        ),
+    }
+    for category, names in categories.items():
+        profile["bindings"][category + "_sha256"] = digest(
+            canonical({name: digest(files[name]) for name in names})
+        )
     surface_contract_bytes = canonical(model_surface_contract(profile, catalog, files))
     files["surface-contract.json"] = surface_contract_bytes
     profile["bindings"]["surface_contract_sha256"] = digest(surface_contract_bytes)
@@ -478,13 +491,7 @@ def prepare_self_test_capability(destination: Path) -> Path:
         "format": "exactscope.capability.bundle",
         "format_version": "0.1",
         "files": {name: digest(data) for name, data in sorted(files.items())},
-        "measurements": {
-            "prompt_fragment_bytes": len(prompt_bytes),
-            "schema_bytes": len(tool_bytes),
-            "grammar_bytes": len(grammar_bytes),
-            "top_level_tool_count": 1,
-            "visible_semantic_operation_count": 0,
-        },
+        "measurements": model_surface_measurements(files, catalog),
         "operation_revisions": {},
         "artifact_status": "self-test fixture; unbound and never executed",
     }
