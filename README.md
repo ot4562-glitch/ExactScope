@@ -2,7 +2,7 @@
 
 # ExactScope
 
-### Make small, local, and on-device AI more accurate — without replacing the model.
+### Improve factual accuracy in small, local, and on-device AI with application evidence — without replacing the model.
 
 **A lightweight grounding runtime and AI accuracy retrofit layer for small LLMs, local AI, edge AI, and on-device models.**
 
@@ -135,17 +135,17 @@ The goal is not to make model weights universally more intelligent. The goal is 
 
 ---
 
-## What ExactScope is NOT
+## Product boundary
 
-### Not an LLM harness
+### Your application keeps control of model execution
 
-If by **LLM harness** you mean a framework that owns prompt orchestration, sessions, autonomous agent loops, tool selection, retries, or model execution, that is not ExactScope's product boundary.
+ExactScope does not own prompt orchestration, sessions, autonomous agent loops, tool selection, retries, or model execution. Your application keeps those responsibilities.
 
-ExactScope does not need to control your inference stack. Your application can keep using llama.cpp or another local model runtime exactly where generation is useful.
+Your inference stack stays in place. The application can keep using llama.cpp or another local model runtime exactly where generation is useful.
 
 The normal grounding path is **zero or one answer-generation call**. The model does not need to choose a retrieval provider before answering.
 
-### Not just another RAG framework
+### Evidence policy, not just similarity-search RAG
 
 A common RAG path is:
 
@@ -175,7 +175,7 @@ That distinction matters. A source returning **no result** is not the same as a 
 
 ExactScope makes those states explicit instead of asking a small model to infer operational truth from prose.
 
-### Not a new model
+### Works around the model, not inside the weights
 
 ExactScope does not change model weights and does not require fine-tuning.
 
@@ -233,11 +233,59 @@ For some products, upgrading the capability around the model can be cheaper and 
 
 ## Benchmark evidence
 
-ExactScope is tested against model-only baselines. The project reports failure modes and provider scope rather than treating retrieval as proof by itself.
+ExactScope is tested against model-only baselines. The project reports negative cells, protocol incompatibilities and corpus scope rather than treating retrieval as proof by itself.
+
+### 20-model post-release qualification
+
+The v1.0.0 grounding path was re-tested across **20 frozen llama.cpp model identities from 135M to 3.8B parameters**, selected for edge/on-device relevance, popular local-model coverage and vendor/architecture diversity.
+
+A separate model-only capability screen used 24 deterministic items from each of **MMLU, ARC-Challenge, HellaSwag, TruthfulQA MC1, WinoGrande and GSM8K**. It scheduled 20 models, completed 18 under the fixed structured-output runtime, scored **2,592 model-items**, and produced a **37.42%** six-task macro mean. This is a recognizable public-data screen, **not** an official Open LLM Leaderboard reproduction.
+
+The ExactScope A/G panel then scheduled the same 20-model identity on Natural Questions, HotpotQA and FEVER. Final disposition was **60 planned cells / 54 scored / 6 explicit N/A protocol failures / 0 retries**.
+
+| Public A/G workload | Model only (A) | ExactScope (G) | Change | Improved / tied / regressed |
+|---|---:|---:|---:|---:|
+| Natural Questions · F1 | **9.14%** | **21.35%** | **+12.21pp** | 17 / 1 / 0 |
+| HotpotQA · F1 | **12.18%** | **24.64%** | **+12.46pp** | 15 / 1 / 2 |
+| FEVER · label accuracy | **26.52%** | **30.63%** | **+4.11pp** | 11 / 3 / 4 |
+
+| Model | Params | Public 6 macro | NQ F1 A→G | HotpotQA F1 A→G | FEVER acc A→G |
+|---|---:|---:|---:|---:|---:|
+| SmolLM2 | 135M | 26.4% | 4.3→4.3 | 4.3→5.8 | 0.0→0.0 |
+| Gemma 3 | 270M | 25.7% | 6.2→10.1 | 12.2→10.3 | 0.0→0.0 |
+| LFM2.5 | 350M | 31.2% | 4.1→4.8 | 0.0→19.0 | 10.0→0.0 |
+| SmolLM2 | 360M | 31.2% | 6.1→6.2 | 4.1→7.4 | 34.0→0.7 |
+| Qwen2.5 | 0.5B | 29.2% | 6.0→23.8 | 1.4→18.7 | 6.0→22.0 |
+| Qwen3 | 0.6B | 37.5% | 6.5→12.6 | 11.5→22.5 | 38.0→43.3 |
+| Qwen3.5 | 0.8B | 41.0% | 5.3→28.3 | 20.2→42.3 | 31.3→44.0 |
+| OLMo 2 | 1B | 34.0% | 9.7→19.2 | 16.7→7.5 | 16.0→1.3 |
+| Llama 3.2 | 1B | 34.0% | 11.8→23.4 | 9.9→11.7 | 19.3→26.0 |
+| TinyLlama | 1.1B | N/A | N/A | N/A | N/A |
+| LFM2.5 | 1.2B | 42.4% | 3.8→15.1 | 6.7→17.5 | 26.7→29.3 |
+| DeepSeek R1 Distill Qwen | 1.5B | 0.0% | 0.0→0.0 | 0.0→0.0 | 0.0→0.0 |
+| SmolLM2 | 1.7B | 37.5% | 10.9→15.4 | 16.2→17.4 | 46.0→40.0 |
+| Qwen3 | 1.7B | 48.6% | 10.5→36.5 | 10.5→47.9 | 34.7→47.3 |
+| Qwen3.5 | 2B | 46.5% | 9.2→39.8 | 27.3→56.8 | 35.3→50.7 |
+| Granite 3.3 | 2B | 47.2% | 10.8→37.5 | 15.2→52.2 | 47.3→52.7 |
+| Llama 3.2 | 3B | 49.3% | 26.0→29.3 | 18.0→20.6 | 43.3→67.3 |
+| SmolLM3 | 3B | 50.0% | 17.1→38.6 | 25.3→46.1 | 46.0→60.0 |
+| Ministral | 3B | N/A | N/A | N/A | N/A |
+| Phi-4 mini | 3.8B | 61.8% | 16.1→39.5 | 19.7→39.8 | 43.3→66.7 |
+
+Important boundaries:
+
+- `TinyLlama 1.1B` and `Ministral 3B` are **N/A**, not zero: the frozen llama.cpp + structured-output protocol failed before a scoreable run.
+- DeepSeek-R1-Distill-Qwen-1.5B completed the public screen but had **144/144 format failures**, which remain counted as 0 rather than being excluded.
+- NQ and FEVER use frozen oracle-assisted development corpora marked `qualification_eligible=false`; they are diagnostic/development evidence, not official end-to-end reproductions.
+- HotpotQA is the cleanest broader public A/G result in this panel.
+- Negative cells are retained. ExactScope does **not** claim that every model/workload combination improves.
+- The initial two-worker grounding run hit a real host OOM on the 16 GB qualification machine. Sealed cells were preserved and the remaining cells were attempted once in a fresh serial recovery. Recovery latency is **not** a product latency claim.
+
+See the [full 20-model qualification report](benchmarks/V1_20_MODEL_RESULTS.md) and [benchmark methodology](docs/BENCHMARK.md) for model identities, per-task public scores, artifact hashes, recovery provenance, isolation rules and reporting requirements.
 
 ### Frozen seven-model matched causal screen
 
-A frozen 30-item factual screen was run across seven local models from **135M to 3.8B parameters**. The same semantic screen was repeated after the native C ABI/release integration work and the scored behavior remained exactly unchanged.
+A separate frozen 30-item factual screen remains useful as a candidate-bound causal test because the facts are tied to a frozen provider/corpus/policy rather than broad pretrained public knowledge.
 
 | Local model | Model only (A) | ExactScope (G) | Uplift |
 |---|---:|---:|---:|
@@ -250,32 +298,9 @@ A frozen 30-item factual screen was run across seven local models from **135M to
 | Phi-4-mini-instruct 3.8B Q4_K_M | 13.3% | 100.0% | +86.7pp |
 | **Mean** | **8.1%** | **93.3%** | **+85.2pp** |
 
-In those grounded runs:
+In those grounded runs, false grounding, unsupported authoritative assertions and format failures were all **0%**; deterministic host completion handled **23/30** grounded items and only **7/30** required model inference.
 
-- false grounding: **0%**;
-- unsupported authoritative assertions: **0%**;
-- format failures: **0%**;
-- deterministic host completion: **23/30** grounded items;
-- model inference required: **7/30** grounded items.
-
-**Scope warning:** this is a candidate-bound causal screen with a frozen provider/corpus/policy. It is strong evidence that the selected ExactScope path caused the measured improvement on this task. It is **not** a claim that every dataset, provider, or model gains +85.2 percentage points.
-
-### Broader public-benchmark development evidence
-
-The effect is workload-dependent, which is exactly why the project also records less dramatic results.
-
-| Benchmark / model | Model only | ExactScope | Change |
-|---|---:|---:|---:|
-| HotpotQA screen · Qwen 0.8B · F1 · 4 KiB evidence | 20.25 | 42.33 | +22.08pp |
-| HotpotQA screen · Llama 1B · F1 · 4 KiB evidence | 9.47 | 14.21 | +4.74pp |
-| NQ development mirror · Qwen 0.8B · F1 | 5.0 | 23.7 | +18.7pp |
-| NQ development mirror · Llama 1B · F1 | 12.4 | 23.1 | +10.7pp |
-
-The NQ work uses a derived public development mirror because the official GCS bytes were not anonymously available during qualification. It must not be presented as an official-byte reproduction.
-
-FEVER arbitrary-label classification remains an experimental/control workload rather than flagship v1 efficacy evidence.
-
-See [Benchmark methodology](docs/BENCHMARK.md) for identities, isolation rules, and reporting requirements.
+**Scope warning:** the +85.2pp result is a candidate-bound causal screen, not a universal expected uplift. The broader 20-model public panel above is intentionally more mixed and includes neutral/negative cells.
 
 ---
 
@@ -532,7 +557,7 @@ The large benchmark qualification data is distributed/accounted separately inste
 
 ExactScope is relevant to developers working on **small LLM**, **local LLM**, **local AI**, **on-device AI**, **edge AI**, **embedded AI**, **AI grounding**, **LLM grounding**, **factual accuracy**, **hallucination reduction**, **RAG alternatives**, **lightweight RAG**, **offline AI**, **llama.cpp**, **deterministic AI**, **AI reliability**, **wearable AI**, and **smart-glasses AI**.
 
-The project deliberately uses those familiar terms while keeping a narrower product definition: **an accuracy retrofit and grounding runtime, not an LLM harness**.
+ExactScope is an **accuracy retrofit and provider-neutral grounding runtime for existing small, local, and on-device models**.
 
 ---
 
@@ -546,7 +571,7 @@ ExactScope is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APA
 
 **ExactScope는 작은 로컬·온디바이스 AI의 사실 정확도를 기존 모델을 교체하지 않고 보강하는 경량 grounding runtime / accuracy retrofit layer입니다.**
 
-일반적인 LLM harness처럼 agent loop, 세션, 프롬프트 orchestration, 모델 실행 전체를 장악하는 제품이 아닙니다. 단순히 검색 문서를 프롬프트에 넣고 LLM에게 판단을 맡기는 범용 RAG 프레임워크도 아닙니다.
+모델 실행, 세션, agent loop는 기존 애플리케이션과 inference stack이 그대로 담당합니다. ExactScope는 사실 grounding, evidence authority/coverage policy, compact projection에 집중합니다. 단순히 검색 문서를 프롬프트에 넣고 LLM에게 판단을 맡기는 범용 RAG 프레임워크와도 제품 경계가 다릅니다.
 
 기본 철학은 간단합니다.
 

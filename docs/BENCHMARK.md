@@ -270,6 +270,37 @@ For SimpleQA in particular, a question-specific reference/source URL supplied by
 
 For Natural Questions, HotpotQA, FEVER and KILT, reports MUST distinguish retrieval metrics from answer metrics when the benchmark supplies supporting documents or provenance labels. Famous benchmark scores do not replace the candidate-bound private/device benchmark, the wearable model matrix, or immutable-package qualification.
 
+### 5.14 v1.0.0 post-release 20-model qualification
+
+The 2026-09-10 post-release qualification freezes 20 llama.cpp model identities from 135M through 3.8B parameters in [`../benchmarks/v1-model-matrix-20.json`](../benchmarks/v1-model-matrix-20.json). Selection criteria are commercial edge/on-device relevance, ARM/mobile/SBC plausibility, popular local-model coverage, vendor/architecture diversity and small-model scaling coverage. The matrix is not evidence that every selected model ships in a retail wearable.
+
+Two complementary panels are reported:
+
+1. **Recognizable model-only public capability screen:** 24 deterministic items each from MMLU, ARC-Challenge, HellaSwag, TruthfulQA MC1, WinoGrande and GSM8K. This is a 144-item/model screen used to establish model diversity and baseline capability. It is not an official leaderboard reproduction.
+2. **ExactScope A/G grounding panel:** the same 20-model identity on Natural Questions (128 items/arm), HotpotQA (20 items/arm) and FEVER (150 items/arm), with the normal no-gold run phase and separate score phase.
+
+Final public-screen disposition is 20 scheduled / 18 completed / 2 fixed-runtime protocol incompatibilities, with 2,592 scored model-items and a 37.42% six-task macro mean across completed models. DeepSeek-R1-Distill-Qwen-1.5B completed the protocol but produced 144/144 format failures, so its public macro remains 0.0% rather than being excluded.
+
+The A/G grounding matrix planned 60 cells. The first two-worker parent run was interrupted by a real host OOM. The parent completion marker was not synthesized. Its sealed evidence was partitioned as 35 completed + 3 TinyLlama terminal failures + 22 recovery cells. A fresh serial, no-resume/no-retry recovery attempted those 22 cells and produced 19 completed + 3 Ministral terminal failures. Final qualification authenticated all 60 dispositions before any scorer/gold access and again after scoring.
+
+Final A/G disposition is **54 scored cells + 6 explicit N/A protocol failures**. Aggregate macro metrics across the 18 scored models are:
+
+| Workload / metric | A | G | Change |
+|---|---:|---:|---:|
+| Natural Questions · F1 | 9.14% | 21.35% | +12.21pp |
+| Natural Questions · EM | 3.47% | 13.72% | +10.24pp |
+| HotpotQA · F1 | 12.18% | 24.64% | +12.46pp |
+| HotpotQA · EM | 5.28% | 17.22% | +11.94pp |
+| FEVER · label accuracy | 26.52% | 30.63% | +4.11pp |
+
+Natural Questions improved on 17/18 scored models with one tie and no regressions. HotpotQA improved on 15/18 with one tie and two regressions. FEVER improved on 11/18, tied on three and regressed on four. These negative cells are part of the result and MUST NOT be filtered from reporting.
+
+The frozen NQ and FEVER manifests mark their corpora `oracle_assisted_corpus=true` and `qualification_eligible=false`. They are development/diagnostic evidence rather than official end-to-end benchmark reproductions. HotpotQA pooled-distractor A/G is the cleanest broader public A/G result in this panel.
+
+The qualification machine used an AMD Ryzen 5 5600G (6 cores / 12 threads), 16 GB RAM and WSL2. The recovery run used one model at a time after two-worker execution exhausted RAM+swap and triggered the host OOM killer. Therefore recovery-run latency is explicitly non-qualifying and MUST NOT be used as an ExactScope product-latency claim.
+
+The full per-model tables, failure dispositions and artifact digests are in [`../benchmarks/V1_20_MODEL_RESULTS.md`](../benchmarks/V1_20_MODEL_RESULTS.md).
+
 ## 6. Corpus/source construction rules
 
 ### 6.1 Serving data and gold must be physically separable
@@ -525,6 +556,8 @@ Do not collapse these into one "secure" percentage.
 
 ## 10. Cost and efficiency metrics
 
+Latency from an interrupted, mixed-concurrency, or recovery qualification is diagnostic unless the run is separately preregistered for latency. It does not determine accuracy qualification, support latency rankings, or support an accuracy-per-millisecond claim.
+
 For each model/provider/profile:
 
 ### Grounding/runtime cost
@@ -585,9 +618,9 @@ Useful examples:
 
 Do not select the "best" profile per item after seeing results. A product profile is frozen before inference.
 
-## 12. Model matrix for the next grounding candidate
+## 12. Model matrices and post-release qualification
 
-The rc3 five-model matrix is historical evidence but remains a useful controlled diverse set for a **new** candidate if the files/runtime are re-frozen:
+The rc3 five-model matrix is historical evidence but remains a useful controlled diverse set for a **new** candidate if the files/runtime are re-frozen. The active post-release v1 qualification uses the separately frozen 20-model inventory in `benchmarks/v1-grounding-model-inventory-20.json`; no result from that matrix becomes public qualification evidence until its final disposition-verification and scoring gates pass.
 
 | Model | Role |
 |---|---|
@@ -667,7 +700,9 @@ Each raw G record should retain, subject to privacy policy:
 - scored labels added **after** response generation;
 - timing/resource measurements.
 
-Require one writer. Duplicate `(arm,item_id)` keys, config drift, partial-run reuse, or incomplete runs represented as complete invalidate the run.
+Require one writer. Duplicate `(arm,item_id)` keys, config drift, or incomplete runs represented as complete invalidate the run.
+
+Ordinary partial-run reuse remains prohibited. A host-level interruption may be handled only through a separately preregistered recovery protocol that derives the recovery set from sealed ledger state rather than arbitrary partial directories, independently verifies every retained completed cell, preserves terminal failures as explicit dispositions, reruns only designated unfinished cells into fresh output directories, uses `retry=0` and `resume=false`, and blocks all scoring until every planned disposition verifies. Such a recovery is a separately identified qualification path, not a resume of the interrupted parent run.
 
 ## 15. Preregistration record
 
@@ -713,7 +748,7 @@ python benchmarks/run_grounding_benchmark.py --preregistration <model-preregistr
 
 The candidate generator, package verifier, dry-run, preregistration and runner `--verify-only` path perform zero model inference. Actual A/G inference begins only when `run_grounding_benchmark.py` is invoked **without** `--verify-only` in the later benchmark session.
 
-The five current benchmark model identities are stored in `benchmarks/grounding-model-inventory.json`; the frozen llama.cpp runtime/host configuration is stored in `benchmarks/grounding-runtime-llama-v040.json`. Reusing those model **file identities** from rc3 does not reuse any rc3 benchmark scores or conclusions.
+The historical rc4 five-model identities are stored in `benchmarks/grounding-model-inventory.json`. The active 20-model post-release qualification uses `benchmarks/v1-grounding-model-inventory-20.json`. The frozen llama.cpp runtime/host configuration is stored in `benchmarks/grounding-runtime-llama-v040.json`. Reusing a model **file identity** never transfers an earlier benchmark score or conclusion into a new qualification identity.
 
 ## 16. Claim policy
 
