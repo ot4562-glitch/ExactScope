@@ -1,0 +1,109 @@
+{
+  "format": "exactscope.v1-public-benchmark-suite",
+  "format_version": "0.1",
+  "as_of": "2026-09-08",
+  "methodology": {
+    "purpose": "post-release v1 system qualification across well-known public benchmarks",
+    "leaderboard_comparable": false,
+    "reason": "The standard panel uses a deterministic generation-based screen and the grounding panel allows ExactScope evidence; these conditions differ from original leaderboard protocols.",
+    "standard_screen_items_per_task": 24,
+    "selection": "deterministic evenly-spaced indices across the named public split",
+    "temperature": 0,
+    "retry_count": 0
+  },
+  "standard_panel": [
+    {
+      "id": "mmlu",
+      "name": "MMLU",
+      "dataset": "cais/mmlu",
+      "config": "all",
+      "split": "test",
+      "kind": "multiple_choice",
+      "metric": "accuracy",
+      "answer_protocol": "generation-constrained option label",
+      "reference_note": "57-domain multitask knowledge benchmark; used historically by the Hugging Face Open LLM Leaderboard."
+    },
+    {
+      "id": "arc_challenge",
+      "name": "AI2 ARC-Challenge",
+      "dataset": "allenai/ai2_arc",
+      "config": "ARC-Challenge",
+      "split": "test",
+      "kind": "multiple_choice",
+      "metric": "accuracy",
+      "answer_protocol": "generation-constrained option label",
+      "reference_note": "Grade-school science reasoning benchmark; used historically by the Hugging Face Open LLM Leaderboard."
+    },
+    {
+      "id": "hellaswag",
+      "name": "HellaSwag",
+      "dataset": "Rowan/hellaswag",
+      "config": "default",
+      "split": "validation",
+      "kind": "multiple_choice",
+      "metric": "accuracy",
+      "answer_protocol": "generation-constrained option label",
+      "reference_note": "Commonsense continuation benchmark; used historically by the Hugging Face Open LLM Leaderboard."
+    },
+    {
+      "id": "truthfulqa_mc1",
+      "name": "TruthfulQA MC1",
+      "dataset": "truthfulqa/truthful_qa",
+      "config": "multiple_choice",
+      "split": "validation",
+      "kind": "multiple_choice",
+      "metric": "accuracy",
+      "answer_protocol": "generation-constrained option label",
+      "reference_note": "Truthfulness benchmark; TruthfulQA is part of the historical Open LLM Leaderboard suite."
+    },
+    {
+      "id": "winogrande",
+      "name": "WinoGrande",
+      "dataset": "allenai/winogrande",
+      "config": "winogrande_xl",
+      "split": "validation",
+      "kind": "multiple_choice",
+      "metric": "accuracy",
+      "answer_protocol": "generation-constrained option label",
+      "reference_note": "Adversarial Winograd-style commonsense benchmark; used historically by the Hugging Face Open LLM Leaderboard."
+    },
+    {
+      "id": "gsm8k",
+      "name": "GSM8K",
+      "dataset": "openai/gsm8k",
+      "config": "main",
+      "split": "test",
+      "kind": "numeric_generation",
+      "metric": "exact_match",
+      "answer_protocol": "generation-constrained final numeric answer",
+      "reference_note": "Grade-school multi-step math benchmark; used historically by the Hugging Face Open LLM Leaderboard."
+    }
+  ],
+  "exactscope_grounding_panel": [
+    {
+      "id": "natural_questions",
+      "name": "Natural Questions",
+      "candidate_path": "target/public-nq-search-128-20260908",
+      "items": 128,
+      "metric": "EM/F1",
+      "arms": ["A", "G"]
+    },
+    {
+      "id": "hotpotqa",
+      "name": "HotpotQA",
+      "candidate_path": "target/public-hotpot-candidate-20-20260908",
+      "items": 20,
+      "metric": "F1",
+      "arms": ["A", "G"]
+    },
+    {
+      "id": "fever",
+      "name": "FEVER",
+      "candidate_path": "target/public-fever-candidate-150-20260908",
+      "items": 150,
+      "metric": "label accuracy",
+      "arms": ["A", "G"],
+      "qualification_note": "Control/experimental factual-verification panel; not a generic v1 efficacy headline."
+    }
+  ]
+}

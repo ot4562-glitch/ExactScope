@@ -263,9 +263,11 @@ def verify_candidate(candidate: Path, *, include_gold: bool) -> tuple[dict[str, 
     return manifest, questions, corpus
 
 
-def _runtime_inputs(model_id: str, model_root: Path | None, model_path: Path | None, runtime_executable: Path, port: int, threads: int):
-    inventory_sha, model = resolve_model(ROOT / "benchmarks/grounding-model-inventory.json", model_id, model_root, model_path)
-    runtime_sha, runtime = resolve_runtime(ROOT / "benchmarks/grounding-runtime-llama-v040.json", runtime_executable)
+def _runtime_inputs(model_id: str, model_root: Path | None, model_path: Path | None, runtime_executable: Path, port: int, threads: int,
+                    model_inventory: Path = ROOT / "benchmarks/grounding-model-inventory.json",
+                    runtime_record: Path = ROOT / "benchmarks/grounding-runtime-llama-v040.json"):
+    inventory_sha, model = resolve_model(model_inventory, model_id, model_root, model_path)
+    runtime_sha, runtime = resolve_runtime(runtime_record, runtime_executable)
     runtime = json.loads(json.dumps(runtime))
     runtime["launch"]["port"] = port
     runtime["launch"]["threads"] = threads
@@ -299,7 +301,9 @@ def run_screen(args: argparse.Namespace) -> None:
     candidate = args.candidate.resolve()
     manifest, questions, corpus = verify_candidate(candidate, include_gold=False)
     inventory_sha, model, runtime_sha, runtime, generation = _runtime_inputs(
-        args.model_id, args.model_root, args.model_path, args.runtime_executable, args.port, args.threads
+        args.model_id, args.model_root, args.model_path, args.runtime_executable, args.port, args.threads,
+        getattr(args, "model_inventory", ROOT / "benchmarks/grounding-model-inventory.json"),
+        getattr(args, "runtime_record", ROOT / "benchmarks/grounding-runtime-llama-v040.json")
     )
     policy = POLICY_PATH.read_bytes()
     prereg = {
@@ -352,7 +356,7 @@ def run_screen(args: argparse.Namespace) -> None:
     try:
         with log_path.open("wb") as server_log:
             process = subprocess.Popen(command, cwd=runtime_dir, stdout=server_log, stderr=subprocess.STDOUT, env=env)
-            runtime_record = load_json(ROOT / "benchmarks/grounding-runtime-llama-v040.json")
+            runtime_record = load_json(getattr(args, "runtime_record", ROOT / "benchmarks/grounding-runtime-llama-v040.json"))
             wait_server(process, runtime["launch"]["host"], int(runtime["launch"]["port"]), float(runtime_record["server_ready_timeout_seconds"]))
             selected, calibration = calibrate_grounding_v1_contract(prereg, generation, policy)
             (args.output / "contract-calibration.json").write_bytes(canonical_bytes(calibration))
@@ -540,6 +544,12 @@ def _verify_run(
     return status, records
 
 
+def verify_record_keys(questions: list[dict[str, Any]], records: list[dict[str, Any]]) -> None:
+    keys = {(row.get("item_id"), row.get("arm")) for row in records}
+    if len(keys) != len(records) or keys != {(q["item_id"], arm) for q in questions for arm in ("A", "G")}:
+        raise PublicBenchmarkError("Hotpot A/G record identity drift")
+
+
 def score_run(candidate: Path, run: Path, output: Path) -> dict[str, Any]:
     if output.exists():
         raise PublicBenchmarkError("score output exists")
@@ -550,13 +560,12 @@ def score_run(candidate: Path, run: Path, output: Path) -> dict[str, Any]:
         len(questions),
         manifest_sha256=file_sha(candidate / "manifest.json"),
     )
+    verify_record_keys(questions, records)
     # Gold is opened only after serving/run identity and checksums have been verified.
     verify_candidate(candidate, include_gold=True)
     gold_rows = _load_jsonl(candidate / "gold/answers.jsonl")
     gold = {row["item_id"]: row for row in gold_rows}
     keyed = {(row["item_id"], row["arm"]): row for row in records}
-    if len(keyed) != len(records) or set(keyed) != {(q["item_id"], arm) for q in questions for arm in ("A", "G")}:
-        raise PublicBenchmarkError("Hotpot A/G record identity drift")
 
     arms: dict[str, dict[str, Any]] = {}
     scored_rows = []
@@ -633,6 +642,8 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--model-id", required=True)
     run.add_argument("--model-root", type=Path)
     run.add_argument("--model-path", type=Path)
+    run.add_argument("--model-inventory", type=Path, default=ROOT / "benchmarks/grounding-model-inventory.json")
+    run.add_argument("--runtime-record", type=Path, default=ROOT / "benchmarks/grounding-runtime-llama-v040.json")
     run.add_argument("--runtime-executable", type=Path, required=True)
     run.add_argument("--output", type=Path, required=True)
     run.add_argument("--port", type=int, default=18201)

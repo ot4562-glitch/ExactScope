@@ -124,7 +124,7 @@ def verify_serving_candidate(
 
 def _runtime_inputs(args: argparse.Namespace):
     inventory_sha, model = resolve_model(
-        ROOT / "benchmarks/grounding-model-inventory.json",
+        getattr(args, "model_inventory", ROOT / "benchmarks/grounding-model-inventory.json"),
         args.model_id,
         args.model_root,
         args.model_path,
@@ -577,6 +577,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--model-id", required=True)
     run.add_argument("--model-root", type=Path)
     run.add_argument("--model-path", type=Path)
+    run.add_argument("--model-inventory", type=Path, default=ROOT / "benchmarks/grounding-model-inventory.json")
     run.add_argument("--runtime-record", type=Path, required=True)
     run.add_argument("--runtime-executable", type=Path, required=True)
     run.add_argument("--output", type=Path, required=True)

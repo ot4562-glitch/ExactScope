@@ -1,0 +1,285 @@
+{
+  "format": "exactscope.v1-model-matrix",
+  "format_version": "0.1",
+  "as_of": "2026-09-08",
+  "selection_policy": {
+    "model_count": 20,
+    "runtime": "llama.cpp",
+    "max_parameter_class": "4B",
+    "preferred_quantization": "Q4_K_M",
+    "criteria": [
+      "commercial edge/on-device relevance",
+      "wearable or ARM-class plausibility",
+      "popular local-model family",
+      "architecture/vendor diversity",
+      "small-model scaling coverage"
+    ],
+    "benchmark_results_are_post_release_qualification_not_v1_release_artifacts": true,
+    "frozen": true,
+    "freeze_contract": "hf-revision-file-lfs-sha256-bytes-v1",
+    "frozen_at_utc": "2026-09-08T13:34:42Z"
+  },
+  "models": [
+    {
+      "id": "smollm2-135m-instruct-q4km",
+      "family": "SmolLM2",
+      "parameters": "135M",
+      "bucket": "wearable-extreme-small",
+      "repository": "unsloth/SmolLM2-135M-Instruct-GGUF",
+      "requested_file": "SmolLM2-135M-Instruct-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "existing_paths": [
+        "/mnt/c/AIModels/ExactScopeBench-wearable/smollm2-135m-instruct-q4km/SmolLM2-135M-Instruct-Q4_K_M.gguf"
+      ],
+      "resolved_revision": "9e6855bc4be717fca1ef21360a1db4b29d5c559a",
+      "bytes": 105454144,
+      "upstream_sha256": "ed5fa30c487b282ec156c29062f1222e5c20875a944ac98289dbd242e947f747"
+    },
+    {
+      "id": "gemma3-270m-it-q8",
+      "family": "Gemma 3",
+      "parameters": "270M",
+      "bucket": "wearable-extreme-small",
+      "repository": "ggml-org/gemma-3-270m-it-GGUF",
+      "requested_file": "gemma-3-270m-it-Q8_0.gguf",
+      "quantization": "Q8_0",
+      "existing_paths": [
+        "/mnt/c/AIModels/ExactScopeBench-rc3/gemma3-270m-it-q8/gemma-3-270m-it-Q8_0.gguf"
+      ],
+      "resolved_revision": "e7647be17ae1108f2f605ed061ca0608b171afff",
+      "bytes": 291545600,
+      "upstream_sha256": "0ef57d2c838458a1952664260dcba38e5bdda37494f3af732f06e4add24068e3"
+    },
+    {
+      "id": "lfm25-350m-q4km",
+      "family": "LFM2.5",
+      "parameters": "350M",
+      "bucket": "edge-first",
+      "repository": "LiquidAI/LFM2.5-350M-GGUF",
+      "requested_file": "LFM2.5-350M-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "existing_paths": [
+        "/mnt/c/AIModels/ExactScopeBench-rc3/lfm25-350m-q4km/LFM2.5-350M-Q4_K_M.gguf"
+      ],
+      "resolved_revision": "9969000761ce34de907bf20017cbfc3d52d6eaf9",
+      "bytes": 229312224,
+      "upstream_sha256": "7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4"
+    },
+    {
+      "id": "smollm2-360m-instruct-q4km",
+      "family": "SmolLM2",
+      "parameters": "360M",
+      "bucket": "arm-edge",
+      "repository": "bartowski/SmolLM2-360M-Instruct-GGUF",
+      "requested_file": "SmolLM2-360M-Instruct-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "resolved_revision": "7be6f65f1db715fe5dc5a4634c0d459b4eed42ec",
+      "bytes": 270590880,
+      "upstream_sha256": "2fa3f013dcdd7b99f9b237717fa0b12d75bbb89984cc1274be1471a465bac9c2"
+    },
+    {
+      "id": "qwen25-05b-instruct-q4km",
+      "family": "Qwen2.5",
+      "parameters": "0.5B",
+      "bucket": "popular-sub-1b",
+      "repository": "bartowski/Qwen2.5-0.5B-Instruct-GGUF",
+      "requested_file": "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "resolved_revision": "41ba88dbac95fed2528c92514c131d73eb5a174b",
+      "bytes": 397808192,
+      "upstream_sha256": "6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653"
+    },
+    {
+      "id": "qwen3-06b-q4km",
+      "family": "Qwen3",
+      "parameters": "0.6B",
+      "bucket": "popular-sub-1b",
+      "repository": "lmstudio-community/Qwen3-0.6B-GGUF",
+      "requested_file": "Qwen3-0.6B-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "resolved_revision": "3334d820ab76652cf6e242d7c6302b10f0951f23",
+      "bytes": 484219808,
+      "upstream_sha256": "cd47557a67d7e8f2891d98b5e1dbf2988544569fdf4f1bdb30e92b71aa61b548"
+    },
+    {
+      "id": "qwen35-08b-q4",
+      "family": "Qwen3.5",
+      "parameters": "0.8B",
+      "bucket": "modern-sub-1b",
+      "repository": "ggml-org/Qwen3.5-0.8B-GGUF",
+      "requested_file": "Qwen3.5-0.8B-Q4_0.gguf",
+      "quantization": "Q4_0",
+      "existing_paths": [
+        "/mnt/c/AIModels/ExactScopeBench-rc3/qwen35-08b-q4/Qwen3.5-0.8B-Q4_0.gguf"
+      ],
+      "resolved_revision": "8fea620810c4afa23dd6443f999a48574c1611a3",
+      "bytes": 563036064,
+      "upstream_sha256": "57d1997790d1744fba5b40a7317df71ea5e2acee28c47e78f0cce39c0703f8cf"
+    },
+    {
+      "id": "olmo2-1b-instruct-q4km",
+      "family": "OLMo 2",
+      "parameters": "1B",
+      "bucket": "open-research-1b",
+      "repository": "allenai/OLMo-2-0425-1B-Instruct-GGUF",
+      "requested_file": "OLMo-2-0425-1B-Instruct-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "resolved_revision": "62f8c199538474c3e33ed5d7e0580abd66686a27",
+      "bytes": 935515296,
+      "upstream_sha256": "abd8187934a438fbf7cfff0a1de5b9d2793ce913f158794df1951dcba6c93cc6"
+    },
+    {
+      "id": "llama32-1b-instruct-q4km",
+      "family": "Llama 3.2",
+      "parameters": "1B",
+      "bucket": "popular-edge-1b",
+      "repository": "bartowski/Llama-3.2-1B-Instruct-GGUF",
+      "requested_file": "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "existing_paths": [
+        "/mnt/c/AIModels/ExactScopeBench-wearable/llama32-1b-instruct-q4km/Llama-3.2-1B-Instruct-Q4_K_M.gguf"
+      ],
+      "resolved_revision": "067b946cf014b7c697f3654f621d577a3e3afd1c",
+      "bytes": 807694464,
+      "upstream_sha256": "6f85a640a97cf2bf5b8e764087b1e83da0fdb51d7c9fab7d0fece9385611df83"
+    },
+    {
+      "id": "tinyllama-11b-chat-q4km",
+      "family": "TinyLlama",
+      "parameters": "1.1B",
+      "bucket": "classic-local-small",
+      "repository": "QuantFactory/TinyLlama-1.1B-Chat-v1.0-GGUF",
+      "requested_file": "TinyLlama-1.1B-Chat-v1.0.Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "resolved_revision": "750ab44e6c0f9285fcd4193bcb7c032a6b50399b",
+      "bytes": 667821248,
+      "upstream_sha256": "ecd07a19c8caca27387ddf0c4dd69ea499baa0ef6f5a66841bda78c7276a6878"
+    },
+    {
+      "id": "lfm25-12b-instruct-q4km",
+      "family": "LFM2.5",
+      "parameters": "1.2B",
+      "bucket": "edge-first-1b",
+      "repository": "LiquidAI/LFM2.5-1.2B-Instruct-GGUF",
+      "requested_file": "LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "resolved_revision": "6767265158422fb8a19c62ceb45f16f05363615b",
+      "bytes": 730895168,
+      "upstream_sha256": "b1b3de114215d9507409a662a501a631095a479a419584e8a2ded6304b19b4f5"
+    },
+    {
+      "id": "deepseek-r1-qwen-15b-q4km",
+      "family": "DeepSeek R1 Distill Qwen",
+      "parameters": "1.5B",
+      "bucket": "popular-reasoning-small",
+      "repository": "bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF",
+      "requested_file": "DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "resolved_revision": "9cc28b17e86fa2415fcb070f8ee5ec27c965aa61",
+      "bytes": 1117320800,
+      "upstream_sha256": "1741e5b2d062b07acf048bf0d2c514dadf2a48f94e2b4aa0cfe069af3838ee2f"
+    },
+    {
+      "id": "smollm2-17b-instruct-q4km",
+      "family": "SmolLM2",
+      "parameters": "1.7B",
+      "bucket": "edge-mid-small",
+      "repository": "bartowski/SmolLM2-1.7B-Instruct-GGUF",
+      "requested_file": "SmolLM2-1.7B-Instruct-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "resolved_revision": "1f03464768bfcc0319fc50da8ff5fb20b6417ba2",
+      "bytes": 1055609824,
+      "upstream_sha256": "77665ea4815999596525c636fbeb56ba8b080b46ae85efef4f0d986a139834d7"
+    },
+    {
+      "id": "qwen3-17b-q4km",
+      "family": "Qwen3",
+      "parameters": "1.7B",
+      "bucket": "popular-mid-small",
+      "repository": "ggml-org/Qwen3-1.7B-GGUF",
+      "requested_file": "Qwen3-1.7B-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "resolved_revision": "daeb8e2d528a760970442092f6bf1e55c3b659eb",
+      "bytes": 1282439264,
+      "upstream_sha256": "d2387ca2dbfee2ffabce7120d3770dadca0b293052bc2f0e138fdc940d9bc7b5"
+    },
+    {
+      "id": "qwen35-2b-q4km",
+      "family": "Qwen3.5",
+      "parameters": "2B",
+      "bucket": "modern-2b",
+      "repository": "lmstudio-community/Qwen3.5-2B-GGUF",
+      "requested_file": "Qwen3.5-2B-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "existing_paths": [
+        "/mnt/c/AIModels/ExactScopeBench-rc3/qwen35-2b-q4km/Qwen3.5-2B-Q4_K_M.gguf"
+      ],
+      "resolved_revision": "bb84e11355a036e28f080c7793fa6d22b7c4e344",
+      "bytes": 1270808032,
+      "upstream_sha256": "0bfe35afc9f05b7fac3fa04925e051ac7939a42a8a17ea11afc99701bea826cc"
+    },
+    {
+      "id": "granite33-2b-instruct-q4km",
+      "family": "Granite 3.3",
+      "parameters": "2B",
+      "bucket": "enterprise-edge-2b",
+      "repository": "ibm-granite/granite-3.3-2b-instruct-GGUF",
+      "requested_file": "granite-3.3-2b-instruct-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "resolved_revision": "7cdf86ccd1f1bb3491c9b7017b033f2e51367397",
+      "bytes": 1545303328,
+      "upstream_sha256": "ac71e9e32c0bea919b409c5918f69ca74339854b0319c5065e4e9fb6d95c4852"
+    },
+    {
+      "id": "llama32-3b-instruct-q4km",
+      "family": "Llama 3.2",
+      "parameters": "3B",
+      "bucket": "popular-edge-3b",
+      "repository": "bartowski/Llama-3.2-3B-Instruct-GGUF",
+      "requested_file": "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "resolved_revision": "5ab33fa94d1d04e903623ae72c95d1696f09f9e8",
+      "bytes": 2019377696,
+      "upstream_sha256": "6c1a2b41161032677be168d354123594c0e6e67d2b9227c84f296ad037c728ff"
+    },
+    {
+      "id": "smollm3-3b-q4km",
+      "family": "SmolLM3",
+      "parameters": "3B",
+      "bucket": "modern-small-3b",
+      "repository": "lmstudio-community/SmolLM3-3B-GGUF",
+      "requested_file": "SmolLM3-3B-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "resolved_revision": "58d9d6cf8a03c5a725a4c07679e25ac0e27d65ce",
+      "bytes": 1915305216,
+      "upstream_sha256": "b39b54f6bf41efb4f60baaf1b1f67657203dd22b60254104290addb48657b8df"
+    },
+    {
+      "id": "ministral-3b-instruct-q4km",
+      "family": "Ministral",
+      "parameters": "3B",
+      "bucket": "edge-3b",
+      "repository": "QuantFactory/Ministral-3b-instruct-GGUF",
+      "requested_file": "Ministral-3b-instruct.Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "resolved_revision": "b3db9ee6876c5724284fd1f1fcae1bd1ef1b0421",
+      "bytes": 1997337472,
+      "upstream_sha256": "88d665cbee7f074f3b283c64d0ea5c356c5d923d635c9ab65d5c17329d41f734"
+    },
+    {
+      "id": "phi4-mini-38b-q4km",
+      "family": "Phi-4 mini",
+      "parameters": "3.8B",
+      "bucket": "upper-small-reasoning",
+      "repository": "bartowski/microsoft_Phi-4-mini-instruct-GGUF",
+      "requested_file": "microsoft_Phi-4-mini-instruct-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "existing_paths": [
+        "/mnt/c/AIModels/ExactScopeBench-rc3/phi4-mini-38b-q4km/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf"
+      ],
+      "resolved_revision": "7ff82c2aaa4dde30121698a973765f39be5288c0",
+      "bytes": 2491874688,
+      "upstream_sha256": "01999f17c39cc3074afae5e9c539bc82d45f2dd7faa3917c66cbef76fce8c0c2"
+    }
+  ]
+}
