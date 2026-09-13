@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -153,9 +154,15 @@ class GroundingPackageTests(unittest.TestCase):
         )
         with log_path.open("wb") as log_handle:
             process = subprocess.Popen([sys.executable, "-c", code], stdout=log_handle, stderr=subprocess.STDOUT)
-            time.sleep(0.1)
+            deadline = time.monotonic() + 2.0
+            while b"running" not in log_path.read_bytes():
+                if process.poll() is not None or time.monotonic() >= deadline:
+                    self.fail("synthetic server did not reach its signal-ready state")
+                time.sleep(0.01)
             runner_mod.stop_server(process)
-        self.assertIn(b"shutdown", log_path.read_bytes())
+            self.assertIsNotNone(process.poll())
+        if os.name != "nt":
+            self.assertIn(b"shutdown", log_path.read_bytes())
         (output / "run-status.json").write_text('{"state":"complete"}\n', encoding="utf-8")
         runner_mod.write_sums(output)
         expected = {}
@@ -247,7 +254,7 @@ class GroundingPackageTests(unittest.TestCase):
             runtime_record=packaged_runtime,
             runtime_executable=runtime_file,
             generation_config=package_root / "benchmarks/grounding-generation-config.json",
-            isolation_policy=package_root / "benchmarks/grounding-isolation-policy.json",
+            isolation_policy=package_root / "benchmarks/grounding-isolation-policy-v0.5.json",
             scorer=package_root / "benchmarks/score_grounding.py",
             run_id="unit-run-1",
             writer_id="unit-writer",
@@ -338,7 +345,7 @@ class GroundingPackageTests(unittest.TestCase):
             runtime_record=package_root / "benchmarks/grounding-runtime-llama-v040.json",
             runtime_executable=runtime_file,
             generation_config=package_root / "benchmarks/grounding-generation-config.json",
-            isolation_policy=package_root / "benchmarks/grounding-isolation-policy.json",
+            isolation_policy=package_root / "benchmarks/grounding-isolation-policy-v0.5.json",
             scorer=package_root / "benchmarks/score_grounding.py",
             run_id="unit-run-archive-drift",
             writer_id="unit-writer",
@@ -368,7 +375,7 @@ class GroundingPackageTests(unittest.TestCase):
             runtime_record=packaged_runtime,
             runtime_executable=runtime_file,
             generation_config=package_root / "benchmarks/grounding-generation-config.json",
-            isolation_policy=package_root / "benchmarks/grounding-isolation-policy.json",
+            isolation_policy=package_root / "benchmarks/grounding-isolation-policy-v0.5.json",
             scorer=package_root / "benchmarks/score_grounding.py",
             run_id="unit-run-drift",
             writer_id="unit-writer",

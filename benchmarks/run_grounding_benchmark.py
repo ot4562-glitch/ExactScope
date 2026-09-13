@@ -37,7 +37,7 @@ from grounding_preregister import (  # noqa: E402
     verify_serving_candidate,
 )
 from grounding_runtime import (  # noqa: E402
-    compact_model_projection,
+    grouped_model_projection_v2,
     host_grounded_scalar_reply,
     host_short_circuit_reply,
     run_grounding_frame,
@@ -48,11 +48,17 @@ from grounding_v1_surface import (  # noqa: E402
     AUTO_CONTRACT_CALIBRATION,
     AUTO_CONTRACT_CANDIDATES,
     AUTO_V2_TIE_PREFERENCE,
+    OUTPUT_SURFACE_CANDIDATES,
+    OUTPUT_SURFACE_JSON_SCHEMA,
+    OUTPUT_SURFACE_PROBE,
+    PREFLIGHT_STOPPING_RULE,
     calibration_messages,
     messages as grounding_v1_messages,
+    model_runtime_fingerprint,
     normalize_answer,
+    output_surface_request_fields,
     parse_answer_object,
-    select_contract,
+    select_supported_contract,
     surface_sha256,
 )
 from verify_grounding_package import verify as verify_package_root  # noqa: E402
@@ -60,6 +66,10 @@ from verify_grounding_package import verify as verify_package_root  # noqa: E402
 
 class BenchmarkRunError(RuntimeError):
     pass
+
+
+class SurfaceUnsupportedRunError(BenchmarkRunError):
+    """One fixed preflight output surface was explicitly rejected by llama.cpp."""
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -92,9 +102,10 @@ def verify_frozen_inputs(prereg_path: Path, output: Path) -> tuple[dict[str, Any
         ROOT / "benchmarks/grounding-model-inventory.json": prereg["model_inventory_sha256"],
         ROOT / "benchmarks/grounding-runtime-llama-v040.json": prereg["runtime_record_sha256"],
         ROOT / "benchmarks/grounding-generation-config.json": prereg["generation_config_sha256"],
-        ROOT / "benchmarks/grounding-isolation-policy.json": prereg["isolation_policy_sha256"],
+        ROOT / "benchmarks/grounding-isolation-policy-v0.5.json": prereg["isolation_policy_sha256"],
         ROOT / "benchmarks/score_grounding.py": prereg["scorer_sha256"],
         ROOT / "tools/grounding_v1_surface.py": package["model_surface_module_sha256"],
+        ROOT / "tools/grounding_answer_contract.py": package["answer_contract_module_sha256"],
     }
     for path, digest in expected_files.items():
         if not path.is_file() or file_sha(path) != digest:
@@ -106,8 +117,8 @@ def verify_frozen_inputs(prereg_path: Path, output: Path) -> tuple[dict[str, Any
     if not runtime_path.is_file() or file_sha(runtime_path) != prereg["runtime"]["executable_sha256"]:
         raise BenchmarkRunError("runtime executable drift")
     generation = load_json(ROOT / "benchmarks/grounding-generation-config.json")
-    isolation = load_json(ROOT / "benchmarks/grounding-isolation-policy.json")
-    if isolation.get("format_version") != "0.4" or isolation.get("arms") != ["A", "G"] or isolation.get("rewrite_calls") != 0:
+    isolation = load_json(ROOT / "benchmarks/grounding-isolation-policy-v0.5.json")
+    if isolation.get("format_version") != "0.5" or isolation.get("arms") != ["A", "G"] or isolation.get("rewrite_calls") != 0:
         raise BenchmarkRunError("selected A/G isolation config drift")
     try:
         validate_answer_call_policy(isolation.get("answer_call_policy"))
@@ -125,6 +136,8 @@ def verify_frozen_inputs(prereg_path: Path, output: Path) -> tuple[dict[str, Any
 
 def server_command(prereg: dict[str, Any]) -> list[str]:
     launch = prereg["runtime"]["launch"]
+    if any(launch.get(key) not in (None, "", {}) for key in ("chat_template", "chat_template_file", "chat_template_kwargs")):
+        raise BenchmarkRunError("explicit chat-template overrides are unsupported by the v1.1 launcher")
     command = [
         prereg["runtime"]["executable_path"],
         "-m", prereg["model"]["path"],
@@ -199,7 +212,13 @@ def parse_model_output_strict(content: str) -> dict[str, Any] | None:
     return parsed
 
 
-def request_model(prereg: dict[str, Any], generation: dict[str, Any], messages: list[dict[str, str]]) -> dict[str, Any]:
+def request_model(
+    prereg: dict[str, Any],
+    generation: dict[str, Any],
+    messages: list[dict[str, str]],
+    output_surface: str = OUTPUT_SURFACE_JSON_SCHEMA,
+    answer_choices: tuple[str, ...] | list[str] | None = None,
+) -> dict[str, Any]:
     launch = prereg["runtime"]["launch"]
     payload = {
         "model": launch["alias"],
@@ -208,14 +227,22 @@ def request_model(prereg: dict[str, Any], generation: dict[str, Any], messages: 
         "seed": generation["seed"],
         "max_tokens": generation["max_output_tokens"],
         "messages": messages,
-        "response_format": {
-            "type": "json_schema",
-            "json_schema": {
-                "name": "grounding_answer",
-                "schema": generation["answer_schema"],
-            },
-        },
     }
+    try:
+        json_schema = (
+            generation.get("answer_schema")
+            if output_surface == OUTPUT_SURFACE_JSON_SCHEMA and answer_choices is None
+            else None
+        )
+        payload.update(
+            output_surface_request_fields(
+                output_surface,
+                json_schema=json_schema,
+                answer_choices=answer_choices,
+            )
+        )
+    except ValueError as exc:
+        raise BenchmarkRunError(str(exc)) from exc
     body = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     request = urllib.request.Request(
         f"http://{launch['host']}:{launch['port']}/v1/chat/completions",
@@ -229,11 +256,17 @@ def request_model(prereg: dict[str, Any], generation: dict[str, Any], messages: 
             raw_bytes = response.read()
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
-        raise BenchmarkRunError(f"llama.cpp HTTP {exc.code}: {detail}") from exc
+        error = f"llama.cpp HTTP {exc.code}: {detail}"
+        if exc.code in {400, 422}:
+            raise SurfaceUnsupportedRunError(error) from exc
+        raise BenchmarkRunError(error) from exc
     except (urllib.error.URLError, TimeoutError) as exc:
         raise BenchmarkRunError(f"llama.cpp request failed: {exc}") from exc
     latency_us = (time.perf_counter_ns() - started + 500) // 1_000
-    raw = json.loads(raw_bytes)
+    try:
+        raw = json.loads(raw_bytes)
+    except (json.JSONDecodeError, UnicodeError) as exc:
+        raise BenchmarkRunError("llama.cpp returned invalid JSON") from exc
     choices = raw.get("choices") if isinstance(raw, dict) else None
     if not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict):
         raise BenchmarkRunError("llama.cpp response lacks exactly one choice")
@@ -266,15 +299,31 @@ def request_grounding_v1_model(
     generation: dict[str, Any],
     request_messages: list[dict[str, str]],
     contract: str,
+    output_surface: str = OUTPUT_SURFACE_JSON_SCHEMA,
+    answer_choices: tuple[str, ...] | list[str] | None = None,
 ) -> dict[str, Any]:
     if contract not in AUTO_CONTRACT_CANDIDATES:
         raise BenchmarkRunError("unsupported selected G answer contract")
+    if output_surface not in OUTPUT_SURFACE_CANDIDATES:
+        raise BenchmarkRunError("unsupported selected G output surface")
     selected_generation = dict(generation)
-    selected_generation["answer_schema"] = ANSWER_OBJECT_SCHEMA
-    reply = request_model(prereg, selected_generation, request_messages)
+    if answer_choices is None:
+        selected_generation["answer_schema"] = ANSWER_OBJECT_SCHEMA
+    else:
+        selected_generation.pop("answer_schema", None)
+    reply = request_model(
+        prereg,
+        selected_generation,
+        request_messages,
+        output_surface,
+        answer_choices=answer_choices,
+    )
     valid, value = parse_answer_object(reply["raw_content"])
+    if valid and answer_choices is not None and value not in answer_choices:
+        valid, value = False, None
     reply.update(
         model_contract=contract,
+        model_output_surface=output_surface,
         model_contract_valid=valid,
         model_contract_output=value,
         model_output=normalize_answer(valid, value),
@@ -282,21 +331,88 @@ def request_grounding_v1_model(
     return reply
 
 
+def negotiate_grounding_v11_surface(
+    prereg: dict[str, Any],
+    generation: dict[str, Any],
+    policy: bytes,
+    attempt_counter: dict[str, int] | None = None,
+) -> tuple[str | None, dict[str, Any]]:
+    """Stop at the first supported surface; later probes cannot change the frozen preference."""
+    case_id, question, evidence, expected = OUTPUT_SURFACE_PROBE
+    probes: list[dict[str, Any]] = []
+    selected: str | None = None
+    if attempt_counter is not None:
+        attempt_counter["count"] = 0
+    preferred = AUTO_V2_TIE_PREFERENCE[0]
+    for surface in OUTPUT_SURFACE_CANDIDATES:
+        try:
+            if attempt_counter is not None:
+                attempt_counter["count"] += 1
+            result = request_grounding_v1_model(
+                prereg,
+                generation,
+                calibration_messages(preferred, question, evidence, policy),
+                preferred,
+                surface,
+            )
+            valid = bool(result["model_contract_valid"])
+            probes.append({
+                "surface": surface,
+                "case_id": case_id,
+                "protocol_valid": valid,
+                "semantic_match": valid and result["model_contract_output"] == expected,
+                "actual": result["model_contract_output"] if valid else None,
+                "error": None,
+            })
+            if valid:
+                selected = surface
+                break
+        except SurfaceUnsupportedRunError as exc:
+            probes.append({
+                "surface": surface,
+                "case_id": case_id,
+                "protocol_valid": False,
+                "semantic_match": False,
+                "actual": None,
+                "error": str(exc),
+            })
+    return selected, {
+        "format": "exactscope.grounding-v1.1-surface-negotiation",
+        "format_version": "0.2",
+        "fingerprint": model_runtime_fingerprint(prereg),
+        "model_surface_sha256": surface_sha256(),
+        "candidate_surfaces": list(OUTPUT_SURFACE_CANDIDATES),
+        "selected_surface": selected,
+        "supported": selected is not None,
+        "model_request_count": len(probes),
+        "retry_count": 0,
+        "stopping_rule": PREFLIGHT_STOPPING_RULE,
+        "probes": probes,
+    }
+
+
 def calibrate_grounding_v1_contract(
     prereg: dict[str, Any],
     generation: dict[str, Any],
     policy: bytes,
+    output_surface: str = OUTPUT_SURFACE_JSON_SCHEMA,
+    attempt_counter: dict[str, int] | None = None,
 ) -> tuple[str, dict[str, Any]]:
-    scores: dict[str, int] = {}
-    profiles = []
-    for contract in AUTO_CONTRACT_CANDIDATES:
+    """Use the same proof-minimal semantic selector as the product capability compiler."""
+    if attempt_counter is not None:
+        attempt_counter["count"] = 0
+
+    def profile(contract: str) -> dict[str, Any]:
         cases = []
         for case_id, question, evidence, expected in AUTO_CONTRACT_CALIBRATION:
+            if attempt_counter is not None:
+                attempt_counter["count"] += 1
             result = request_grounding_v1_model(
                 prereg,
                 generation,
                 calibration_messages(contract, question, evidence, policy),
                 contract,
+                output_surface,
             )
             correct = result["model_contract_valid"] and result["model_contract_output"] == expected
             cases.append({
@@ -306,16 +422,36 @@ def calibrate_grounding_v1_contract(
                 "valid": result["model_contract_valid"],
                 "correct": correct,
             })
-        scores[contract] = sum(case["correct"] for case in cases)
-        profiles.append({"contract": contract, "score": scores[contract], "case_count": len(cases), "cases": cases})
-    selected = select_contract(scores)
+        return {
+            "contract": contract,
+            "score": sum(case["correct"] for case in cases),
+            "case_count": len(cases),
+            "cases": cases,
+        }
+
+    preferred = AUTO_V2_TIE_PREFERENCE[0]
+    preferred_profile = profile(preferred)
+    if preferred_profile["score"] == len(AUTO_CONTRACT_CALIBRATION):
+        profiles = [preferred_profile]
+        selected = preferred
+    else:
+        by_contract = {preferred: preferred_profile}
+        for contract in AUTO_CONTRACT_CANDIDATES:
+            if contract != preferred:
+                by_contract[contract] = profile(contract)
+        profiles = [by_contract[contract] for contract in AUTO_CONTRACT_CANDIDATES]
+        selected = select_supported_contract({item["contract"]: item["score"] for item in profiles})
+        if selected is None:
+            raise BenchmarkRunError("unsupported model/runtime answer contract: semantic calibration scored zero")
     return selected, {
         "format": "exactscope.grounding-v1-contract-calibration",
-        "format_version": "0.1",
+        "format_version": "0.2",
         "model_surface_sha256": surface_sha256(),
         "selected_contract": selected,
+        "selected_output_surface": output_surface,
         "tie_preference": list(AUTO_V2_TIE_PREFERENCE),
-        "model_request_count": len(AUTO_CONTRACT_CANDIDATES) * len(AUTO_CONTRACT_CALIBRATION),
+        "stopping_rule": PREFLIGHT_STOPPING_RULE,
+        "model_request_count": sum(item["case_count"] for item in profiles),
         "profiles": profiles,
     }
 
@@ -372,7 +508,11 @@ def execute(prereg_path: Path, output: Path) -> None:
     records: list[dict[str, Any]] = []
     a_model_request_attempts = 0
     g_model_request_attempts = 0
+    surface_probe_requests = 0
     calibration_model_requests = 0
+    surface_attempt_counter = {"count": 0}
+    calibration_attempt_counter = {"count": 0}
+    selected_output_surface: str | None = None
     selected_model_contract: str | None = None
     process: subprocess.Popen[bytes] | None = None
     try:
@@ -381,9 +521,45 @@ def execute(prereg_path: Path, output: Path) -> None:
             launch = prereg["runtime"]["launch"]
             runtime_record = load_json(ROOT / "benchmarks/grounding-runtime-llama-v040.json")
             wait_server(process, launch["host"], int(launch["port"]), float(runtime_record["server_ready_timeout_seconds"]))
-            selected_model_contract, calibration = calibrate_grounding_v1_contract(prereg, generation, bundle.policy)
+            selected_output_surface, negotiation = negotiate_grounding_v11_surface(
+                prereg, generation, bundle.policy, surface_attempt_counter
+            )
+            surface_probe_requests = negotiation["model_request_count"]
+            surface_policy = prereg["model_surface_policy"]["surface_negotiation"]
+            if not 1 <= surface_probe_requests <= surface_policy["probe_model_requests_max"]:
+                raise BenchmarkRunError("surface probe request-count drift")
+            (output / "surface-negotiation.json").write_bytes(canonical_bytes(negotiation))
+            if selected_output_surface is None:
+                status = {
+                    "state": "unsupported",
+                    "run_id": prereg["run_id"],
+                    "model_id": prereg["model"]["id"],
+                    "record_count": 0,
+                    "selected_model_contract": None,
+                    "selected_output_surface": None,
+                    "model_runtime_fingerprint": model_runtime_fingerprint(prereg),
+                    "model_surface_sha256": surface_sha256(),
+                    "surface_probe_requests": surface_probe_requests,
+                    "surface_probe_request_attempts": surface_attempt_counter["count"],
+                    "calibration_model_requests": 0,
+                    "calibration_model_request_attempts": calibration_attempt_counter["count"],
+                    "model_answer_requests": 0,
+                    "retry_count": 0,
+                    "reason": "unsupported-model-runtime-output-surface",
+                    "resume_permitted": False,
+                    "preregistration_sha256": file_sha(prereg_path),
+                }
+                run_status_path.write_text(json.dumps(status, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+                stop_server(process)
+                process = None
+                write_sums(output)
+                print(json.dumps(status, indent=2, sort_keys=True))
+                return
+            selected_model_contract, calibration = calibrate_grounding_v1_contract(
+                prereg, generation, bundle.policy, selected_output_surface, calibration_attempt_counter
+            )
             calibration_model_requests = calibration["model_request_count"]
-            if calibration_model_requests != prereg["model_surface_policy"]["calibration_model_requests"]:
+            if not len(AUTO_CONTRACT_CALIBRATION) <= calibration_model_requests <= prereg["model_surface_policy"]["calibration_model_requests_max"]:
                 raise BenchmarkRunError("calibration request-count drift")
             (output / "contract-calibration.json").write_bytes(canonical_bytes(calibration))
             with raw_path.open("wb") as raw_handle:
@@ -391,7 +567,9 @@ def execute(prereg_path: Path, output: Path) -> None:
                     item_id = question["item_id"]
                     a_messages = grounding_v1_messages(selected_model_contract, question["question"])
                     a_model_request_attempts += 1
-                    a_reply = request_grounding_v1_model(prereg, generation, a_messages, selected_model_contract)
+                    a_reply = request_grounding_v1_model(
+                        prereg, generation, a_messages, selected_model_contract, selected_output_surface
+                    )
                     a_record = {"v": 1, "item_id": item_id, "arm": "A", "output_source": "model", **a_reply}
                     records.append(a_record)
                     raw_handle.write(canonical_bytes(a_record) + b"\n")
@@ -434,7 +612,7 @@ def execute(prereg_path: Path, output: Path) -> None:
                             g_messages = grounding_v1_messages(selected_model_contract, question["question"])
                             context_route = "ordinary-knowledge"
                         else:
-                            evidence = compact_model_projection(frame)
+                            evidence = grouped_model_projection_v2(frame)
                             g_messages = grounding_v1_messages(
                                 selected_model_contract,
                                 question["question"],
@@ -444,7 +622,9 @@ def execute(prereg_path: Path, output: Path) -> None:
                             grounding_context_sent = True
                             context_route = "grounded-context"
                         g_model_request_attempts += 1
-                        g_reply = request_grounding_v1_model(prereg, generation, g_messages, selected_model_contract)
+                        g_reply = request_grounding_v1_model(
+                            prereg, generation, g_messages, selected_model_contract, selected_output_surface
+                        )
                         output_source = "model"
                     g_record = {
                         "v": 1,
@@ -501,8 +681,13 @@ def execute(prereg_path: Path, output: Path) -> None:
             "host_unresolved_state_count": host_unresolved,
             "host_grounded_scalar_count": host_scalar,
             "selected_model_contract": selected_model_contract,
+            "selected_output_surface": selected_output_surface,
+            "model_runtime_fingerprint": model_runtime_fingerprint(prereg),
             "model_surface_sha256": surface_sha256(),
+            "surface_probe_requests": surface_probe_requests,
+            "surface_probe_request_attempts": surface_attempt_counter["count"],
             "calibration_model_requests": calibration_model_requests,
+            "calibration_model_request_attempts": calibration_attempt_counter["count"],
             "rewrite_calls": 0,
             "retry_count": 0,
             "preregistration_sha256": file_sha(prereg_path),
@@ -518,6 +703,8 @@ def execute(prereg_path: Path, output: Path) -> None:
             "run_id": prereg["run_id"],
             "model_id": prereg["model"]["id"],
             "record_count": len(records),
+            "surface_probe_request_attempts": surface_attempt_counter["count"],
+            "calibration_model_request_attempts": calibration_attempt_counter["count"],
             "model_answer_request_attempts": a_model_request_attempts + g_model_request_attempts,
             "a_model_request_attempts": a_model_request_attempts,
             "g_model_request_attempts": g_model_request_attempts,
@@ -535,6 +722,8 @@ def execute(prereg_path: Path, output: Path) -> None:
             "run_id": prereg["run_id"],
             "model_id": prereg["model"]["id"],
             "record_count": len(records),
+            "surface_probe_request_attempts": surface_attempt_counter["count"],
+            "calibration_model_request_attempts": calibration_attempt_counter["count"],
             "model_answer_request_attempts": a_model_request_attempts + g_model_request_attempts,
             "a_model_request_attempts": a_model_request_attempts,
             "g_model_request_attempts": g_model_request_attempts,

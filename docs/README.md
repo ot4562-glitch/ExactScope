@@ -1,8 +1,8 @@
 # ExactScope documentation map
 
-Release context: **ExactScope v1.0.0 is the stable Linux x86-64 native grounding software release. The selected r25 behavior, native C ABI, deterministic package, footprint gate, and final-archive C11 clean-room path are complete. Physical ARM64 device qualification remains explicitly unclaimed.**
+Release context: **ExactScope v1.1.0 is a software/architecture release that retains the Linux x86-64 native grounding C ABI/XSGI path as the stable software surface. New v1.1 qualification/control-plane, host-integration, Bridge, enterprise DocQA and demo surfaces are experimental/reference. Physical ARM64 qualification, enterprise/customer qualification and demonstrated economic advantage remain explicitly unclaimed.**
 
-Date: 2026-09-08
+Date: 2026-09-13
 
 This index contains the documents intended for users, integrators, reviewers and public reproducibility. Internal experiment logs, agent prompts, evaluator handoffs and release-operator notes are intentionally kept outside the public repository.
 
@@ -22,6 +22,36 @@ Read in this order:
 10. [`RC3_QUALIFICATION_CLOSEOUT.md`](RC3_QUALIFICATION_CLOSEOUT.md) — frozen historical findings that motivated the grounding-first product direction.
 
 The root [`README.md`](../README.md) contains the current paired model-only vs ExactScope accuracy table and the broader HotpotQA/NQ development evidence. The frozen seven-model screen spans 135M to 3.8B and was re-scored after the native C ABI/release integration with identical semantic results. Those model-accuracy measurements remain candidate/provider/corpus scoped; the stable v1 claim is the Linux x86-64 native grounding software/package scope, not universal accuracy across arbitrary providers.
+
+## v1.1 release and research surfaces — start here
+
+v1.1.0 closes the indefinite research branch as a **software/architecture release**. Stable support is deliberately narrow: Linux x86-64 native grounding C ABI/XSGI. Qualification/control-plane workflows, host integrations, Bridge, enterprise DocQA and demos remain experimental/reference. Qwen/FEVER Stage 1 stopped at `ReferenceOnly`; the frozen NQ/Hotpot 20-model panel remained positive on average, while the later Kubernetes Operations long-document proxy failed its ordinary-RAG quality margin and selected no candidate. Successful automatic cost compilation, general RAG superiority, enterprise qualification and economic advantage are not claimed.
+
+Release essentials: [`../RELEASE_NOTES_v1.1.0.md`](../RELEASE_NOTES_v1.1.0.md) defines the stability/support contract; [`V1_1_PUBLIC_PROXY_K8S_RESULT.md`](V1_1_PUBLIC_PROXY_K8S_RESULT.md) preserves the negative long-document transfer result and invalidated-run provenance.
+
+1. [`V1_1_TECHNICAL_REVIEW.md`](V1_1_TECHNICAL_REVIEW.md) — **10-minute external reviewer path**: architecture thesis, executable conformance demo, machine-verifiable public evidence, backend-specific runtime evidence and exact claim boundary.
+2. [`../benchmarks/v1.1-final-public-evidence.json`](../benchmarks/v1.1-final-public-evidence.json) — tracked frozen 20-model public-development evidence snapshot; verify with `python3 tools/verify_v11_public_evidence.py`.
+3. [`V1_1_RESEARCH_STATUS.md`](V1_1_RESEARCH_STATUS.md) — **current continuity checkpoint** and active implementation order.
+4. [`V1_1_ULTIMATE_PRODUCT_ARCHITECTURE.md`](V1_1_ULTIMATE_PRODUCT_ARCHITECTURE.md) — **frozen v1.1+ north star**: Qualified AI Execution Control Plane, Semantic Execution Policy Compiler kernel, immutable qualification artifacts, binding execution guard, drift/requalification and frontier-host path.
+5. [`V1_1_AG_EFFECT_SHOWCASE.md`](V1_1_AG_EFFECT_SHOWCASE.md) — final public A/G results, real-host H1 three-arm checkpoint, freeze boundary and failure disclosures.
+6. [`V1_1_ENTERPRISE_DOCQA_PLAN.md`](V1_1_ENTERPRISE_DOCQA_PLAN.md) — **current prospective product-proof protocol**: real host retrieval, competence gates, Base-vs-Integrated primary comparison, total economics and ordinary-alternative comparison.
+7. [`V1_1_PRODUCT_DIFFERENTIATION.md`](V1_1_PRODUCT_DIFFERENTIATION.md) — current product/architecture definition, artifact boundary, evidence ladder, commercial wedge and unsupported-claim limits.
+8. [`V1_1_STAGE1_REFERENCE_ONLY_RESULT.md`](V1_1_STAGE1_REFERENCE_ONLY_RESULT.md) — **completed FEVER Stage 1 result**: `ReferenceOnly`, held-out unconsumed, product qualification not evaluated.
+9. [`V1_1_STAGE1_REFERENCE_ONLY_ASTRA_REVIEW.md`](V1_1_STAGE1_REFERENCE_ONLY_ASTRA_REVIEW.md) — independent post-result Astra review; narrows v1.1 and prioritizes enterprise document QA.
+10. [`V1_1_STAGE1_PREREGISTRATION.md`](V1_1_STAGE1_PREREGISTRATION.md) — immutable historical pre-score contract for the stopped FEVER Stage 1; do not reinterpret it as the next study.
+11. [`V1_1_EXPERIMENT_PROGRAM.md`](V1_1_EXPERIMENT_PROGRAM.md) — broader research charter; public benchmark-driven tuning is closed and enterprise document QA is the next empirical phase.
+12. [`V1_1_AMPLIFIER_MATERIALS.md`](V1_1_AMPLIFIER_MATERIALS.md) — causal material registry; materials do not automatically become selectable product policy.
+13. [`V1_1_PARASITE_ATTACH_PROFILE.md`](V1_1_PARASITE_ATTACH_PROFILE.md) — low-ownership host-attached architecture pressure test; not the product identity.
+14. [`V1_1_RUNTIME_AMPLIFIER.md`](V1_1_RUNTIME_AMPLIFIER.md) — historical/material reference; runtime-amplifier terminology is not the product category.
+15. [`RUNTIME_AMPLIFIER_LANDSCAPE.md`](RUNTIME_AMPLIFIER_LANDSCAPE.md) — adjacent runtime ownership and collision analysis; runtime mechanisms remain host-owned.
+16. [`V1_1_INTEGRATION_FEEDBACK.md`](V1_1_INTEGRATION_FEEDBACK.md) — ORT GenAI, ExecuTorch and LiteRT-LM pressure-test findings; integration evidence is not cross-runtime transfer evidence.
+17. [`UPSTREAM_VALIDATION_PLAN.md`](UPSTREAM_VALIDATION_PLAN.md) — parallel placement-gated external-validation track; upstream work must be independently useful and must not derail qualification.
+18. [`V1_1_DIRECTION_REFRAME_ASTRA_REVIEW.md`](V1_1_DIRECTION_REFRAME_ASTRA_REVIEW.md) — earlier independent direction review before Stage 1 scoring.
+19. [`V1_1_ASTRA_HIGH_REVIEW.md`](V1_1_ASTRA_HIGH_REVIEW.md) — earlier independent skeptical review after the first rejected transfer.
+20. [`REFERENCES.md`](REFERENCES.md) — papers and runtime documentation used to derive hypotheses.
+21. [`../adapters/bridge/README.md`](../adapters/bridge/README.md) — experimental bridge pressure tests across external runtime surfaces.
+
+The historical sub-1-MiB native promotion target remains a useful **comparison checkpoint**, but it is neither an experiment admission limit nor a promise about the eventual v1.1 shipping form. v1.1 is native-free-first; future release gates must be chosen for the actual selected artifact and must report distribution bytes, dependencies, runtime payload, post-link contribution, resource cost, and integration effort separately.
 
 ## Current selected behavior
 

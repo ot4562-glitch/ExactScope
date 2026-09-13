@@ -1,0 +1,48 @@
+{
+  "format": "exactscope.public-proxy-source",
+  "format_version": "0.1",
+  "proxy_id": "kubernetes-pod-ops-docqa-v0.1",
+  "development_only": true,
+  "qualification_eligible": false,
+  "source": {
+    "kind": "git-repository",
+    "repository": "https://github.com/kubernetes/website.git",
+    "repository_full_name": "kubernetes/website",
+    "commit": "ce98a43f24257385a9766003a6dadc95e962dc63",
+    "commit_date": "2026-09-13",
+    "license_spdx": "CC-BY-4.0",
+    "language": "en"
+  },
+  "include_roots": [
+    "content/en/docs/concepts/workloads/pods",
+    "content/en/docs/tasks/configure-pod-container"
+  ],
+  "include_suffixes": [
+    ".md"
+  ],
+  "exclude_names": [
+    "_index.md"
+  ],
+  "domain": "Kubernetes Pod operations and container configuration",
+  "authority_rule": "Only files materialized from the pinned commit and included by this manifest are authorized evidence. Linked pages outside the snapshot are not implicitly authorized.",
+  "freshness_rule": "The pinned commit is the sole current revision for proxy v0.1. Later upstream changes create a different proxy revision.",
+  "question_target": {
+    "total": 64,
+    "truth_states": {
+      "answerable": 44,
+      "unanswerable": 12,
+      "ambiguous": 8
+    },
+    "retrieval_stress_answerable": 12
+  },
+  "splits": {
+    "development": 32,
+    "untouched_validation": 32,
+    "group_disjoint": true
+  },
+  "notes": [
+    "This is a public enterprise-like proxy, not enterprise qualification.",
+    "Gold answers and source-span adjudication remain scorer-side.",
+    "The acquisition tool records exact file SHA-256 values after materialization."
+  ]
+}

@@ -6,9 +6,13 @@ Status: **active benchmark/qualification contract; every accuracy or target-perf
 
 Normative grounding semantics: [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md)
 
-The flagship product question is:
+> **v1.1 research overlay (2026-09-13):** the stable-v1 release-qualification contract below remains authoritative for published v1 claims. The first fresh Harness Distillation transfer rejected its compiled candidate, and the later preregistered Qwen/FEVER Stage 1 stopped at `ReferenceOnly` after all 1,200 calibration observations: `P = null`, the conventional comparator also returned `T = F`, and the frozen 600-item held-out was not scored. That is negative-frontier / positive-integrity evidence, not compiler value. The current v1.1 product category is a **qualification/configuration optimizer with semantic enforcement and immutable qualification records**; the stronger compiler interpretation remains research-only. See [`V1_1_STAGE1_REFERENCE_ONLY_RESULT.md`](V1_1_STAGE1_REFERENCE_ONLY_RESULT.md), [`V1_1_ENTERPRISE_DOCQA_PLAN.md`](V1_1_ENTERPRISE_DOCQA_PLAN.md), and [`V1_1_PRODUCT_DIFFERENTIATION.md`](V1_1_PRODUCT_DIFFERENTIATION.md). No experimental score is silently promoted into a release claim.
+>
+> The next substantive product proof is a **competence-gated bounded enterprise document-QA study with real host retrieval**. Workload-owner correctness/evidence/abstention/unacceptable-error gates, Base and Integrated configuration identities, leakage grouping, scorer/adjudication, timing/load, total economics, sample/uncertainty rules, and any optional `P/F/T` branch must be frozen before confirmatory scoring. The sealed FEVER 600 is retired from revised-rule inference and the prior 15% cheaper-reference requirement is not retroactively relaxed.
 
-> For an existing constrained/on-device model, can ExactScope materially improve everyday factual accuracy and reduce wrong-confident answers at lower model-call, token, latency, storage/RAM and integration cost than competing approaches, without unacceptable false grounding or privacy risk?
+The long-term product question is:
+
+> For an existing constrained or operationally pinned model/runtime, can ExactScope materially improve useful answer quality at lower total incremental cost than the competent existing stack, a competent fixed intervention/reference, or a better-model alternative, without unacceptable false grounding, unsupported output, privacy/scope risk, or integration burden?
 
 The benchmark is intentionally designed so ExactScope cannot win by reading benchmark gold, hiding retries/repairs, or failing to count model calls and context cost. A always makes one model answer call. G may make zero or one only under preregistered serving-derived deterministic host rules; every actual model call and host completion must be reported.
 

@@ -1,0 +1,272 @@
+{
+  "format": "exactscope.v11-final-public-evidence",
+  "format_version": "0.1",
+  "status": "public-development-robustness-only",
+  "source_panel_results_sha256": "69e91468842d9f7ac077547b80fe798a758814068a858d09eda704b00a8c34f8",
+  "source_panel_preregistration_sha256": "506f0f4305e9c02a90da54bbf23113b8e4a9c0cd499d583dea42d354c51a3dee",
+  "qualification_eligible": false,
+  "production_readiness_claimed": false,
+  "economic_advantage_claimed": false,
+  "protocol": {
+    "scheduled_models": 20,
+    "scheduled_cells": 40,
+    "scored_cells": 32,
+    "n_a_cells": 8,
+    "questions_per_workload": 64,
+    "all_serving_attempted_before_scoring": true,
+    "retry_count": 0,
+    "hidden_repair": false,
+    "policy_reselection_from_panel": false,
+    "retired_fever_used": false
+  },
+  "comparison_definition": {
+    "A": "same model answering without attached evidence under the frozen runtime/answer surface",
+    "G": "same model under the frozen ExactScope evidence and answer-contract path",
+    "task_mean_denominator": "16 valid paired model identities; four protocol-incompatible identities are retained as N/A",
+    "hotpot_boundary": "A-to-G is model-only-to-H1, not ordinary-RAG-to-H1; it does not establish H1 incremental benefit over ordinary RAG across models",
+    "pooled_average": "equal-weight descriptive mean over the 32 valid model-task pairs"
+  },
+  "workloads": {
+    "natural_questions": {
+      "role": "fresh-post-freeze-public-development",
+      "item_count": 64,
+      "policy_id": "precision-context-v5",
+      "max_evidence_bytes": 3072,
+      "max_items": 8,
+      "top_k": 12
+    },
+    "hotpotqa": {
+      "role": "fixed-stability64-public-development",
+      "item_count": 64,
+      "host_framework": "LlamaIndex",
+      "host_retriever": "BM25Retriever",
+      "host_owns_retrieval": true,
+      "attach_policy_id": "host-ranked-hybrid-h1-v0",
+      "max_evidence_bytes": 3072,
+      "max_items": 12,
+      "top_k": 12
+    }
+  },
+  "aggregate": {
+    "natural_questions": {
+      "valid_pair_count": 16,
+      "scheduled_model_count": 20,
+      "mean_a_f1": 0.12441850271857595,
+      "mean_g_f1": 0.2168266321377815,
+      "mean_uplift_pp": 9.240812941920558,
+      "improved_tied_regressed": [14, 0, 2]
+    },
+    "hotpotqa": {
+      "valid_pair_count": 16,
+      "scheduled_model_count": 20,
+      "mean_a_f1": 0.11626258095841047,
+      "mean_g_f1": 0.3142021823662448,
+      "mean_uplift_pp": 19.793960140783437,
+      "improved_tied_regressed": [15, 0, 1]
+    },
+    "pooled_valid_cell_count": 32,
+    "pooled_valid_cell_mean_uplift_pp": 14.517386541351998,
+    "models_with_both_tasks": 16,
+    "mean_two_task_uplift_pp_across_models_with_both": 14.517386541351998
+  },
+  "models": [
+    {
+      "model_id": "smollm2-135m-instruct-q4km",
+      "family": "SmolLM2",
+      "parameters": "135M",
+      "v1_public6_macro": 0.2638888888888889,
+      "natural_questions": {"status": "n_a", "reason_code": "semantic-calibration-zero"},
+      "hotpotqa": {"status": "n_a", "reason_code": "semantic-calibration-zero"},
+      "two_task_mean_uplift_pp": null
+    },
+    {
+      "model_id": "gemma3-270m-it-q8",
+      "family": "Gemma 3",
+      "parameters": "270M",
+      "v1_public6_macro": 0.2569444444444445,
+      "natural_questions": {"status": "scored", "a_f1": 0.0627890691160185, "g_f1": 0.09202508327048768, "uplift_pp": 2.923601415446918},
+      "hotpotqa": {"status": "scored", "a_f1": 0.0318452380952381, "g_f1": 0.041666666666666664, "uplift_pp": 0.9821428571428564},
+      "two_task_mean_uplift_pp": 1.952872136294887
+    },
+    {
+      "model_id": "lfm25-350m-q4km",
+      "family": "LFM2.5",
+      "parameters": "350M",
+      "v1_public6_macro": 0.3125,
+      "natural_questions": {"status": "scored", "a_f1": 0.047504058441558444, "g_f1": 0.10720741421568626, "uplift_pp": 5.970335577412782},
+      "hotpotqa": {"status": "scored", "a_f1": 0.05833333333333333, "g_f1": 0.115625, "uplift_pp": 5.729166666666668},
+      "two_task_mean_uplift_pp": 5.849751122039725
+    },
+    {
+      "model_id": "smollm2-360m-instruct-q4km",
+      "family": "SmolLM2",
+      "parameters": "360M",
+      "v1_public6_macro": 0.3125,
+      "natural_questions": {"status": "scored", "a_f1": 0.06938408177618535, "g_f1": 0.04924826130871554, "uplift_pp": -2.013582046746981},
+      "hotpotqa": {"status": "scored", "a_f1": 0.06337097338935575, "g_f1": 0.11215598637473638, "uplift_pp": 4.878501298538063},
+      "two_task_mean_uplift_pp": 1.4324596258955409
+    },
+    {
+      "model_id": "qwen25-05b-instruct-q4km",
+      "family": "Qwen2.5",
+      "parameters": "0.5B",
+      "v1_public6_macro": 0.2916666666666667,
+      "natural_questions": {"status": "scored", "a_f1": 0.0669894008669916, "g_f1": 0.15694762938770343, "uplift_pp": 8.995822852071184},
+      "hotpotqa": {"status": "scored", "a_f1": 0.1532451923076923, "g_f1": 0.3394345238095238, "uplift_pp": 18.618933150183153},
+      "two_task_mean_uplift_pp": 13.80737800112717
+    },
+    {
+      "model_id": "qwen3-06b-q4km",
+      "family": "Qwen3",
+      "parameters": "0.6B",
+      "v1_public6_macro": 0.375,
+      "natural_questions": {"status": "scored", "a_f1": 0.05837915486470385, "g_f1": 0.11757476336980013, "uplift_pp": 5.919560850509628},
+      "hotpotqa": {"status": "scored", "a_f1": 0.05866962898212898, "g_f1": 0.2900297619047619, "uplift_pp": 23.136013292263293},
+      "two_task_mean_uplift_pp": 14.52778707138646
+    },
+    {
+      "model_id": "qwen35-08b-q4",
+      "family": "Qwen3.5",
+      "parameters": "0.8B",
+      "v1_public6_macro": 0.40972222222222227,
+      "natural_questions": {"status": "scored", "a_f1": 0.10436096285260037, "g_f1": 0.24147198806105202, "uplift_pp": 13.711102520845165},
+      "hotpotqa": {"status": "scored", "a_f1": 0.07819558913308913, "g_f1": 0.40703124999999996, "uplift_pp": 32.88356608669108},
+      "two_task_mean_uplift_pp": 23.297334303768125
+    },
+    {
+      "model_id": "olmo2-1b-instruct-q4km",
+      "family": "OLMo 2",
+      "parameters": "1B",
+      "v1_public6_macro": 0.34027777777777773,
+      "natural_questions": {"status": "scored", "a_f1": 0.11897878897286579, "g_f1": 0.23977692803520015, "uplift_pp": 12.079813906233436},
+      "hotpotqa": {"status": "scored", "a_f1": 0.23499313186813187, "g_f1": 0.2518229166666667, "uplift_pp": 1.6829784798534808},
+      "two_task_mean_uplift_pp": 6.881396193043459
+    },
+    {
+      "model_id": "llama32-1b-instruct-q4km",
+      "family": "Llama 3.2",
+      "parameters": "1B",
+      "v1_public6_macro": 0.34027777777777773,
+      "natural_questions": {"status": "scored", "a_f1": 0.159859091193323, "g_f1": 0.20496823014511695, "uplift_pp": 4.510913895179394},
+      "hotpotqa": {"status": "scored", "a_f1": 0.12239583333333333, "g_f1": 0.3571428571428571, "uplift_pp": 23.47470238095238},
+      "two_task_mean_uplift_pp": 13.992808138065886
+    },
+    {
+      "model_id": "tinyllama-11b-chat-q4km",
+      "family": "TinyLlama",
+      "parameters": "1.1B",
+      "v1_public6_macro": null,
+      "natural_questions": {"status": "n_a", "reason_code": "unsupported-structured-output-surface"},
+      "hotpotqa": {"status": "n_a", "reason_code": "unsupported-structured-output-surface"},
+      "two_task_mean_uplift_pp": null
+    },
+    {
+      "model_id": "lfm25-12b-instruct-q4km",
+      "family": "LFM2.5",
+      "parameters": "1.2B",
+      "v1_public6_macro": 0.42361111111111116,
+      "natural_questions": {"status": "n_a", "reason_code": "semantic-calibration-zero"},
+      "hotpotqa": {"status": "n_a", "reason_code": "semantic-calibration-zero"},
+      "two_task_mean_uplift_pp": null
+    },
+    {
+      "model_id": "deepseek-r1-qwen-15b-q4km",
+      "family": "DeepSeek R1 Distill Qwen",
+      "parameters": "1.5B",
+      "v1_public6_macro": 0.0,
+      "natural_questions": {"status": "n_a", "reason_code": "semantic-calibration-zero"},
+      "hotpotqa": {"status": "n_a", "reason_code": "semantic-calibration-zero"},
+      "two_task_mean_uplift_pp": null
+    },
+    {
+      "model_id": "smollm2-17b-instruct-q4km",
+      "family": "SmolLM2",
+      "parameters": "1.7B",
+      "v1_public6_macro": 0.375,
+      "natural_questions": {"status": "scored", "a_f1": 0.12629325740253536, "g_f1": 0.22662966926204292, "uplift_pp": 10.033641185950756},
+      "hotpotqa": {"status": "scored", "a_f1": 0.10325872044622046, "g_f1": 0.219237012987013, "uplift_pp": 11.597829254079254},
+      "two_task_mean_uplift_pp": 10.815735220015005
+    },
+    {
+      "model_id": "qwen3-17b-q4km",
+      "family": "Qwen3",
+      "parameters": "1.7B",
+      "v1_public6_macro": 0.48611111111111116,
+      "natural_questions": {"status": "scored", "a_f1": 0.11832333401605849, "g_f1": 0.2319663956212869, "uplift_pp": 11.36430616052284},
+      "hotpotqa": {"status": "scored", "a_f1": 0.13907585470085468, "g_f1": 0.41170296717171717, "uplift_pp": 27.262711247086248},
+      "two_task_mean_uplift_pp": 19.313508703804544
+    },
+    {
+      "model_id": "qwen35-2b-q4km",
+      "family": "Qwen3.5",
+      "parameters": "2B",
+      "v1_public6_macro": 0.46527777777777773,
+      "natural_questions": {"status": "scored", "a_f1": 0.16003539033430342, "g_f1": 0.4149582009186382, "uplift_pp": 25.49228105843348},
+      "hotpotqa": {"status": "scored", "a_f1": 0.12714616113053614, "g_f1": 0.6610982767232767, "uplift_pp": 53.39521155927406},
+      "two_task_mean_uplift_pp": 39.44374630885377
+    },
+    {
+      "model_id": "granite33-2b-instruct-q4km",
+      "family": "Granite 3.3",
+      "parameters": "2B",
+      "v1_public6_macro": 0.47222222222222227,
+      "natural_questions": {"status": "scored", "a_f1": 0.205554775972007, "g_f1": 0.32275708074628473, "uplift_pp": 11.720230477427773},
+      "hotpotqa": {"status": "scored", "a_f1": 0.16614583333333333, "g_f1": 0.4010315205627705, "uplift_pp": 23.48856872294372},
+      "two_task_mean_uplift_pp": 17.604399600185747
+    },
+    {
+      "model_id": "llama32-3b-instruct-q4km",
+      "family": "Llama 3.2",
+      "parameters": "3B",
+      "v1_public6_macro": 0.4930555555555556,
+      "natural_questions": {"status": "scored", "a_f1": 0.26841130353589665, "g_f1": 0.31984686940044077, "uplift_pp": 5.143556586454412},
+      "hotpotqa": {"status": "scored", "a_f1": 0.14995889527139528, "g_f1": 0.5180059523809524, "uplift_pp": 36.80470571095571},
+      "two_task_mean_uplift_pp": 20.974131148705062
+    },
+    {
+      "model_id": "smollm3-3b-q4km",
+      "family": "SmolLM3",
+      "parameters": "3B",
+      "v1_public6_macro": 0.5,
+      "natural_questions": {"status": "scored", "a_f1": 0.18871934846199553, "g_f1": 0.34819532277346904, "uplift_pp": 15.94759743114735},
+      "hotpotqa": {"status": "scored", "a_f1": 0.18140028374403375, "g_f1": 0.3838462752525253, "uplift_pp": 20.244599150849155},
+      "two_task_mean_uplift_pp": 18.096098290998253
+    },
+    {
+      "model_id": "ministral-3b-instruct-q4km",
+      "family": "Ministral",
+      "parameters": "3B",
+      "v1_public6_macro": null,
+      "natural_questions": {"status": "scored", "a_f1": 0.056404910512896166, "g_f1": 0.016719187675070028, "uplift_pp": -3.9685722837826134},
+      "hotpotqa": {"status": "scored", "a_f1": 0.008312459599224305, "g_f1": 0.0015625, "uplift_pp": -0.6749959599224306},
+      "two_task_mean_uplift_pp": -2.321784121852522
+    },
+    {
+      "model_id": "phi4-mini-38b-q4km",
+      "family": "Phi-4 mini",
+      "parameters": "3.8B",
+      "v1_public6_macro": 0.6180555555555556,
+      "natural_questions": {"status": "scored", "a_f1": 0.17870911517727558, "g_f1": 0.37893309001350944, "uplift_pp": 20.022397483623386},
+      "hotpotqa": {"status": "scored", "a_f1": 0.18385416666666665, "g_f1": 0.5158414502164501, "uplift_pp": 33.19872835497834},
+      "two_task_mean_uplift_pp": 26.610562919300865
+    }
+  ],
+  "known_h1_three_arm_checkpoint": {
+    "model_id": "qwen35-08b-q4",
+    "item_count": 64,
+    "model_only_f1": 0.07819558913308913,
+    "ordinary_llamaindex_rag_f1": 0.3504,
+    "h1_f1": 0.40703124999999996,
+    "h1_minus_ordinary_rag_f1_pp": 5.66,
+    "h1_minus_ordinary_rag_em_pp": 7.81,
+    "paired_bootstrap_f1_95pct_pp": [-4.69, 16.25],
+    "superiority_claimed": false,
+    "note": "This Qwen stability64 result was already known before the final cross-model panel and is not an independent replication."
+  },
+  "claim_boundary": [
+    "observed public-development A-to-G percentage-point effects only",
+    "averages are descriptive, not population estimates or guarantees",
+    "Hotpot cross-model A/G does not establish H1 incremental benefit over ordinary RAG across models",
+    "not enterprise qualification, production readiness, or demonstrated economic/latency advantage"
+  ]
+}

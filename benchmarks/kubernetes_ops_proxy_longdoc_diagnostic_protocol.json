@@ -1,0 +1,64 @@
+{
+  "format": "exactscope.public-proxy-longdoc-diagnostic-protocol",
+  "format_version": "0.1",
+  "proxy_id": "kubernetes-pod-ops-docqa-v0.1",
+  "split": "development32",
+  "development_only": true,
+  "qualification_eligible": false,
+  "diagnostic_source_sha256": "358f1508c2d657307d0757da0542c765afcbddf4c7d78656a1322f60cdd1d16b",
+  "dev_protocol_sha256": "e09d241fafc764fa562d46c63dae3a1fdbb16f3ac0d595773f1b0dcd4b605af2",
+  "candidate_manifest_sha256": "d968e3cc1abee8f813fd88531082e305fd83dee23cd19c4fa9f651425f0c10e9",
+  "retrieval_sha256": "a9af0091f541eb943b0836e6264c2e1a724d2445409a8c064d82353b501eac5a",
+  "reference_run_status_sha256": "56ca559e795822d8523ffc5e0ee8d24565f787a357b3d3bafe331b806d4d828e",
+  "reference_score_summary_sha256": "0f423a3c9f5f0c688a4026698010a6441cc183d4e87629fadb7a7b9e0a9fca67",
+  "grounding_projection_source_sha256": "720a4e3883eb7cbf71eb5970791a245a0ad8aa83a99bfd1ae41721dd378a3a31",
+  "grounding_text_source_sha256": "bff80ba84d9e505f00090142a0d2196966d483d81a8503275d4ed6ed280a8df2",
+  "reference_arm": "R",
+  "reference_description": "ordinary LlamaIndex BM25 ranked context at 3072 bytes from evidence-eligible dev32 r4",
+  "arms": {
+    "C1": {
+      "description": "query-weighted contiguous sentence window from host rank-1 document",
+      "max_evidence_bytes": 3072,
+      "max_ranked_documents": 1
+    },
+    "C2": {
+      "description": "query-weighted contiguous sentence windows from host ranks 1-2 with deterministic equal remaining-byte allocation",
+      "max_evidence_bytes": 3072,
+      "max_ranked_documents": 2
+    },
+    "RAW2560": {
+      "description": "ordinary host-ranked raw context reduced prospectively to 2560 bytes",
+      "max_evidence_bytes": 2560,
+      "max_ranked_documents": 12
+    }
+  },
+  "selection_rule": {
+    "max_development_policy_rounds": 1,
+    "quality_margin_vs_R_pp": -2.0,
+    "quality_material_advantage_pp": 3.0,
+    "efficiency_material_reduction_fraction": 0.15,
+    "format_failures_required": 0,
+    "unacceptable_errors_must_not_exceed_R": true,
+    "tie_break": [
+      "highest primary utility",
+      "lowest mean input tokens",
+      "lowest mean evidence bytes"
+    ],
+    "if_no_candidate_eligible": "select none; stop public-proxy shaping/configuration tuning"
+  },
+  "uncertainty": {
+    "method": "paired-bootstrap-v1",
+    "seed": 20260913,
+    "resamples": 20000,
+    "confidence": 0.95
+  },
+  "isolation": {
+    "gold_visible_to_runner": false,
+    "serve_all_candidates_before_scoring": true,
+    "retry_count": 0,
+    "hidden_repair": false,
+    "model_as_judge": false,
+    "reflection": false,
+    "validation_reselection_allowed": false
+  }
+}

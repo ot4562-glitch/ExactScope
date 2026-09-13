@@ -158,7 +158,7 @@ def preflight(args):
     paths = source_paths() | {args.matrix, args.acquisition_manifest, args.model_inventory, args.suite,
         record, args.runtime_executable, Path(sys.executable),
         ROOT / "benchmarks/grounding-generation-config.json",
-        ROOT / "benchmarks/grounding-isolation-policy.json", nq.POLICY_PATH}
+        ROOT / "benchmarks/grounding-isolation-policy-v0.5.json", nq.POLICY_PATH}
     generation = read(ROOT / "benchmarks/grounding-generation-config.json")
     if generation.get("retry_count") != 0 or generation.get("hidden_repair") is not False:
         raise ValueError("generation violates no-retry policy")
@@ -196,7 +196,7 @@ def preflight(args):
                 "--model-path", model["path"], "--model-inventory", str(args.model_inventory.resolve()),
                 "--runtime-record", str(record), "--runtime-executable", str(args.runtime_executable.resolve()),
                 "--port", str(cell_port), "--threads", str(args.threads), "--top-k", "12",
-                "--max-evidence-bytes", "4096", "--output", str(run)]
+                "--max-evidence-bytes", str(getattr(module, "DEFAULT_MAX_EVIDENCE_BYTES", None) or getattr(module, "MAX_EVIDENCE_BYTES", None)), "--output", str(run)]
             cells.append({"id": key, "model_id": model["id"], "benchmark_id": task,
                 "model_path": model["path"], "model_sha256": model["sha256"], "port": cell_port,
                 "run": str(run), "score": str(score),

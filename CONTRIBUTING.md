@@ -1,23 +1,23 @@
 # Contributing to ExactScope
 
-ExactScope is a lightweight grounding runtime and accuracy retrofit layer for small/local/on-device AI. The flagship v1 objective is **everyday factual accuracy and wrong-confident-answer reduction at low token/latency/footprint cost**; quantitative `xs_calc`/`xs_eval` remains a secondary deterministic subsystem. Contributions are evaluated by **product leverage, grounding precision, deterministic correctness, integration simplicity, footprint, portability, privacy and evidence**—not by raw feature count.
+ExactScope v1.1.0 is a bounded software/architecture release. The **stable support surface remains the Linux x86-64 native grounding C ABI/XSGI path**; new qualification/control-plane, enterprise DocQA, host-integration, Bridge and demo surfaces are experimental/reference. The release deliberately preserves mixed evidence, including a negative Kubernetes long-document proxy, rather than treating research success as part of the support contract. Quantitative `xs_calc`/`xs_eval` remains a secondary deterministic subsystem. Contributions are evaluated by **product leverage, qualification integrity, grounding precision, deterministic correctness, integration simplicity, total cost, portability, privacy and evidence**—not by raw feature count.
 
 ## Current project phase
 
-`v1.0.0` is the stable Linux x86-64 native grounding software/package scope. The selected **r25** behavior, native `.xsgi` C ABI, deterministic package, footprint gates, and final-archive C11 clean-room path are complete. Historical r5 and rc3 evidence remains frozen. Active work after v1 is provider integration, compatibility/LTS, and target-specific qualification—especially physical ARM64 resource/energy/thermal evidence before wearable hardware claims. Original-question grounding, explicit authority/failure semantics, accuracy uplift and small-model cost remain the product priorities; quantitative interfaces remain supporting infrastructure.
+`v1.1.0` retains the Linux x86-64 native grounding package/C ABI as the stable scope and adds experimental/reference source surfaces for qualification/control-plane workflows and host integration. FEVER Stage 1 stopped at `ReferenceOnly`; the frozen NQ/Hotpot public panel is complete; the later Kubernetes Operations proxy failed its ordinary-RAG quality margin and selected no candidate. Public tuning is closed. Post-release research must be justified by a real owner-bound workload or another explicitly scoped evidence question; release mechanics and stable-native regression work take priority over new policy exploration.
 
-Read this order first:
+Read this order first for current v1.1 work:
 
-1. `docs/PRODUCT_DIRECTION.md`
-2. `docs/GROUNDING_ARCHITECTURE.md`
-3. `spec/GROUNDING_CONTRACT_V0_1.md`
-4. `docs/AI_INTEGRATION.md`
-5. `docs/BENCHMARK.md`
+1. `docs/V1_1_RESEARCH_STATUS.md`
+2. `docs/V1_1_PRODUCT_DIFFERENTIATION.md`
+3. `docs/V1_1_ASTRA_HIGH_REVIEW.md`
+4. `docs/V1_1_EXPERIMENT_PROGRAM.md`
+5. `docs/DECISIONS.md`
 6. `ROADMAP.md`
-7. `docs/ARCHITECTURE.md`
-8. `docs/QUICKSTART.md`
-9. `docs/COMPATIBILITY.md`
-10. `docs/DECISIONS.md`
+7. `docs/PRODUCT_DIRECTION.md`
+8. `docs/V1_1_PARASITE_ATTACH_PROFILE.md`
+9. `docs/GROUNDING_ARCHITECTURE.md` and `spec/GROUNDING_CONTRACT_V0_1.md` for stable-v1 semantics
+10. `docs/AI_INTEGRATION.md`, `docs/BENCHMARK.md`, and `docs/COMPATIBILITY.md`
 11. `SECURITY.md`
 12. `docs/IMPLEMENTATION_PLAN.md` for the quantitative subsystem/history
 
@@ -25,19 +25,20 @@ Read this order first:
 
 ## Product-priority rule
 
-Before proposing a large feature, ask whether it improves one of these:
+Before proposing a large v1.1 feature, ask whether it improves one of these **without weakening qualification integrity or expanding ownership into host-runtime machinery**:
 
-- everyday factual accuracy or wrong-confident-answer reduction;
-- retrieval precision / false-grounding avoidance;
-- provider-neutral Grounding Contract simplicity;
-- authoritative/supplemental, freshness, ambiguity and conflict correctness;
-- evidence token/byte/latency efficiency for small models;
+- competence and customer value on a bounded document-QA workload using real host retrieval;
+- trustworthy comparison of a fixed semantic configuration against a competent Base/reference;
+- total customer economics, including serving, escalation/review, integration, qualification and refresh cost;
+- fresh calibration/held-out integrity, scorer validity, qualification identities, or reproducibility;
+- retrieval precision / false-grounding avoidance and authoritative/supplemental/freshness/conflict correctness;
+- a smaller host-attached semantic boundary with less duplicated runtime ownership;
 - private-source scope and isolation;
 - correctness/security of the deterministic quantitative core and public boundaries;
-- five-minute integration and reproducible model/target qualification evidence;
-- exact release packaging, compatibility, update and rollback behavior.
+- five-minute integration and reproducible customer/model/runtime qualification evidence;
+- honest distribution/dependency/runtime-payload/resource accounting.
 
-Broad platform support, academic catalog expansion, per-domain feature work, and retrieval-algorithm novelty remain secondary to preserving the stable v1 grounding contract, improving provider integrations, and collecting target-specific evidence before broader support claims.
+Broad platform support, academic catalog expansion, adaptive per-query selection, per-domain feature work, new native machinery, cross-host transfer, and retrieval-algorithm novelty remain secondary until a **competent customer-like source policy** demonstrates useful value and economics. The preregistered 120/600 FEVER study stopped at `ReferenceOnly`; do not broaden the policy matrix or reuse its sealed held-out merely to escape that negative result.
 
 ## Core invariants
 
@@ -46,14 +47,15 @@ Do not casually weaken:
 - AI-consumed headless core;
 - offline-capable/library-first operation;
 - no mandatory daemon/account/network;
-- `no_std` allocator-free minimum kernel;
-- stable C ABI and no-import Wasm boundary;
+- stable-v1 `no_std` allocator-free native-kernel guarantees and stable-v1 C ABI compatibility;
+- **do not generalize those stable-v1 native guarantees into a requirement that v1.1 must own or ship a native kernel**;
 - deterministic checked numeric semantics;
 - data-only scope packs;
 - bounded execution/memory;
-- semantic fail-closed behavior;
+- semantic fail-closed behavior, including explicit stale/unsupported/admission-failure outcomes;
 - one shared calculation semantics across profiles;
-- evidence-backed compatibility/marketing claims.
+- evidence-backed compatibility/marketing claims;
+- held-out qualification that can only pass or reject the frozen candidate, never reselect it.
 
 ## AI integration changes
 

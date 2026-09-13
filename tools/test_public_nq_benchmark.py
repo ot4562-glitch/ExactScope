@@ -4,16 +4,34 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 import sys
+import tempfile
+from types import SimpleNamespace
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "tools"), str(ROOT / "benchmarks")]
 
 from public_nq_candidate import chunk_document, score_normalize
+import public_nq_benchmark as nq
 from public_nq_benchmark import _contains_alias, _f1, _reconstruct_documents
 
 
 class PublicNQBenchmarkTests(unittest.TestCase):
+    def test_public_product_contract_is_precision_3k_cap8(self):
+        self.assertEqual(nq.PRECISION_CONTEXT_PROJECTION_ID, "precision-context-v5")
+        self.assertEqual(nq.DEFAULT_TOP_K, 12)
+        self.assertEqual(nq.DEFAULT_MAX_EVIDENCE_BYTES, 3072)
+        self.assertEqual(nq.PRODUCT_MODEL_ITEM_CAP, 8)
+
+        with tempfile.TemporaryDirectory() as directory:
+            args = SimpleNamespace(
+                output=Path(directory) / "run",
+                top_k=nq.DEFAULT_TOP_K,
+                max_evidence_bytes=2048,
+            )
+            with self.assertRaisesRegex(nq.NQBenchmarkError, "product cap 3072"):
+                nq.run_screen(args)
+
     def test_scoring_uses_normalized_alias_max(self):
         self.assertEqual(score_normalize("The Moon!"), "moon")
         self.assertEqual(_f1("The Moon!", ["moon", "luna"]), 1.0)

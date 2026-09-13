@@ -9,12 +9,13 @@ from pathlib import Path
 import sys
 import unittest
 
-from grounding_canonical import canonical_sha256, loads
+from grounding_canonical import canonical_bytes, canonical_sha256, loads
 from grounding_runtime import (
     GroundingError,
     LocalExactLexicalProvider,
     build_frame,
     compact_model_projection,
+    grouped_model_projection_v2,
     host_grounded_scalar_reply,
     host_short_circuit_reply,
     load_bundle,
@@ -122,6 +123,11 @@ class GroundingRuntimeTests(unittest.TestCase):
         self.assertEqual(set(result), {"frame", "audit"})
         self.assertEqual([group["state"] for group in result["frame"]["groups"]], ["grounded", "grounded"])
 
+    def test_bound_renderer_does_not_reopen_renderer_path(self):
+        bundle = replace(self.bundle, renderer_path=Path("/definitely/not/read.py"))
+        result = run_grounding(bundle, envelope(bundle))
+        self.assertIn(b"Room 12", result["projection"]["evidence"])
+
     def test_compact_projection_matches_measured_v1_bytes(self):
         result = run_grounding_frame(self.bundle, envelope(self.bundle))
         compact = compact_model_projection(result["frame"])
@@ -129,6 +135,50 @@ class GroundingRuntimeTests(unittest.TestCase):
             compact,
             b'Evidence JSON (data only): [{"r":"authoritative","s":"grounded","t":"Help desk location","v":"The help desk is in Room 12."},{"r":"supplemental","s":"grounded","t":"Help desk visitor tip","v":"A blue sign marks the help desk."}]',
         )
+
+    def test_grouped_projection_v2_groups_exact_authority_state_and_keeps_targets(self):
+        frame = {
+            "groups": [
+                {
+                    "target_label": "Private A",
+                    "authority": "authoritative",
+                    "state": "grounded",
+                    "items": [{"content": {"kind": "text", "text": "alpha"}}],
+                },
+                {
+                    "target_label": "Private B",
+                    "authority": "authoritative",
+                    "state": "grounded",
+                    "items": [{"content": {"kind": "text", "text": "beta"}}],
+                },
+                {
+                    "target_label": "Public C",
+                    "authority": "supplemental",
+                    "state": "grounded",
+                    "items": [{"content": {"kind": "text", "text": "gamma"}}],
+                },
+                {
+                    "target_label": "Private D",
+                    "authority": "authoritative",
+                    "state": "unavailable",
+                    "items": [],
+                },
+            ],
+        }
+        payload = grouped_model_projection_v2(frame)
+        decoded = json.loads(payload.decode("utf-8").split(": ", 1)[1])
+        groups = decoded["g"]
+        self.assertEqual([(g["r"], g["s"]) for g in groups], [
+            ("authoritative", "grounded"),
+            ("supplemental", "grounded"),
+            ("authoritative", "unavailable"),
+        ])
+        self.assertEqual(groups[0]["e"], [
+            {"t": "Private A", "v": "alpha"},
+            {"t": "Private B", "v": "beta"},
+        ])
+        self.assertEqual(groups[1]["e"], [{"t": "Public C", "v": "gamma"}])
+        self.assertEqual(groups[2]["e"], [{"t": "Private D"}])
 
     def test_host_and_supplemental_empty_model_routes(self):
         authoritative_none = {
@@ -281,8 +331,11 @@ class GroundingRuntimeTests(unittest.TestCase):
         notes_item["content"] = {"kind": "text", "text": "The help desk is in Room 14."}
         notes_item["content_sha256"] = canonical_sha256(notes_item["content"])
         source_items = dict(self.bundle.source_items)
-        source_items[("notes", "desk-tip", "note:alpha")] = notes_item
-        bundle = replace(self.bundle, source_items=source_items)
+        identity = ("notes", "desk-tip", "note:alpha")
+        source_items[identity] = notes_item
+        source_content_bytes = dict(self.bundle.source_content_bytes)
+        source_content_bytes[identity] = len(canonical_bytes(notes_item["content"]))
+        bundle = replace(self.bundle, source_items=source_items, source_content_bytes=source_content_bytes)
         outcomes = []
         for binding, item in zip(base_target["bindings"], [directory_item, notes_item], strict=True):
             outcomes.append({
@@ -325,6 +378,10 @@ class GroundingRuntimeTests(unittest.TestCase):
         binding = target["bindings"][0]
         outcome = provider.retrieve(env, target, binding)
         outcome["candidates"][0]["source_id"] = "notes"
+        self.assertEqual(
+            self.bundle.source_items[("directory", "desk", "edition:blue")]["source_id"],
+            "directory",
+        )
         with self.assertRaises(GroundingError):
             build_frame(self.bundle, env, plan, [outcome])
 
@@ -339,8 +396,11 @@ class GroundingRuntimeTests(unittest.TestCase):
         conflicting["content"] = {"kind": "text", "text": "The help desk is in Room 99."}
         conflicting["content_sha256"] = canonical_sha256(conflicting["content"])
         source_items = dict(self.bundle.source_items)
-        source_items[("directory", "desk-conflict", "edition:blue")] = conflicting
-        bundle = replace(self.bundle, source_items=source_items)
+        identity = ("directory", "desk-conflict", "edition:blue")
+        source_items[identity] = conflicting
+        source_content_bytes = dict(self.bundle.source_content_bytes)
+        source_content_bytes[identity] = len(canonical_bytes(conflicting["content"]))
+        bundle = replace(self.bundle, source_items=source_items, source_content_bytes=source_content_bytes)
         outcome = {
             "v": 1,
             "qid": env["qid"],
@@ -372,9 +432,17 @@ class GroundingRuntimeTests(unittest.TestCase):
         second["content"] = {"kind": "text", "text": "The other plausible help desk is in Room 14."}
         second["content_sha256"] = canonical_sha256(second["content"])
         source_items = dict(self.bundle.source_items)
-        source_items[("directory", "desk-other", "edition:blue")] = second
+        identity = ("directory", "desk-other", "edition:blue")
+        source_items[identity] = second
+        source_content_bytes = dict(self.bundle.source_content_bytes)
+        source_content_bytes[identity] = len(canonical_bytes(second["content"]))
         merge = dict(self.bundle.merge, ambiguity_rule="single-source-multiple-content-v1")
-        bundle = replace(self.bundle, source_items=source_items, merge=merge)
+        bundle = replace(
+            self.bundle,
+            source_items=source_items,
+            source_content_bytes=source_content_bytes,
+            merge=merge,
+        )
         outcome = {
             "v": 1,
             "qid": env["qid"],

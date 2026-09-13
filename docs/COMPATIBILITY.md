@@ -4,6 +4,8 @@ Release context: **ExactScope v1.0.0 ships a stable Linux x86-64 native groundin
 
 Compatibility is evidence attached to an exact artifact **and behavior-affecting grounding profile**, not a statement that source code compiled or one search query returned a plausible hit.
 
+> **v1.1 research overlay (2026-09-13):** v1.1 compiler/Bridge paths remain Experimental even when they compile or execute successfully. The semantic delivery boundary has now been pressure-tested against ORT GenAI, current ExecuTorch `IRunner` structure, and LiteRT-LM fixtures. Those results prove integration shape only; they do not establish cross-runtime answer-quality transfer or broad platform support. The next product milestone is the preregistered reference-preserving compiler-value study, not adding another runtime. Any eventual v1.1 support claim must bind both the host/runtime identity and the qualification/profile identity. See [`V1_1_PRODUCT_DIFFERENTIATION.md`](V1_1_PRODUCT_DIFFERENTIATION.md) and [`V1_1_INTEGRATION_FEEDBACK.md`](V1_1_INTEGRATION_FEEDBACK.md).
+
 The current product strategy separates the historical **rc3 quantitative profiles** from the stable v1 grounding software/package scope. The logical Grounding Contract is provider-neutral, while the stable v1 package currently qualifies only the Linux x86-64 native `.xsgi` retrieval/projection software path; other providers and targets require their own evidence before support promotion.
 
 ## 1. Support vocabulary
@@ -76,6 +78,10 @@ The quantitative invariant remains that any profile exposing the same operation 
 |---|---|---|
 | v1 Grounding Contract + selected r25 host policy | frozen contract, seven-model matched screen, provider/corpus-scoped accuracy evidence | implemented v1 behavior; accuracy claims remain candidate/provider/corpus scoped |
 | Linux x86-64 native `.xsgi` C ABI/package | exact Python/Rust/C-ABI parity, deterministic package, footprint hard caps, final-archive C11 clean room | **stable v1 software/package scope** |
+| v1.1 ExactScope Bridge -> ONNX Runtime GenAI | backend-neutral delivery contract tests, strict C++ header compile, real ORT GenAI 0.15.2 generation plumbing smoke with fail-closed post-validation | **experimental integration pressure test only; no ORT platform/accuracy support claim** |
+| v1.1 ExactScope Bridge -> ExecuTorch `IRunner` | current public-header compile plus fake-runner zero-call/one-call execution | **experimental structural pressure test; no real `.pte` + tokenizer model-success claim** |
+| v1.1 ExactScope Bridge -> LiteRT-LM | real Engine/Conversation execution with official fixtures; ordinary-knowledge path executed; grounded fixture exposed context/vocabulary limits | **experimental structural/runtime pressure test; no grounded answer-quality support claim** |
+| v1.1 policy/profile qualification | first fresh 6+6 transfer rejected its candidate; preregistered 120/600 FEVER Stage 1 later stopped at `ReferenceOnly` before held-out, with `P = null` and `T = F` | **experiment-integrity/stop evidence only; compiler value unproved; next proof is competence-gated enterprise document QA with real host retrieval** |
 | Default demonstration provider | tiny immutable XSGI packaged only for integration smoke | demonstration-only; not a general knowledge corpus |
 | Other grounding providers | contract-compatible in principle, but require exact provider/profile evidence | experimental until separately qualified |
 | Native scalar/statistics C ABI | source/unit/conformance coverage; rc3 evaluation packaging | retained quantitative subsystem; separate from v1 grounding support scope |

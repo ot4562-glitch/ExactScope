@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.dont_write_bytecode = True
 sys.path[:0] = [str(ROOT / "tools"), str(ROOT / "benchmarks")]
 
-from generate_grounding_candidate import CandidateBuilder
+import generate_grounding_candidate as generator
 from grounding_canonical import canonical_bytes
 import run_grounding_source_experiment as runner
 import score_grounding as scorer
@@ -28,7 +28,8 @@ class SourceExperimentTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
         self.candidate = self.root / "candidate"
-        CandidateBuilder(20260906).build(self.candidate)
+        with patch.object(generator, "ISOLATION_POLICY", ROOT / "benchmarks/grounding-isolation-policy.json"):
+            generator.CandidateBuilder(20260906).build(self.candidate)
         for name in runner.SOURCE_FILES:
             target = self.root / name
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -430,8 +431,8 @@ class SourceExperimentTests(unittest.TestCase):
         self.execute(runner.bind_inputs(self.args))
         raw = self.args.output / "raw-results.jsonl"
         records = scorer.load_jsonl(raw)
-        with patch.object(scorer, "verify_candidate", side_effect=AssertionError("gold opened")):
-            with patch.object(scorer, "verify_serving_candidate", return_value={}):
+        with patch.object(scorer, "verify_legacy_candidate", side_effect=AssertionError("gold opened")):
+            with patch.object(scorer, "verify_legacy_serving_candidate", return_value={}):
                 with self.assertRaisesRegex(scorer.ScoreError, "candidate identity"):
                     scorer.score(self.candidate, raw)
             for content in ('{"a":"changed","disposition":"answer"}', 'not JSON',

@@ -1,8 +1,10 @@
 # ExactScope retrofit product strategy
 
-> **Current status:** v1.0.0-rc.3 external-user qualification is complete and frozen. It confirmed the package/core path but showed that model-visible tool protocols and prompt cost are first-order constraints. Active rc4 design therefore pivots the flagship product to provider-neutral everyday grounding: original-question prefetch, compact Grounding Frames, explicit authority modes, and one-call small-model answering. Representative physical ARM64 RAM/latency/energy/thermal qualification remains NOT MEASURED.
+> **Current status (2026-09-13):** v1.0.0 is the stable public Linux x86-64 grounding release. This document preserves the earlier **retrofit/on-device and quantitative capability strategy** that informed v1; it is no longer the sole current v1.1 product/market definition. Representative physical ARM64 RAM/latency/energy/thermal qualification remains NOT MEASURED.
 >
-> See [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md) and [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md) for the active flagship architecture. [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) and [`MODEL_INTERFACE_RC4.md`](MODEL_INTERFACE_RC4.md) remain quantitative-subsystem references; [`RC3_QUALIFICATION_CLOSEOUT.md`](RC3_QUALIFICATION_CLOSEOUT.md) records completed rc3 evidence.
+> See [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md) and [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md) for stable-v1 grounding semantics. [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) and [`MODEL_INTERFACE_RC4.md`](MODEL_INTERFACE_RC4.md) remain quantitative-subsystem references; [`RC3_QUALIFICATION_CLOSEOUT.md`](RC3_QUALIFICATION_CLOSEOUT.md) records historical rc3 evidence.
+>
+> **v1.1 superseding overlay:** the first fresh Harness Distillation transfer rejected its compiled candidate, so the current compiler proof is **reference-preserving cost reduction** against a competent predeclared reference `F`, not general Pareto policy selection. The next substantive proof is preregistered fresh 120-calibration/600-held-out FEVER, followed—only after a compiler-value pass—by customer-like real-retrieval validation. The first commercial validation wedge is now **high-volume bounded enterprise document QA on a pinned/expensive-to-change model**. On-device retrofit remains a long-term market and architecture constraint, not the only first proof. v1.1 is native-free-first until native code demonstrates necessity. See [`V1_1_PRODUCT_DIFFERENTIATION.md`](V1_1_PRODUCT_DIFFERENTIATION.md), [`V1_1_ASTRA_HIGH_REVIEW.md`](V1_1_ASTRA_HIGH_REVIEW.md), and [`V1_1_EXPERIMENT_PROGRAM.md`](V1_1_EXPERIMENT_PROGRAM.md).
 
 ## 1. Product thesis
 
@@ -251,9 +253,11 @@ The capability product should keep explicit footprint gates:
 
 A feature that materially improves breadth but destroys the tiny retrofit profile is not automatically a product improvement.
 
-## 9. Primary benchmark proposition
+## 9. Historical retrofit benchmark proposition
 
-The flagship experiment should no longer be framed merely as "model arithmetic vs calculator."
+This section preserves the earlier constrained-device/quantitative proof design. It remains useful for the retained quantitative subsystem and future physical-device retrofit claims, but it is **not the current v1.1 product proof**. The preregistered `B` / predeclared `F` / `CompiledCandidate(P)` FEVER study has already stopped at `ReferenceOnly`; the active v1.1 validation target is now competence-gated bounded enterprise document QA with real host retrieval and total-economics accounting.
+
+The historical flagship experiment should no longer be framed merely as "model arithmetic vs calculator."
 
 It should answer:
 
@@ -387,11 +391,13 @@ public reproducible capability proof
 
 Retrofit compatibility, weak-model usability, update safety, artifact stability, and accumulated qualification evidence are first-class commercial concerns.
 
-## 13. Competitive frame
+## 13. Historical retrofit competitive frame
+
+This section records the constrained-device/quantitative differentiation that remains relevant to stable-v1 history and future edge deployments. It does **not** override the current v1.1 category judgment: today v1.1 is best described as a **constrained configuration optimizer with qualification artifacts and semantic enforcement**, and the compiler/qualification loop is not yet an established moat.
 
 ExactScope should not claim to invent external calculation for language models.
 
-Its differentiation is the systems combination:
+The historical retrofit differentiation is the systems combination:
 
 - designed for constrained on-device/local models rather than server-first agents;
 - tiny resident footprint;
@@ -410,29 +416,31 @@ Its differentiation is the systems combination:
 - capability-density and larger-model-gap recovery measurement;
 - retrofit/OTA suitability as a primary design objective.
 
-## 14. Messaging hierarchy
+## 14. Historical retrofit messaging hierarchy
 
-Technical definition:
+The messages below belong to the retained quantitative/edge retrofit track. They are **not the current umbrella v1.1 product message**. Current v1.1 language is in `V1_1_PRODUCT_DIFFERENTIATION.md`: `Same model. Same runtime. Better answer.` remains a research objective, while the current precise compiler claim is reference-preserving cost reduction followed by fresh qualification.
+
+Historical technical definition:
 
 > **A tiny deterministic AI-facing capability coprocessor for small and on-device AI.**
 
-Customer value:
+Historical customer value:
 
 > **Add narrow professional quantitative capability to the model you can already deploy.**
 
-Product strategy:
+Historical product strategy:
 
 > **Recover useful domain capability through a tiny software retrofit before paying for a larger model or new hardware.**
 
-Short developer message:
+Historical short developer message:
 
 > **Keep your small model. Add the capability slice it is missing.**
 
-These are positioning statements and hypotheses until backed by the benchmark/target evidence required above.
+These remain scoped positioning hypotheses for the retrofit/quantitative track until backed by the relevant benchmark/target evidence.
 
-## 15. Decision rule
+## 15. Historical retrofit decision rule
 
-Before adding any feature, ask in this order:
+For the retained edge/quantitative retrofit track, ask in this order. For active v1.1 compiler/product work, the newer decision rule in `PRODUCT_DIRECTION.md` and decisions D-085 through D-091 in `DECISIONS.md` take precedence.
 
 1. Does it help an existing constrained model do something useful without requiring a hardware/model-size jump?
 2. Does it preserve or improve the tiny footprint?

@@ -5,6 +5,7 @@ import copy
 import importlib.util
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 import sys
@@ -15,7 +16,7 @@ sys.path[:0] = [str(ROOT / "tools"), str(ROOT / "benchmarks")]
 from grounding_canonical import canonical_bytes
 from grounding_corpus import load_index, search
 from grounding_preregister import file_sha
-from grounding_v1_surface import surface_sha256
+from grounding_v1_surface import AUTO_CONTRACT_CALIBRATION, AUTO_CONTRACT_CANDIDATES, AUTO_V2_TIE_PREFERENCE, PREFLIGHT_STOPPING_RULE, surface_sha256
 from run_grounding_benchmark import write_sums
 
 MODULE_PATH = ROOT / "benchmarks/public_hotpot_benchmark.py"
@@ -26,6 +27,34 @@ spec.loader.exec_module(hotpot)
 
 
 class PublicHotpotBenchmarkTests(unittest.TestCase):
+    def test_public_product_contract_is_multihop_coverage_3k_cap12(self):
+        self.assertEqual(hotpot.MULTIHOP_COVERAGE_PROJECTION_ID, "multihop-coverage-v1")
+        self.assertEqual(hotpot.MAX_EVIDENCE_BYTES, 3072)
+        self.assertEqual(hotpot.PRODUCT_MODEL_ITEM_CAP, 12)
+
+        hits = [{"id": "doc"}]
+        with patch.object(
+            hotpot,
+            "multihop_coverage_evidence_projection_v1",
+            return_value=(b"projection", hits, {"projection_id": hotpot.MULTIHOP_COVERAGE_PROJECTION_ID}),
+        ) as projector:
+            emitted, projection = hotpot._trim_hits(
+                {}, hits, "multi hop question", max_bytes=hotpot.MAX_EVIDENCE_BYTES
+            )
+        self.assertEqual((emitted, projection), (hits, b"projection"))
+        projector.assert_called_once_with(
+            {}, hits, "multi hop question", max_bytes=3072, max_items=12
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            args = SimpleNamespace(
+                output=Path(directory) / "run",
+                top_k=12,
+                max_evidence_bytes=2048,
+            )
+            with self.assertRaisesRegex(hotpot.PublicBenchmarkError, "product cap 3072"):
+                hotpot.run_screen(args)
+
     def rows(self):
         return [
             {
@@ -135,6 +164,7 @@ class PublicHotpotBenchmarkTests(unittest.TestCase):
             run = root / "run"
             run.mkdir()
             selected = "answer-object-v3"
+            selected_surface = "json-schema-v1"
             prereg = {
                 "format": "exactscope.public-hotpot-preregistration",
                 "format_version": "0.1",
@@ -155,21 +185,55 @@ class PublicHotpotBenchmarkTests(unittest.TestCase):
                 "model_surface_sha256": surface_sha256(),
                 "policy_sha256": "p" * 64,
                 "top_k": 4,
+                "max_evidence_bytes": hotpot.MAX_EVIDENCE_BYTES,
+                "model_item_cap": hotpot.PRODUCT_MODEL_ITEM_CAP,
+                "evidence_composition": "multi-source-coverage",
+                "evidence_policy": hotpot.MULTIHOP_COVERAGE_PROJECTION_ID,
+                "retrieval_query_policy": "question-only-v1.1",
+                "projection_id": hotpot.MULTIHOP_COVERAGE_PROJECTION_ID,
                 "arms": ["A", "G"],
                 "retry_count": 0,
                 "hidden_repair": False,
                 "gold_visible_to_runner": False,
             }
             (run / "preregistration.json").write_bytes(canonical_bytes(prereg))
+            cases = [
+                {"case_id": case_id, "expected": expected, "actual": expected, "valid": True, "correct": True}
+                for case_id, _question, _evidence, expected in AUTO_CONTRACT_CALIBRATION
+            ]
+            profiles = [{"contract": selected, "score": len(cases), "case_count": len(cases), "cases": cases}]
             calibration = {
                 "format": "exactscope.grounding-v1-contract-calibration",
-                "format_version": "0.1",
+                "format_version": "0.2",
                 "model_surface_sha256": surface_sha256(),
                 "selected_contract": selected,
-                "tie_preference": ["answer-object-v3", "answer-object-v4", "answer-object-v1"],
-                "model_request_count": 12,
-                "profiles": [],
+                "selected_output_surface": selected_surface,
+                "tie_preference": list(AUTO_V2_TIE_PREFERENCE),
+                "stopping_rule": PREFLIGHT_STOPPING_RULE,
+                "model_request_count": len(cases),
+                "profiles": profiles,
             }
+            negotiation = {
+                "format": "exactscope.grounding-v1.1-surface-negotiation",
+                "format_version": "0.2",
+                "fingerprint": hotpot.model_runtime_fingerprint(prereg),
+                "model_surface_sha256": surface_sha256(),
+                "candidate_surfaces": list(hotpot.OUTPUT_SURFACE_CANDIDATES),
+                "selected_surface": selected_surface,
+                "supported": True,
+                "model_request_count": 1,
+                "retry_count": 0,
+                "stopping_rule": PREFLIGHT_STOPPING_RULE,
+                "probes": [{
+                    "surface": selected_surface,
+                    "case_id": "surface-probe",
+                    "protocol_valid": True,
+                    "semantic_match": True,
+                    "actual": "ZX-41",
+                    "error": None,
+                }],
+            }
+            (run / "surface-negotiation.json").write_bytes(canonical_bytes(negotiation))
             (run / "contract-calibration.json").write_bytes(canonical_bytes(calibration))
             questions = hotpot._load_jsonl(candidate / "serving/questions.jsonl")
             records = []
@@ -179,6 +243,7 @@ class PublicHotpotBenchmarkTests(unittest.TestCase):
                         "item_id": question["item_id"],
                         "arm": arm,
                         "model_contract": selected,
+                        "model_output_surface": selected_surface,
                         "model_contract_valid": True,
                         "model_contract_output": "synthetic",
                         "raw_content": '{"a":"synthetic"}',
@@ -199,9 +264,15 @@ class PublicHotpotBenchmarkTests(unittest.TestCase):
                 "model_id": "synthetic",
                 "preregistration_sha256": file_sha(run / "preregistration.json"),
                 "selected_model_contract": selected,
-                "calibration_model_requests": 12,
+                "selected_output_surface": selected_surface,
+                "model_runtime_fingerprint": hotpot.model_runtime_fingerprint(prereg),
+                "surface_probe_requests": 1,
+                "surface_probe_request_attempts": 1,
+                "calibration_model_requests": len(AUTO_CONTRACT_CALIBRATION),
+                "calibration_model_request_attempts": len(AUTO_CONTRACT_CALIBRATION),
                 "answer_model_requests": len(records),
-                "total_model_requests_including_calibration": len(records) + 12,
+                "answer_model_request_attempts": len(records),
+                "total_model_requests_including_calibration": len(records) + 1 + len(AUTO_CONTRACT_CALIBRATION),
                 "model_surface_sha256": surface_sha256(),
             }
             (run / "run-status.json").write_bytes(canonical_bytes(status))
@@ -214,6 +285,20 @@ class PublicHotpotBenchmarkTests(unittest.TestCase):
             )
             self.assertEqual(verified_status["state"], "complete")
             self.assertEqual(len(verified), len(records))
+
+            status["surface_probe_request_attempts"] = 2
+            (run / "run-status.json").write_bytes(canonical_bytes(status))
+            write_sums(run)
+            with self.assertRaisesRegex(hotpot.PublicBenchmarkError, "request/attempt accounting"):
+                hotpot._verify_run(
+                    run,
+                    manifest,
+                    len(questions),
+                    manifest_sha256=file_sha(candidate / "manifest.json"),
+                )
+            status["surface_probe_request_attempts"] = 1
+            (run / "run-status.json").write_bytes(canonical_bytes(status))
+            write_sums(run)
 
             records[0]["raw_content"] = '{"a":"tampered"}'
             (run / "raw-results.jsonl").write_bytes(hotpot._jsonl_bytes(records))

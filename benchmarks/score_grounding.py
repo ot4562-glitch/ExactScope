@@ -25,11 +25,19 @@ from grounding_preregister import (  # noqa: E402
     load_cjson,
     verify_candidate,
     validate_answer_call_policy,
+    validate_legacy_answer_call_policy,
     verify_document,
+    verify_legacy_candidate,
+    verify_legacy_serving_candidate,
     verify_serving_candidate,
 )
 from grounding_runtime import host_grounded_scalar_reply, host_short_circuit_reply  # noqa: E402
-from grounding_v1_surface import AUTO_CONTRACT_CALIBRATION, AUTO_CONTRACT_CANDIDATES, select_contract  # noqa: E402
+from grounding_v1_surface import (  # noqa: E402
+    AUTO_CONTRACT_CANDIDATES,
+    model_runtime_fingerprint,
+    validate_contract_calibration_record,
+    validate_surface_negotiation_record,
+)
 from run_grounding_benchmark import parse_model_output_strict  # noqa: E402
 
 ARMS = ("A", "G")
@@ -132,7 +140,7 @@ def _verify_source_experiment_preregistration(
         ):
             raise ScoreError(f"source experiment {field} identity drift")
     try:
-        validate_answer_call_policy(prereg.get("answer_call_policy"))
+        validate_legacy_answer_call_policy(prereg.get("answer_call_policy"))
     except PreregistrationError as exc:
         raise ScoreError("source experiment answer-call policy drift") from exc
 
@@ -255,18 +263,70 @@ def verify_run_integrity(records_path: Path, records: list[dict[str, Any]], expe
     except (PreregistrationError, OSError, ValueError, TypeError, KeyError) as exc:
         raise ScoreError("run preregistration verification failed") from exc
     surface_policy = prereg["model_surface_policy"]
+    negotiation_policy = surface_policy["surface_negotiation"]
     if status.get("model_surface_sha256") != prereg["model_surface_sha256"]:
         raise ScoreError("run model-surface identity mismatch")
-    if status.get("calibration_model_requests") != surface_policy["calibration_model_requests"]:
+    surface_requests = status.get("surface_probe_requests")
+    if (
+        type(surface_requests) is not int
+        or not 1 <= surface_requests <= negotiation_policy["probe_model_requests_max"]
+        or status.get("surface_probe_request_attempts") != surface_requests
+    ):
+        raise ScoreError("run surface-probe request-count mismatch")
+    calibration_requests = status.get("calibration_model_requests")
+    if (
+        type(calibration_requests) is not int
+        or not surface_policy["calibration_case_count"] <= calibration_requests <= surface_policy["calibration_model_requests_max"]
+        or status.get("calibration_model_request_attempts") != calibration_requests
+    ):
         raise ScoreError("run calibration request-count mismatch")
+    if status.get("model_runtime_fingerprint") != model_runtime_fingerprint(prereg):
+        raise ScoreError("run model/runtime fingerprint mismatch")
+    selected_output_surface = status.get("selected_output_surface")
+    if selected_output_surface not in negotiation_policy["candidates"]:
+        raise ScoreError("run selected output surface is not preregistered")
     selected_model_contract = status.get("selected_model_contract")
     if selected_model_contract not in surface_policy["candidates"]:
         raise ScoreError("run selected model contract is not preregistered")
     if surface_policy.get("answer_contract_application") != "matched-a-g-v1":
         raise ScoreError("run does not preregister the matched A/G answer surface")
     for record in records:
-        if record.get("output_source") == "model" and record.get("model_contract") != selected_model_contract:
-            raise ScoreError("A/G model records do not share the selected answer contract")
+        if record.get("output_source") == "model" and (
+            record.get("model_contract") != selected_model_contract
+            or record.get("model_output_surface") != selected_output_surface
+        ):
+            raise ScoreError("A/G model records do not share the selected answer/output surface")
+
+    negotiation_path = run_root / "surface-negotiation.json"
+    if not negotiation_path.is_file():
+        raise ScoreError("complete selected run requires surface-negotiation.json")
+    negotiation_bytes = negotiation_path.read_bytes()
+    try:
+        negotiation = loads(negotiation_bytes)
+    except ValueError as exc:
+        raise ScoreError("invalid surface negotiation record") from exc
+    if not isinstance(negotiation, dict) or negotiation_bytes != canonical_bytes(negotiation):
+        raise ScoreError("surface negotiation record is not canonical")
+    if (
+        negotiation.get("format") != "exactscope.grounding-v1.1-surface-negotiation"
+        or negotiation.get("format_version") != "0.2"
+        or negotiation.get("fingerprint") != model_runtime_fingerprint(prereg)
+        or negotiation.get("model_surface_sha256") != prereg["model_surface_sha256"]
+        or negotiation.get("candidate_surfaces") != negotiation_policy["candidates"]
+        or negotiation.get("selected_surface") != selected_output_surface
+        or negotiation.get("supported") is not True
+        or negotiation.get("model_request_count") != surface_requests
+        or negotiation.get("stopping_rule") != negotiation_policy["stopping_rule"]
+        or negotiation.get("retry_count") != 0
+    ):
+        raise ScoreError("surface negotiation identity/accounting mismatch")
+    try:
+        recomputed_surface = validate_surface_negotiation_record(negotiation, prereg)
+    except ValueError as exc:
+        raise ScoreError(f"surface negotiation evidence invalid: {exc}") from exc
+    if recomputed_surface != selected_output_surface:
+        raise ScoreError("surface negotiation selector result mismatch")
+
     calibration_path = run_root / "contract-calibration.json"
     if not calibration_path.is_file():
         raise ScoreError("complete selected run requires contract-calibration.json")
@@ -279,46 +339,20 @@ def verify_run_integrity(records_path: Path, records: list[dict[str, Any]], expe
         raise ScoreError("contract calibration record is not canonical")
     if (
         calibration.get("format") != "exactscope.grounding-v1-contract-calibration"
-        or calibration.get("format_version") != "0.1"
+        or calibration.get("format_version") != "0.2"
         or calibration.get("model_surface_sha256") != prereg["model_surface_sha256"]
         or calibration.get("selected_contract") != status.get("selected_model_contract")
+        or calibration.get("selected_output_surface") != selected_output_surface
         or calibration.get("tie_preference") != surface_policy["tie_preference"]
-        or calibration.get("model_request_count") != surface_policy["calibration_model_requests"]
+        or calibration.get("stopping_rule") != negotiation_policy["stopping_rule"]
+        or calibration.get("model_request_count") != calibration_requests
     ):
         raise ScoreError("contract calibration identity/accounting mismatch")
-    profiles = calibration.get("profiles")
-    if not isinstance(profiles, list) or len(profiles) != len(AUTO_CONTRACT_CANDIDATES):
-        raise ScoreError("contract calibration profile set mismatch")
-    expected_cases = {case_id: expected for case_id, _question, _evidence, expected in AUTO_CONTRACT_CALIBRATION}
-    scores: dict[str, int] = {}
-    for profile in profiles:
-        if not isinstance(profile, dict) or set(profile) != {"contract", "score", "case_count", "cases"}:
-            raise ScoreError("invalid contract calibration profile")
-        contract = profile["contract"]
-        cases = profile["cases"]
-        if contract not in AUTO_CONTRACT_CANDIDATES or contract in scores:
-            raise ScoreError("duplicate/unknown calibration contract")
-        if profile["case_count"] != len(AUTO_CONTRACT_CALIBRATION) or not isinstance(cases, list) or len(cases) != len(AUTO_CONTRACT_CALIBRATION):
-            raise ScoreError("contract calibration case-count mismatch")
-        seen_cases: set[str] = set()
-        computed_score = 0
-        for case in cases:
-            if not isinstance(case, dict) or set(case) != {"case_id", "expected", "actual", "valid", "correct"}:
-                raise ScoreError("invalid contract calibration case")
-            case_id = case["case_id"]
-            if case_id not in expected_cases or case_id in seen_cases or case["expected"] != expected_cases[case_id]:
-                raise ScoreError("contract calibration case identity drift")
-            seen_cases.add(case_id)
-            actual = case["actual"]
-            valid = case["valid"]
-            correct = case["correct"]
-            if type(valid) is not bool or type(correct) is not bool or correct != (valid and actual == case["expected"]):
-                raise ScoreError("contract calibration case scoring drift")
-            computed_score += int(correct)
-        if profile["score"] != computed_score:
-            raise ScoreError("contract calibration profile score mismatch")
-        scores[contract] = computed_score
-    if set(scores) != set(AUTO_CONTRACT_CANDIDATES) or select_contract(scores) != calibration["selected_contract"]:
+    try:
+        recomputed_contract = validate_contract_calibration_record(calibration, selected_output_surface)
+    except ValueError as exc:
+        raise ScoreError(f"contract calibration evidence invalid: {exc}") from exc
+    if recomputed_contract != selected_model_contract:
         raise ScoreError("contract calibration selector result mismatch")
     return status
 
@@ -494,10 +528,13 @@ def score(
     if set(keyed) != expected_keys:
         raise ScoreError("run is incomplete")
 
+    legacy_source_experiment = False
     if require_run_integrity:
         verify_run_integrity(records_path, records, serving_ids)
         prereg = load_json_object(records_path.resolve().parent / "preregistration.json")
-        if verify_serving_candidate(candidate) != prereg.get("candidate"):
+        legacy_source_experiment = prereg.get("format") == "exactscope.grounding-source-experiment-preregistration"
+        serving_verifier = verify_legacy_serving_candidate if legacy_source_experiment else verify_serving_candidate
+        if serving_verifier(candidate) != prereg.get("candidate"):
             raise ScoreError("run candidate identity mismatch")
 
     for record in records:
@@ -506,7 +543,8 @@ def score(
 
     # Gold is opened only after serving-side A/G completeness and, for the CLI,
     # full run-status/checksum/request-accounting verification have succeeded.
-    verify_candidate(candidate)
+    full_verifier = verify_legacy_candidate if legacy_source_experiment else verify_candidate
+    full_verifier(candidate)
     answers, evidence_gold, classes = load_gold(candidate)
     if set(answers) != serving_ids or set(evidence_gold) != serving_ids or set(classes) != serving_ids:
         raise ScoreError("gold item set differs from frozen serving item set")

@@ -25,13 +25,21 @@ from grounding_v1_surface import (  # noqa: E402
     AUTO_CONTRACT_CANDIDATES,
     AUTO_V2_TIE_PREFERENCE,
     MODEL_PROJECTION_ID,
+    MIN_CONTRACT_CALIBRATION_CORRECT,
+    OUTPUT_SURFACE_CANDIDATES,
+    OUTPUT_SURFACE_PREFERENCE,
+    PREFLIGHT_STOPPING_RULE,
+    SURFACE_NEGOTIATION_ID,
     surface_sha256,
 )
 from verify_grounding_package import verify as verify_package_root  # noqa: E402
 
 SHA_RE = re.compile(r"^[a-f0-9]{64}$")
 COMMIT_RE = re.compile(r"^[a-f0-9]{40}$")
-EXPECTED_CANDIDATE_ANSWER_CALL_POLICY = "bound-by-benchmark-isolation-policy-v0.4"
+ISOLATION_POLICY_PATH = ROOT / "benchmarks/grounding-isolation-policy-v0.5.json"
+EXPECTED_CANDIDATE_ANSWER_CALL_POLICY = "bound-by-benchmark-isolation-policy-v0.5"
+LEGACY_ISOLATION_POLICY_PATH = ROOT / "benchmarks/grounding-isolation-policy.json"
+LEGACY_CANDIDATE_ANSWER_CALL_POLICY = "bound-by-benchmark-isolation-policy-v0.4"
 
 EXPECTED_ANSWER_CALL_POLICY = {
     "A": "exactly-one-model-answer-matched-selected-contract",
@@ -54,16 +62,33 @@ EXPECTED_ANSWER_CALL_POLICY = {
             "item_count": 1,
             "content_kind": "scalar",
             "canonical_lexical_required": True,
+            "requires_instruction_equivalent_retrieval_query": True,
         },
     },
 }
+LEGACY_ANSWER_CALL_POLICY = json.loads(json.dumps(EXPECTED_ANSWER_CALL_POLICY))
+LEGACY_ANSWER_CALL_POLICY["host_completion"]["canonical_scalar"].pop("requires_instruction_equivalent_retrieval_query")
+
 EXPECTED_MODEL_SURFACE_POLICY = {
     "selector": "answer-object-auto-v2",
     "candidates": list(AUTO_CONTRACT_CANDIDATES),
     "tie_preference": list(AUTO_V2_TIE_PREFERENCE),
     "calibration_case_count": len(AUTO_CONTRACT_CALIBRATION),
-    "calibration_model_requests": len(AUTO_CONTRACT_CANDIDATES) * len(AUTO_CONTRACT_CALIBRATION),
+    "calibration_model_requests_max": len(AUTO_CONTRACT_CANDIDATES) * len(AUTO_CONTRACT_CALIBRATION),
+    "minimum_calibration_correct": MIN_CONTRACT_CALIBRATION_CORRECT,
     "answer_contract_application": ANSWER_CONTRACT_APPLICATION,
+    "surface_negotiation": {
+        "id": SURFACE_NEGOTIATION_ID,
+        "candidates": list(OUTPUT_SURFACE_CANDIDATES),
+        "preference": list(OUTPUT_SURFACE_PREFERENCE),
+        "probe_case_count": 1,
+        "probe_model_requests_max": len(OUTPUT_SURFACE_CANDIDATES),
+        "stopping_rule": PREFLIGHT_STOPPING_RULE,
+        "selection_scope": "model-runtime-generation-effective-launch-fingerprint",
+        "reuse": "selected-once-before-inference",
+        "unsupported": "explicit-no-answer-run",
+        "per_request_retry": 0,
+    },
     "supplemental_empty": "ordinary-knowledge-no-grounding-context",
     "grounded_text_projection": MODEL_PROJECTION_ID,
     "grounding_policy": "full-profile-policy",
@@ -78,6 +103,13 @@ class PreregistrationError(RuntimeError):
 def validate_answer_call_policy(value: Any) -> dict[str, Any]:
     if value != EXPECTED_ANSWER_CALL_POLICY:
         raise PreregistrationError("unsupported answer-call policy")
+    return value
+
+
+def validate_legacy_answer_call_policy(value: Any) -> dict[str, Any]:
+    """Validate the frozen v0.4 policy used only by historical source experiments."""
+    if value != LEGACY_ANSWER_CALL_POLICY:
+        raise PreregistrationError("unsupported legacy answer-call policy")
     return value
 
 
@@ -119,7 +151,13 @@ def require_sha(value: Any, label: str) -> str:
     return value
 
 
-def _verify_candidate(candidate: Path, *, verify_gold_manifest: bool) -> dict[str, Any]:
+def _verify_candidate(
+    candidate: Path,
+    *,
+    verify_gold_manifest: bool,
+    expected_answer_call_policy: str = EXPECTED_CANDIDATE_ANSWER_CALL_POLICY,
+    isolation_policy_path: Path = ISOLATION_POLICY_PATH,
+) -> dict[str, Any]:
     candidate = candidate.resolve()
     manifests = candidate / "manifests"
     serving = candidate / "serving"
@@ -131,9 +169,9 @@ def _verify_candidate(candidate: Path, *, verify_gold_manifest: bool) -> dict[st
     candidate_manifest = load_cjson(candidate_manifest_path)
     if candidate_manifest.get("status") != "generated-before-inference" or candidate_manifest.get("model_inference_performed") is not False:
         raise PreregistrationError("candidate is not frozen before inference")
-    if candidate_manifest.get("answer_call_policy") != EXPECTED_CANDIDATE_ANSWER_CALL_POLICY:
+    if candidate_manifest.get("answer_call_policy") != expected_answer_call_policy:
         raise PreregistrationError("candidate answer-call policy identity drift")
-    selected_isolation_sha = file_sha(ROOT / "benchmarks/grounding-isolation-policy.json")
+    selected_isolation_sha = file_sha(isolation_policy_path)
     if candidate_manifest.get("isolation_policy_sha256") != selected_isolation_sha:
         raise PreregistrationError("candidate isolation-policy digest drift")
     if candidate_manifest.get("arms") != ["A", "G"] or candidate_manifest.get("rewrite_calls") != 0:
@@ -181,6 +219,26 @@ def verify_candidate(candidate: Path) -> dict[str, Any]:
 def verify_serving_candidate(candidate: Path) -> dict[str, Any]:
     """Runner-safe candidate verification that never opens gold/ or gold-manifest.json."""
     return _verify_candidate(candidate, verify_gold_manifest=False)
+
+
+def verify_legacy_candidate(candidate: Path) -> dict[str, Any]:
+    """Full historical v0.4 candidate verification, including scorer-owned gold."""
+    return _verify_candidate(
+        candidate,
+        verify_gold_manifest=True,
+        expected_answer_call_policy=LEGACY_CANDIDATE_ANSWER_CALL_POLICY,
+        isolation_policy_path=LEGACY_ISOLATION_POLICY_PATH,
+    )
+
+
+def verify_legacy_serving_candidate(candidate: Path) -> dict[str, Any]:
+    """Verify frozen v0.4 serving candidates for historical source experiments only."""
+    return _verify_candidate(
+        candidate,
+        verify_gold_manifest=False,
+        expected_answer_call_policy=LEGACY_CANDIDATE_ANSWER_CALL_POLICY,
+        isolation_policy_path=LEGACY_ISOLATION_POLICY_PATH,
+    )
 
 
 def resolve_model(inventory_path: Path, model_id: str, model_root: Path | None, model_path: Path | None) -> tuple[str, dict[str, Any]]:
@@ -262,7 +320,7 @@ def create_document(args: argparse.Namespace) -> dict[str, Any]:
     isolation = load_json(args.isolation_policy)
     if generation.get("format") != "exactscope.grounding-generation-config" or generation.get("retry_count") != 0 or generation.get("hidden_repair") is not False:
         raise PreregistrationError("generation config violates frozen no-retry/no-repair contract")
-    if isolation.get("format") != "exactscope.grounding-isolation-policy" or isolation.get("format_version") != "0.4" or isolation.get("arms") != ["A", "G"]:
+    if isolation.get("format") != "exactscope.grounding-isolation-policy" or isolation.get("format_version") != "0.5" or isolation.get("arms") != ["A", "G"]:
         raise PreregistrationError("isolation policy violates selected A/G contract")
     answer_call_policy = validate_answer_call_policy(isolation.get("answer_call_policy"))
     model_surface_policy = validate_model_surface_policy(isolation.get("model_surface_policy"))
@@ -293,7 +351,7 @@ def create_document(args: argparse.Namespace) -> dict[str, Any]:
     document = {
         "v": 1,
         "format": "exactscope.grounding-benchmark-preregistration",
-        "format_version": "0.4",
+        "format_version": "0.5",
         "state": "frozen-before-inference",
         "run_id": args.run_id,
         "writer_id": args.writer_id,
@@ -339,7 +397,7 @@ def verify_document(document: dict[str, Any], path: Path | None = None) -> None:
     }
     if set(document) != required:
         raise PreregistrationError("preregistration top-level shape drift")
-    if document["format"] != "exactscope.grounding-benchmark-preregistration" or document["format_version"] != "0.4":
+    if document["format"] != "exactscope.grounding-benchmark-preregistration" or document["format_version"] != "0.5":
         raise PreregistrationError("unsupported preregistration format")
     if document["state"] != "frozen-before-inference" or document["model_inference_performed"] is not False:
         raise PreregistrationError("preregistration is not pre-inference")

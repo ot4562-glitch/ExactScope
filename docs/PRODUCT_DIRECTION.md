@@ -4,21 +4,94 @@ Release context: **ExactScope v1.0.0 promotes the selected r25 grounding behavio
 
 This document defines what ExactScope is optimizing for. It supersedes any earlier product framing that treated broad platform parity or full catalog completion as more important than proving adoption value.
 
+> **v1.1 research note (2026-09-13):** v1.0 remains the stable product baseline. The preregistered Qwen/FEVER Stage 1 has now **stopped at `ReferenceOnly`**: `P = null`, the conventional comparator also returned `T = F`, and the sealed 600-item held-out was not consumed. This validates the stop/qualification discipline, not compiler value. The current v1.1 product identity is therefore narrowed to a **qualification/configuration optimizer with semantic enforcement and immutable qualification records**. **Semantic Inference Policy Compiler** remains an internal research hypothesis only. The next empirical priority is competence-gated bounded enterprise document QA with real host retrieval. See [`V1_1_STAGE1_REFERENCE_ONLY_RESULT.md`](V1_1_STAGE1_REFERENCE_ONLY_RESULT.md) and the independent post-result review [`V1_1_STAGE1_REFERENCE_ONLY_ASTRA_REVIEW.md`](V1_1_STAGE1_REFERENCE_ONLY_ASTRA_REVIEW.md).
+
 ## 1. Product sentence
 
-ExactScope is a **tiny provider-neutral grounding and deterministic capability layer for small and on-device AI**.
+The v1.1 target is a **small workload-specific qualification/configuration optimizer for AI systems that already own their model, retrieval path, and inference runtime**. It may evaluate semantic policy alternatives, but it earns a deployable profile only through independently frozen competence and economics gates.
 
-Its flagship customer value is:
+Internal architecture hypothesis:
 
-> **Make an existing small model more correct and less confidently wrong on everyday factual questions by supplying compact, scoped, auditable evidence before answer generation.**
+> **ExactScope is a workload-specific policy compiler that binds bounded evidence and answer rules to explicit qualification for an existing AI stack.**
 
-ExactScope is designed as a **capability retrofit layer** for products whose model size and inference cost are bounded by RAM, bandwidth, storage, accelerator capability, thermals, battery, latency, privacy, or qualification constraints.
+Customer-facing hypothesis:
 
-The product does not claim to make model weights generally more intelligent. It moves selected factual state outside model memory and into explicit Source -> Provider -> Evidence Policy -> Grounding Frame paths. The existing quantitative `xs_calc`/`xs_eval` subsystem remains supported for tasks where deterministic calculation is the actual failure mode.
+> **ExactScope evaluates bounded semantic configurations of an existing document-answering service and delivers a deployable profile only when a prospectively declared competence and total-economics contract passes on fresh evaluation data. A cheaper reference-preserving profile is one conditional outcome, not the whole product promise.**
 
-Smart glasses and wearables are strong use cases, but the thesis applies more broadly to phones, robots, industrial systems, automotive systems, embedded assistants, and private/local AI.
+Research shorthand:
 
-The normative grounding design is [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md) plus [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md). [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) remains a quantitative-subsystem reference rather than the flagship product definition.
+> **Same model. Same runtime. Better answer.**
+
+The shorthand is a research objective, not a current universal claim. Existing program optimizers and RAG frameworks can express many of the same decisions; ExactScope only earns distinct value if its typed semantic boundary, qualification artifacts, or accumulated transfer knowledge measurably reduce integration/search/qualification effort.
+
+ExactScope should not compete with inference runtimes on tokens/second and should not become another full RAG framework. The host owns retrieval execution/authorization, corpus/index management, tokenizer/chat-template rendering, exact token accounting, inference, scheduling/batching, KV/prefix cache implementation, constrained/speculative decoding, accelerators, fallback, activation, and rollback. ExactScope should own only a restricted workload/evidence/answer contract, bounded provenance-preserving evidence shaping, evidence-sufficiency/context-admission requirements, semantic answer-contract lowering, strict finalization, identity-bound qualification, and sound proof completion where a registered verifier exists.
+
+The minimum semantic center is intentionally narrower than the earlier amplifier rack:
+
+```text
+workload/evidence/answer contract + host capability declaration
+                         |
+                         v
+             Candidate Execution Policy
+                         |
+              independent qualification
+                         |
+                         v
+              Qualification Attestation
+                         |
+                         v
+              Qualified Execution Profile
+```
+
+At request time the qualified policy drives only a small boundary:
+
+```text
+prepare(query, authorized evidence, profile)
+  -> Complete(answer, proof, receipt)
+   | Generate(delivery, contract, requirements, receipt)
+   | Reject/Unavailable(reason)
+
+host model only for Generate
+
+finalize(contract, output, receipt)
+  -> Accept(answer)
+   | Reject(reason)
+```
+
+Low cost must be evaluated across installation/dependencies, host and inference work, model calls/tokens, latency, CPU/RAM, integration, qualification, maintenance, and refresh—not archive size alone. A small artifact is an adoption advantage, **not the moat**.
+
+The long-term moat hypothesis is accumulated prospective knowledge of `workload properties x host capabilities x intervention interactions -> fresh transfer outcomes` that reduces future candidate search/calibration effort without weakening the final qualification gate. It remains unproved.
+
+The first commercial validation wedge is **high-volume bounded enterprise document QA on a genuinely pinned or expensive-to-change model**, narrowed initially toward short factual answers, extraction, typed decisions, and citation-bound outputs. On-device/embedded retrofit remains a longer-term market and architecture constraint, not a substitute for a real customer/economic proof.
+
+The existing quantitative `xs_calc`/`xs_eval` subsystem remains supported where deterministic calculation is the actual failure mode. The stable-v1 grounding contract remains authoritative for v1.0; v1.1 research may simplify or relocate implementation ownership before any new public contract is frozen.
+
+### 1.1 The v1.1 qualification/configuration mechanism
+
+The first fresh transfer rejected its selected candidate. The larger preregistered FEVER Stage 1 then executed all 1,200 calibration observations and stopped at **`ReferenceOnly`** before held-out: `P = null`, while the conventional aggregate quality-constrained comparator also returned `T = F`. No cheaper frozen candidate matched the Reference's aggregate calibration success count, so the result is not explained merely by the paired-preservation constraint. The sealed 600-item held-out remains unscored.
+
+Current evidence therefore supports **selection/qualification separation, explicit abstention/stop outcomes, and immutable experiment identities**. It does not support successful compiler value. Reference-preserving cost reduction remains a research algorithm, not the v1.1 product identity.
+
+The next product-value path is:
+
+```text
+bound enterprise document-QA workload + real host retrieval
+  -> establish competent Base and fixed integrated-style configuration on development data
+  -> freeze correctness / evidence / abstention / unacceptable-error / total-economics gates
+  -> independently freeze evaluation groups, sample and adjudication
+  -> evaluate integrated-style vs Base as the primary product-value question
+  -> optionally admit a cheaper candidate P through a separately frozen selector branch
+  -> if no P exists, stop the cost-reduction branch without rescuing it with F/T
+  -> emit a Qualified Execution Profile only from an independently passed qualification
+```
+
+The FEVER 600 is retired from new-rule confirmatory inference; revised policy families require a genuinely fresh cohort. Cross-host transfer and adaptive per-query learned selection remain deferred until a useful competent source policy exists.
+
+The deployable artifact is still an immutable **Candidate Execution Policy** plus a separate **Qualification Attestation** that references its exact digest. The customer-facing Qualified Execution Profile is the qualified pair. Request-specific evidence/proof belongs in a separate receipt. Development, diagnostic and qualified status must be explicit so a calibration leader cannot masquerade as a deployable profile.
+
+Proof-based deterministic completion is permitted only when a registered verifier proves the current request from authorized evidence. Cache, speculation, broad zero-call QA, runtime adapters, and accelerator knobs do not define the product.
+
+See [`V1_1_PRODUCT_DIFFERENTIATION.md`](V1_1_PRODUCT_DIFFERENTIATION.md), the immutable pre-score contract [`V1_1_STAGE1_PREREGISTRATION.md`](V1_1_STAGE1_PREREGISTRATION.md), the completed result [`V1_1_STAGE1_REFERENCE_ONLY_RESULT.md`](V1_1_STAGE1_REFERENCE_ONLY_RESULT.md), and the post-result review [`V1_1_STAGE1_REFERENCE_ONLY_ASTRA_REVIEW.md`](V1_1_STAGE1_REFERENCE_ONLY_ASTRA_REVIEW.md) for the current semantics and evidence limits.
 
 ## 2. Product hypothesis
 
@@ -133,42 +206,49 @@ This distinction is why benchmark reporting must include both useful-answer rate
 
 ## 6. Competitive axis
 
-ExactScope does not compete on model FLOPS, universal search coverage, or full enterprise RAG orchestration. It competes on a narrower systems combination:
+ExactScope must not win by imitating the layers that large vendors already own. It is **not** trying to be a faster inference engine, another general RAG framework, another vector database, or a generic guardrail product. Its differentiation target is the combination below:
 
-- **retrofit/OTA suitability for constrained or already-deployed AI**;
-- provider-neutral source/search integration;
-- original-question prefetch with no mandatory extra model turn;
-- compact model-visible evidence;
-- explicit authoritative vs supplemental semantics;
-- revision/freshness/conflict/ambiguity handling;
-- privacy/security-scope isolation;
-- deterministic merge and candidate-bound evidence identity;
-- offline-capable local profiles;
-- optional semantic/application/network providers without making them core dependencies;
-- deterministic quantitative capability when needed;
-- reproducible model/device qualification.
+1. **Model-preserving amplification** — improve task success without replacing the user's model with a larger one.
+2. **Zero/near-zero marginal inference cost** — no mandatory second model, reflection pass, semantic repair call, retry loop, or agent loop.
+3. **Runtime/vendor neutrality** — the semantic policy should survive movement across llama.cpp-like local runtimes, ORT GenAI, ExecuTorch, LiteRT-class runtimes, Python hosts, C/C++ hosts, and future compatible surfaces.
+4. **Semantic rather than throughput optimization** — optimize whether the same inference succeeds, not merely tokens/second.
+5. **Low-friction adoption** — tiny runtime surface, bounded dependencies, easy embedding, and no requirement to rebuild the user's AI stack around ExactScope.
 
-A product that already has a cheap, trusted, sufficiently small grounding stack and does not need ExactScope's evidence/policy/qualification contract may not need ExactScope. That is an acceptable non-target.
+The long-term defensive advantage cannot be code size alone; a small feature can be copied. The harder-to-copy asset should be an accumulating body of **cross-runtime semantic optimization knowledge**:
+
+- which small interventions actually produce item-level phase transitions;
+- which combinations interact nonlinearly rather than merely additively;
+- which host capabilities can safely replace ExactScope-owned infrastructure;
+- which capability-conditioned policies transfer across tasks/models without benchmark-specific hardcoding;
+- which optimizations preserve parity/fail-closed behavior while lowering real cost.
+
+Current examples of that research pattern include A×B, B×D, G×H, D×I, proof-based J zero-call, and qualified host cache/prompt-profile reuse. These results are evidence for a research direction, not a claim that every model or workload will improve.
+
+The practical competitive test is therefore stronger than "is the package small?":
+
+> **Can ExactScope turn a meaningful number of failures into successes on the model/runtime the user already has, while adding less total cost than upgrading the model or adding another inference stage?**
+
+A product that already has a cheap, trusted semantic optimization layer with comparable cross-runtime evidence and does not benefit from ExactScope's amplification/qualification contract may not need ExactScope. That is an acceptable non-target.
 
 ## 7. Market definition
 
-The primary market is **physically constrained or already-deployed on-device AI** where increasing model size has meaningful hardware/product cost.
+The long-term addressable market still includes physically constrained, already-deployed, private/local, edge and enterprise AI where replacing the model or hardware is expensive. However, the **first commercial validation wedge is intentionally narrower**:
 
-Representative targets:
+> **high-volume bounded enterprise document answering on a pinned or expensive-to-change model, with authoritative source spans, measurable serving cost, and enough repeated traffic to amortize calibration.**
+
+This wedge is preferred for first product proof because answer correctness and evidence can be audited, the existing host configuration can be made genuinely competent, and the economics of retaining the same model can be measured against both the predeclared reference and a larger/better-model alternative.
+
+Longer-term representative targets still include:
 
 - smart glasses and wearables;
 - phones/tablets;
 - embedded assistants;
 - robots and industrial systems;
 - automotive systems;
-- other constrained edge products;
+- privacy-sensitive enterprise stacks;
 - later regulated/certifiable systems where arbitrary code execution is undesirable.
 
-Private/local desktop AI remains useful for development and validation, but it is not the center of the retrofit thesis.
-
-Offline is a capability, not the whole market. A network-connected device can still benefit from keeping private/device/manual grounding local and tiny, while optionally adapting captured network/search evidence into the same Grounding Contract. Quantitative work may likewise remain local and independently qualifiable.
-
-The strongest early adoption wedge may be **existing devices** whose hardware cannot be changed but whose AI software stack can still receive an update.
+Offline remains a capability, not the market definition. Runtime neutrality and on-device suitability are architecture constraints to preserve, not substitutes for proving one concrete customer workload first.
 
 ## 8. v1 product scope
 
@@ -297,15 +377,22 @@ Post-v1 product gates are broader provider implementations, long-term compatibil
 
 ## 14. Decision test
 
-Before adding a flagship feature, ask:
+Before adding a flagship v1.1 feature, ask:
 
-> Does this make an existing constrained model **more correct or less confidently wrong on ordinary factual questions** with less storage, context, token, latency and integration cost than a larger model or heavyweight RAG path, **without increasing false grounding or privacy/scope risk**?
+> Does this materially improve **qualified customer utility or total economics** relative to the competent existing stack and a competent ordinary alternative, while preserving the host-ownership boundary and adding less integration/change-management burden than the value it creates?
 
 Then ask:
 
-1. Can the behavior be expressed through the provider-neutral Grounding Contract rather than coupling the product to one retrieval implementation?
-2. Can its source/provider/policy identity and cost be frozen and measured reproducibly?
-3. Does it preserve one-call prefetch as the default unless an extra rewrite/tool turn proves enough value to justify itself?
-4. If the problem is actually deterministic calculation, does it reuse the existing `xs_calc`/`xs_eval` core rather than creating a second semantics?
+1. **Qualified utility:** does it improve a prospectively frozen correctness/evidence/abstention/error objective or preserve the same qualified behavior at meaningfully lower total economics?
+2. **Incremental value:** does it beat or simplify at least one competent ordinary alternative such as a fixed configuration or generic tuning/evaluation workflow? If not, why should a customer adopt ExactScope?
+3. **Amplification diagnostic:** when the same model/runtime comparison is relevant, does it still create reproducible task-success gains or item-level phase transitions? This is a valuable experiment, not a universal product gate.
+4. **Inference cost:** does it avoid mandatory extra model calls, retries, reflection, repair, or hidden agent work?
+5. **Portability:** can the semantic rule survive across runtime vendors by borrowing host capabilities instead of importing vendor machinery into core?
+6. **Distribution/change cost:** what is the marginal cost in dependencies, cold start, CPU/RAM, tokens, integration, qualification and requalification effort?
+7. **Ownership/enforcement:** is ExactScope implementing something the host already owns, and can the supported host integration actually enforce admission/finalization rather than merely consume advisory metadata?
+8. **Evidence:** is every qualified claim bound to frozen workload/host/policy/scorer/economic identities with independent qualification and explicit stale/invalidation semantics?
+9. **Optional cheaper-policy branch:** if the feature is specifically claiming materially cheaper reference-preserving execution, does its separately preregistered selector satisfy that claim? If not, return `ReferenceOnly(F)` rather than inventing a trade. This is no longer the universal v1.1 feature gate.
+10. **Architecture:** does it strengthen the single `admit -> prepare -> Complete|Generate|Reject/Unavailable -> host execution -> finalize -> release` spine rather than create another sidecar path?
+11. If the problem is actually deterministic calculation, does it reuse the existing `xs_calc`/`xs_eval` core rather than creating a second semantics?
 
-If not, it is probably lower priority than the everyday grounding product proof.
+The long-term desired product is not "the smallest archive" and not "the most features." It is the **Qualified AI Execution Control Plane** described in [`V1_1_ULTIMATE_PRODUCT_ARCHITECTURE.md`](V1_1_ULTIMATE_PRODUCT_ARCHITECTURE.md): preserve the customer's stack, compile only a small semantic policy, qualify the exact behavior/economics prospectively, block stale/unqualified serving through supported integrations, and use no more model intelligence/context/tools/cost than the workload contract requires. Same-model amplification and reference-preserving cost reduction remain important diagnostics/conditional product modes rather than universal gates.

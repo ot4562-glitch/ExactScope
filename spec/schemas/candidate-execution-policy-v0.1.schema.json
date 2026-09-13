@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.org/spec/schemas/candidate-execution-policy-v0.1.schema.json",
+  "title": "ExactScope Candidate Execution Policy v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "v": {"const": 1},
+    "format": {"const": "exactscope.candidate-execution-policy"},
+    "format_version": {"const": "0.1"},
+    "policy_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "workload_contract_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "host_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "source_policy_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "compiled_obligations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "obligation_id": {"type": "string", "minLength": 1, "maxLength": 256},
+          "lowering_id": {"type": "string", "minLength": 1, "maxLength": 256},
+          "check_id": {"type": "string", "minLength": 1, "maxLength": 256},
+          "failure_reason": {"type": "string", "minLength": 1, "maxLength": 256}
+        },
+        "required": ["obligation_id", "lowering_id", "check_id", "failure_reason"]
+      },
+      "minItems": 1
+    },
+    "required_capabilities": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1, "maxLength": 256},
+      "uniqueItems": true
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "admission_required": {"const": true},
+        "finalization_required": {"const": true},
+        "max_model_calls": {"type": "integer", "minimum": 0, "maximum": 1024},
+        "fallback_mode": {"const": "host-separate-authorized"},
+        "answer_contract_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "evidence_policy_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "evidence_composition": {
+          "enum": ["unspecified", "single-source-precision", "multi-source-coverage"]
+        },
+        "evidence_budget_bytes": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "integer", "minimum": 256, "maximum": 1048576}
+          ]
+        }
+      },
+      "required": [
+        "admission_required",
+        "finalization_required",
+        "max_model_calls",
+        "fallback_mode",
+        "answer_contract_id",
+        "evidence_policy_id"
+      ]
+    }
+  },
+  "required": [
+    "v",
+    "format",
+    "format_version",
+    "policy_id",
+    "workload_contract_sha256",
+    "host_manifest_sha256",
+    "source_policy_sha256",
+    "compiled_obligations",
+    "required_capabilities",
+    "execution"
+  ]
+}

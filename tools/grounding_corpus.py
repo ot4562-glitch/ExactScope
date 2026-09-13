@@ -6,22 +6,20 @@ import argparse
 from collections.abc import Mapping
 from collections import Counter, defaultdict
 import hashlib
+import heapq
 import json
 import math
 from pathlib import Path
-import re
 import struct
 from types import MappingProxyType
 from typing import Any, Iterable
-import unicodedata
 import zlib
 
 from grounding_canonical import canonical_bytes, loads
+from grounding_text import CorpusError, sentence_spans, split_sentences, tokenize
 
 FORMAT = "exactscope.local-text-corpus"
 FORMAT_VERSION = "0.1"
-TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
-SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
 MAX_DOCUMENT_BYTES = 32 * 1024
 DEFAULT_TOP_K = 4
 MAX_TOP_K = 16
@@ -37,10 +35,6 @@ BINARY_TERM_RECORD_SIZE = 24
 BINARY_POSTING_RECORD_SIZE = 12
 BINARY_SENTENCE_RECORD_SIZE = 24
 BINARY_TERM_REF_RECORD_SIZE = 4
-
-
-class CorpusError(RuntimeError):
-    pass
 
 
 _VALIDATED_INDEX_TOKEN = object()
@@ -65,12 +59,13 @@ def _thaw_json(value: Any) -> Any:
 class ValidatedIndex:
     """Immutable, already-validated in-memory view of one corpus index."""
 
-    __slots__ = ("_data",)
+    __slots__ = ("_data", "_canonical_sha256")
 
-    def __init__(self, token: object, index: dict[str, Any]) -> None:
+    def __init__(self, token: object, index: dict[str, Any], canonical_sha256: str | None = None) -> None:
         if token is not _VALIDATED_INDEX_TOKEN:
             raise TypeError("ValidatedIndex must be created by grounding_corpus")
         self._data = _freeze_json(index)
+        self._canonical_sha256 = canonical_sha256
 
     def __getitem__(self, key: str) -> Any:
         return self._data[key]
@@ -89,49 +84,12 @@ class ValidatedIndex:
         return value
 
 
-def _validated_view(index: dict[str, Any]) -> ValidatedIndex:
-    return ValidatedIndex(_VALIDATED_INDEX_TOKEN, index)
+def _validated_view(index: dict[str, Any], canonical_sha256: str | None = None) -> ValidatedIndex:
+    return ValidatedIndex(_VALIDATED_INDEX_TOKEN, index, canonical_sha256)
 
 
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
-
-
-def tokenize(text: str) -> list[str]:
-    if not isinstance(text, str):
-        raise CorpusError("corpus text must be a string")
-    normalized = unicodedata.normalize("NFKC", text).casefold()
-    return TOKEN_RE.findall(normalized)
-
-
-def sentence_spans(text: str) -> list[tuple[str, int, int]]:
-    """Return baseline sentence text plus UTF-8 byte offset/length within source text."""
-    if not isinstance(text, str):
-        raise CorpusError("corpus text must be a string")
-    pieces: list[tuple[int, int]] = []
-    start = 0
-    for match in SENTENCE_SPLIT_RE.finditer(text):
-        pieces.append((start, match.start()))
-        start = match.end()
-    pieces.append((start, len(text)))
-    spans: list[tuple[str, int, int]] = []
-    for raw_start, raw_end in pieces:
-        raw = text[raw_start:raw_end]
-        if not raw.strip():
-            continue
-        left = len(raw) - len(raw.lstrip())
-        right = len(raw.rstrip())
-        clean_start = raw_start + left
-        clean_end = raw_start + right
-        sentence = text[clean_start:clean_end]
-        byte_start = len(text[:clean_start].encode("utf-8"))
-        byte_length = len(sentence.encode("utf-8"))
-        spans.append((sentence, byte_start, byte_length))
-    return spans
-
-
-def split_sentences(text: str) -> list[str]:
-    return [sentence for sentence, _, _ in sentence_spans(text)]
 
 
 def _validate_document(document: dict[str, Any], *, indexed: bool = False) -> tuple[str, str, str]:
@@ -250,7 +208,9 @@ def compile_index(index: Mapping[str, Any]) -> ValidatedIndex:
 
 def index_sha256(index: dict[str, Any] | ValidatedIndex) -> str:
     if isinstance(index, ValidatedIndex):
-        return sha256_bytes(canonical_bytes(index.to_canonical_dict()))
+        if index._canonical_sha256 is None:
+            index._canonical_sha256 = sha256_bytes(canonical_bytes(index.to_canonical_dict()))
+        return index._canonical_sha256
     validate_index(index)
     return sha256_bytes(canonical_bytes(index))
 
@@ -414,7 +374,7 @@ def load_index(path: Path, *, compiled: bool = False) -> dict[str, Any] | Valida
     if not isinstance(value, dict) or raw != canonical_bytes(value):
         raise CorpusError("local corpus index must be canonical JSON")
     validate_index(value)
-    return _validated_view(value) if compiled else value
+    return _validated_view(value, sha256_bytes(raw)) if compiled else value
 
 
 def search(index: dict[str, Any] | ValidatedIndex, question: str, *, top_k: int = DEFAULT_TOP_K) -> list[dict[str, Any]]:
@@ -441,10 +401,11 @@ def search(index: dict[str, Any] | ValidatedIndex, question: str, *, top_k: int 
             denominator = frequency + BM25_K1 * (1.0 - BM25_B + BM25_B * length / average)
             scores[ordinal] += idf * (frequency * (BM25_K1 + 1.0)) / denominator
             matched_terms[ordinal] += 1
-    ranked = sorted(
+    ranked = heapq.nsmallest(
+        top_k,
         scores,
         key=lambda ordinal: (-scores[ordinal], -matched_terms[ordinal], docs[ordinal]["id"].encode("utf-8")),
-    )[:top_k]
+    )
     return [
         {
             "id": docs[ordinal]["id"],

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exactscope.org/spec/schemas/qualified-execution-profile-v0.1.schema.json",
+  "title": "ExactScope Qualified Execution Profile v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "v": {"const": 1},
+    "format": {"const": "exactscope.qualified-execution-profile"},
+    "format_version": {"const": "0.1"},
+    "profile_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "candidate_policy": {"$ref": "candidate-execution-policy-v0.1.schema.json"},
+    "qualification_attestation": {"$ref": "qualification-attestation-v0.1.schema.json"}
+  },
+  "required": [
+    "v",
+    "format",
+    "format_version",
+    "profile_id",
+    "candidate_policy",
+    "qualification_attestation"
+  ]
+}

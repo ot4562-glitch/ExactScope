@@ -16,6 +16,7 @@ fused = []
 dynamic-packs = []
 discovery = []
 standalone-staticlib = []
+parasite = []
 
 [dependencies]
 exactscope-grounding = { path = "../exactscope-grounding", default-features = false }

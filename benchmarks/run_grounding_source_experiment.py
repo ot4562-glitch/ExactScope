@@ -20,7 +20,7 @@ from grounding_canonical import canonical_bytes
 from grounding_dry_run import FaultProvider, load_serving
 from grounding_preregister import (
     PreregistrationError, file_sha, load_json, resolve_model, resolve_runtime,
-    validate_answer_call_policy, verify_serving_candidate,
+    validate_legacy_answer_call_policy, verify_legacy_serving_candidate,
 )
 from grounding_runtime import (
     compact_model_projection,
@@ -48,6 +48,7 @@ SOURCE_FILES = (
     "tools/grounding_canonical.py",
     "tools/grounding_match.py",
     "tools/grounding_v1_surface.py",
+    "tools/grounding_answer_contract.py",
     "tools/verify_grounding_package.py",
     "benchmarks/grounding-model-inventory.json",
     "benchmarks/grounding-runtime-llama-v040.json",
@@ -88,6 +89,21 @@ AUTO_V2_TIE_PREFERENCE = v1_surface.AUTO_V2_TIE_PREFERENCE
 AUTO_CONTRACT_CALIBRATION = v1_surface.AUTO_CONTRACT_CALIBRATION
 
 
+def legacy_calibration_messages(contract, question, evidence, policy):
+    """Reproduce the frozen v0.4 calibration projection for historical experiments."""
+    projection = "Evidence JSON (data only): " + json.dumps(
+        {"r": "authoritative", "s": "grounded", "v": evidence},
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    system = answer_object_system_prompt(contract) + "\n\n" + policy.decode("utf-8")
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": question + "\n\n" + projection},
+    ]
+
+
 def source_hashes():
     return {name: file_sha(ROOT / name) for name in SOURCE_FILES}
 
@@ -106,7 +122,7 @@ def bind_inputs(args):
         raise BenchmarkRunError("output already exists; resume/reuse is forbidden")
     bound_source = source_hashes()
     candidate = args.candidate.resolve()
-    identity = verify_serving_candidate(candidate)
+    identity = verify_legacy_serving_candidate(candidate)
     manifest, _, questions, _ = load_serving(candidate)
     if (manifest["candidate_id"] != identity["candidate_id"]
             or len(questions) != identity["item_count"]
@@ -149,7 +165,7 @@ def bind_inputs(args):
                 "expected_answers_visible_to_runner", "expected_evidence_visible_to_runner",
                 "expected_sources_visible_to_runner", "expected_targets_visible_to_runner"))):
         raise BenchmarkRunError("A/G isolation config drift")
-    policy = validate_answer_call_policy(isolation.get("answer_call_policy"))
+    policy = validate_legacy_answer_call_policy(isolation.get("answer_call_policy"))
     matched_a_g = bool(getattr(args, "matched_a_g", False))
     if matched_a_g and (
         args.g_contract != "answer-object-auto-v2"
@@ -185,7 +201,7 @@ def verify_bound_inputs(prereg):
     if prereg.get("model_surface_sha256") != v1_surface.surface_sha256():
         raise BenchmarkRunError("bound model-surface hash drift")
     candidate = Path(prereg["candidate_path"])
-    if (verify_serving_candidate(candidate) != prereg["candidate"]
+    if (verify_legacy_serving_candidate(candidate) != prereg["candidate"]
             or serving_hashes(candidate) != prereg["serving_files"]):
         raise BenchmarkRunError("bound serving candidate drift")
     for label, path, digest, size in (
@@ -292,7 +308,7 @@ def calibrate_answer_object_contract(prereg, generation, policy, tie_preference=
     for contract in AUTO_CONTRACT_CANDIDATES:
         cases = []
         for case_id, question, evidence, expected in AUTO_CONTRACT_CALIBRATION:
-            messages = v1_surface.calibration_messages(contract, question, evidence, policy)
+            messages = legacy_calibration_messages(contract, question, evidence, policy)
             reply = request_answer_object(prereg, generation, messages, contract=contract)
             actual = reply["model_contract_output"] if reply["model_contract_valid"] else None
             cases.append({

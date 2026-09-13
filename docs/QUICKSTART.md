@@ -1,12 +1,14 @@
-# ExactScope v1 quickstart
+# ExactScope quickstart and v1.1 research entry
 
-ExactScope v1 is a lightweight native grounding runtime and accuracy retrofit layer for small, local, and on-device AI. The stable public software scope is the **Linux x86-64 native C ABI grounding package**. It does not require a model replacement, fine-tuning, an agent loop, a network service, or Python on the deployed target.
+The published **v1.0.0** package is the stable native grounding software users can install today. **v1.1 is unreleased, experiment-first research**: the current foreground is a preregistered **reference-preserving compiler-value** proof plus a smaller host-attached semantic boundary. The existing native/archive shapes are research/reference checkpoints, not a promise that v1.1 will ship a native kernel.
+
+For v1.1 research rather than stable installation, start with [`V1_1_PRODUCT_DIFFERENTIATION.md`](V1_1_PRODUCT_DIFFERENTIATION.md), [`V1_1_RESEARCH_STATUS.md`](V1_1_RESEARCH_STATUS.md), [`V1_1_EXPERIMENT_PROGRAM.md`](V1_1_EXPERIMENT_PROGRAM.md), and [`V1_1_ASTRA_HIGH_REVIEW.md`](V1_1_ASTRA_HIGH_REVIEW.md).
 
 ARM64/wearable hardware remains an important design target, but physical ARM64 RAM, latency, energy, and thermal qualification has not been performed. Do not inherit x86-64 measurements as wearable claims.
 
-## 1. Download the stable grounding package
+## 1. Download the stable v1.0 grounding package
 
-From the GitHub release page, download:
+From the GitHub v1.0.0 release page, download:
 
 ```text
 exactscope-grounding-1.0.0-x86_64-unknown-linux-gnu.tar.gz
@@ -111,29 +113,35 @@ original user question
        budget
   -> GroundingFrame
   -> authoritative unresolved? host disposition, 0 model calls
-  -> canonical scalar? host value, 0 model calls
-  -> otherwise compact projection + at most one answer-generation call
+  -> canonical scalar and retrieval query == instruction? host value, 0 model calls
+  -> otherwise grouped projection + one preselected surface + at most one answer-generation call
 ```
 
 Authoritative `none` means required source coverage completed and found no usable evidence. Timeout/error/denied/incomplete coverage is `unavailable`, not `none`. Unresolved contradictions remain `conflict` and unresolved candidates remain `ambiguous`.
 
 See [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md) and [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md).
 
-## 7. llama.cpp integration
+## 7. v1.1 host-integration research
 
-ExactScope does not own the inference engine. A local llama.cpp deployment can remain the answer-generation runtime.
-
-The maintained reference adapter is:
+ExactScope does not own the inference engine. llama.cpp remains the maintained reference integration, while the experimental `ExactScope Bridge` pressure-tests whether the same delivery semantics survive very different runtimes without copying core policy.
 
 ```text
 adapters/llama-cpp/grounding_v1.py
+adapters/bridge/
+  delivery.py
+  exactscope_v11.py
+  onnxruntime-genai/
 ```
 
-It connects only to an already-running loopback OpenAI-compatible llama.cpp endpoint. Its calibrated path can complete authoritative unresolved or single canonical-scalar cases in the host and use at most one model answer call for the remaining cases.
+The Bridge has now pressure-tested the same semantic delivery shape against Microsoft ONNX Runtime GenAI, current ExecuTorch `IRunner` structure, and LiteRT-LM fixtures. `Complete` terminates before any model-runtime call. `Generate` carries only ExactScope-approved semantic messages/contracts into the host runtime and sends raw model output back through strict finalization. Runtime-specific API churn stays in adapters; retrieval/authority/coverage/freshness/conflict/ambiguity logic stays in ExactScope.
 
-See [`../adapters/llama-cpp/README.md`](../adapters/llama-cpp/README.md) and [`AI_INTEGRATION.md`](AI_INTEGRATION.md).
+These results are architecture/integration evidence only. They do not establish cross-runtime answer-quality transfer or platform support, and adding another runtime is not the current milestone. The preregistered 120/600 FEVER compiler-value branch stopped at `ReferenceOnly` before held-out; the current foreground is a competence-gated bounded enterprise document-QA proof with real host retrieval and total-economics accounting.
 
-## 8. Reproduce the release package from source
+See [`../adapters/llama-cpp/README.md`](../adapters/llama-cpp/README.md), [`../adapters/bridge/README.md`](../adapters/bridge/README.md), [`V1_1_INTEGRATION_FEEDBACK.md`](V1_1_INTEGRATION_FEEDBACK.md), and [`AI_INTEGRATION.md`](AI_INTEGRATION.md).
+
+## 8. Build the current native development checkpoint from source
+
+This is a development/stable-v1 regression packaging check, not reproduction of a published v1.1 release and not a commitment to the eventual v1.1 shipping form. The active v1.1 boundary is native-free-first; use this build only when validating the native checkpoint or a concrete native-consumer experiment.
 
 ```bash
 cargo build -p exactscope-cabi --release --features standalone-staticlib
@@ -159,10 +167,10 @@ Then verify and clean-room test the final archive:
 
 ```bash
 python3 tools/package_grounding_runtime.py verify \
-  dist/exactscope-grounding-1.0.0-x86_64-unknown-linux-gnu.tar.gz
+  dist/exactscope-grounding-1.1.0-x86_64-unknown-linux-gnu.tar.gz
 
 python3 tools/test_grounding_runtime_bundle.py \
-  dist/exactscope-grounding-1.0.0-x86_64-unknown-linux-gnu.tar.gz
+  dist/exactscope-grounding-1.1.0-x86_64-unknown-linux-gnu.tar.gz
 ```
 
 The clean-room test extracts the final archive and recompiles/runs the C11 demo using only files from that extracted package.

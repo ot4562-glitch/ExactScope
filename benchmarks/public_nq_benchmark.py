@@ -20,13 +20,28 @@ for directory in (ROOT / "tools", ROOT / "benchmarks"):
 
 from grounding_canonical import canonical_bytes, loads
 from grounding_corpus import ValidatedIndex, index_sha256, load_index, search
-from grounding_projection import compact_evidence_projection
+from grounding_projection import (
+    ADAPTIVE_EVIDENCE_POLICY_ID,
+    ADAPTIVE_EVIDENCE_TIERS,
+    PRECISION_CONTEXT_PROJECTION_ID,
+    precision_context_evidence_projection_v5,
+)
 from grounding_preregister import file_sha, load_json, resolve_model, resolve_runtime
-from grounding_v1_surface import messages, parse_answer_object, surface_sha256
+from grounding_v1_surface import (
+    OUTPUT_SURFACE_CANDIDATES,
+    messages,
+    model_runtime_fingerprint,
+    parse_answer_object,
+    select_output_surface,
+    surface_sha256,
+    validate_contract_calibration_record,
+    validate_surface_negotiation_record,
+)
 from public_nq_candidate import score_normalize
 from run_grounding_benchmark import (
     BenchmarkRunError,
     calibrate_grounding_v1_contract,
+    negotiate_grounding_v11_surface,
     request_grounding_v1_model,
     server_command,
     stop_server,
@@ -36,7 +51,8 @@ from run_grounding_benchmark import (
 
 POLICY_PATH = ROOT / "grounding/reference-profile-v0.1/projection-policy.txt"
 DEFAULT_TOP_K = 12
-DEFAULT_MAX_EVIDENCE_BYTES = 4096
+DEFAULT_MAX_EVIDENCE_BYTES = 3072
+PRODUCT_MODEL_ITEM_CAP = 8
 SOURCE_FILES = (
     "benchmarks/public_nq_benchmark.py",
     "benchmarks/public_nq_candidate.py",
@@ -44,6 +60,7 @@ SOURCE_FILES = (
     "tools/grounding_corpus.py",
     "tools/grounding_projection.py",
     "tools/grounding_v1_surface.py",
+    "tools/grounding_answer_contract.py",
 )
 
 
@@ -142,8 +159,8 @@ def run_screen(args: argparse.Namespace) -> None:
         raise NQBenchmarkError("run output exists; resume/reuse forbidden")
     if type(args.top_k) is not int or not 1 <= args.top_k <= 16:
         raise NQBenchmarkError("top_k must be between 1 and 16")
-    if type(args.max_evidence_bytes) is not int or not 256 <= args.max_evidence_bytes <= 4096:
-        raise NQBenchmarkError("max_evidence_bytes must be between 256 and 4096")
+    if args.max_evidence_bytes != DEFAULT_MAX_EVIDENCE_BYTES:
+        raise NQBenchmarkError(f"max_evidence_bytes must equal the product cap {DEFAULT_MAX_EVIDENCE_BYTES}")
     candidate = args.candidate.resolve()
     manifest, questions, chunks, corpus = verify_serving_candidate(candidate)
     chunk_ids = {row["chunk_id"] for row in chunks}
@@ -172,6 +189,12 @@ def run_screen(args: argparse.Namespace) -> None:
         "policy_sha256": _sha(policy),
         "top_k": args.top_k,
         "max_evidence_bytes": args.max_evidence_bytes,
+        "model_item_cap": PRODUCT_MODEL_ITEM_CAP,
+        "evidence_composition": "single-source-precision",
+        "evidence_policy": ADAPTIVE_EVIDENCE_POLICY_ID,
+        "evidence_tiers_bytes": list(ADAPTIVE_EVIDENCE_TIERS),
+        "retrieval_query_policy": "question-only-v1.1",
+        "projection_id": PRECISION_CONTEXT_PROJECTION_ID,
         "arms": ["A", "G"],
         "retry_count": 0,
         "hidden_repair": False,
@@ -200,6 +223,11 @@ def run_screen(args: argparse.Namespace) -> None:
     env["LD_LIBRARY_PATH"] = runtime_dir + (":" + env["LD_LIBRARY_PATH"] if env.get("LD_LIBRARY_PATH") else "")
     process: subprocess.Popen[bytes] | None = None
     records: list[dict[str, Any]] = []
+    surface_attempt_counter = {"count": 0}
+    calibration_attempt_counter = {"count": 0}
+    answer_model_request_attempts = 0
+    selected_surface: str | None = None
+    selected: str | None = None
     try:
         with log_path.open("wb") as server_log:
             process = subprocess.Popen(command, cwd=runtime_dir, stdout=server_log, stderr=subprocess.STDOUT, env=env)
@@ -210,17 +238,49 @@ def run_screen(args: argparse.Namespace) -> None:
                 int(runtime["launch"]["port"]),
                 float(runtime_record["server_ready_timeout_seconds"]),
             )
-            selected, calibration = calibrate_grounding_v1_contract(prereg, generation, policy)
+            selected_surface, negotiation = negotiate_grounding_v11_surface(
+                prereg, generation, policy, surface_attempt_counter
+            )
+            (args.output / "surface-negotiation.json").write_bytes(canonical_bytes(negotiation))
+            if selected_surface is None:
+                status.update({
+                    "state": "unsupported",
+                    "record_count": 0,
+                    "selected_model_contract": None,
+                    "selected_output_surface": None,
+                    "model_runtime_fingerprint": model_runtime_fingerprint(prereg),
+                    "surface_probe_requests": negotiation["model_request_count"],
+                    "surface_probe_request_attempts": surface_attempt_counter["count"],
+                    "calibration_model_requests": 0,
+                    "calibration_model_request_attempts": calibration_attempt_counter["count"],
+                    "answer_model_requests": 0,
+                    "answer_model_request_attempts": answer_model_request_attempts,
+                    "total_model_requests_including_calibration": negotiation["model_request_count"],
+                    "model_surface_sha256": prereg["model_surface_sha256"],
+                    "reason": "unsupported-model-runtime-output-surface",
+                })
+                status_path.write_bytes(canonical_bytes(status))
+                stop_server(process)
+                process = None
+                write_sums(args.output)
+                return
+            selected, calibration = calibrate_grounding_v1_contract(
+                prereg, generation, policy, selected_surface, calibration_attempt_counter
+            )
             (args.output / "contract-calibration.json").write_bytes(canonical_bytes(calibration))
             with raw_path.open("wb") as raw:
                 for item in questions:
                     eval_id = item["eval_id"]
                     question = item["question"]
-                    a = request_grounding_v1_model(prereg, generation, messages(selected, question), selected)
+                    answer_model_request_attempts += 1
+                    a = request_grounding_v1_model(
+                        prereg, generation, messages(selected, question), selected, selected_surface
+                    )
                     a_record = {
                         "eval_id": eval_id,
                         "arm": "A",
                         "model_contract": selected,
+                        "model_output_surface": selected_surface,
                         "model_contract_valid": a["model_contract_valid"],
                         "model_contract_output": a["model_contract_output"],
                         "raw_content": a["raw_content"],
@@ -235,11 +295,13 @@ def run_screen(args: argparse.Namespace) -> None:
                     records.append(a_record)
 
                     retrieved = search(corpus, question, top_k=args.top_k)
-                    projection, emitted = compact_evidence_projection(
+                    projection, emitted, _projection_meta = precision_context_evidence_projection_v5(
                         corpus,
                         retrieved,
                         question,
                         max_bytes=args.max_evidence_bytes,
+                        evidence_policy=ADAPTIVE_EVIDENCE_POLICY_ID,
+                        max_items=PRODUCT_MODEL_ITEM_CAP,
                     )
                     projected_chunks = [
                         {"id": hit["id"], "snippet": hit["snippet"]}
@@ -248,11 +310,15 @@ def run_screen(args: argparse.Namespace) -> None:
                     if any(row["id"] not in chunk_ids for row in projected_chunks):
                         raise NQBenchmarkError("NQ projection emitted unknown chunk")
                     g_messages = messages(selected, question, evidence=projection, policy=policy) if projection else messages(selected, question)
-                    g = request_grounding_v1_model(prereg, generation, g_messages, selected)
+                    answer_model_request_attempts += 1
+                    g = request_grounding_v1_model(
+                        prereg, generation, g_messages, selected, selected_surface
+                    )
                     g_record = {
                         "eval_id": eval_id,
                         "arm": "G",
                         "model_contract": selected,
+                        "model_output_surface": selected_surface,
                         "model_contract_valid": g["model_contract_valid"],
                         "model_contract_output": g["model_contract_output"],
                         "raw_content": g["raw_content"],
@@ -274,9 +340,17 @@ def run_screen(args: argparse.Namespace) -> None:
             "state": "complete",
             "record_count": len(records),
             "selected_model_contract": selected,
+            "selected_output_surface": selected_surface,
+            "model_runtime_fingerprint": model_runtime_fingerprint(prereg),
+            "surface_probe_requests": negotiation["model_request_count"],
+            "surface_probe_request_attempts": surface_attempt_counter["count"],
             "calibration_model_requests": calibration["model_request_count"],
+            "calibration_model_request_attempts": calibration_attempt_counter["count"],
             "answer_model_requests": len(records),
-            "total_model_requests_including_calibration": len(records) + calibration["model_request_count"],
+            "answer_model_request_attempts": answer_model_request_attempts,
+            "total_model_requests_including_calibration": (
+                len(records) + negotiation["model_request_count"] + calibration["model_request_count"]
+            ),
             "model_surface_sha256": prereg["model_surface_sha256"],
         })
         status_path.write_bytes(canonical_bytes(status))
@@ -284,8 +358,15 @@ def run_screen(args: argparse.Namespace) -> None:
     except Exception:
         stop_server(process)
         if args.output.exists():
-            status["state"] = "invalid"
-            status["record_count"] = len(records)
+            status.update({
+                "state": "invalid",
+                "record_count": len(records),
+                "selected_model_contract": selected,
+                "selected_output_surface": selected_surface,
+                "surface_probe_request_attempts": surface_attempt_counter["count"],
+                "calibration_model_request_attempts": calibration_attempt_counter["count"],
+                "answer_model_request_attempts": answer_model_request_attempts,
+            })
             status_path.write_bytes(canonical_bytes(status))
             write_sums(args.output)
         raise
@@ -338,32 +419,63 @@ def _verify_run(
         or prereg.get("gold_visible_to_runner") is not False
         or prereg.get("confirmation_visible_to_runner") is not False
         or prereg.get("compiled_corpus_hot_path") is not True
+        or prereg.get("model_item_cap") != PRODUCT_MODEL_ITEM_CAP
+        or prereg.get("evidence_composition") != "single-source-precision"
+        or prereg.get("evidence_policy") != ADAPTIVE_EVIDENCE_POLICY_ID
+        or prereg.get("evidence_tiers_bytes") != list(ADAPTIVE_EVIDENCE_TIERS)
+        or prereg.get("max_evidence_bytes") != DEFAULT_MAX_EVIDENCE_BYTES
+        or prereg.get("retrieval_query_policy") != "question-only-v1.1"
+        or prereg.get("projection_id") != PRECISION_CONTEXT_PROJECTION_ID
     ):
         raise NQBenchmarkError("NQ execution-policy drift")
     if status.get("preregistration_sha256") != file_sha(prereg_path):
         raise NQBenchmarkError("NQ preregistration/status identity drift")
+    if status.get("model_runtime_fingerprint") != model_runtime_fingerprint(prereg):
+        raise NQBenchmarkError("NQ model/runtime fingerprint drift")
+
+    negotiation = _load_cjson(run / "surface-negotiation.json")
+    selected_surface = status.get("selected_output_surface")
+    try:
+        recomputed_surface = validate_surface_negotiation_record(negotiation, prereg)
+    except ValueError as exc:
+        raise NQBenchmarkError(f"NQ surface negotiation drift: {exc}") from exc
+    if (
+        recomputed_surface != selected_surface
+        or selected_surface is None
+        or status.get("surface_probe_requests") != negotiation.get("model_request_count")
+    ):
+        raise NQBenchmarkError("NQ fixed surface negotiation accounting drift")
 
     calibration = _load_cjson(run / "contract-calibration.json")
     selected = status.get("selected_model_contract")
-    if (
-        calibration.get("format") != "exactscope.grounding-v1-contract-calibration"
-        or calibration.get("format_version") != "0.1"
-        or calibration.get("selected_contract") != selected
-        or calibration.get("model_surface_sha256") != prereg["model_surface_sha256"]
-        or calibration.get("model_request_count") != status.get("calibration_model_requests")
-    ):
-        raise NQBenchmarkError("NQ calibration identity drift")
+    try:
+        recomputed_contract = validate_contract_calibration_record(calibration, selected_surface)
+    except ValueError as exc:
+        raise NQBenchmarkError(f"NQ calibration drift: {exc}") from exc
+    if recomputed_contract != selected or status.get("calibration_model_requests") != calibration.get("model_request_count"):
+        raise NQBenchmarkError("NQ calibration accounting drift")
     records = _load_cjsonl(run / "raw-results.jsonl")
     expected_keys = {(item["eval_id"], arm) for item in questions for arm in ("A", "G")}
     actual_keys = {(row.get("eval_id"), row.get("arm")) for row in records}
     if len(records) != len(questions) * 2 or len(actual_keys) != len(records) or actual_keys != expected_keys:
         raise NQBenchmarkError("NQ A/G record identity drift")
-    if status.get("answer_model_requests") != len(records) or status.get("total_model_requests_including_calibration") != len(records) + status.get("calibration_model_requests", -1):
-        raise NQBenchmarkError("NQ model-request accounting drift")
+    if (
+        status.get("answer_model_requests") != len(records)
+        or status.get("total_model_requests_including_calibration")
+        != len(records) + status.get("surface_probe_requests", -1) + status.get("calibration_model_requests", -1)
+        or status.get("surface_probe_request_attempts") != negotiation.get("model_request_count")
+        or status.get("calibration_model_request_attempts") != calibration.get("model_request_count")
+        or status.get("answer_model_request_attempts") != len(records)
+    ):
+        raise NQBenchmarkError("NQ model-request/attempt accounting drift")
     known_chunks = {row["chunk_id"] for row in chunks}
     for row in records:
-        if row.get("model_contract") != selected or row.get("arm") not in {"A", "G"}:
-            raise NQBenchmarkError("NQ model record contract drift")
+        if (
+            row.get("model_contract") != selected
+            or row.get("model_output_surface") != selected_surface
+            or row.get("arm") not in {"A", "G"}
+        ):
+            raise NQBenchmarkError("NQ model record contract/surface drift")
         raw_content = row.get("raw_content")
         if not isinstance(raw_content, str):
             raise NQBenchmarkError("NQ model record lacks raw output")

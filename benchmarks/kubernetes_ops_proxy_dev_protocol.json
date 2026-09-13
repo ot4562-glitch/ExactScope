@@ -1,0 +1,93 @@
+{
+  "format": "exactscope.public-proxy-development-protocol",
+  "format_version": "0.1",
+  "proxy_id": "kubernetes-pod-ops-docqa-v0.1",
+  "split": "development32",
+  "development_only": true,
+  "qualification_eligible": false,
+  "source_commit": "ce98a43f24257385a9766003a6dadc95e962dc63",
+  "candidate_manifest_sha256": "d968e3cc1abee8f813fd88531082e305fd83dee23cd19c4fa9f651425f0c10e9",
+  "retrieval_manifest_sha256": "624e41a8393d00b37b3ce861f0842fac1c2fe3e17246ae15200811c034e52431",
+  "retrieval_sha256": "a9af0091f541eb943b0836e6264c2e1a724d2445409a8c064d82353b501eac5a",
+  "host_retrieval": {
+    "framework": "LlamaIndex",
+    "retriever": "llama-index-retrievers-bm25/BM25Retriever",
+    "top_k": 12,
+    "host_owns_retrieval": true,
+    "gold_visible_during_retrieval": false
+  },
+  "model": {
+    "inventory_id": "qwen35-08b-q4",
+    "repository": "ggml-org/Qwen3.5-0.8B-GGUF",
+    "resolved_revision": "8fea620810c4afa23dd6443f999a48574c1611a3",
+    "requested_file": "Qwen3.5-0.8B-Q4_0.gguf",
+    "sha256": "57d1997790d1744fba5b40a7317df71ea5e2acee28c47e78f0cce39c0703f8cf"
+  },
+  "model_inventory_sha256": "f77820166124313998f7d088355b4e98126a9e6c59f977deb403f51d6d3e657c",
+  "runtime_record_sha256": "8fc084afefebb02b2134cb043b1953517d73ab4a224bc20e166dfdc3c0f23669",
+  "generation_config_sha256": "1b5328ec85e5cb81fc10a81b669c8cca2cabf1c132c752ede2744734bf3d05db",
+  "runner_source_sha256": "c808b966e97cc6ec94a86b49d7e287b6057b67cf68d693b853fc9172f7197a19",
+  "scorer_source_sha256": "53be31685f763925b9a709f1a14538d51f199013ed507488eeb88215d5a34fc9",
+  "answer_policy_sha256": "982e331a7d59ca01d141434a0e2f5edb679f9096ef59091140ff282cee3ecc7f",
+  "answer_contract": "preflight-selected from the frozen v1 answer-object candidates; one selected contract is reused across B/R/G",
+  "arms": {
+    "B": {
+      "description": "same model without attached document evidence",
+      "model_calls": 1
+    },
+    "R": {
+      "description": "ordinary LlamaIndex BM25 ranked context, raw rank order truncated at 3072 bytes",
+      "evidence_budget_bytes": 3072,
+      "model_calls": 1,
+      "answer_policy": "corpus-scoped"
+    },
+    "G": {
+      "description": "same frozen LlamaIndex top12, then ExactScope precision-context-v5 fixed 3072B/cap8",
+      "projection_id": "precision-context-v5",
+      "evidence_policy": "fixed-evidence-v1",
+      "evidence_budget_bytes": 3072,
+      "max_items": 8,
+      "model_calls": 1,
+      "answer_policy": "corpus-scoped"
+    }
+  },
+  "isolation": {
+    "gold_visible_to_runner": false,
+    "serve_all_arms_before_scoring": true,
+    "retry_count": 0,
+    "hidden_repair": false,
+    "model_as_judge": false,
+    "reflection": false,
+    "outcome_aware_routing": false
+  },
+  "primary_utility": {
+    "id": "mixed-docqa-utility-v1",
+    "equal_item_weight": true,
+    "answerable": "token-normalized F1 against the scorer-side answer",
+    "unanswerable": "1 only for exact UNANSWERABLE disposition; otherwise 0",
+    "ambiguous": "1 only for exact AMBIGUOUS disposition; otherwise 0"
+  },
+  "safety": {
+    "unsupported_assertion": "on unanswerable or ambiguous gold, any non-null model answer other than the exact required disposition",
+    "unacceptable_error": "same as unsupported_assertion for this public proxy v0.1",
+    "format_failure": "frozen answer contract did not parse/validate"
+  },
+  "evidence_support": {
+    "answerable_only": true,
+    "definition": "at least one scorer-side support substring is present, after whitespace normalization, in the exact attached evidence payload for the arm"
+  },
+  "uncertainty": {
+    "method": "paired-bootstrap-v1",
+    "seed": 20260913,
+    "resamples": 20000,
+    "confidence": 0.95,
+    "primary_comparison": "G-minus-R"
+  },
+  "development_rule": {
+    "initial_G": "precision-context-v5-3072-cap8",
+    "bounded_diagnosis_allowed": true,
+    "max_postscore_policy_selection_rounds": 1,
+    "validation_reselection_allowed": false,
+    "note": "development32 may reject the initial G candidate; the final selected G must be frozen before untouched-validation32 membership is served"
+  }
+}

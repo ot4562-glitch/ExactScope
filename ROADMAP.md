@@ -1,32 +1,61 @@
 # ExactScope roadmap
 
-No dates are promised. This roadmap is ordered by **everyday factual reliability, false-grounding avoidance, small-model cost, evidence quality, and retrofit economics**.
+No dates are promised. This roadmap is ordered by **fresh compiler-value evidence, factual reliability, false-grounding avoidance, total serving cost, qualification integrity, evidence quality, and low-ownership integration economics**.
 
-Release context: **ExactScope v1.0.0 is the stable Linux x86-64 native grounding software/package release. The selected r25 behavior, native C ABI, footprint-gated package, and final-archive C11 clean-room path are complete. v1.0.0-rc.3 remains immutable historical quantitative evidence; physical ARM64 qualification remains unclaimed.**
+Release context: **ExactScope v1.1.0 is the software/architecture release that retains the Linux x86-64 native grounding C ABI/XSGI path as the stable software surface. New qualification/control-plane, host-integration, Bridge and enterprise DocQA surfaces are experimental/reference. Physical ARM64 qualification, enterprise/customer qualification and demonstrated economic advantage remain unclaimed.**
 
-The flagship product question is:
+The current v1.1 product question is:
 
-> Can a compact provider-neutral grounding layer make an already-deployed small/on-device model more correct and less confidently wrong on ordinary factual questions, at low enough storage/RAM/token/latency/integration cost to beat a larger model, much larger context, heavyweight RAG stack, remote dependency, or hardware upgrade?
+> Can a restricted workload-specific policy compiler produce an independently qualified execution profile for an **existing constrained or operationally pinned AI stack** that meets predeclared task-quality requirements while reducing total serving cost—and can that process eventually require less search/qualification work than competent generic tuning?
+
+The three layers must remain separate:
+
+```text
+Semantic Execution Policy Compiler   = implemented restricted lowering / research kernel
+Qualified Execution Profile          = proposed customer-facing deliverable
+Reference-Preserving Cost Reduction  = first conservative Stage 1 algorithm
+```
+
+The first commercial validation wedge is high-volume bounded enterprise document QA with authoritative versioned evidence and measurable serving economics, narrowed initially toward short factual answers, extraction, typed decisions, and citation-bound outputs. Small/on-device retrofit remains an important longer-term market and architecture constraint, not the automatic first proof.
 
 ## Current checkpoint
 
-The rc3 public release and its external-user qualification are closed and immutable. The selected **r25** grounding behavior is now integrated with the native C ABI and stable Linux x86-64 v1 package. The frozen seven-model matched screen spans 135M to 3.8B local models, and its semantic scores were unchanged after native/release integration. r5 remains frozen historical comparison evidence.
+**v1.1.0 is now the bounded software/architecture release target. The stable support promise remains the Linux x86-64 native grounding C ABI/XSGI path; new qualification/control-plane, host-integration and Bridge surfaces are experimental/reference.** Positive development evidence remains workload- and host-specific: NQ froze `precision-context-v5` at 3 KiB/cap8; real-host Hotpot froze `host-ranked-hybrid-h1-v0`; the final 20-model NQ/Hotpot A/G panel is complete. A later Kubernetes Operations long-document proxy failed its frozen ordinary-RAG quality margin (`G-R = -10.99 pp`, 95% CI `[-22.76,-0.48] pp`), every bounded diagnostic candidate failed, and `selected_arm=null`. Therefore v1.1.0 is not a universal efficacy/ordinary-RAG/enterprise qualification claim.
 
-The post-v1 path is product expansion and target qualification, not another broad prompt search:
+The active path is now:
 
 ```text
-stable Linux x86-64 grounding runtime
- -> preserve deterministic r25 semantics and Python/Rust/C-ABI parity
- -> add provider integrations only behind the Grounding Contract
- -> keep default-install footprint bounded and provider data accounted separately
- -> improve integration/discovery/LTS without broadening claims beyond evidence
- -> qualify representative physical ARM64 hardware before wearable resource claims
- -> add further stable targets only after target-specific clean-room/resource evidence
+stable v1.0 reference
+ -> preserve the qualified-execution core and host ownership boundary
+ -> single-source precision: precision-context-v5 / 3K / cap8
+ -> generic multi-source composition semantics: multihop-coverage-v1 / 3K / cap12
+ -> real-host Hotpot attach: LlamaIndex BM25 top12 + frozen host-ranked-hybrid-h1-v0
+ -> H1 survived fresh validation32 + predeclared stability64 against ordinary RAG
+ -> final frozen 20-model NQ/Hotpot A/G panel complete; public policy tuning closed
+ -> keep evidence composition + explicit qualified budget in Workload Contract / Candidate Policy without treating H1 as a universal default
+ -> freeze the public NQ/Hotpot harnesses and do not retune from final-panel outcomes
+ -> enterprise confirmatory pipeline implemented: prereg -> exact-artifact Study Contract -> fail-closed readiness receipt -> three-arm observations + deterministic run sealing -> offline score -> frozen paired analysis -> owner decision -> canonical evaluation package + generic attestation bridge
+ -> Study Contract pre-binds exact Candidate Execution Policy + Workload Contract + Host Manifest + gold-free confirmatory question set and runner/readiness/scorer/analysis/decision implementations
+ -> Kubernetes long-document proxy failed its ordinary-RAG margin; selected_arm=null; no more proxy tuning
+ -> v1.1.0 release closure: stable native C ABI/XSGI + experimental/reference architecture surfaces; run regression/package/clean-room gates
+ -> push exact release-candidate commit; run GitHub CI/release checks; tag the exact verified commit `v1.1.0` without reopening benchmark policies
+ -> only after useful source policies exist, test prospective prior-transfer/search reduction
+ -> add frontier-provider lowering only from qualified workload requirements
+ -> add broader runtime/tool policies only when contract evidence requires them
+ -> post-release, only real owner-bound qualification may unlock enterprise/customer/economic claims or further optimizer expansion
 ```
 
-No new result may reuse historical run evidence or be tuned under the same identity after inference. The normative Grounding Contract remains v0.1; benchmark/package identities carry the selected implementation behavior and qualification evidence.
+FEVER Stage 1 is closed at **`ReferenceOnly`** after all 1,200 calibration observations: `P=null`, `T=F`, and the 600-item held-out remains unscored and retired from revised-rule inference. The reused-screen same-model attached diagnostic showed that amplification is real but workload dependent: NQ initially improved under precision compression while Hotpot regressed because complete support-set coverage was overcompressed. Fresh follow-up then found the original NQ 2 KiB cap could also overcompress some single-source cohorts, so the active NQ candidate moved prospectively to 3 KiB rather than preserving a result-dependent 2 KiB default.
 
-Academic-domain expansion remains secondary to grounding reliability, provider integrations, and real-device qualification.
+The completed reused-screen attached diagnostic is recorded in [`docs/V1_1_LIVE_ATTACHED_DIAGNOSTIC_RESULT.md`](docs/V1_1_LIVE_ATTACHED_DIAGNOSTIC_RESULT.md). Hotpot's earlier generic composition development is recorded in [`docs/V1_1_MULTIHOP_POLICY_DEVELOPMENT_RESULT.md`](docs/V1_1_MULTIHOP_POLICY_DEVELOPMENT_RESULT.md), with its separate stable-v1 comparator in [`docs/V1_1_MULTIHOP_V1_CONFIRMATION_RESULT.md`](docs/V1_1_MULTIHOP_V1_CONFIRMATION_RESULT.md). NQ's failed 2K regression, 3K development/validation, and separate stable-v1 confirmation are recorded in [`docs/V1_1_SINGLEHOP_POLICY_DEVELOPMENT_RESULT.md`](docs/V1_1_SINGLEHOP_POLICY_DEVELOPMENT_RESULT.md). The later real-host LlamaIndex diagnosis, H1 freeze, validation/stability evidence, and final 20-model A/G panel are consolidated in [`docs/V1_1_AG_EFFECT_SHOWCASE.md`](docs/V1_1_AG_EFFECT_SHOWCASE.md). The final panel observed NQ mean F1 **12.44% -> 21.68% (+9.24 pp)** and Hotpot mean F1 **11.63% -> 31.42% (+19.79 pp)** across 16 valid models per workload, while retaining regressions and protocol N/A. These results close public benchmark-driven policy tuning; they do not authorize a universal default or product qualification.
+
+The enterprise confirmation machinery is now implemented far enough that **the blocker is data/business truth rather than benchmark plumbing**. The reference chain freezes the owner-approved records and evidence contract, validates and binds the exact Candidate Execution Policy + Workload Contract + Host Capability Manifest and gold-free confirmatory question set before outcomes, requires an independent ordinary alternative, freezes runner/readiness/scorer/paired-analysis/decision implementation identities and fixed non-serving economic counters, and requires a no-inference readiness preflight to revalidate that complete frozen bundle immediately before launch. The readiness receipt is then carried by every observation; its absolute `confirmatory_run_output` is the frozen artifact root for observations and the sealed manifest, and the run manifest is deterministically generated from the frozen identities rather than supplied as a free-form post-run record. It then verifies the complete three-arm observation matrix, scores only frozen offline adjudication, reruns the frozen paired quality/economic analysis, and requires a separate workload-owner decision. A passing decision is still not a profile: `enterprise_docqa_attest.py` revalidates the decision, remaps the observed Integrated metrics to the pre-bound Workload Contract, constructs a canonical evaluation package, invokes the generic Qualification Attestation validator, and can emit the attestation standalone while still emitting no Qualified Execution Profile. The generic `qualified_execution.py make-profile` command is the separate final constructor and revalidates that attestation against the exact Candidate/Workload/Host binding before writing a profile. No real enterprise confirmatory model call is authorized until an actual workload owner, authorized corpus/retriever, competence thresholds, economic coefficients/counters and statistical parameters are supplied and frozen.
+
+Host runtimes continue to own retrieval execution/authorization, tokenizer/template, exact token accounting, inference, scheduling/batching, cache, constrained/speculative decoding, accelerators, fallback and deployment. ExactScope owns the workload contract, semantic evidence/context policy, qualification artifacts, admission/finalization obligations and drift/requalification boundary. **Per-query adaptive routing is not authorized** by the current evidence; the supported direction is compile-time fixed workload-policy separation.
+
+No new result may be tuned on its own held-out identity after inference. The normative v1 Grounding Contract remains the stable-v1 semantic reference. Current product semantics are in [`docs/V1_1_ULTIMATE_PRODUCT_ARCHITECTURE.md`](docs/V1_1_ULTIMATE_PRODUCT_ARCHITECTURE.md) and [`docs/V1_1_PRODUCT_DIFFERENTIATION.md`](docs/V1_1_PRODUCT_DIFFERENTIATION.md); research rules are in [`docs/V1_1_EXPERIMENT_PROGRAM.md`](docs/V1_1_EXPERIMENT_PROGRAM.md).
+
+Academic-domain expansion, adapter count and runtime-feature wrapping are secondary to prospective compiler value, real customer-like retrieval economics, and later transfer evidence.
 
 ## Historical/retained implementation baseline
 
@@ -301,37 +330,109 @@ Integrity-corrected **r5** source `e6c3558642c77e379358b9f59aedd92abf7473f4` com
 - [x] select r25 after the seven-model source-run comparison;
 - [x] reject later forced-contract variants that regressed low-end models.
 
-## P7 — productionize and qualify the selected behavior — ACTIVE
+## Historical P7/P8 — v1 productionization and release — COMPLETE FOR THE DECLARED v1.0 SOFTWARE SCOPE
 
-- [x] expose deterministic unresolved/scalar host completion in the shared grounding runtime;
-- [x] implement the selected compact model surface in `tools/grounding_v1_surface.py`;
-- [x] implement the loopback-only llama.cpp reference adapter;
-- [x] add adapter/surface identity and regression tests;
-- [ ] make the immutable-package benchmark runner execute exactly the selected r25 behavior rather than the historical r5/r6 path;
-- [ ] freeze the final source commit and rebuild the scalar candidate from that exact source;
-- [ ] build and verify a deterministic grounding evaluation package containing the selected adapter/surface;
-- [ ] preregister and rerun the seven-model matrix from the extracted immutable package;
-- [ ] replace source-run-only README claims with release-qualified evidence where appropriate;
-- [ ] run clean-room package, publication, security, license, native, Wasm and SDK gates on the exact release tree.
+The old P7/P8 sequence led to the published v1.0.0 Linux x86-64 grounding package. Its historical unchecked items must not be read as the active v1.1 plan. Physical ARM64 resource qualification remains unclaimed and may be revisited only when a real target/customer workload justifies it.
 
-## P8 — target qualification and release
+## v1.1 R0 — establish the experiment rack — ACTIVE
 
-Before a public/stable claim:
+- [x] declare exploration budget separate from release-promotion budget;
+- [x] keep the current native archive as a reference configuration rather than a fixed design;
+- [x] define module families for retrieval, projection, answer contract, zero-call, preparation/identity, delivery bridge and backend-native acceleration;
+- [x] define interaction and leave-one-out reasoning in `docs/V1_1_EXPERIMENT_PROGRAM.md`;
+- [ ] make experiment identities/configuration mechanically reproducible without entangling the stable core;
+- [ ] expose a compact result ledger for isolated, pair/neighborhood and leave-one-out experiments;
+- [ ] define a Pareto report over quality/safety/model calls/tokens/latency/RAM/bytes/integration cost.
 
-- qualify a representative physical ARM64 target for actual storage/RAM/latency/energy/thermal behavior;
-- define supported provider/profile/platform identities and update/security/privacy/LTS policy;
-- run `python3 tools/audit_publication.py` on the exact Git tree and again on extracted release archives;
-- keep internal agent prompts, handoffs, local paths, raw runs and preregistrations outside the public repository/package;
-- obtain independent external-style integration feedback;
-- publish only deliberately public compatibility/qualification records;
-- consider stable `v1.0.0` only after unresolved release/security/evidence gates are closed.
+## v1.1 R1 — external runtime pressure tests — ACTIVE
+
+- [x] analyze ONNX Runtime GenAI C/C++ generation ownership;
+- [x] implement backend-neutral `complete | generate` Bridge delivery data without grounding-policy duplication;
+- [x] prove deterministic completion can bypass the inference runtime;
+- [x] compile a small C++ ORT adapter against current upstream headers;
+- [x] execute a real ExactScope -> ORT GenAI 0.15.2 generation plumbing smoke and return raw output through ExactScope strict validation;
+- [x] record v1.1 API friction in `docs/V1_1_INTEGRATION_FEEDBACK.md` instead of changing core immediately;
+- [x] pressure-test the same delivery semantic against current ExecuTorch `IRunner` headers with a fake-runner executable; real `.pte` + tokenizer execution remains unclaimed;
+- [x] pressure-test the same delivery semantic against LiteRT-LM Engine/Conversation using official fixtures; grounded answer-quality success remains unclaimed;
+- [x] identify repeated context-fit/runtime-capability friction without freezing a broad native ABI;
+- [ ] run a real-model ExecuTorch `.pte` + tokenizer smoke only if it remains useful for the product boundary rather than runtime-count collection.
+
+## v1.1 R2 — nonlinear amplifier search
+
+High-priority neighborhoods:
+
+- retrieval-query separation × candidate overfetch × evidence projection;
+- evidence density/order × answer-contract surface;
+- deterministic host completion × remaining model workload concentration;
+- immutable prefix identity × host-native prefix/system cache;
+- compact literal evidence × no-second-model n-gram speculation where the runtime already supports it;
+- answer-contract semantics × backend-native structured decoding.
+
+The rack may exceed final release resource targets during this phase. Research still requires exact candidate identities, gold isolation, negative-cell reporting and safety accounting.
+
+## v1.1 R3 — material distillation, separate from compiler selection
+
+- select high-value causal regions for further study, not the smallest early artifact;
+- remove each module in turn and measure marginal loss;
+- replace expensive modules with smaller equivalents when possible;
+- use Pareto analysis to understand material/architecture tradeoffs;
+- do **not** treat that Pareto frontier as the current Harness Distillation selection rule;
+- keep negative/quarantined materials available for reproducibility but unavailable to the product compiler.
+
+## v1.1 R4 — reference-preserving compiler-value proof — COMPLETE / STOPPED
+
+- [x] implement calibration-only compile + frozen held-out qualify + immutable bundle verification;
+- [x] complete first fresh 6+6 transfer and record **REJECTED** candidate with no deployable profile;
+- [x] add paired preservation against the predeclared reference as a provisional calibration constraint;
+- [x] freeze a fresh **120 calibration / 600 held-out** FEVER study with transitive evidence-page grouping, source/claim exclusions, exact finite-population gates, cost/timing protocol, competence record, conventional tuner `T`, frozen contract surface and immutable preregistration;
+- [x] execute all 1,200 calibration observations with zero mandatory violations;
+- [x] stop at preregistered **`ReferenceOnly`**: `P = null`, `T = integrated`; no cheaper frozen candidate matched the Reference's aggregate success count and none preserved all Reference successes;
+- [x] keep the 600-item held-out unscored and retire it from rescue/new-rule confirmatory inference;
+- [x] record the result as **algorithm-diagnostic-only**; no deployable Qualified Execution Profile and no compiler-value success;
+- [x] obtain Astra High post-result review: narrow the product claim, pivot the workload, keep the compiler thesis only as a research hypothesis;
+- [ ] preserve the stopped FEVER evidence and bound source fingerprints; do not repair the selector against this frozen held-out.
+
+## v1.1 R5 — competent enterprise document-QA product proof — ACTIVE
+
+- [x] freeze the v1.1+ north-star architecture as **Qualified AI Execution Control Plane -> Semantic Execution Policy Compiler -> Qualification/Configuration Optimizer -> Qualified Execution Profile**, while keeping each claim evidence-gated;
+- [x] obtain Astra High architectural review (`GO_WITH_FIXES`) and accept the required binding-enforcement, obligation-semantics, opaque-provider validity, lightweight acceptance, and ordinary-alternative comparison fixes;
+- [x] implement immutable Workload Contract / Host Capability Manifest / Candidate Execution Policy / Qualification Attestation / Execution Receipt schemas and canonical validators;
+- [x] implement the reference admission/finalization protocol, including stale-profile, cross-request receipt reuse, changed-settings and rejected-output conformance tests;
+- [ ] enforce that protocol in a real supported host integration, including authenticated check results and host-owned one-shot receipt consumption;
+- [x] implement qualification-validity scopes for inspectable pinned hosts and opaque/provider-observable frontier hosts;
+- [x] implement drift classification and targeted/full requalification planning;
+- [ ] define one bounded document collection and question population using real host retrieval rather than an oracle evidence pool;
+- [ ] freeze customer/workload-owner competence gates for correctness, citation/evidence support, abstention and unacceptable errors before confirmatory scoring;
+- [ ] establish eligible Base and integrated-style fixed configurations on development data before any optimizer qualification branch;
+- [ ] preregister **integrated-style vs Base** as the primary product-value comparison, including total customer economics rather than single-concurrency service time alone;
+- [ ] include one competent ordinary deployable configuration/tuning/eval alternative and one representative update/requalification cycle in the commercial proof;
+- [ ] keep any reference-preserving cheaper-policy branch conditional: if calibration produces no eligible `P`, stop that branch without rescuing with F/T;
+- [ ] include the conventional comparator `T` whenever a policy-selection branch is tested;
+- [ ] keep host retrieval execution, tokenizer/template, inference, scheduling/cache, native decoding, speculation and fallback host-owned;
+- [ ] defer cross-host transfer and adaptive per-query routing until a useful competent source policy exists;
+- [ ] measure the native-free semantic/qualification boundary before making native code a v1.1 requirement.
+
+## v1.1 R6 — live attached amplification/economics diagnostic
+
+- [ ] on a fresh diagnostic cohort, attach the same real local model/runtime to stable v1 and fixed v1.1 Integrated paths;
+- [ ] measure whether the original semantic amplification signal survives the narrowed architecture;
+- [ ] compare task quality/evidence behavior, model calls/tokens, E2E latency, host work and diagnostic economics;
+- [ ] attribute differences to declared mechanisms; do not reuse the sealed FEVER 600 or promote this diagnostic directly into product qualification;
+- [ ] preserve a hard outcome where v1 is better/cheaper and report it rather than tuning the diagnostic cohort.
+
+## v1.1 R7 — frontier-host lowering and qualification validity
+
+- [ ] lower the same restricted policy/qualification artifacts to one frontier-capable provider surface without owning provider inference/tools;
+- [ ] represent dependencies as pinned / host-asserted / provider-guaranteed / unknown rather than inventing inaccessible exact identities;
+- [ ] qualify reasoning/context/tool/structured-output settings only under explicit validity/expiry/invalidation rules;
+- [ ] test whether the same qualified workload behavior can be maintained with less reasoning/context/tool work or lower total economics.
 
 ## Deferred — academic/technical expansion
 
 [`docs/DOMAIN_EXPANSION.md`](docs/DOMAIN_EXPANSION.md) remains design history/guidance for the quantitative subsystem. Statistics/Economics breadth and Finance/Physics/Chemistry additions are not a near-term flagship objective.
 
-Resume domain expansion only after grounding optimization/lightweighting demonstrates measured product value or a concrete customer workload requires a narrow deterministic method slice.
+Resume domain expansion only when the generic amplifier architecture is understood or a concrete customer workload requires a narrow deterministic method slice.
 
-## Current single next action
+## Current next action
 
-**Freeze and benchmark r6, compare it with immutable r5, then let the measured result determine r7 and the final lightweighting target. Do not push or release to GitHub before the publication audit passes on the final cleaned tree.**
+**Keep v1.1 unreleased and preserve the stopped FEVER Stage 1 exactly as audited. The next execution target is one competence-gated bounded enterprise document-QA study with real host retrieval: establish viable Base/reference behavior on development data, freeze customer-relevant correctness/evidence/abstention/economic gates, preregister integrated-style vs Base as the primary product-value question, and keep any cheaper-policy compilation branch conditional. Do not score the retired FEVER 600, do not relax the 15% cost gate retroactively, and do not start cross-host transfer or adaptive routing before a useful competent source policy exists.**

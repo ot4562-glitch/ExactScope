@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -64,6 +65,16 @@ REQUIRED_FILES = (
     "spec/registries/kernel-ids.json",
     "spec/registries/vm-opcodes.json",
     "spec/registries/protocol-ids.json",
+    "docs/V1_1_ENTERPRISE_DOCQA_PLAN.md",
+    "benchmarks/enterprise_docqa_preregister.py",
+    "benchmarks/enterprise_docqa_study_contract.py",
+    "benchmarks/enterprise_docqa_readiness.py",
+    "benchmarks/enterprise_docqa_observations.py",
+    "benchmarks/enterprise_docqa_score.py",
+    "benchmarks/enterprise_docqa_analysis.py",
+    "benchmarks/enterprise_docqa_decision.py",
+    "benchmarks/enterprise_docqa_attest.py",
+    "tools/qualified_execution.py",
 )
 
 PROHIBITED_TOOL_SCHEMA_KEYS = {
@@ -531,13 +542,12 @@ def validate_toml_workspace() -> int:
 
 
 def validate_repository_text() -> tuple[int, int]:
-    ignored_parts = {".git", ".venv", "target"}
-    files = [
-        path
-        for path in ROOT.rglob("*")
-        if path.is_file()
-        and ignored_parts.isdisjoint(path.relative_to(ROOT).parts)
-    ]
+    ignored_parts = {".git", ".venv", ".ai-bridge", "target"}
+    files: list[Path] = []
+    for directory, dirnames, filenames in os.walk(ROOT):
+        dirnames[:] = [name for name in dirnames if name not in ignored_parts]
+        base = Path(directory)
+        files.extend(base / name for name in filenames)
     markdown_files: list[Path] = []
     link_pattern = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
     for path in files:

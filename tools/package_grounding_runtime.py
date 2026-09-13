@@ -23,7 +23,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 FORMAT = "exactscope.grounding.runtime.bundle"
-FORMAT_VERSION = "1.0"
+FORMAT_VERSION = "1.1"
+LEGACY_FORMAT_VERSION = "1.0"
 AR_MAGIC = b"!<arch>\n"
 XSGI_MAGIC = b"XSGI"
 SOURCE_COMMIT_RE = re.compile(r"^[a-f0-9]{40}$")
@@ -34,10 +35,14 @@ MAX_ARCHIVE_MEMBERS = 128
 MAX_ARCHIVE_MEMBER_BYTES = 16 * 1024 * 1024
 MAX_ARCHIVE_UNCOMPRESSED_BYTES = 20_000_000
 MAX_ARCHIVE_COMPRESSED_BYTES = 10_000_000
+# v1.1 release gate: v1 stable reference package was 957,237 bytes and the
+# selected promotion rule permits at most +5% compressed footprint.
+V11_COMPRESSED_BYTES_MAX = 1_005_099
 # Includes tar headers and extended metadata, not only extracted regular-file bytes.
 MAX_ARCHIVE_TAR_BYTES = MAX_ARCHIVE_UNCOMPRESSED_BYTES + 1_000_000
 MAX_ARCHIVE_PATH_BYTES = 512
 SAMPLE_INDEX_PATH = "grounding/sample-index-v1.xsgi"
+HOST_ATTACHED_PROFILE = "host-attached"
 
 
 class GroundingRuntimePackageError(RuntimeError):
@@ -136,7 +141,7 @@ def checksum_text(root: Path, names: list[str]) -> str:
 
 
 def validate_manifest(manifest: dict[str, Any]) -> None:
-    required = {
+    required_v11 = {
         "format",
         "format_version",
         "release_version",
@@ -146,17 +151,35 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
         "toolchain",
         "runtime",
         "sample_provider",
+        "host_integration",
         "deployment_boundary",
         "support_scope",
         "files",
     }
-    if not isinstance(manifest, dict) or set(manifest) != required:
+    required_v10 = required_v11 - {"host_integration"}
+    required_v11_profiled = required_v11 | {"package_profile"}
+    allowed_shapes = {frozenset(required_v10), frozenset(required_v11), frozenset(required_v11_profiled)}
+    if not isinstance(manifest, dict) or set(manifest) not in allowed_shapes:
         raise GroundingRuntimePackageError("grounding runtime manifest shape is invalid")
-    if (manifest.get("format"), manifest.get("format_version")) != (FORMAT, FORMAT_VERSION):
+    if manifest.get("format") != FORMAT:
         raise GroundingRuntimePackageError("unsupported grounding runtime manifest identity")
     version = manifest.get("release_version")
     if not isinstance(version, str) or not SAFE_COMPONENT_RE.fullmatch(version):
         raise GroundingRuntimePackageError("manifest release version is invalid")
+    expected_format_version = LEGACY_FORMAT_VERSION if version == "1.0.0" else FORMAT_VERSION
+    if manifest.get("format_version") != expected_format_version:
+        raise GroundingRuntimePackageError("manifest format version does not match the release version")
+    package_profile = manifest.get("package_profile")
+    if version == "1.0.0":
+        expected_shape = required_v10
+    elif package_profile is None:
+        expected_shape = required_v11
+    elif package_profile == HOST_ATTACHED_PROFILE:
+        expected_shape = required_v11_profiled
+    else:
+        raise GroundingRuntimePackageError("unsupported package profile")
+    if set(manifest) != expected_shape:
+        raise GroundingRuntimePackageError("manifest fields do not match the release version")
     if manifest.get("release_tier") != release_tier(version):
         raise GroundingRuntimePackageError("manifest release tier disagrees with semantic version")
     target = manifest.get("target")
@@ -180,14 +203,46 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
         raise GroundingRuntimePackageError("manifest runtime digest is invalid")
 
     sample = manifest.get("sample_provider")
-    if not isinstance(sample, dict) or set(sample) != {"path", "purpose", "size_bytes", "sha256"}:
-        raise GroundingRuntimePackageError("manifest sample provider identity is invalid")
-    if sample.get("path") != SAMPLE_INDEX_PATH or sample.get("purpose") != "demonstration-only":
-        raise GroundingRuntimePackageError("sample provider must remain demonstration-only")
-    if not isinstance(sample.get("size_bytes"), int) or sample["size_bytes"] <= 0:
-        raise GroundingRuntimePackageError("manifest sample provider size is invalid")
-    if not isinstance(sample.get("sha256"), str) or not re.fullmatch(r"[a-f0-9]{64}", sample["sha256"]):
-        raise GroundingRuntimePackageError("manifest sample provider digest is invalid")
+    if package_profile == HOST_ATTACHED_PROFILE:
+        if sample is not None:
+            raise GroundingRuntimePackageError("host-attached package must not contain a sample provider")
+    else:
+        if not isinstance(sample, dict) or set(sample) != {"path", "purpose", "size_bytes", "sha256"}:
+            raise GroundingRuntimePackageError("manifest sample provider identity is invalid")
+        if sample.get("path") != SAMPLE_INDEX_PATH or sample.get("purpose") != "demonstration-only":
+            raise GroundingRuntimePackageError("sample provider must remain demonstration-only")
+        if not isinstance(sample.get("size_bytes"), int) or sample["size_bytes"] <= 0:
+            raise GroundingRuntimePackageError("manifest sample provider size is invalid")
+        if not isinstance(sample.get("sha256"), str) or not re.fullmatch(r"[a-f0-9]{64}", sample["sha256"]):
+            raise GroundingRuntimePackageError("manifest sample provider digest is invalid")
+
+    if version != "1.0.0":
+        host = manifest.get("host_integration")
+        if host != {
+            "adapter": "adapters/llama-cpp/grounding_v1.py",
+            "runtime": "host-owned-loopback-llama.cpp",
+            "language": "python3-standard-library",
+            "surface": "v1.1-prepared-runtime-amplifier-v1",
+            "corpus_projection": "precision-context-v5",
+            "corpus_evidence_policy": "adaptive-evidence-v1",
+            "corpus_evidence_max_bytes": 2048,
+            "corpus_evidence_tiers_bytes": [512, 1024, 2048],
+            "answer_contract": "typed-answer-contract-v1",
+            "answer_kinds": ["text", "choice", "boolean", "integer", "number"],
+            "capability_cache": "identity-bound-capability-cache-v2",
+            "prefix_cache_hint": "stable-prefix-cache-key-v2",
+            "session_cache": "prepared-immutable-amplifier-v1",
+            "hot_path_artifact_io": False,
+            "backend_prompt_cache": "host-owned-parity-gated",
+            "model_answer_calls": "zero-or-one",
+            "second_model_calls": 0,
+            "retry_count": 0,
+            "transport": "direct-literal-loopback-http-no-proxy-no-redirect-v1",
+            "record_validation": "cold-path-strict-json-recompute-v1",
+            "diagnostic": "doctor-zero-network-v1",
+            "native_core_requires_python": False,
+        }:
+            raise GroundingRuntimePackageError("host integration boundary drift")
 
     boundary = manifest.get("deployment_boundary")
     if boundary != {
@@ -202,6 +257,8 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
     expected_support = {
         "native_target": target,
         "native_status": "stable" if release_tier(version) == "stable" else "candidate",
+        "host_integration_status": "experimental-reference",
+        "qualification_architecture_status": "source-reference-only",
         "physical_arm64": "not-claimed",
         "wasm_grounding": "not-included",
     }
@@ -216,16 +273,30 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
             raise GroundingRuntimePackageError("manifest file path is noncanonical")
         if not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest):
             raise GroundingRuntimePackageError("manifest file digest is invalid")
+    if package_profile == HOST_ATTACHED_PROFILE:
+        forbidden = {
+            SAMPLE_INDEX_PATH,
+            "tools/grounding_corpus.py",
+            "examples/c/grounding.c",
+            "examples/grounding/sample-docs/device-state.md",
+            "examples/grounding/sample-docs/service-policy.md",
+        }
+        if forbidden & set(files):
+            raise GroundingRuntimePackageError("host-attached package contains local retrieval payload")
+        required_host = {"tools/grounding_text.py", "tools/grounding_projection.py", "tools/grounding_engine.py"}
+        if not required_host <= set(files):
+            raise GroundingRuntimePackageError("host-attached package is missing amplifier spine files")
 
 
 def stage_bundle(
     stage_parent: Path,
     *,
     library: Path,
-    sample_index: Path,
+    sample_index: Path | None,
     target: str,
     source_commit: str,
     toolchain: str,
+    package_profile: str | None = None,
 ) -> tuple[Path, dict[str, Any]]:
     version = release_version()
     safe_component(target, "target")
@@ -237,8 +308,17 @@ def stage_bundle(
         raise GroundingRuntimePackageError("source commit must be 40 lowercase hexadecimal characters")
     if not toolchain or len(toolchain) > 200 or any(ch in toolchain for ch in "\r\n"):
         raise GroundingRuntimePackageError("invalid toolchain identity")
+    if package_profile not in {None, HOST_ATTACHED_PROFILE}:
+        raise GroundingRuntimePackageError("unsupported package profile")
+    host_attached = package_profile == HOST_ATTACHED_PROFILE
     validate_static_library(library)
-    validate_sample_index(sample_index)
+    if host_attached:
+        if sample_index is not None:
+            raise GroundingRuntimePackageError("host-attached package must not receive a sample index")
+    else:
+        if sample_index is None:
+            raise GroundingRuntimePackageError("standalone package requires a sample grounding index")
+        validate_sample_index(sample_index)
 
     root = stage_parent / package_root_name(version, target)
     root.mkdir(parents=True, exist_ok=False)
@@ -248,20 +328,44 @@ def stage_bundle(
         "include/exactscope.h": ROOT / "include/exactscope.h",
         "include/exactscope_platform.h": ROOT / "include/exactscope_platform.h",
         "lib/cmake/ExactScope/ExactScopeConfig.cmake": ROOT / "cmake/ExactScopeConfig.cmake",
-        "examples/c/grounding.c": ROOT / "examples/c/grounding.c",
-        "examples/grounding/sample-docs/device-state.md": ROOT / "examples/grounding/sample-docs/device-state.md",
-        "examples/grounding/sample-docs/service-policy.md": ROOT / "examples/grounding/sample-docs/service-policy.md",
+        "adapters/llama-cpp/grounding_v1.py": ROOT / "adapters/llama-cpp/grounding_v1.py",
+        "tools/grounding_answer_contract.py": ROOT / "tools/grounding_answer_contract.py",
+        "tools/grounding_canonical.py": ROOT / "tools/grounding_canonical.py",
+        "tools/grounding_engine.py": ROOT / "tools/grounding_engine.py",
+        "tools/grounding_match.py": ROOT / "tools/grounding_match.py",
+        "tools/grounding_projection.py": ROOT / "tools/grounding_projection.py",
+        "tools/grounding_runtime.py": ROOT / "tools/grounding_runtime.py",
+        "tools/grounding_text.py": ROOT / "tools/grounding_text.py",
+        "tools/grounding_v1_surface.py": ROOT / "tools/grounding_v1_surface.py",
         "README.md": ROOT / "docs/GROUNDING_NATIVE_QUICKSTART.md",
         "LICENSE-MIT": ROOT / "LICENSE-MIT",
         "LICENSE-APACHE": ROOT / "LICENSE-APACHE",
         "THIRD_PARTY_NOTICES.md": ROOT / "THIRD_PARTY_NOTICES.md",
     }
+    if not host_attached:
+        fixed_payloads.update({
+            "examples/c/grounding.c": ROOT / "examples/c/grounding.c",
+            "examples/grounding/sample-docs/device-state.md": ROOT / "examples/grounding/sample-docs/device-state.md",
+            "examples/grounding/sample-docs/service-policy.md": ROOT / "examples/grounding/sample-docs/service-policy.md",
+            "tools/grounding_corpus.py": ROOT / "tools/grounding_corpus.py",
+        })
     for relative, source in fixed_payloads.items():
         copy_file(source, root / relative)
+    reference_profile = ROOT / "grounding/reference-profile-v0.1"
+    for source in sorted(reference_profile.iterdir(), key=lambda path: path.name):
+        if source.is_file():
+            copy_file(source, root / "grounding/reference-profile-v0.1" / source.name)
     copy_file(library, root / runtime_path)
-    copy_file(sample_index, root / SAMPLE_INDEX_PATH)
+    if sample_index is not None:
+        copy_file(sample_index, root / SAMPLE_INDEX_PATH)
 
     files = payload_hashes(root)
+    sample_provider = None if host_attached else {
+        "path": SAMPLE_INDEX_PATH,
+        "purpose": "demonstration-only",
+        "size_bytes": (root / SAMPLE_INDEX_PATH).stat().st_size,
+        "sha256": files[SAMPLE_INDEX_PATH],
+    }
     manifest = {
         "format": FORMAT,
         "format_version": FORMAT_VERSION,
@@ -275,11 +379,30 @@ def stage_bundle(
             "size_bytes": (root / runtime_path).stat().st_size,
             "sha256": files[runtime_path],
         },
-        "sample_provider": {
-            "path": SAMPLE_INDEX_PATH,
-            "purpose": "demonstration-only",
-            "size_bytes": (root / SAMPLE_INDEX_PATH).stat().st_size,
-            "sha256": files[SAMPLE_INDEX_PATH],
+        "sample_provider": sample_provider,
+        "host_integration": {
+            "adapter": "adapters/llama-cpp/grounding_v1.py",
+            "runtime": "host-owned-loopback-llama.cpp",
+            "language": "python3-standard-library",
+            "surface": "v1.1-prepared-runtime-amplifier-v1",
+            "corpus_projection": "precision-context-v5",
+            "corpus_evidence_policy": "adaptive-evidence-v1",
+            "corpus_evidence_max_bytes": 2048,
+            "corpus_evidence_tiers_bytes": [512, 1024, 2048],
+            "answer_contract": "typed-answer-contract-v1",
+            "answer_kinds": ["text", "choice", "boolean", "integer", "number"],
+            "capability_cache": "identity-bound-capability-cache-v2",
+            "prefix_cache_hint": "stable-prefix-cache-key-v2",
+            "session_cache": "prepared-immutable-amplifier-v1",
+            "hot_path_artifact_io": False,
+            "backend_prompt_cache": "host-owned-parity-gated",
+            "model_answer_calls": "zero-or-one",
+            "second_model_calls": 0,
+            "retry_count": 0,
+            "transport": "direct-literal-loopback-http-no-proxy-no-redirect-v1",
+            "record_validation": "cold-path-strict-json-recompute-v1",
+            "diagnostic": "doctor-zero-network-v1",
+            "native_core_requires_python": False,
         },
         "deployment_boundary": {
             "provider_data": "deployment-specific-not-included",
@@ -290,11 +413,15 @@ def stage_bundle(
         "support_scope": {
             "native_target": target,
             "native_status": "stable" if release_tier(version) == "stable" else "candidate",
+            "host_integration_status": "experimental-reference",
+            "qualification_architecture_status": "source-reference-only",
             "physical_arm64": "not-claimed",
             "wasm_grounding": "not-included",
         },
         "files": files,
     }
+    if host_attached:
+        manifest["package_profile"] = HOST_ATTACHED_PROFILE
     validate_manifest(manifest)
     (root / "manifest.json").write_bytes(canonical(manifest))
     checksum_names = sorted([*files, "manifest.json"])
@@ -386,10 +513,12 @@ def verify_extracted(root: Path) -> dict[str, Any]:
     validate_static_library(runtime)
     if manifest["runtime"]["size_bytes"] != runtime.stat().st_size or manifest["runtime"]["sha256"] != sha256_file(runtime):
         raise GroundingRuntimePackageError("runtime measurement mismatch")
-    sample = root / manifest["sample_provider"]["path"]
-    validate_sample_index(sample)
-    if manifest["sample_provider"]["size_bytes"] != sample.stat().st_size or manifest["sample_provider"]["sha256"] != sha256_file(sample):
-        raise GroundingRuntimePackageError("sample provider measurement mismatch")
+    sample_identity = manifest["sample_provider"]
+    if sample_identity is not None:
+        sample = root / sample_identity["path"]
+        validate_sample_index(sample)
+        if sample_identity["size_bytes"] != sample.stat().st_size or sample_identity["sha256"] != sha256_file(sample):
+            raise GroundingRuntimePackageError("sample provider measurement mismatch")
     return manifest
 
 
@@ -456,6 +585,10 @@ def verify_archive(path: Path) -> dict[str, Any]:
             archive.extractall(destination, members=members, filter="data")
         root = destination / next(iter(roots))
         manifest = verify_extracted(root)
+        if manifest.get("release_version") == "1.1.0" and compressed_bytes > V11_COMPRESSED_BYTES_MAX:
+            raise GroundingRuntimePackageError(
+                f"v1.1 package exceeds {V11_COMPRESSED_BYTES_MAX} byte +5% promotion gate"
+            )
         return {
             "manifest": manifest,
             "archive_bytes": compressed_bytes,
@@ -467,11 +600,12 @@ def verify_archive(path: Path) -> dict[str, Any]:
 def build_archive(
     *,
     library: Path,
-    sample_index: Path,
+    sample_index: Path | None,
     target: str,
     source_commit: str,
     toolchain: str,
     output_dir: Path,
+    package_profile: str | None = None,
 ) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="exactscope-grounding-stage-") as temporary:
@@ -482,11 +616,16 @@ def build_archive(
             target=target,
             source_commit=source_commit,
             toolchain=toolchain,
+            package_profile=package_profile,
         )
         payload = deterministic_archive_bytes(root)
         if len(payload) > MAX_ARCHIVE_COMPRESSED_BYTES:
             raise GroundingRuntimePackageError(
                 f"default package exceeds {MAX_ARCHIVE_COMPRESSED_BYTES} byte compressed hard cap"
+            )
+        if release_version() == "1.1.0" and len(payload) > V11_COMPRESSED_BYTES_MAX:
+            raise GroundingRuntimePackageError(
+                f"v1.1 package exceeds {V11_COMPRESSED_BYTES_MAX} byte +5% promotion gate"
             )
         output = output_dir / f"{root.name}.tar.gz"
         if output.exists() and output.read_bytes() != payload:
@@ -501,7 +640,8 @@ def parse_args() -> argparse.Namespace:
     sub = parser.add_subparsers(dest="command", required=True)
     build = sub.add_parser("build")
     build.add_argument("--library", type=Path, required=True)
-    build.add_argument("--sample-index", type=Path, required=True)
+    build.add_argument("--sample-index", type=Path)
+    build.add_argument("--package-profile", choices=(HOST_ATTACHED_PROFILE,))
     build.add_argument("--target", default="x86_64-unknown-linux-gnu")
     build.add_argument("--source-commit", required=True)
     build.add_argument("--toolchain", required=True)
@@ -534,16 +674,20 @@ def main() -> int:
             source_commit=args.source_commit,
             toolchain=args.toolchain,
             output_dir=args.output_dir,
+            package_profile=args.package_profile,
         )
         result = verify_archive(archive)
+        manifest = result["manifest"]
+        sample = manifest["sample_provider"]
         print(json.dumps({
             "status": "PASS",
             "archive": str(archive),
             "archive_sha256": sha256_file(archive),
             "archive_bytes": result["archive_bytes"],
             "unpacked_file_bytes": result["unpacked_file_bytes"],
-            "runtime_bytes": result["manifest"]["runtime"]["size_bytes"],
-            "sample_index_bytes": result["manifest"]["sample_provider"]["size_bytes"],
+            "runtime_bytes": manifest["runtime"]["size_bytes"],
+            "package_profile": manifest.get("package_profile", "standalone"),
+            "sample_index_bytes": sample["size_bytes"] if sample is not None else None,
         }, sort_keys=True))
         return 0
     except (GroundingRuntimePackageError, OSError, ValueError, json.JSONDecodeError) as exc:

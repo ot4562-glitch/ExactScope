@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 import sys
 from typing import Any
+import unicodedata
 import zipfile
 
 sys.dont_write_bytecode = True
@@ -73,23 +74,33 @@ def selection_key(source_id: int) -> tuple[bytes, int]:
     return digest, source_id
 
 
-def select_balanced(rows: list[dict[str, Any]], *, per_label: int = DEFAULT_PER_LABEL) -> list[dict[str, Any]]:
-    if type(per_label) is not int or per_label < 1:
-        raise FeverCandidateError("per_label must be positive")
+def _validate_source_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not rows:
+        raise FeverCandidateError("FEVER source rows must be nonempty")
     seen: set[int] = set()
-    by_label: dict[str, list[dict[str, Any]]] = {label: [] for label in LABELS}
+    validated: list[dict[str, Any]] = []
     for row in rows:
         source_id = row.get("id")
         if type(source_id) is not int or source_id < 0 or source_id in seen:
             raise FeverCandidateError("FEVER source ids must be unique nonnegative integers")
         seen.add(source_id)
         label = row.get("label")
-        if label not in by_label:
+        if label not in LABELS:
             raise FeverCandidateError(f"unsupported FEVER label: {label!r}")
         claim = row.get("claim")
         if not isinstance(claim, str) or not claim.strip():
             raise FeverCandidateError("FEVER claim must be nonempty text")
-        by_label[label].append(row)
+        validated.append(row)
+    return validated
+
+
+def select_balanced(rows: list[dict[str, Any]], *, per_label: int = DEFAULT_PER_LABEL) -> list[dict[str, Any]]:
+    if type(per_label) is not int or per_label < 1:
+        raise FeverCandidateError("per_label must be positive")
+    validated = _validate_source_rows(rows)
+    by_label: dict[str, list[dict[str, Any]]] = {label: [] for label in LABELS}
+    for row in validated:
+        by_label[row["label"]].append(row)
     selected: list[dict[str, Any]] = []
     for label in LABELS:
         group = sorted(by_label[label], key=lambda row: selection_key(row["id"]))
@@ -153,10 +164,21 @@ def parse_wiki_lines(page: str, value: str) -> list[dict[str, Any]]:
     return rows
 
 
+def _wiki_page_identity(page: str) -> str:
+    if not isinstance(page, str) or not page:
+        raise FeverCandidateError("FEVER wiki page id must be nonempty text")
+    return unicodedata.normalize("NFC", page)
+
+
 def scan_required_pages(zip_path: Path, required_pages: set[str]) -> dict[str, list[dict[str, Any]]]:
     if not required_pages:
         raise FeverCandidateError("no FEVER evidence pages requested")
+    requested_by_identity: dict[str, list[str]] = {}
+    for requested_page in required_pages:
+        requested_by_identity.setdefault(_wiki_page_identity(requested_page), []).append(requested_page)
+
     found: dict[str, list[dict[str, Any]]] = {}
+    found_identities: set[str] = set()
     duplicate_pages: set[str] = set()
     with zipfile.ZipFile(zip_path) as archive:
         members = sorted(
@@ -177,12 +199,20 @@ def scan_required_pages(zip_path: Path, required_pages: set[str]) -> dict[str, l
                     if not isinstance(row, dict):
                         raise FeverCandidateError(f"invalid FEVER wiki row in {member}:{line_number}")
                     page = row.get("id")
-                    if page not in required_pages:
+                    if not isinstance(page, str) or not page:
                         continue
-                    if page in found:
-                        duplicate_pages.add(page)
+                    identity = _wiki_page_identity(page)
+                    aliases = requested_by_identity.get(identity)
+                    if aliases is None:
                         continue
-                    found[page] = parse_wiki_lines(page, row.get("lines"))
+                    if identity in found_identities:
+                        duplicate_pages.add(identity)
+                        continue
+                    found_identities.add(identity)
+                    for requested_page in aliases:
+                        # Preserve the paper-dev evidence spelling in candidate identities so
+                        # gold evidence pairs and corpus candidates remain directly comparable.
+                        found[requested_page] = parse_wiki_lines(requested_page, row.get("lines"))
     if duplicate_pages:
         raise FeverCandidateError(f"duplicate FEVER page records: {sorted(duplicate_pages)[:3]}")
     missing = sorted(required_pages - found.keys(), key=lambda value: value.encode("utf-8"))
@@ -197,11 +227,38 @@ def build_candidate(
     output: Path,
     *,
     per_label: int = DEFAULT_PER_LABEL,
+    preserve_input_selection: bool = False,
+    wiki_zip_sha256: str | None = None,
+    preloaded_page_rows: dict[str, list[dict[str, Any]]] | None = None,
 ) -> dict[str, Any]:
     if output.exists():
         raise FeverCandidateError("candidate output already exists")
+    paper_sha = file_sha256(paper_dev)
+    if wiki_zip_sha256 is None:
+        wiki_sha = file_sha256(wiki_zip)
+    else:
+        if (
+            not isinstance(wiki_zip_sha256, str)
+            or len(wiki_zip_sha256) != 64
+            or any(ch not in "0123456789abcdef" for ch in wiki_zip_sha256)
+        ):
+            raise FeverCandidateError("preverified wiki ZIP SHA-256 must be lowercase hexadecimal")
+        wiki_sha = wiki_zip_sha256
     source_rows = read_jsonl(paper_dev)
-    selected = select_balanced(source_rows, per_label=per_label)
+    if preserve_input_selection:
+        selected = list(_validate_source_rows(source_rows))
+        selection_metadata = {
+            "domain": "caller-frozen-row-set-v1",
+            "item_count": len(selected),
+            "method": "preserve-input-record-order-v1",
+        }
+    else:
+        selected = select_balanced(source_rows, per_label=per_label)
+        selection_metadata = {
+            "domain": SELECTION_DOMAIN.rstrip("\0"),
+            "per_label": per_label,
+            "method": "sha256-domain-plus-decimal-source-id-v1",
+        }
 
     serving_rows: list[dict[str, Any]] = []
     gold_rows: list[dict[str, Any]] = []
@@ -219,7 +276,13 @@ def build_candidate(
                 required_pages.add(evidence["page"])
                 required_pairs.add((evidence["page"], evidence["sentence_id"]))
 
-    page_rows = scan_required_pages(wiki_zip, required_pages)
+    if preloaded_page_rows is None:
+        page_rows = scan_required_pages(wiki_zip, required_pages)
+    else:
+        missing_pages = sorted(required_pages - preloaded_page_rows.keys(), key=lambda value: value.encode("utf-8"))
+        if missing_pages:
+            raise FeverCandidateError(f"preloaded FEVER pages are incomplete: {missing_pages[:3]}")
+        page_rows = {page: preloaded_page_rows[page] for page in required_pages}
     resolved_pairs = {(page, row["sentence_id"]) for page, rows in page_rows.items() for row in rows}
     missing_pairs = sorted(required_pairs - resolved_pairs, key=lambda pair: (pair[0].encode("utf-8"), pair[1]))
     if missing_pairs:
@@ -233,17 +296,18 @@ def build_candidate(
         {"id": row["candidate_id"], "title": row["page"], "text": row["text"]}
         for row in candidates
     ]
-    corpus = build_index(
-        documents,
-        source={
-            "kind": "fever-oracle-page-pool-development",
-            "paper_dev_sha256": file_sha256(paper_dev),
-            "wiki_zip_sha256": file_sha256(wiki_zip),
-            "selection_domain": SELECTION_DOMAIN.rstrip("\0"),
-            "per_label": per_label,
-            "parser_id": PARSER_ID,
-        },
-    )
+    corpus_source = {
+        "kind": "fever-oracle-page-pool-development",
+        "paper_dev_sha256": paper_sha,
+        "wiki_zip_sha256": wiki_sha,
+        "parser_id": PARSER_ID,
+    }
+    if preserve_input_selection:
+        corpus_source["selection"] = selection_metadata
+    else:
+        corpus_source["selection_domain"] = SELECTION_DOMAIN.rstrip("\0")
+        corpus_source["per_label"] = per_label
+    corpus = build_index(documents, source=corpus_source)
 
     serving_dir = output / "serving"
     gold_dir = output / "gold"
@@ -259,26 +323,20 @@ def build_candidate(
     (gold_dir / "items.jsonl").write_bytes(gold_bytes)
     (gold_dir / "source-records.jsonl").write_bytes(audit_bytes)
 
-    paper_sha = file_sha256(paper_dev)
-    wiki_sha = file_sha256(wiki_zip)
     serving_manifest = {
         "format": "exactscope.public-fever-serving-candidate",
         "format_version": FORMAT_VERSION,
         "mode": "oracle-page-pooled-corpus-development-v1",
         "qualification_eligible": False,
         "item_count": len(serving_rows),
-        "label_balance_disclosed": True,
+        "label_balance_disclosed": not preserve_input_selection,
         "oracle_assisted_corpus": True,
         "source": {
             "paper_dev_sha256": paper_sha,
             "wiki_zip_sha256": wiki_sha,
             "parser_id": PARSER_ID,
         },
-        "selection": {
-            "domain": SELECTION_DOMAIN.rstrip("\0"),
-            "per_label": per_label,
-            "method": "sha256-domain-plus-decimal-source-id-v1",
-        },
+        "selection": selection_metadata,
         "required_page_count": len(required_pages),
         "corpus_candidate_count": len(candidates),
         "items_sha256": bytes_sha256(serving_bytes),
@@ -311,9 +369,22 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--wiki-zip", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--per-label", type=int, default=DEFAULT_PER_LABEL)
+    parser.add_argument(
+        "--preserve-input-selection",
+        action="store_true",
+        help="Build from the exact input row set/order instead of re-balancing by label.",
+    )
+    parser.add_argument("--wiki-zip-sha256")
     args = parser.parse_args(argv)
     try:
-        result = build_candidate(args.paper_dev, args.wiki_zip, args.output, per_label=args.per_label)
+        result = build_candidate(
+            args.paper_dev,
+            args.wiki_zip,
+            args.output,
+            per_label=args.per_label,
+            preserve_input_selection=args.preserve_input_selection,
+            wiki_zip_sha256=args.wiki_zip_sha256,
+        )
     except (FeverCandidateError, OSError, ValueError, zipfile.BadZipFile) as exc:
         print(f"ExactScope FEVER candidate: FAIL: {exc}")
         return 1

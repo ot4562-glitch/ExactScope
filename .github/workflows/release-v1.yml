@@ -15,7 +15,7 @@ env:
 
 jobs:
   release:
-    name: ExactScope stable grounding v1
+    name: ExactScope stable grounding v1.1
     if: github.event_name == 'workflow_dispatch' || !contains(github.ref_name, '-')
     runs-on: ubuntu-latest
     steps:
@@ -45,7 +45,15 @@ jobs:
           cargo "+$RUST_TOOLCHAIN" test -p exactscope-cabi
           python tools/test_grounding_corpus.py
           python tools/test_grounding_projection.py
+          PYTHONPATH=tools:benchmarks python tools/test_grounding_runtime.py
           PYTHONPATH=tools:benchmarks python tools/test_grounding_v1_adapter.py
+          PYTHONPATH=tools:benchmarks python tools/test_grounding_benchmark.py
+          PYTHONPATH=tools:benchmarks python tools/test_grounding_profile.py
+          PYTHONPATH=tools:benchmarks python tools/test_grounding_source_experiment.py
+          PYTHONPATH=tools:benchmarks python tools/test_grounding_package.py
+          python tools/test_public_fever_candidate.py
+          python tools/test_public_hotpot_benchmark.py
+          python tools/test_public_nq_benchmark.py
           python tools/test_package_grounding_runtime.py
           python tools/test_package_release_bundle.py
           python tools/validate_design.py
@@ -88,6 +96,16 @@ jobs:
         run: |
           python tools/package_grounding_runtime.py verify dist/exactscope-grounding-*-$TARGET.tar.gz
           python tools/test_grounding_runtime_bundle.py dist/exactscope-grounding-*-$TARGET.tar.gz
+          python tools/test_v1_native_abi_compat.py dist/exactscope-grounding-*-$TARGET.tar.gz
+
+      - name: Generate deterministic release SBOM
+        shell: bash
+        run: |
+          PROJECT_VERSION="$(python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')"
+          python tools/generate_release_sbom.py \
+            --version "$PROJECT_VERSION" \
+            --source-commit "$GITHUB_SHA" \
+            --output dist/SBOM.cdx.json
 
       - name: Create release manifest and checksums
         shell: bash
@@ -110,17 +128,38 @@ jobs:
               "unpacked_file_bytes": unpacked,
               "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
           }
+          sbom = root / "SBOM.cdx.json"
+          if not sbom.is_file():
+              raise SystemExit("SBOM.cdx.json is missing")
+          sbom_asset = {
+              "name": sbom.name,
+              "bytes": sbom.stat().st_size,
+              "sha256": hashlib.sha256(sbom.read_bytes()).hexdigest(),
+              "format": "CycloneDX-1.5",
+          }
           manifest = {
               "release": os.environ.get("GITHUB_REF_NAME", "workflow-dispatch"),
               "source_commit": os.environ["GITHUB_SHA"],
-              "stable": "-" not in os.environ.get("GITHUB_REF_NAME", ""),
-              "product": "ExactScope native grounding runtime",
+              "release_kind": "software-architecture",
+              "stable_surface": "linux-x86_64-native-grounding-c-abi-xsgi",
+              "experimental_reference_surfaces": [
+                  "qualification-control-plane",
+                  "enterprise-docqa-reference-workflow",
+                  "host-integration",
+                  "runtime-bridge",
+                  "conformance-demo",
+              ],
+              "product": "ExactScope",
               "supported_target": os.environ["TARGET"],
               "physical_arm64_qualification": "not claimed",
+              "enterprise_customer_qualification": "not claimed",
+              "economic_advantage": "not claimed",
+              "licenses_in_native_archive": ["LICENSE-MIT", "LICENSE-APACHE", "THIRD_PARTY_NOTICES.md"],
               "artifacts": [asset],
+              "sbom": sbom_asset,
           }
-          (root / "release-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-          files = [archive, root / "release-manifest.json"]
+          (root / "release-manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          files = [archive, sbom, root / "release-manifest.json"]
           (root / "SHA256SUMS").write_text(
               "".join(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n" for path in files),
               encoding="ascii",
@@ -133,6 +172,7 @@ jobs:
           name: exactscope-grounding-${{ env.TARGET }}
           path: |
             dist/*.tar.gz
+            dist/SBOM.cdx.json
             dist/SHA256SUMS
             dist/release-manifest.json
           if-no-files-found: error
@@ -146,6 +186,6 @@ jobs:
         run: >-
           gh release create "$GITHUB_REF_NAME"
           --verify-tag
-          --title "ExactScope $GITHUB_REF_NAME — Grounding Runtime for Small & On-Device AI"
+          --title "ExactScope $GITHUB_REF_NAME — Stable Native Grounding + Qualified Execution Architecture"
           --notes-file "RELEASE_NOTES_${GITHUB_REF_NAME}.md"
-          dist/*.tar.gz dist/SHA256SUMS dist/release-manifest.json
+          dist/*.tar.gz dist/SBOM.cdx.json dist/SHA256SUMS dist/release-manifest.json

@@ -1,7 +1,9 @@
 """Tests for the tiny deterministic local text-corpus index."""
 from __future__ import annotations
 
+from collections import defaultdict
 import json
+import math
 from pathlib import Path
 import struct
 import sys
@@ -14,6 +16,8 @@ sys.path[:0] = [str(ROOT / "tools")]
 
 from grounding_canonical import canonical_bytes
 from grounding_corpus import (
+    BM25_B,
+    BM25_K1,
     BINARY_FORMAT_MAJOR,
     BINARY_FORMAT_MINOR,
     BINARY_HEADER_SIZE,
@@ -56,6 +60,49 @@ class GroundingCorpusTests(unittest.TestCase):
         self.assertTrue(hits)
         self.assertEqual(hits[0]["id"], "manual/rover.md")
         self.assertIn("RM-F42", hits[0]["text"])
+
+    def test_bounded_heap_ranking_matches_previous_full_sort_order(self):
+        documents = [
+            {
+                "id": f"doc/{ordinal:03d}",
+                "title": f"Candidate {ordinal:03d}",
+                "text": " ".join(
+                    ["target"] * (1 + ordinal % 5)
+                    + ["common"] * (1 + (ordinal * 3) % 4)
+                    + (["rare"] if ordinal % 7 == 0 else [])
+                ),
+            }
+            for ordinal in range(64)
+        ]
+        index = build_index(documents)
+        question = "target common rare"
+        top_k = 12
+        actual = search(index, question, top_k=top_k)
+
+        query_terms = list(dict.fromkeys(tokenize(question)))
+        docs = index["documents"]
+        postings = index["postings"]
+        n_docs = len(docs)
+        average = index["total_tokens"] / n_docs
+        scores = defaultdict(float)
+        matched_terms = defaultdict(int)
+        for term in query_terms:
+            rows = postings.get(term)
+            if not rows:
+                continue
+            df = len(rows)
+            idf = math.log(1.0 + (n_docs - df + 0.5) / (df + 0.5))
+            for ordinal, frequency in rows:
+                length = docs[ordinal]["token_count"] or 1
+                denominator = frequency + BM25_K1 * (1.0 - BM25_B + BM25_B * length / average)
+                scores[ordinal] += idf * (frequency * (BM25_K1 + 1.0)) / denominator
+                matched_terms[ordinal] += 1
+        expected_ordinals = sorted(
+            scores,
+            key=lambda ordinal: (-scores[ordinal], -matched_terms[ordinal], docs[ordinal]["id"].encode("utf-8")),
+        )[:top_k]
+        self.assertEqual([hit["id"] for hit in actual], [docs[ordinal]["id"] for ordinal in expected_ordinals])
+        self.assertEqual([hit["score"] for hit in actual], [scores[ordinal] for ordinal in expected_ordinals])
 
     def test_unicode_query_retrieves_korean_document(self):
         index = build_index(self.documents())

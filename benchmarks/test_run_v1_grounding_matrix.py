@@ -131,6 +131,8 @@ class MatrixTests(unittest.TestCase):
                 self.assertEqual(command[command.index(flag) + 1], str(value))
             port = int(command[command.index("--port") + 1])
             self.assertEqual(cell["port"], port)
+            if cell["benchmark_id"] in {"natural_questions", "hotpotqa"}:
+                self.assertEqual(command[command.index("--max-evidence-bytes") + 1], "3072")
             ports.append(port)
         self.assertEqual(ports, list(range(self.args.port, self.args.port + 60)))
         self.assertEqual(len(set(ports)), 60)
@@ -183,7 +185,7 @@ class MatrixTests(unittest.TestCase):
             args = argparse.Namespace(candidate=self.candidates[task], output=self.root / (task + "-complete"),
                 model_id="model-0", model_root=None, model_path=None, model_inventory=self.args.model_inventory,
                 runtime_record=self.args.runtime_record, runtime_executable=self.args.runtime_executable,
-                top_k=12, max_evidence_bytes=4096, port=18801, threads=2)
+                top_k=12, max_evidence_bytes=(getattr(module, "DEFAULT_MAX_EVIDENCE_BYTES", None) or getattr(module, "MAX_EVIDENCE_BYTES", None)), port=18801, threads=2)
             def launch(*unused, **kwargs):
                 prereg = matrix.read(args.output / "preregistration.json")
                 self.assertEqual(prereg["arms"], ["A", "G"])
@@ -197,6 +199,7 @@ class MatrixTests(unittest.TestCase):
                 wait = stack.enter_context(patch.object(module, "wait_server"))
                 stack.enter_context(patch.object(module, "stop_server"))
                 stack.enter_context(patch.object(module, "server_command", return_value=["offline"]))
+                stack.enter_context(patch.object(module, "negotiate_grounding_v11_surface", return_value=("json-schema-v1", {"model_request_count": 0})))
                 stack.enter_context(patch.object(module, "calibrate_grounding_v1_contract", return_value=("offline", {"model_request_count": 0})))
                 stack.enter_context(patch.object(module, "messages", return_value=[]))
                 request = stack.enter_context(patch.object(module, "request_grounding_v1_model", return_value=response))
@@ -276,7 +279,7 @@ class MatrixTests(unittest.TestCase):
             with self.subTest(task=task), self.no_gold():
                 args = argparse.Namespace(candidate=self.candidates[task], output=self.root / (task + "-run"),
                     model_id="model-0", model_root=None, model_path=None, runtime_executable=self.args.runtime_executable,
-                    top_k=12, max_evidence_bytes=4096, port=18801, threads=2)
+                    top_k=12, max_evidence_bytes=(getattr(module, "DEFAULT_MAX_EVIDENCE_BYTES", None) or getattr(module, "MAX_EVIDENCE_BYTES", None)), port=18801, threads=2)
                 resolver = "resolve_inputs" if task == "fever" else "_runtime_inputs"
                 with patch.object(module, resolver, side_effect=ValueError("offline stop")):
                     with self.assertRaisesRegex(ValueError, "offline stop"):
@@ -318,7 +321,8 @@ class MatrixTests(unittest.TestCase):
                     expected_runtime = self.args.runtime_record if custom or task != "hotpotqa" else matrix.ROOT / "benchmarks/grounding-runtime-llama-v040.json"
                     self.assertEqual(args.model_inventory, expected_inventory)
                     self.assertEqual(args.runtime_record, expected_runtime)
-                    self.assertEqual((args.threads, args.top_k, args.max_evidence_bytes), (6, 12, 4096))
+                    expected_cap = getattr(module, "DEFAULT_MAX_EVIDENCE_BYTES", None) or getattr(module, "MAX_EVIDENCE_BYTES", None)
+                    self.assertEqual((args.threads, args.top_k, args.max_evidence_bytes), (6, 12, expected_cap))
                     self.assertEqual(args.port, {"natural_questions": 18801, "hotpotqa": 18201, "fever": 18601}[task])
                     with patch.object(module, "resolve_model", return_value=("inventory", {})) as model, patch.object(module, "resolve_runtime", return_value=("runtime", {"launch": {}})) as runtime:
                         if task == "hotpotqa":

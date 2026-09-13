@@ -1,6 +1,6 @@
 # ExactScope architecture baseline v0.1
 
-This document defines the runtime architecture. Product priority is defined in `PRODUCT_DIRECTION.md`; [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md) and [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md) define the active rc4 grounding architecture; `CAPABILITY_PRODUCT_ARCHITECTURE.md` and `MODEL_INTERFACE_RC4.md` remain valid for the quantitative capability lanes. Where older wording conflicts, the grounding contract governs the flagship rc4 product path while shared deterministic-core invariants remain binding.
+This document preserves the stable runtime architecture baseline. Product priority is defined in `PRODUCT_DIRECTION.md`; [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md) and [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md) define the stable grounding semantics; `CAPABILITY_PRODUCT_ARCHITECTURE.md` and `MODEL_INTERFACE_RC4.md` remain valid historical/quantitative references. **The active v1.1 work is an unfrozen amplifier experiment program, not a rewrite of these semantics.** Detachable modules and `ExactScope Bridge` sit around this boundary so external runtimes keep inference ownership. See [`V1_1_EXPERIMENT_PROGRAM.md`](V1_1_EXPERIMENT_PROGRAM.md) and [`V1_1_INTEGRATION_FEEDBACK.md`](V1_1_INTEGRATION_FEEDBACK.md).
 
 ## 1. System boundary
 

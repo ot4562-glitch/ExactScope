@@ -20,12 +20,27 @@ for directory in (ROOT / "tools", ROOT / "benchmarks"):
 
 from grounding_canonical import canonical_bytes, loads
 from grounding_corpus import index_sha256, load_index, search
-from grounding_projection import compact_evidence_projection
+from grounding_projection import (
+    ADAPTIVE_EVIDENCE_POLICY_ID,
+    ADAPTIVE_EVIDENCE_TIERS,
+    PRECISION_CONTEXT_PROJECTION_ID,
+    precision_context_evidence_projection_v5,
+)
 from grounding_preregister import file_sha, load_json, resolve_model, resolve_runtime
-from grounding_v1_surface import messages, parse_answer_object, surface_sha256
+from grounding_v1_surface import (
+    OUTPUT_SURFACE_CANDIDATES,
+    messages,
+    model_runtime_fingerprint,
+    parse_answer_object,
+    select_output_surface,
+    surface_sha256,
+    validate_contract_calibration_record,
+    validate_surface_negotiation_record,
+)
 from run_grounding_benchmark import (
     BenchmarkRunError,
     calibrate_grounding_v1_contract,
+    negotiate_grounding_v11_surface,
     request_grounding_v1_model,
     server_command,
     stop_server,
@@ -42,7 +57,8 @@ QUESTION_PREFIX = (
 )
 POLICY_PATH = ROOT / "grounding/reference-profile-v0.1/projection-policy.txt"
 DEFAULT_TOP_K = 12
-DEFAULT_MAX_EVIDENCE_BYTES = 4096
+DEFAULT_MAX_EVIDENCE_BYTES = 2048
+PRODUCT_MODEL_ITEM_CAP = 8
 SOURCE_FILES = (
     "benchmarks/public_fever_benchmark.py",
     "benchmarks/public_fever_candidate.py",
@@ -50,6 +66,7 @@ SOURCE_FILES = (
     "tools/grounding_corpus.py",
     "tools/grounding_projection.py",
     "tools/grounding_v1_surface.py",
+    "tools/grounding_answer_contract.py",
 )
 
 
@@ -83,10 +100,16 @@ def source_hashes() -> dict[str, str]:
     return {name: file_sha(ROOT / name) for name in SOURCE_FILES}
 
 
-def question_text(claim: str) -> str:
+def retrieval_query_text(claim: str) -> str:
+    """Return only the claim text used for retrieval/projection scoring."""
     if not isinstance(claim, str) or not claim.strip():
         raise FeverBenchmarkError("FEVER claim must be nonempty text")
-    return QUESTION_PREFIX + claim
+    return claim.strip()
+
+
+def question_text(claim: str) -> str:
+    """Return the model-visible classification instruction, never a retrieval query."""
+    return QUESTION_PREFIX + retrieval_query_text(claim)
 
 
 def question_template_sha256() -> str:
@@ -149,8 +172,8 @@ def run_screen(args: argparse.Namespace) -> None:
         raise FeverBenchmarkError("run output exists; resume/reuse forbidden")
     if not 1 <= args.top_k <= 16:
         raise FeverBenchmarkError("top_k must be between 1 and 16")
-    if not 256 <= args.max_evidence_bytes <= 4096:
-        raise FeverBenchmarkError("max_evidence_bytes must be between 256 and 4096")
+    if args.max_evidence_bytes != DEFAULT_MAX_EVIDENCE_BYTES:
+        raise FeverBenchmarkError(f"max_evidence_bytes must equal the product cap {DEFAULT_MAX_EVIDENCE_BYTES}")
     candidate = args.candidate.resolve()
     manifest, items, candidates, corpus = verify_serving_candidate(candidate)
     inventory_sha, model, runtime_sha, runtime, generation = resolve_inputs(args)
@@ -179,6 +202,12 @@ def run_screen(args: argparse.Namespace) -> None:
         "policy_sha256": sha256_bytes(policy),
         "top_k": args.top_k,
         "max_evidence_bytes": args.max_evidence_bytes,
+        "model_item_cap": PRODUCT_MODEL_ITEM_CAP,
+        "evidence_policy": ADAPTIVE_EVIDENCE_POLICY_ID,
+        "evidence_tiers_bytes": list(ADAPTIVE_EVIDENCE_TIERS),
+        "retrieval_query_policy": "claim-only-v1.1",
+        "projection_id": PRECISION_CONTEXT_PROJECTION_ID,
+        "answer_choice_policy": "trusted-finite-label-set-v1.1",
         "arms": ["A", "G"],
         "retry_count": 0,
         "hidden_repair": False,
@@ -205,21 +234,64 @@ def run_screen(args: argparse.Namespace) -> None:
     env["LD_LIBRARY_PATH"] = runtime_dir + (":" + env["LD_LIBRARY_PATH"] if env.get("LD_LIBRARY_PATH") else "")
     process: subprocess.Popen[bytes] | None = None
     records: list[dict[str, Any]] = []
+    surface_attempt_counter = {"count": 0}
+    calibration_attempt_counter = {"count": 0}
+    answer_model_request_attempts = 0
+    selected_surface: str | None = None
+    selected: str | None = None
     try:
         with log_path.open("wb") as server_log:
             process = subprocess.Popen(command, cwd=runtime_dir, stdout=server_log, stderr=subprocess.STDOUT, env=env)
             runtime_record = load_json(args.runtime_record)
             wait_server(process, runtime["launch"]["host"], int(runtime["launch"]["port"]), float(runtime_record["server_ready_timeout_seconds"]))
-            selected, calibration = calibrate_grounding_v1_contract(prereg, generation, policy)
+            selected_surface, negotiation = negotiate_grounding_v11_surface(
+                prereg, generation, policy, surface_attempt_counter
+            )
+            (args.output / "surface-negotiation.json").write_bytes(canonical_bytes(negotiation))
+            if selected_surface is None:
+                status.update({
+                    "state": "unsupported",
+                    "record_count": 0,
+                    "selected_model_contract": None,
+                    "selected_output_surface": None,
+                    "model_runtime_fingerprint": model_runtime_fingerprint(prereg),
+                    "surface_probe_requests": negotiation["model_request_count"],
+                    "surface_probe_request_attempts": surface_attempt_counter["count"],
+                    "calibration_model_requests": 0,
+                    "calibration_model_request_attempts": calibration_attempt_counter["count"],
+                    "answer_model_requests": 0,
+                    "answer_model_request_attempts": answer_model_request_attempts,
+                    "total_model_requests_including_calibration": negotiation["model_request_count"],
+                    "model_surface_sha256": prereg["model_surface_sha256"],
+                    "reason": "unsupported-model-runtime-output-surface",
+                })
+                status_path.write_bytes(canonical_bytes(status))
+                stop_server(process)
+                process = None
+                write_sums(args.output)
+                return
+            selected, calibration = calibrate_grounding_v1_contract(
+                prereg, generation, policy, selected_surface, calibration_attempt_counter
+            )
             (args.output / "contract-calibration.json").write_bytes(canonical_bytes(calibration))
             with raw_path.open("wb") as raw:
                 for item in items:
-                    q = question_text(item["claim"])
-                    a = request_grounding_v1_model(prereg, generation, messages(selected, q), selected)
+                    retrieval_query = retrieval_query_text(item["claim"])
+                    model_instruction = question_text(item["claim"])
+                    answer_model_request_attempts += 1
+                    a = request_grounding_v1_model(
+                        prereg,
+                        generation,
+                        messages(selected, model_instruction),
+                        selected,
+                        selected_surface,
+                        answer_choices=LABELS,
+                    )
                     a_record = {
                         "item_id": item["id"],
                         "arm": "A",
                         "model_contract": selected,
+                        "model_output_surface": selected_surface,
                         "model_contract_valid": a["model_contract_valid"],
                         "model_contract_output": a["model_contract_output"],
                         "raw_content": a["raw_content"],
@@ -233,16 +305,34 @@ def run_screen(args: argparse.Namespace) -> None:
                     raw.write(canonical_bytes(a_record) + b"\n")
                     records.append(a_record)
 
-                    retrieved = search(corpus, q, top_k=args.top_k)
-                    projection, emitted = compact_evidence_projection(
-                        corpus, retrieved, q, max_bytes=args.max_evidence_bytes
+                    retrieved = search(corpus, retrieval_query, top_k=args.top_k)
+                    projection, emitted, _projection_meta = precision_context_evidence_projection_v5(
+                        corpus,
+                        retrieved,
+                        retrieval_query,
+                        max_bytes=args.max_evidence_bytes,
+                        evidence_policy=ADAPTIVE_EVIDENCE_POLICY_ID,
+                        max_items=PRODUCT_MODEL_ITEM_CAP,
                     )
-                    g_messages = messages(selected, q, evidence=projection, policy=policy) if projection else messages(selected, q)
-                    g = request_grounding_v1_model(prereg, generation, g_messages, selected)
+                    g_messages = (
+                        messages(selected, model_instruction, evidence=projection, policy=policy)
+                        if projection
+                        else messages(selected, model_instruction)
+                    )
+                    answer_model_request_attempts += 1
+                    g = request_grounding_v1_model(
+                        prereg,
+                        generation,
+                        g_messages,
+                        selected,
+                        selected_surface,
+                        answer_choices=LABELS,
+                    )
                     g_record = {
                         "item_id": item["id"],
                         "arm": "G",
                         "model_contract": selected,
+                        "model_output_surface": selected_surface,
                         "model_contract_valid": g["model_contract_valid"],
                         "model_contract_output": g["model_contract_output"],
                         "raw_content": g["raw_content"],
@@ -264,9 +354,17 @@ def run_screen(args: argparse.Namespace) -> None:
             "state": "complete",
             "record_count": len(records),
             "selected_model_contract": selected,
+            "selected_output_surface": selected_surface,
+            "model_runtime_fingerprint": model_runtime_fingerprint(prereg),
+            "surface_probe_requests": negotiation["model_request_count"],
+            "surface_probe_request_attempts": surface_attempt_counter["count"],
             "calibration_model_requests": calibration["model_request_count"],
+            "calibration_model_request_attempts": calibration_attempt_counter["count"],
             "answer_model_requests": len(records),
-            "total_model_requests_including_calibration": len(records) + calibration["model_request_count"],
+            "answer_model_request_attempts": answer_model_request_attempts,
+            "total_model_requests_including_calibration": (
+                len(records) + negotiation["model_request_count"] + calibration["model_request_count"]
+            ),
             "model_surface_sha256": prereg["model_surface_sha256"],
         })
         status_path.write_bytes(canonical_bytes(status))
@@ -274,8 +372,15 @@ def run_screen(args: argparse.Namespace) -> None:
     except Exception:
         stop_server(process)
         if args.output.exists():
-            status["state"] = "invalid"
-            status["record_count"] = len(records)
+            status.update({
+                "state": "invalid",
+                "record_count": len(records),
+                "selected_model_contract": selected,
+                "selected_output_surface": selected_surface,
+                "surface_probe_request_attempts": surface_attempt_counter["count"],
+                "calibration_model_request_attempts": calibration_attempt_counter["count"],
+                "answer_model_request_attempts": answer_model_request_attempts,
+            })
             status_path.write_bytes(canonical_bytes(status))
             write_sums(args.output)
         raise
@@ -310,24 +415,71 @@ def verify_run(candidate: Path, run: Path, item_count: int) -> tuple[dict[str, A
         raise FeverBenchmarkError("FEVER run source/candidate identity drift")
     if prereg.get("model_surface_sha256") != surface_sha256() or prereg.get("question_template_sha256") != question_template_sha256():
         raise FeverBenchmarkError("FEVER model/question surface drift")
-    if prereg.get("gold_visible_to_runner") is not False or prereg.get("arms") != ["A", "G"]:
+    if (
+        prereg.get("gold_visible_to_runner") is not False
+        or prereg.get("arms") != ["A", "G"]
+        or prereg.get("retry_count") != 0
+        or prereg.get("hidden_repair") is not False
+        or prereg.get("model_item_cap") != PRODUCT_MODEL_ITEM_CAP
+        or prereg.get("evidence_policy") != ADAPTIVE_EVIDENCE_POLICY_ID
+        or prereg.get("evidence_tiers_bytes") != list(ADAPTIVE_EVIDENCE_TIERS)
+        or prereg.get("max_evidence_bytes") != DEFAULT_MAX_EVIDENCE_BYTES
+        or prereg.get("retrieval_query_policy") != "claim-only-v1.1"
+        or prereg.get("projection_id") != PRECISION_CONTEXT_PROJECTION_ID
+        or prereg.get("answer_choice_policy") != "trusted-finite-label-set-v1.1"
+    ):
         raise FeverBenchmarkError("FEVER A/G isolation drift")
     if status.get("preregistration_sha256") != file_sha(run / "preregistration.json"):
         raise FeverBenchmarkError("FEVER preregistration/status drift")
+    if status.get("model_runtime_fingerprint") != model_runtime_fingerprint(prereg):
+        raise FeverBenchmarkError("FEVER model/runtime fingerprint drift")
+
+    negotiation = load_cjson(run / "surface-negotiation.json")
+    selected_surface = status.get("selected_output_surface")
+    try:
+        recomputed_surface = validate_surface_negotiation_record(negotiation, prereg)
+    except ValueError as exc:
+        raise FeverBenchmarkError(f"FEVER surface negotiation drift: {exc}") from exc
+    if (
+        recomputed_surface != selected_surface
+        or selected_surface is None
+        or status.get("surface_probe_requests") != negotiation.get("model_request_count")
+    ):
+        raise FeverBenchmarkError("FEVER fixed surface negotiation accounting drift")
+
     calibration = load_cjson(run / "contract-calibration.json")
     selected = status.get("selected_model_contract")
-    if calibration.get("selected_contract") != selected or calibration.get("model_surface_sha256") != prereg["model_surface_sha256"]:
-        raise FeverBenchmarkError("FEVER calibration drift")
+    try:
+        recomputed_contract = validate_contract_calibration_record(calibration, selected_surface)
+    except ValueError as exc:
+        raise FeverBenchmarkError(f"FEVER calibration drift: {exc}") from exc
+    if (
+        recomputed_contract != selected
+        or status.get("calibration_model_requests") != calibration.get("model_request_count")
+    ):
+        raise FeverBenchmarkError("FEVER calibration accounting drift")
     records = load_cjsonl(run / "raw-results.jsonl")
     if len(records) != item_count * 2 or status.get("answer_model_requests") != len(records):
         raise FeverBenchmarkError("FEVER model request accounting drift")
+    if (
+        status.get("total_model_requests_including_calibration")
+        != len(records) + status.get("surface_probe_requests", -1) + status.get("calibration_model_requests", -1)
+        or status.get("surface_probe_request_attempts") != negotiation.get("model_request_count")
+        or status.get("calibration_model_request_attempts") != calibration.get("model_request_count")
+        or status.get("answer_model_request_attempts") != len(records)
+    ):
+        raise FeverBenchmarkError("FEVER total/attempt model request accounting drift")
     expected_keys = {(item["id"], arm) for item in items for arm in ("A", "G")}
     actual_keys = {(row.get("item_id"), row.get("arm")) for row in records}
     if actual_keys != expected_keys or len(actual_keys) != len(records):
         raise FeverBenchmarkError("FEVER A/G record identity drift")
     for row in records:
-        if row.get("model_contract") != selected or row.get("arm") not in {"A", "G"}:
-            raise FeverBenchmarkError("FEVER model contract drift")
+        if (
+            row.get("model_contract") != selected
+            or row.get("model_output_surface") != selected_surface
+            or row.get("arm") not in {"A", "G"}
+        ):
+            raise FeverBenchmarkError("FEVER model contract/surface drift")
         valid, value = parse_answer_object(row.get("raw_content")) if isinstance(row.get("raw_content"), str) else (False, None)
         if row.get("model_contract_valid") is not valid or row.get("model_contract_output") != value:
             raise FeverBenchmarkError("FEVER raw/model output mismatch")

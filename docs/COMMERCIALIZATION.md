@@ -1,19 +1,43 @@
 # ExactScope commercialization direction
 
-Release context: **rc4 grounding-contract design after completed v1.0.0-rc.3 qualification**. rc3 evidence showed that portability across small models depends materially on chat-template/tool-protocol compatibility and interface token cost. Commercial value therefore shifts toward a product that improves ordinary factual reliability **without requiring a model-visible tool turn**: provider-neutral prefetch, compact Grounding Frames, scoped authoritative/supplemental evidence, and measurable false-grounding/hallucination reduction. Accuracy/device/latency/energy/support claims remain candidate-bound and must not exceed measured evidence.
+Release context: **v1.0.0 is the stable Linux x86-64 grounding baseline; v1.1 remains unreleased.** The preregistered Qwen/FEVER Stage 1 stopped at `ReferenceOnly` before held-out, so successful cost compilation is not demonstrated. v1.1 is now narrowed to a qualification/configuration optimizer with semantic enforcement and immutable qualification records; the compiler category remains a research hypothesis. Customer value, recurring savings and willingness to pay remain unproved.
 
-ExactScope core is open infrastructure. Commercial value, if pursued, should come from **maintained grounding and deterministic capability products**: source/provider integration, evidence-policy engineering, compact index/profile generation, privacy/freshness/revision handling, benchmark evidence, qualification, long-term revision support, and integration assistance. Reviewed quantitative domain semantics remain an optional secondary product family.
+## v1.1 commercial hypothesis — Qualified Execution Profile
 
-It should not come from hiding arithmetic, private memory, or search access behind a proprietary runtime.
+The proposed v1.1 customer offer is not a generic "runtime amplifier." It is a **Qualified Execution Profile**: ExactScope evaluates a bounded set of semantic configurations for a customer's existing AI stack and produces a deployable candidate policy plus independent qualification attestation only when prospectively declared competence, evidence-support, latency and total-economic requirements pass on fresh data. A lower-cost reference-preserving policy is one conditional qualified outcome, not the only form of customer value.
 
-See [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md) and [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md) for the flagship product contract. [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) remains the quantitative-subsystem product-unit reference.
+The current product category is a **qualification/configuration optimizer with semantic enforcement and immutable qualification records**. **Semantic Inference Policy Compiler** remains an internal research hypothesis, and reference-preserving cost reduction remains a research algorithm after the FEVER Stage 1 `ReferenceOnly` stop. Neither should be sold as established category value.
+
+The strongest first commercial validation target remains a **high-volume bounded enterprise document-QA service with a genuinely pinned or expensive-to-change model**, but the initial task should be narrower than open-ended synthesis: short factual answers, extraction, typed decisions, and citation/provenance-bound outputs. This gives auditable authoritative evidence, measurable serving economics, and repeated traffic capable of amortizing calibration and qualification.
+
+The likely buyer is the team jointly accountable for **application quality and inference spend**. A pinned model is a customer constraint to validate, not a moat. If a better model or simpler runtime change is deployable and wins on total economics, ExactScope should recommend that alternative rather than depend on blocking a rational upgrade.
+
+The first commercial test should look more like a bounded paid evaluation/profile-delivery engagement than a hosted control plane. A useful pilot must measure:
+
+- competence and economics of the customer's real incumbent configuration;
+- a strong fixed intervention/reference;
+- a matched-budget conventional/DSPy-style tuning workflow;
+- a better-model alternative where deployable;
+- actual integration engineer-hours;
+- serving savings after retrieval/projection/inference/rejection/fallback accounting;
+- qualification and refresh cost;
+- break-even eligible volume and payback period;
+- continued value through at least one profile refresh.
+
+A project-based pilot can establish demand. Repeated bespoke delivery without reusable integration or prospective selection advantage would indicate a services business rather than a compiler moat. Reasonable initial hypotheses such as roughly five engineer-days to integrate and roughly 90-day payback must be validated with the buyer and frozen before scoring; they are not current product claims.
+
+Long-term adoption can still include runtime/platform and on-device teams, but runtime count, adapter count, tiny profile size and bridge compatibility are not purchase reasons by themselves. `ExactScope Bridge` remains an integration pressure test rather than the commercial product.
+
+ExactScope core may remain open infrastructure. Commercial value, if pursued, should come from the maintained **semantic contract, qualification lifecycle, profile production, source/evidence policy engineering, evidence revision/freshness handling, reproducible economics, and lower customer effort** that can be shown prospectively. It should not come from hiding arithmetic, private memory, retrieval access, generic evaluation, or inference-runtime machinery behind a proprietary layer.
+
+The stable-v1 grounding/source products below remain valid v1.0 commercialization material; they should not be confused with the unproved v1.1 Qualified Execution Profile thesis. See [`V1_1_PRODUCT_DIFFERENTIATION.md`](V1_1_PRODUCT_DIFFERENTIATION.md), [`V1_1_STAGE1_PREREGISTRATION.md`](V1_1_STAGE1_PREREGISTRATION.md), and [`V1_1_DIRECTION_REFRAME_ASTRA_REVIEW.md`](V1_1_DIRECTION_REFRAME_ASTRA_REVIEW.md) for current v1.1 scope. See [`GROUNDING_ARCHITECTURE.md`](GROUNDING_ARCHITECTURE.md) and [`../spec/GROUNDING_CONTRACT_V0_1.md`](../spec/GROUNDING_CONTRACT_V0_1.md) for the stable-v1 grounding contract. [`CAPABILITY_PRODUCT_ARCHITECTURE.md`](CAPABILITY_PRODUCT_ARCHITECTURE.md) remains the quantitative-subsystem product-unit reference.
 
 ## 1. Customer and runtime user
 
 ExactScope has two different roles that must not be confused:
 
-- **runtime consumer:** the small/on-device AI system;
-- **customer/integrator:** the software, AI, platform, or device team embedding ExactScope into that AI system.
+- **runtime consumer:** the existing constrained/pinned AI system, which may be an enterprise service, local model, or on-device stack;
+- **customer/integrator:** the software, AI, platform, enterprise, or device team embedding ExactScope into that system.
 
 The consumer of the product is not a person typing equations into an ExactScope application. End users should normally never see an ExactScope UI, choose formulas, install a calculator, or configure capability packs manually.
 
@@ -197,42 +221,44 @@ The product should remain attractive because it can be embedded invisibly into a
 
 ## 7. Adoption funnel
 
-The desired funnel is technical first:
+The desired funnel remains technical first, but the first commercial proof should be narrower and economically measurable:
 
 ```text
-public capability benchmark + prebuilt tiny artifact
-        -> 5-minute developer proof
-        -> customer's existing weak-model benchmark
-        -> select/compile smallest useful capability slice
-        -> existing-device integration
-        -> OTA/update/rollback proof
-        -> target qualification
-        -> maintained profiles / LTS / support where valuable
+public research evidence + tiny host-attached prototype
+        -> developer reproduces Base B / reference F evaluation
+        -> customer's competent pinned-model document-QA benchmark
+        -> preregistered calibration / qualification
+        -> CompiledCandidate(P) or ReferenceOnly(F)
+        -> customer-like fresh held-out proof
+        -> serving-cost + quality + integration payback analysis
+        -> production pilot
+        -> maintained profiles / requalification / LTS where valuable
 ```
 
-The project should not require a sales conversation before a technical evaluator can measure value.
+The project should not require a sales conversation before a technical evaluator can measure value. It also should not treat `ReferenceOnly(F)` as successful compiler commercialization: that outcome may validate the intervention/reference, but it shows no incremental selection value.
 
-The strongest commercial wedge is likely **already-designed or already-deployed constrained AI hardware** where changing the SoC, RAM, thermal design, battery budget, or model-size class is expensive or impossible but software can still be updated.
+The strongest **first commercial validation wedge** is now a **high-volume, bounded enterprise document-answering service** where the model is pinned or expensive to change, authoritative source spans make correctness auditable, serving cost is measurable, and calibration can amortize across enough repeated traffic.
 
 ## 8. Market positioning
 
 ExactScope should not define its market as only "offline AI" and should not define itself as a calculator library.
 
-The primary target is:
+The immediate validation target is:
 
-> **Physically constrained or already-deployed on-device AI products that need a narrow professional/academic capability upgrade through a tiny software component instead of a model-size or hardware generation jump.**
+> **A competent existing document-QA stack whose model is operationally constrained, where ExactScope can be judged on fresh answer quality, reference preservation, serving cost, integration effort, and calibration payback.**
 
-Representative environments include:
+Longer-term markets still include:
 
 - smart glasses and wearables;
 - phones and tablets;
 - embedded assistants;
 - robots and industrial systems;
 - automotive systems;
+- privacy-sensitive or fixed enterprise stacks;
 - other constrained edge products;
 - later regulated/certifiable product paths where arbitrary-code sandboxes are undesirable.
 
-Desktop/server environments remain useful for evaluation and integration, but they are not the center of the product thesis.
+On-device/retrofit suitability remains an important architecture constraint and future market. It is no longer the only or automatic first proof. A server/enterprise workload is acceptable when it provides the clearest prospective evidence that keeping the same model is economically preferable to using a better model or a heavier RAG/test-time-scaling path.
 
 ## 9. Competitive framing
 

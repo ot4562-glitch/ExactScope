@@ -3,20 +3,21 @@
 from __future__ import annotations
 
 import argparse
+import copy
 from dataclasses import dataclass
 from datetime import datetime
 import hashlib
-import importlib.util
 import json
 from pathlib import Path
 import re
 import sys
-from typing import Any, Protocol
+from types import MappingProxyType
+from typing import Any, Callable, Protocol
 
 sys.dont_write_bytecode = True
 
 from grounding_canonical import canonical_bytes, canonical_sha256, loads
-from grounding_match import ascii_words, frozen_alias, matches as alias_matches
+from grounding_match import frozen_alias
 
 
 class GroundingError(RuntimeError):
@@ -86,7 +87,37 @@ class RetrievalProvider(Protocol):
     ) -> dict[str, Any]: ...
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
+class GroundingLimits:
+    query_bytes: int
+    target_groups: int
+    candidates_per_invocation: int
+    items_per_target: int
+    content_bytes: int
+    frame_bytes: int
+    model_items: int
+    model_evidence_bytes: int
+    model_context_bytes: int
+
+
+@dataclass(frozen=True, slots=True)
+class CompiledRoute:
+    ascii_aliases: tuple[tuple[str, frozenset[str]], ...]
+    unicode_aliases: tuple[str, ...]
+    target_keys: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class CompiledIndexEntry:
+    source_id: str
+    target_key: str
+    source_item: dict[str, Any]
+    tie: tuple[bytes, bytes, bytes, bytes]
+    ascii_aliases: tuple[tuple[str, frozenset[str]], ...]
+    unicode_aliases: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class GroundingBundle:
     root: Path
     profile: dict[str, Any]
@@ -102,77 +133,149 @@ class GroundingBundle:
     template: bytes
     policy: bytes
     renderer_path: Path
+    renderer: Callable[[dict[str, Any], dict[str, Any], bytes, bytes], dict[str, bytes]]
+    limits: GroundingLimits
+    scope: str
+    targets_by_key: MappingProxyType
+    compiled_routes: tuple[CompiledRoute, ...]
+    router_exact_ascii: bool
+    router_config_sha256: str
+    source_snapshot_sha256: MappingProxyType
+    source_content_bytes: MappingProxyType
+    compiled_index: MappingProxyType
 
 
-def _safe_asset(root: Path, relative: str) -> Path:
-    rel = Path(relative)
-    if rel.is_absolute() or ".." in rel.parts:
-        raise GroundingError(f"unsafe asset path: {relative}")
-    path = root / rel
-    if path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(root.resolve()):
-        raise GroundingError(f"invalid asset path: {relative}")
-    return path
+class _BundleLoader:
+    """Content-addressed cold-path loader: every asset is read and parsed at most once."""
 
+    __slots__ = ("root", "_safe_paths", "_raw", "_cjson", "_digests")
 
-def _asset_digest(root: Path, ref: dict[str, Any]) -> str:
-    if set(ref) != {"path", "sha256", "encoding"}:
-        raise GroundingError("invalid asset reference")
-    path = _safe_asset(root, ref["path"])
-    data = path.read_bytes()
-    if ref["encoding"] == "grounding-cjson-v0.1":
+    def __init__(self, root: Path) -> None:
+        self.root = root.resolve()
+        self._safe_paths: dict[str, Path] = {}
+        self._raw: dict[Path, bytes] = {}
+        self._cjson: dict[Path, dict[str, Any]] = {}
+        self._digests: dict[tuple[Path, str], str] = {}
+
+    def safe_asset(self, relative: str) -> Path:
+        cached = self._safe_paths.get(relative)
+        if cached is not None:
+            return cached
+        rel = Path(relative)
+        if rel.is_absolute() or ".." in rel.parts:
+            raise GroundingError(f"unsafe asset path: {relative}")
+        path = self.root / rel
+        if path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(self.root):
+            raise GroundingError(f"invalid asset path: {relative}")
+        self._safe_paths[relative] = path
+        return path
+
+    def raw(self, path: Path) -> bytes:
+        cached = self._raw.get(path)
+        if cached is not None:
+            return cached
+        data = path.read_bytes()
+        self._raw[path] = data
+        return data
+
+    def cjson(self, path: Path) -> dict[str, Any]:
+        cached = self._cjson.get(path)
+        if cached is not None:
+            return cached
+        data = self.raw(path)
         value = loads(data)
-        canonical = canonical_bytes(value)
-        if data != canonical:
-            raise GroundingError(f"noncanonical JSON asset: {ref['path']}")
-        data = canonical
-    elif ref["encoding"] != "raw":
-        raise GroundingError(f"unsupported asset encoding: {ref['encoding']}")
-    actual = hashlib.sha256(data).hexdigest()
-    if actual != ref["sha256"]:
-        raise GroundingError(f"asset digest mismatch: {ref['path']}")
-    return actual
+        if not isinstance(value, dict) or data != canonical_bytes(value):
+            raise GroundingError(f"expected canonical JSON object: {path.name}")
+        self._cjson[path] = value
+        return value
+
+    def asset_digest(self, ref: dict[str, Any]) -> str:
+        if set(ref) != {"path", "sha256", "encoding"}:
+            raise GroundingError("invalid asset reference")
+        path = self.safe_asset(ref["path"])
+        encoding = ref["encoding"]
+        key = (path, encoding)
+        actual = self._digests.get(key)
+        if actual is None:
+            if encoding == "grounding-cjson-v0.1":
+                self.cjson(path)
+            elif encoding != "raw":
+                raise GroundingError(f"unsupported asset encoding: {encoding}")
+            actual = hashlib.sha256(self.raw(path)).hexdigest()
+            self._digests[key] = actual
+        if actual != ref["sha256"]:
+            raise GroundingError(f"asset digest mismatch: {ref['path']}")
+        return actual
+
+    def walk_refs(self, value: Any) -> None:
+        if isinstance(value, dict):
+            if set(value) == {"path", "sha256", "encoding"}:
+                self.asset_digest(value)
+            for child in value.values():
+                self.walk_refs(child)
+        elif isinstance(value, list):
+            for child in value:
+                self.walk_refs(child)
 
 
-def _walk_refs(root: Path, value: Any) -> None:
-    if isinstance(value, dict):
-        if set(value) == {"path", "sha256", "encoding"}:
-            _asset_digest(root, value)
-        for child in value.values():
-            _walk_refs(root, child)
-    elif isinstance(value, list):
-        for child in value:
-            _walk_refs(root, child)
+def _compiled_aliases(aliases: list[str]) -> tuple[tuple[tuple[str, frozenset[str]], ...], tuple[str, ...]]:
+    ascii_aliases: list[tuple[str, frozenset[str]]] = []
+    unicode_aliases: list[str] = []
+    for alias in aliases:
+        normalized = frozen_alias(alias)
+        if normalized.isascii():
+            ascii_aliases.append((normalized, frozenset(normalized.split())))
+        else:
+            unicode_aliases.append(normalized)
+    return tuple(ascii_aliases), tuple(unicode_aliases)
 
 
-def _read_cjson(path: Path) -> dict[str, Any]:
-    data = path.read_bytes()
-    value = loads(data)
-    if not isinstance(value, dict) or data != canonical_bytes(value):
-        raise GroundingError(f"expected canonical JSON object: {path.name}")
-    return value
+def _compiled_limits(profile: dict[str, Any]) -> GroundingLimits:
+    limits = profile.get("limits")
+    if not isinstance(limits, dict):
+        raise GroundingError("profile limits are missing")
+    names = (
+        "query_bytes",
+        "target_groups",
+        "candidates_per_invocation",
+        "items_per_target",
+        "content_bytes",
+        "frame_bytes",
+        "model_items",
+        "model_evidence_bytes",
+        "model_context_bytes",
+    )
+    values: dict[str, int] = {}
+    for name in names:
+        value = limits.get(name)
+        if type(value) is not int or value < 0:
+            raise GroundingError(f"invalid profile limit: {name}")
+        values[name] = value
+    return GroundingLimits(**values)
 
 
 def load_bundle(profile_dir: Path) -> GroundingBundle:
     root = profile_dir.resolve()
     if not root.is_dir() or root.is_symlink():
         raise GroundingError("profile directory is not a normal directory")
-    manifest = _read_cjson(root / "manifest.json")
+    loader = _BundleLoader(root)
+    manifest = loader.cjson(root / "manifest.json")
     listed = [entry["path"] for entry in manifest.get("assets", [])]
     if len(listed) != len(set(listed)):
         raise GroundingError("duplicate manifest asset")
     actual = {path.name for path in root.iterdir() if path.is_file()} - {"manifest.json", "README.md"}
     if set(listed) != actual:
         raise GroundingError("profile asset inventory mismatch")
-    _walk_refs(root, manifest)
+    loader.walk_refs(manifest)
     profile_ref = manifest.get("profile")
     if not isinstance(profile_ref, dict):
         raise GroundingError("manifest lacks profile reference")
-    _asset_digest(root, profile_ref)
-    profile = _read_cjson(_safe_asset(root, profile_ref["path"]))
+    loader.asset_digest(profile_ref)
+    profile = loader.cjson(loader.safe_asset(profile_ref["path"]))
     profile_sha256 = canonical_sha256(profile)
     if profile_sha256 != profile_ref["sha256"]:
         raise GroundingError("profile digest mismatch")
-    _walk_refs(root, profile)
+    loader.walk_refs(profile)
 
     if profile.get("v") != 1 or profile.get("canonical_encoding") != "grounding-cjson-v0.1":
         raise GroundingError("unsupported grounding profile")
@@ -184,14 +287,14 @@ def load_bundle(profile_dir: Path) -> GroundingBundle:
         raise GroundingError("reference A/G call-count contract mismatch")
 
     provider_ref = profile["providers"][0]["identity"]
-    provider_identity = _read_cjson(_safe_asset(root, provider_ref["path"]))
+    provider_identity = loader.cjson(loader.safe_asset(provider_ref["path"]))
     if canonical_sha256(provider_identity) != provider_ref["sha256"]:
         raise GroundingError("provider identity digest mismatch")
-    _walk_refs(root, provider_identity)
+    loader.walk_refs(provider_identity)
 
     source_snapshots: dict[str, dict[str, Any]] = {}
     for ref in profile["source_snapshots"]:
-        snapshot = _read_cjson(_safe_asset(root, ref["path"]))
+        snapshot = loader.cjson(loader.safe_asset(ref["path"]))
         if canonical_sha256(snapshot) != ref["sha256"]:
             raise GroundingError("source snapshot digest mismatch")
         source_id = snapshot.get("source_id")
@@ -211,7 +314,7 @@ def load_bundle(profile_dir: Path) -> GroundingBundle:
         for file_ref in files:
             if not isinstance(file_ref, dict):
                 raise GroundingError("malformed source snapshot file reference")
-            _asset_digest(root, file_ref)
+            loader.asset_digest(file_ref)
             if file_ref.get("path") == "adapter-config.json":
                 continue
             source_file_owners.setdefault(file_ref["path"], set()).add(source_id)
@@ -219,8 +322,9 @@ def load_bundle(profile_dir: Path) -> GroundingBundle:
         raise GroundingError("no source data files are bound")
 
     source_items: dict[tuple[str, str, str], dict[str, Any]] = {}
+    source_content_bytes: dict[tuple[str, str, str], int] = {}
     for source_path, owners in sorted(source_file_owners.items()):
-        source = _read_cjson(_safe_asset(root, source_path))
+        source = loader.cjson(loader.safe_asset(source_path))
         items = source.get("items")
         if not isinstance(items, list):
             raise GroundingError(f"source items are missing: {source_path}")
@@ -233,7 +337,8 @@ def load_bundle(profile_dir: Path) -> GroundingBundle:
             if item["source_id"] not in owners:
                 continue
             content = item.get("content")
-            if item.get("content_sha256") != canonical_sha256(content):
+            encoded_content = canonical_bytes(content)
+            if item.get("content_sha256") != hashlib.sha256(encoded_content).hexdigest():
                 raise GroundingError("evidence content digest mismatch")
             if isinstance(content, dict) and content.get("kind") == "scalar" and not valid_scalar_content(content):
                 raise GroundingError("invalid canonical scalar lexical form")
@@ -246,10 +351,11 @@ def load_bundle(profile_dir: Path) -> GroundingBundle:
             if existing is not None and existing != item:
                 raise GroundingError("evidence identity collision across source files")
             source_items[identity] = item
+            source_content_bytes[identity] = len(encoded_content)
     if not source_items:
         raise GroundingError("no source items are bound")
 
-    index = _read_cjson(root / "index.json")
+    index = loader.cjson(root / "index.json")
     entries = index.get("entries")
     if not isinstance(entries, list):
         raise GroundingError("index entries are missing")
@@ -282,9 +388,9 @@ def load_bundle(profile_dir: Path) -> GroundingBundle:
     if entry_order != sorted(entry_order):
         raise GroundingError("index entries are not in frozen tuple order")
 
-    router = _read_cjson(root / profile["router"]["path"])
-    merge = _read_cjson(root / profile["merge_policy"]["path"])
-    adapter_config = _read_cjson(root / "adapter-config.json")
+    router = loader.cjson(loader.safe_asset(profile["router"]["path"]))
+    merge = loader.cjson(loader.safe_asset(profile["merge_policy"]["path"]))
+    adapter_config = loader.cjson(root / "adapter-config.json")
     for snapshot in source_snapshots.values():
         if snapshot.get("adapter_config_sha256") != canonical_sha256(adapter_config):
             raise GroundingError("source adapter config mismatch")
@@ -306,20 +412,71 @@ def load_bundle(profile_dir: Path) -> GroundingBundle:
                 raise GroundingError("target/source binding mismatch")
 
     route_map: dict[str, tuple[str, ...]] = {}
+    compiled_routes: list[CompiledRoute] = []
     for route in router.get("routes", []):
         target_keys = tuple(sorted(route.get("target_keys", []), key=lambda value: value.encode("utf-8")))
         if any(target_key not in targets for target_key in target_keys):
             raise GroundingError("router references unknown target")
-        for alias in route.get("aliases", []):
+        aliases = route.get("aliases", [])
+        if not isinstance(aliases, list) or any(not isinstance(alias, str) for alias in aliases):
+            raise GroundingError("invalid router aliases")
+        ascii_aliases, unicode_aliases = _compiled_aliases(aliases)
+        compiled_routes.append(CompiledRoute(ascii_aliases, unicode_aliases, target_keys))
+        for alias in aliases:
             normalized = frozen_alias(alias)
             existing = route_map.get(normalized)
             if existing is not None and existing != target_keys:
                 raise GroundingError("ambiguous router alias")
             route_map[normalized] = target_keys
 
-    template = _safe_asset(root, profile["projection"]["template"]["path"]).read_bytes()
-    policy = _safe_asset(root, profile["projection"]["policy"]["path"]).read_bytes()
-    renderer_path = _safe_asset(root, profile["projection"]["renderer"]["path"])
+    router_id = router.get("id")
+    if router_id == "exact-alias-router-v1":
+        router_exact_ascii = True
+    elif router_id == "token-subset-router-v1":
+        router_exact_ascii = False
+    else:
+        raise GroundingError("unsupported router implementation")
+    scope = adapter_config.get("scope")
+    if not isinstance(scope, str) or not scope:
+        raise GroundingError("adapter security scope is missing")
+    limits = _compiled_limits(profile)
+    snapshot_sha256 = {
+        source_id: canonical_sha256(snapshot)
+        for source_id, snapshot in source_snapshots.items()
+    }
+    compiled_index_lists: dict[tuple[str, str], list[CompiledIndexEntry]] = {}
+    for entry in entries:
+        identity = (entry["source_id"], entry["item_id"], entry["source_revision"])
+        source_item = source_items[identity]
+        ascii_aliases, unicode_aliases = _compiled_aliases(entry["aliases"])
+        prepared = CompiledIndexEntry(
+            source_id=entry["source_id"],
+            target_key=entry["target_key"],
+            source_item=source_item,
+            tie=tuple(
+                entry[key].encode("utf-8")
+                for key in ("source_id", "source_revision", "item_id", "target_key")
+            ),
+            ascii_aliases=ascii_aliases,
+            unicode_aliases=unicode_aliases,
+        )
+        compiled_index_lists.setdefault((prepared.target_key, prepared.source_id), []).append(prepared)
+    compiled_index = {
+        key: tuple(value)
+        for key, value in compiled_index_lists.items()
+    }
+
+    template_path = loader.safe_asset(profile["projection"]["template"]["path"])
+    policy_path = loader.safe_asset(profile["projection"]["policy"]["path"])
+    renderer_path = loader.safe_asset(profile["projection"]["renderer"]["path"])
+    template = loader.raw(template_path)
+    policy = loader.raw(policy_path)
+    renderer_namespace: dict[str, Any] = {"__name__": "exactscope_grounding_projection"}
+    renderer_code = compile(loader.raw(renderer_path), str(renderer_path), "exec")
+    exec(renderer_code, renderer_namespace)
+    renderer = renderer_namespace.get("render")
+    if not callable(renderer):
+        raise GroundingError("projection renderer lacks render()")
     return GroundingBundle(
         root=root,
         profile=profile,
@@ -335,6 +492,16 @@ def load_bundle(profile_dir: Path) -> GroundingBundle:
         template=template,
         policy=policy,
         renderer_path=renderer_path,
+        renderer=renderer,
+        limits=limits,
+        scope=scope,
+        targets_by_key=MappingProxyType(dict(targets)),
+        compiled_routes=tuple(compiled_routes),
+        router_exact_ascii=router_exact_ascii,
+        router_config_sha256=canonical_sha256(router),
+        source_snapshot_sha256=MappingProxyType(snapshot_sha256),
+        source_content_bytes=MappingProxyType(source_content_bytes),
+        compiled_index=MappingProxyType(compiled_index),
     )
 
 
@@ -358,41 +525,40 @@ def validate_query(bundle: GroundingBundle, envelope: dict[str, Any]) -> None:
     if not isinstance(envelope.get("qid"), str) or not envelope["qid"]:
         raise GroundingError("invalid qid")
     query = envelope.get("q")
-    if not isinstance(query, str) or not query or len(query.encode("utf-8")) > bundle.profile["limits"]["query_bytes"]:
+    if not isinstance(query, str) or not query or len(query.encode("utf-8")) > bundle.limits.query_bytes:
         raise GroundingError("query exceeds frozen bounds")
-    expected_scope = bundle.adapter_config.get("scope")
-    if envelope.get("security_scope_id") != expected_scope:
+    if envelope.get("security_scope_id") != bundle.scope:
         raise GroundingError("security scope mismatch")
     if "as_of" in envelope:
         raise GroundingError("reference profile is static and rejects as_of")
 
 
 def route_query(bundle: GroundingBundle, envelope: dict[str, Any]) -> dict[str, Any]:
+    """Route using aliases compiled when the validated bundle was loaded."""
     validate_query(bundle, envelope)
-    targets_by_key = {target["target_key"]: target for target in bundle.profile["targets"]}
-    router_id = bundle.router.get("id")
-    if router_id == "exact-alias-router-v1":
-        exact_ascii = True
-    elif router_id == "token-subset-router-v1":
-        exact_ascii = False
-    else:
-        raise GroundingError("unsupported router implementation")
+    question = envelope["q"]
+    question_words = normalize_query(question)
+    question_tokens = frozenset(question_words.split()) if question_words else frozenset()
     matched: set[str] = set()
-    for route in bundle.router.get("routes", []):
-        if any(alias_matches(envelope["q"], alias, exact_ascii=exact_ascii) for alias in route.get("aliases", [])):
-            matched.update(route.get("target_keys", []))
+    for route in bundle.compiled_routes:
+        route_match = any(alias in question for alias in route.unicode_aliases)
+        if not route_match and bundle.router_exact_ascii:
+            route_match = any(question_words == alias for alias, _terms in route.ascii_aliases)
+        elif not route_match:
+            route_match = any(len(terms) >= 2 and terms <= question_tokens for _alias, terms in route.ascii_aliases)
+        if route_match:
+            matched.update(route.target_keys)
     target_keys = tuple(sorted(matched, key=lambda value: value.encode("utf-8")))
-    if len(target_keys) > bundle.profile["limits"]["target_groups"]:
+    if len(target_keys) > bundle.limits.target_groups:
         raise GroundingError("router target-group budget exceeded")
-    targets = [targets_by_key[target_key] for target_key in target_keys]
     return {
         "v": 1,
         "qid": envelope["qid"],
         "profile_sha256": bundle.profile_sha256,
         "security_scope_id": envelope["security_scope_id"],
         "router_id": bundle.router["id"],
-        "router_config_sha256": canonical_sha256(bundle.router),
-        "targets": targets,
+        "router_config_sha256": bundle.router_config_sha256,
+        "targets": [bundle.targets_by_key[target_key] for target_key in target_keys],
     }
 
 
@@ -428,7 +594,7 @@ class LocalExactLexicalProvider:
         }
 
     def _snapshot_refs(self, binding: dict[str, Any]) -> list[str]:
-        return [canonical_sha256(self.bundle.source_snapshots[source_id]) for source_id in binding["source_ids"]]
+        return [self.bundle.source_snapshot_sha256[source_id] for source_id in binding["source_ids"]]
 
     def retrieve(
         self,
@@ -436,46 +602,39 @@ class LocalExactLexicalProvider:
         target: dict[str, Any],
         binding: dict[str, Any],
     ) -> dict[str, Any]:
-        if envelope.get("security_scope_id") != self.bundle.adapter_config.get("scope"):
+        if envelope.get("security_scope_id") != self.bundle.scope:
             return self._failure(envelope, target, binding, "denied", "scope-mismatch")
         if binding.get("provider_id") != self.provider_id:
             return self._failure(envelope, target, binding, "error", "provider-binding-mismatch")
-        source_ids = set(binding.get("source_ids", []))
-        if not source_ids or not source_ids <= self.bundle.source_snapshots.keys():
+        source_ids = binding.get("source_ids")
+        if not isinstance(source_ids, list) or not source_ids or any(source_id not in self.bundle.source_snapshot_sha256 for source_id in source_ids):
             return self._failure(envelope, target, binding, "error", "source-binding-mismatch")
 
         query = normalize_query(envelope["q"])
-        query_tokens = set(query.split()) if query else set()
+        query_tokens = frozenset(query.split()) if query else frozenset()
+        target_key = target["target_key"]
         ranked: list[tuple[int, int, tuple[bytes, bytes, bytes, bytes], dict[str, Any]]] = []
-        for entry in self.bundle.index_entries:
-            if entry["source_id"] not in source_ids or entry["target_key"] != target["target_key"]:
-                continue
-            exact = 0
-            overlap = 0
-            for alias in entry["aliases"]:
-                normalized_alias = frozen_alias(alias)
-                if any(not char.isascii() for char in normalized_alias):
-                    if normalized_alias in envelope["q"]:
+        for source_id in source_ids:
+            for entry in self.bundle.compiled_index.get((target_key, source_id), ()):
+                exact = 0
+                overlap = 0
+                for alias in entry.unicode_aliases:
+                    if alias in envelope["q"]:
                         exact = 1
-                        overlap = max(overlap, 2)
+                        overlap = 2
+                        break
+                for alias, alias_terms in entry.ascii_aliases:
+                    if query and query == alias:
+                        exact = 1
+                    overlap = max(overlap, len(query_tokens & alias_terms))
+                if exact == 0 and overlap < 2:
                     continue
-                exact = max(exact, int(bool(query) and query == normalized_alias))
-                overlap = max(overlap, len(query_tokens & set(normalized_alias.split())))
-            if exact == 0 and overlap < 2:
-                continue
-            identity = (entry["source_id"], entry["item_id"], entry["source_revision"])
-            source_item = self.bundle.source_items.get(identity)
-            if source_item is None or source_item["target_key"] != target["target_key"]:
-                return self._failure(envelope, target, binding, "error", "index-source-mismatch")
-            tie = tuple(
-                entry[key].encode("utf-8")
-                for key in ("source_id", "source_revision", "item_id", "target_key")
-            )
-            ranked.append((-exact, -overlap, tie, source_item))
+                # Never expose session-owned evidence by reference. The copy is the
+                # provider boundary; all expensive integrity work was already done at load.
+                ranked.append((-exact, -overlap, entry.tie, copy.deepcopy(entry.source_item)))
 
         ranked.sort(key=lambda row: (row[0], row[1], row[2]))
-        limit = self.bundle.profile["limits"]["candidates_per_invocation"]
-        if len(ranked) > limit:
+        if len(ranked) > self.bundle.limits.candidates_per_invocation:
             return self._failure(envelope, target, binding, "budget_exceeded", "candidate-limit")
         candidates = [row[3] for row in ranked]
         return {
@@ -483,7 +642,7 @@ class LocalExactLexicalProvider:
             "qid": envelope["qid"],
             "profile_sha256": self.bundle.profile_sha256,
             "security_scope_id": envelope["security_scope_id"],
-            "target_key": target["target_key"],
+            "target_key": target_key,
             "provider_id": self.provider_id,
             "attempt": 1,
             "source_snapshot_refs": self._snapshot_refs(binding),
@@ -509,7 +668,7 @@ def _validate_outcome(
         raise GroundingError("provider outcome binding mismatch")
     if outcome.get("attempt") != 1:
         raise GroundingError("unexpected provider attempt")
-    expected_refs = [canonical_sha256(bundle.source_snapshots[source_id]) for source_id in binding["source_ids"]]
+    expected_refs = [bundle.source_snapshot_sha256[source_id] for source_id in binding["source_ids"]]
     if outcome.get("source_snapshot_refs") != expected_refs:
         raise GroundingError("provider outcome snapshot mismatch")
     status = outcome.get("status")
@@ -533,8 +692,6 @@ def _validate_outcome(
             raise GroundingError("provider candidate escaped binding")
         if bundle.source_items.get(identity) != item:
             raise GroundingError("provider candidate is not source-bound")
-        if item.get("content_sha256") != canonical_sha256(item.get("content")):
-            raise GroundingError("provider candidate content digest mismatch")
 
 
 def build_frame(
@@ -557,7 +714,7 @@ def build_frame(
         unavailable = False
         for binding in target["bindings"]:
             expected_refs = tuple(
-                canonical_sha256(bundle.source_snapshots[source_id])
+                bundle.source_snapshot_sha256[source_id]
                 for source_id in binding["source_ids"]
             )
             matches = by_key.get((target["target_key"], binding["provider_id"], expected_refs), [])
@@ -593,7 +750,7 @@ def build_frame(
                     for key in ("source_id", "source_revision", "item_id", "target_key")
                 ),
             )
-            content_identities = {canonical_sha256(item["content"]) for item in ordered}
+            content_identities = {item["content_sha256"] for item in ordered}
             source_identities = {item["source_id"] for item in ordered}
             if len(content_identities) > 1:
                 if bundle.merge.get("ambiguity_rule") == "single-source-multiple-content-v1" and len(source_identities) == 1:
@@ -606,9 +763,18 @@ def build_frame(
                 state = "none"
                 state_reason = "complete-required-coverage-no-evidence"
             else:
-                item_limit = bundle.profile["limits"]["items_per_target"]
-                content_limit = bundle.profile["limits"]["content_bytes"]
-                if len(ordered) > item_limit or any(len(canonical_bytes(item["content"])) > content_limit for item in ordered):
+                item_limit = bundle.limits.items_per_target
+                content_limit = bundle.limits.content_bytes
+                oversized = False
+                for item in ordered:
+                    identity = (item["source_id"], item["item_id"], item["source_revision"])
+                    content_size = bundle.source_content_bytes.get(identity)
+                    if content_size is None:
+                        raise GroundingError("source content size missing from compiled bundle")
+                    if content_size > content_limit:
+                        oversized = True
+                        break
+                if len(ordered) > item_limit or oversized:
                     state = "unavailable"
                     state_reason = "evidence-budget-exceeded"
                 else:
@@ -628,7 +794,7 @@ def build_frame(
 
     groups.sort(key=lambda group: group["target_key"].encode("utf-8"))
     frame = {"v": 1, "qid": envelope["qid"], "profile_sha256": bundle.profile_sha256, "groups": groups}
-    if len(canonical_bytes(frame)) > bundle.profile["limits"]["frame_bytes"]:
+    if len(canonical_bytes(frame)) > bundle.limits.frame_bytes:
         raise GroundingError("frame budget exceeded")
     audit = {
         "v": 1,
@@ -757,17 +923,72 @@ def compact_model_projection(frame: dict[str, Any], *, include_single_target: bo
     ).encode("utf-8")
 
 
+def grouped_model_projection_v2(frame: dict[str, Any], *, include_single_target: bool = False) -> bytes:
+    """Render v1.1 grouped evidence by `(authority, state)` without merging targets."""
+    groups = frame.get("groups")
+    if not isinstance(groups, list):
+        raise GroundingError("frame groups are missing")
+    include_target = include_single_target or len(groups) > 1
+    grouped: list[dict[str, Any]] = []
+    group_index: dict[tuple[str, str], int] = {}
+
+    for group in groups:
+        if not isinstance(group, dict):
+            raise GroundingError("malformed frame group")
+        authority = group.get("authority")
+        state = group.get("state")
+        if authority not in {"authoritative", "supplemental"} or state not in {"grounded", "none", "unavailable", "ambiguous", "conflict"}:
+            raise GroundingError("malformed frame authority/state")
+        items = group.get("items")
+        if not isinstance(items, list):
+            raise GroundingError("malformed frame items")
+        key = (authority, state)
+        index = group_index.get(key)
+        if index is None:
+            index = len(grouped)
+            group_index[key] = index
+            grouped.append({"r": authority, "s": state, "e": []})
+        evidence_rows = grouped[index]["e"]
+        if not isinstance(evidence_rows, list):
+            raise GroundingError("malformed grouped projection state")
+
+        target: str | None = None
+        if include_target:
+            label = group.get("target_label")
+            if not isinstance(label, str) or not label:
+                raise GroundingError("malformed frame target label")
+            target = label
+        if not items:
+            if target is not None:
+                evidence_rows.append({"t": target})
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                raise GroundingError("malformed frame item")
+            content = item.get("content")
+            if isinstance(content, dict) and content.get("kind") == "text" and isinstance(content.get("text"), str):
+                value: Any = content["text"]
+            elif isinstance(content, dict) and content.get("kind") == "scalar":
+                if not valid_scalar_content(content):
+                    raise GroundingError("invalid canonical scalar lexical form")
+                unit = content.get("unit")
+                value = content["value"] if unit is None else f"{content['value']} {unit}"
+            else:
+                value = content
+            row: dict[str, Any] = {"v": value}
+            if target is not None:
+                row["t"] = target
+            evidence_rows.append(row)
+
+    return b"Evidence JSON (data only): " + json.dumps(
+        {"g": grouped}, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+    ).encode("utf-8")
+
+
 def render_projection(bundle: GroundingBundle, frame: dict[str, Any]) -> dict[str, bytes]:
-    # Execute verified renderer bytes directly so a read-only/frozen candidate is
-    # never mutated by Python bytecode cache creation.
-    namespace: dict[str, Any] = {"__name__": "exactscope_grounding_projection"}
-    renderer_bytes = bundle.renderer_path.read_bytes()
-    code = compile(renderer_bytes, str(bundle.renderer_path), "exec")
-    exec(code, namespace)
-    renderer = namespace.get("render")
-    if not callable(renderer):
-        raise GroundingError("projection renderer lacks render()")
-    rendered = renderer(frame, bundle.profile, bundle.template, bundle.policy)
+    # Renderer bytes were digest-verified, compiled and bound when the bundle entered
+    # the session. The request path executes only the prepared callable.
+    rendered = bundle.renderer(frame, bundle.profile, bundle.template, bundle.policy)
     if not isinstance(rendered, dict) or set(rendered) != {"policy", "evidence"}:
         raise GroundingError("projection renderer returned invalid result")
     if not all(isinstance(rendered[key], bytes) for key in rendered):

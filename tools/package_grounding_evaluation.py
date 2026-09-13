@@ -96,7 +96,7 @@ def deterministic_tar(package_root: Path, archive: Path, archive_root_name: str)
 def build(args: argparse.Namespace) -> dict[str, Any]:
     if not COMMIT_RE.fullmatch(args.source_commit):
         raise PackageBuildError("--source-commit must be 40 lowercase hex chars")
-    isolation_policy_source = ROOT / "benchmarks/grounding-isolation-policy.json"
+    isolation_policy_source = ROOT / "benchmarks/grounding-isolation-policy-v0.5.json"
     isolation_policy = load_json(isolation_policy_source)
     expected_call_policy = answer_call_policy_binding(isolation_policy)
     candidate = args.candidate.resolve()
@@ -131,14 +131,17 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         "benchmarks/run_grounding_benchmark.py": ROOT / "benchmarks/run_grounding_benchmark.py",
         "benchmarks/score_grounding.py": ROOT / "benchmarks/score_grounding.py",
         "benchmarks/grounding-generation-config.json": ROOT / "benchmarks/grounding-generation-config.json",
-        "benchmarks/grounding-isolation-policy.json": isolation_policy_source,
+        "benchmarks/grounding-isolation-policy-v0.5.json": isolation_policy_source,
         "benchmarks/grounding-model-inventory.json": model_inventory_source,
         "benchmarks/grounding-runtime-llama-v040.json": runtime_record_source,
+        "tools/grounding_answer_contract.py": ROOT / "tools/grounding_answer_contract.py",
         "tools/grounding_canonical.py": ROOT / "tools/grounding_canonical.py",
         "tools/grounding_corpus.py": ROOT / "tools/grounding_corpus.py",
+        "tools/grounding_engine.py": ROOT / "tools/grounding_engine.py",
         "tools/grounding_match.py": ROOT / "tools/grounding_match.py",
         "tools/grounding_projection.py": ROOT / "tools/grounding_projection.py",
         "tools/grounding_runtime.py": ROOT / "tools/grounding_runtime.py",
+        "tools/grounding_text.py": ROOT / "tools/grounding_text.py",
         "tools/grounding_v1_surface.py": ROOT / "tools/grounding_v1_surface.py",
         "tools/verify_grounding_package.py": ROOT / "tools/verify_grounding_package.py",
         "adapters/llama-cpp/grounding_v1.py": ROOT / "adapters/llama-cpp/grounding_v1.py",
@@ -163,10 +166,11 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
     model_inventory_sha = sha256(package_root / "benchmarks/grounding-model-inventory.json")
     runtime_record_sha = sha256(package_root / "benchmarks/grounding-runtime-llama-v040.json")
     generation_sha = sha256(package_root / "benchmarks/grounding-generation-config.json")
-    isolation_sha = sha256(package_root / "benchmarks/grounding-isolation-policy.json")
+    isolation_sha = sha256(package_root / "benchmarks/grounding-isolation-policy-v0.5.json")
     scorer_sha = sha256(package_root / "benchmarks/score_grounding.py")
     model_surface_sha = surface_sha256()
     model_surface_module_sha = sha256(package_root / "tools/grounding_v1_surface.py")
+    answer_contract_module_sha = sha256(package_root / "tools/grounding_answer_contract.py")
     corpus_module_sha = sha256(package_root / "tools/grounding_corpus.py")
     projection_module_sha = sha256(package_root / "tools/grounding_projection.py")
     adapter_sha = sha256(package_root / "adapters/llama-cpp/grounding_v1.py")
@@ -185,6 +189,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         "scorer_sha256": scorer_sha,
         "model_surface_sha256": model_surface_sha,
         "model_surface_module_sha256": model_surface_module_sha,
+        "answer_contract_module_sha256": answer_contract_module_sha,
         "grounding_corpus_module_sha256": corpus_module_sha,
         "grounding_projection_module_sha256": projection_module_sha,
         "llama_cpp_adapter_sha256": adapter_sha,

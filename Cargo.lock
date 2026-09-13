@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "exactscope-cabi"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "exactscope-grounding",
  "exactscope-kernel",
@@ -14,7 +14,7 @@ dependencies = [
 
 [[package]]
 name = "exactscope-conformance"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "exactscope-kernel",
  "exactscope-pack",
@@ -24,25 +24,25 @@ dependencies = [
 
 [[package]]
 name = "exactscope-grounding"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "exactscope-kernel",
 ]
 
 [[package]]
 name = "exactscope-kernel"
-version = "1.0.0"
+version = "1.1.0"
 
 [[package]]
 name = "exactscope-pack"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "exactscope-kernel",
 ]
 
 [[package]]
 name = "exactscope-packc"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "exactscope-kernel",
  "exactscope-pack",
@@ -51,7 +51,7 @@ dependencies = [
 
 [[package]]
 name = "exactscope-tinyjson"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "exactscope-kernel",
  "exactscope-pack",
@@ -59,7 +59,7 @@ dependencies = [
 
 [[package]]
 name = "exactscope-wasm"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "exactscope-kernel",
  "exactscope-pack",

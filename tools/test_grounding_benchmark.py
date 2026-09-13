@@ -8,6 +8,9 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+
+from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOLS = ROOT / "tools"
@@ -20,13 +23,22 @@ from generate_grounding_candidate import CandidateBuilder  # noqa: E402
 from grounding_canonical import canonical_bytes, loads  # noqa: E402
 from grounding_dry_run import gold_verify, serving_run  # noqa: E402
 from score_grounding import ScoreError, score  # noqa: E402
+import run_grounding_benchmark as benchmark  # noqa: E402
 from grounding_preregister import (  # noqa: E402
     EXPECTED_ANSWER_CALL_POLICY,
     EXPECTED_MODEL_SURFACE_POLICY,
     verify_serving_candidate,
 )
 from grounding_runtime import host_grounded_scalar_reply, host_short_circuit_reply  # noqa: E402
-from grounding_v1_surface import AUTO_CONTRACT_CALIBRATION, AUTO_CONTRACT_CANDIDATES, AUTO_V2_TIE_PREFERENCE, surface_sha256  # noqa: E402
+from grounding_v1_surface import (  # noqa: E402
+    AUTO_CONTRACT_CALIBRATION,
+    AUTO_CONTRACT_CANDIDATES,
+    AUTO_V2_TIE_PREFERENCE,
+    OUTPUT_SURFACE_CANDIDATES,
+    PREFLIGHT_STOPPING_RULE,
+    model_runtime_fingerprint,
+    surface_sha256,
+)
 
 
 def load_jsonl(path: Path):
@@ -45,6 +57,7 @@ def selected_model_fields(reply):
     normalized = {"a": value, "disposition": "answer" if value is not None else "abstain"}
     return {
         "model_contract": "answer-object-v3",
+        "model_output_surface": "json-schema-v1",
         "model_contract_valid": True,
         "model_contract_output": value,
         "model_output": normalized,
@@ -140,7 +153,7 @@ def synthetic_preregistration(candidate: Path, planned_output: Path) -> dict:
     return {
         "v": 1,
         "format": "exactscope.grounding-benchmark-preregistration",
-        "format_version": "0.4",
+        "format_version": "0.5",
         "state": "frozen-before-inference",
         "run_id": "unit-run",
         "writer_id": "unit-writer",
@@ -190,21 +203,45 @@ def synthetic_preregistration(candidate: Path, planned_output: Path) -> dict:
 
 
 def synthetic_calibration() -> dict:
-    profiles = []
-    for contract in AUTO_CONTRACT_CANDIDATES:
-        cases = [
-            {"case_id": case_id, "expected": expected, "actual": expected, "valid": True, "correct": True}
-            for case_id, _question, _evidence, expected in AUTO_CONTRACT_CALIBRATION
-        ]
-        profiles.append({"contract": contract, "score": len(cases), "case_count": len(cases), "cases": cases})
+    preferred = AUTO_V2_TIE_PREFERENCE[0]
+    cases = [
+        {"case_id": case_id, "expected": expected, "actual": expected, "valid": True, "correct": True}
+        for case_id, _question, _evidence, expected in AUTO_CONTRACT_CALIBRATION
+    ]
+    profiles = [{"contract": preferred, "score": len(cases), "case_count": len(cases), "cases": cases}]
     return {
         "format": "exactscope.grounding-v1-contract-calibration",
-        "format_version": "0.1",
+        "format_version": "0.2",
         "model_surface_sha256": surface_sha256(),
-        "selected_contract": "answer-object-v3",
+        "selected_contract": preferred,
+        "selected_output_surface": "json-schema-v1",
         "tie_preference": list(AUTO_V2_TIE_PREFERENCE),
-        "model_request_count": len(AUTO_CONTRACT_CANDIDATES) * len(AUTO_CONTRACT_CALIBRATION),
+        "stopping_rule": PREFLIGHT_STOPPING_RULE,
+        "model_request_count": len(cases),
         "profiles": profiles,
+    }
+
+
+def synthetic_surface_negotiation(prereg: dict) -> dict:
+    return {
+        "format": "exactscope.grounding-v1.1-surface-negotiation",
+        "format_version": "0.2",
+        "fingerprint": model_runtime_fingerprint(prereg),
+        "model_surface_sha256": surface_sha256(),
+        "candidate_surfaces": list(OUTPUT_SURFACE_CANDIDATES),
+        "selected_surface": "json-schema-v1",
+        "supported": True,
+        "model_request_count": 1,
+        "retry_count": 0,
+        "stopping_rule": PREFLIGHT_STOPPING_RULE,
+        "probes": [{
+            "surface": OUTPUT_SURFACE_CANDIDATES[0],
+            "case_id": "surface-probe",
+            "protocol_valid": True,
+            "semantic_match": True,
+            "actual": "ZX-41",
+            "error": None,
+        }],
     }
 
 
@@ -241,6 +278,44 @@ class GroundingBenchmarkTests(unittest.TestCase):
             for p in second.rglob("*") if p.is_file()
         }
         self.assertEqual(first_files, second_files)
+
+    def test_v11_preregistration_schema_is_new_and_v04_remains_legacy(self):
+        prereg = synthetic_preregistration(self.candidate, self.root / "planned")
+        v11_schema = json.loads((ROOT / "spec/schemas/grounding-benchmark-preregistration-v0.5.schema.json").read_text(encoding="utf-8"))
+        legacy_schema = json.loads((ROOT / "spec/schemas/grounding-benchmark-preregistration-v0.4.schema.json").read_text(encoding="utf-8"))
+        Draft202012Validator(v11_schema).validate(prereg)
+        self.assertFalse(Draft202012Validator(legacy_schema).is_valid(prereg))
+        self.assertEqual(legacy_schema["properties"]["format_version"]["const"], "0.4")
+        self.assertEqual(legacy_schema["properties"]["model_surface_policy"]["properties"]["grounded_text_projection"]["const"], "compact-stateful-v1")
+
+    def test_surface_negotiation_transport_failure_is_not_unsupported(self):
+        prereg = synthetic_preregistration(self.candidate, self.root / "planned")
+        generation = {"timeout_seconds": 1}
+        with patch.object(
+            benchmark,
+            "request_grounding_v1_model",
+            side_effect=benchmark.BenchmarkRunError("llama.cpp request failed: timed out"),
+        ) as request:
+            with self.assertRaisesRegex(benchmark.BenchmarkRunError, "timed out"):
+                benchmark.negotiate_grounding_v11_surface(prereg, generation, b"policy")
+        self.assertEqual(request.call_count, 1)
+
+    def test_surface_negotiation_falls_through_only_on_explicit_rejection(self):
+        prereg = synthetic_preregistration(self.candidate, self.root / "planned")
+        generation = {"timeout_seconds": 1}
+        valid = {
+            "model_contract_valid": True,
+            "model_contract_output": "ZX-41",
+        }
+        with patch.object(
+            benchmark,
+            "request_grounding_v1_model",
+            side_effect=[benchmark.SurfaceUnsupportedRunError("HTTP 400"), valid],
+        ) as request:
+            selected, record = benchmark.negotiate_grounding_v11_surface(prereg, generation, b"policy")
+        self.assertEqual(selected, "compact-gbnf-v1")
+        self.assertEqual(request.call_count, 2)
+        self.assertTrue(record["supported"])
 
     def test_all_required_strata_are_present_and_serving_is_oracle_free(self):
         classes = load_jsonl(self.candidate / "gold/class-labels.jsonl")
@@ -363,7 +438,9 @@ class GroundingBenchmarkTests(unittest.TestCase):
         raw = run_root / "raw-results.jsonl"
         write_records(raw, records)
         preregistration = run_root / "preregistration.json"
-        preregistration.write_bytes(canonical_bytes(synthetic_preregistration(self.candidate, run_root)))
+        prereg = synthetic_preregistration(self.candidate, run_root)
+        preregistration.write_bytes(canonical_bytes(prereg))
+        (run_root / "surface-negotiation.json").write_bytes(canonical_bytes(synthetic_surface_negotiation(prereg)))
         (run_root / "contract-calibration.json").write_bytes(canonical_bytes(synthetic_calibration()))
         a_model = sum(row["arm"] == "A" and row["output_source"] == "model" for row in records)
         g_model = sum(row["arm"] == "G" and row["output_source"] == "model" for row in records)
@@ -390,8 +467,13 @@ class GroundingBenchmarkTests(unittest.TestCase):
             "host_unresolved_state_count": host_unresolved,
             "host_grounded_scalar_count": host_scalar,
             "selected_model_contract": "answer-object-v3",
+            "selected_output_surface": "json-schema-v1",
+            "model_runtime_fingerprint": model_runtime_fingerprint(prereg),
             "model_surface_sha256": surface_sha256(),
-            "calibration_model_requests": EXPECTED_MODEL_SURFACE_POLICY["calibration_model_requests"],
+            "surface_probe_requests": 1,
+            "surface_probe_request_attempts": 1,
+            "calibration_model_requests": len(AUTO_CONTRACT_CALIBRATION),
+            "calibration_model_request_attempts": len(AUTO_CONTRACT_CALIBRATION),
             "retry_count": 0,
             "preregistration_sha256": hashlib.sha256(preregistration.read_bytes()).hexdigest(),
         }
@@ -401,6 +483,24 @@ class GroundingBenchmarkTests(unittest.TestCase):
         summary, scored = score(self.candidate, raw, require_run_integrity=True)
         self.assertEqual(len(scored), 60)
         self.assertEqual(summary["arms"]["G"]["host_output_count"], 23)
+
+        negotiation_path = run_root / "surface-negotiation.json"
+        tampered_negotiation = synthetic_surface_negotiation(prereg)
+        tampered_negotiation["probes"][0]["semantic_match"] = False
+        negotiation_path.write_bytes(canonical_bytes(tampered_negotiation))
+        write_run_sums(run_root)
+        with self.assertRaisesRegex(ScoreError, "surface negotiation evidence invalid"):
+            score(self.candidate, raw, require_run_integrity=True)
+        negotiation_path.write_bytes(canonical_bytes(synthetic_surface_negotiation(prereg)))
+
+        calibration_path = run_root / "contract-calibration.json"
+        tampered_calibration = synthetic_calibration()
+        tampered_calibration["profiles"][0]["cases"][0]["actual"] = "tampered"
+        calibration_path.write_bytes(canonical_bytes(tampered_calibration))
+        write_run_sums(run_root)
+        with self.assertRaisesRegex(ScoreError, "contract calibration evidence invalid"):
+            score(self.candidate, raw, require_run_integrity=True)
+        calibration_path.write_bytes(canonical_bytes(synthetic_calibration()))
 
         status["g_model_request_attempts"] -= 1
         status_path.write_text(json.dumps(status, sort_keys=True) + "\n", encoding="utf-8")

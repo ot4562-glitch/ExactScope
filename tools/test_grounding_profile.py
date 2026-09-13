@@ -93,6 +93,7 @@ class GroundingProfileTests(unittest.TestCase):
                 "grounding-benchmark-preregistration-v0.2.schema.json",
                 "grounding-benchmark-preregistration-v0.3.schema.json",
                 "grounding-benchmark-preregistration-v0.4.schema.json",
+                "grounding-benchmark-preregistration-v0.5.schema.json",
             },
         )
         for kind, value in fixtures.items():

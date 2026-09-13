@@ -40,6 +40,7 @@ pub extern "C" fn rust_eh_personality() -> ! {
     unsafe { xs_platform_panic_abort() }
 }
 
+#[cfg(not(feature = "parasite"))]
 use exactscope_grounding::{
     GroundingIndex, GroundingSearchHit, GroundingSearchScratch, MAX_GROUNDING_HITS,
     MAX_GROUNDING_QUERY_TOKENS, MAX_GROUNDING_TOKEN_BYTES,
@@ -63,6 +64,7 @@ use exactscope_pack::{PackView, ECON_UNDERGRAD_PACK_ID, STATISTICS_CORE_PACK_ID}
 pub use exactscope_kernel::{DESIGN_ABI_MAJOR, DESIGN_ABI_MINOR};
 
 const CONTEXT_MAGIC: u32 = 0x5853_4331;
+#[cfg(not(feature = "parasite"))]
 const GROUNDING_INDEX_HANDLE_MAGIC: u32 = 0x5853_4749;
 const ABI_VERSION: u32 = 0x0001_0000;
 const CONFIG_ALLOW_DYNAMIC_PACKS: u16 = 0x0001;
@@ -129,6 +131,7 @@ pub struct XsContext {
 ///
 /// The stored view borrows immutable `.xsgi` bytes whose foreign lifetime is
 /// guaranteed by the C caller for the complete handle lifetime.
+#[cfg(not(feature = "parasite"))]
 #[repr(C)]
 pub struct XsGroundingIndex {
     magic: u32,
@@ -140,12 +143,15 @@ pub struct XsGroundingIndex {
 ///
 /// This is the exact `repr(C)` core layout; search overwrites every usable cell
 /// before reading it, so callers may provide uninitialized scratch storage.
+#[cfg(not(feature = "parasite"))]
 pub type XsGroundingSearchScratchV1 = GroundingSearchScratch;
 
 /// One ranked grounding search hit using the exact parity-proven core layout.
+#[cfg(not(feature = "parasite"))]
 pub type XsGroundingSearchHitV1 = GroundingSearchHit;
 
 /// Result metadata for one compact grounding projection.
+#[cfg(not(feature = "parasite"))]
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct XsGroundingProjectionResultV1 {
@@ -163,6 +169,7 @@ pub struct XsGroundingProjectionResultV1 {
     pub reserved: [u32; 2],
 }
 
+#[cfg(not(feature = "parasite"))]
 impl XsGroundingProjectionResultV1 {
     const fn empty(struct_size: u32) -> Self {
         Self {
@@ -579,12 +586,14 @@ pub unsafe extern "C" fn xs_context_init(
 }
 
 /// Returns the required alignment of caller-owned grounding-index handle memory.
+#[cfg(not(feature = "parasite"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn xs_grounding_index_align() -> u32 {
     u32::try_from(align_of::<XsGroundingIndex>()).unwrap_or(0)
 }
 
 /// Returns the required byte size of caller-owned grounding-index handle memory.
+#[cfg(not(feature = "parasite"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn xs_grounding_index_size() -> u32 {
     size_u32::<XsGroundingIndex>()
@@ -606,6 +615,7 @@ pub extern "C" fn xs_grounding_index_size() -> u32 {
 /// lifetime. `out_index` and `out_document_count` must be valid writable aligned
 /// pointers. Input/output/handle regions must not overlap in a way that violates
 /// Rust aliasing rules.
+#[cfg(not(feature = "parasite"))]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn xs_grounding_index_init(
     memory: *mut c_void,
@@ -671,6 +681,7 @@ pub unsafe extern "C" fn xs_grounding_index_init(
 /// and `output` must provide the declared writable aligned arrays and must not
 /// overlap the handle, bound payload, query inputs, each other, or other active
 /// writable ranges. `out_hit_count` must be a valid writable aligned pointer.
+#[cfg(not(feature = "parasite"))]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn xs_grounding_index_search(
     index: *const XsGroundingIndex,
@@ -746,6 +757,7 @@ pub unsafe extern "C" fn xs_grounding_index_search(
 /// writable aligned [`XsGroundingProjectionResultV1`] whose `struct_size` was
 /// initialized by the caller. Readable and writable regions must not overlap in
 /// a way that violates Rust aliasing rules.
+#[cfg(not(feature = "parasite"))]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn xs_grounding_index_project(
     index: *const XsGroundingIndex,
@@ -2101,6 +2113,7 @@ unsafe fn context_mut<'a>(context: *mut XsContext) -> Result<&'a mut XsContext, 
     Ok(context)
 }
 
+#[cfg(not(feature = "parasite"))]
 unsafe fn grounding_index_ref<'a>(
     index: *const XsGroundingIndex,
 ) -> Result<&'a XsGroundingIndex, Status> {
@@ -2114,6 +2127,7 @@ unsafe fn grounding_index_ref<'a>(
     Ok(index)
 }
 
+#[cfg(not(feature = "parasite"))]
 unsafe fn load_grounding_query_tokens(
     query_tokens: *const XsBytesV1,
     token_count: u16,
@@ -2154,6 +2168,7 @@ unsafe fn byte_slice<'a>(
     Ok(unsafe { slice::from_raw_parts(pointer, length) })
 }
 
+#[cfg(not(feature = "parasite"))]
 unsafe fn byte_slice_mut<'a>(
     pointer: *mut u8,
     length: u32,
@@ -2183,6 +2198,7 @@ unsafe fn typed_slice<'a, T>(pointer: *const T, length: usize) -> Result<&'a [T]
     Ok(unsafe { slice::from_raw_parts(pointer, length) })
 }
 
+#[cfg(not(feature = "parasite"))]
 unsafe fn typed_slice_mut<'a, T>(pointer: *mut T, length: usize) -> Result<&'a mut [T], Status> {
     if length == 0 {
         return Ok(&mut []);
@@ -2289,6 +2305,7 @@ unsafe fn validate_options(options: *const XsEvalOptionsV1) -> Result<(), Status
     Ok(())
 }
 
+#[cfg(not(feature = "parasite"))]
 unsafe fn grounding_projection_result_output_size(
     output: *mut XsGroundingProjectionResultV1,
 ) -> Result<u32, Status> {

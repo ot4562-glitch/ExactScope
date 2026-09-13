@@ -15,7 +15,7 @@ from grounding_match import frozen_alias
 
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = ROOT / "grounding/reference-profile-v0.1"
-ISOLATION_POLICY = ROOT / "benchmarks/grounding-isolation-policy.json"
+ISOLATION_POLICY = ROOT / "benchmarks/grounding-isolation-policy-v0.5.json"
 PROVIDER_ID = "local-exact-lexical"
 SCOPE = "benchmark-synthetic-public"
 GENERATION_REVISION = "r8"

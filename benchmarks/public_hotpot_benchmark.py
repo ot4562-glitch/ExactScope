@@ -22,12 +22,25 @@ for directory in (ROOT / "tools", ROOT / "benchmarks"):
 
 from grounding_canonical import canonical_bytes, loads
 from grounding_corpus import build_index, index_sha256, load_index, search
-from grounding_projection import compact_evidence_projection
+from grounding_projection import (
+    MULTIHOP_COVERAGE_PROJECTION_ID,
+    multihop_coverage_evidence_projection_v1,
+)
 from grounding_preregister import file_sha, load_json, resolve_model, resolve_runtime
-from grounding_v1_surface import messages, parse_answer_object, surface_sha256
+from grounding_v1_surface import (
+    OUTPUT_SURFACE_CANDIDATES,
+    messages,
+    model_runtime_fingerprint,
+    parse_answer_object,
+    select_output_surface,
+    surface_sha256,
+    validate_contract_calibration_record,
+    validate_surface_negotiation_record,
+)
 from run_grounding_benchmark import (
     BenchmarkRunError,
     calibrate_grounding_v1_contract,
+    negotiate_grounding_v11_surface,
     request_grounding_v1_model,
     server_command,
     stop_server,
@@ -41,13 +54,15 @@ RUN_FORMAT = "exactscope.public-hotpot-run"
 RUN_VERSION = "0.1"
 MODE = "pooled-distractor-corpus-v1"
 POLICY_PATH = ROOT / "grounding/reference-profile-v0.1/projection-policy.txt"
-MAX_EVIDENCE_BYTES = 4096
+MAX_EVIDENCE_BYTES = 3072
+PRODUCT_MODEL_ITEM_CAP = 12
 SOURCE_FILES = (
     "benchmarks/public_hotpot_benchmark.py",
     "benchmarks/run_grounding_benchmark.py",
     "tools/grounding_corpus.py",
     "tools/grounding_projection.py",
     "tools/grounding_v1_surface.py",
+    "tools/grounding_answer_contract.py",
 )
 
 
@@ -282,11 +297,12 @@ def _trim_hits(
     *,
     max_bytes: int,
 ) -> tuple[list[dict[str, Any]], bytes | None]:
-    projection, emitted = compact_evidence_projection(
+    projection, emitted, _projection_meta = multihop_coverage_evidence_projection_v1(
         corpus,
         hits,
         question,
         max_bytes=max_bytes,
+        max_items=PRODUCT_MODEL_ITEM_CAP,
     )
     return emitted, projection
 
@@ -296,8 +312,8 @@ def run_screen(args: argparse.Namespace) -> None:
         raise PublicBenchmarkError("run output exists; resume/reuse forbidden")
     if type(args.top_k) is not int or not 1 <= args.top_k <= 16:
         raise PublicBenchmarkError("top_k must be between 1 and 16")
-    if type(args.max_evidence_bytes) is not int or not 256 <= args.max_evidence_bytes <= 4096:
-        raise PublicBenchmarkError("max_evidence_bytes must be between 256 and 4096")
+    if args.max_evidence_bytes != MAX_EVIDENCE_BYTES:
+        raise PublicBenchmarkError(f"max_evidence_bytes must equal the product cap {MAX_EVIDENCE_BYTES}")
     candidate = args.candidate.resolve()
     manifest, questions, corpus = verify_candidate(candidate, include_gold=False)
     inventory_sha, model, runtime_sha, runtime, generation = _runtime_inputs(
@@ -327,6 +343,11 @@ def run_screen(args: argparse.Namespace) -> None:
         "policy_sha256": _sha256_bytes(policy),
         "top_k": args.top_k,
         "max_evidence_bytes": args.max_evidence_bytes,
+        "model_item_cap": PRODUCT_MODEL_ITEM_CAP,
+        "evidence_composition": "multi-source-coverage",
+        "evidence_policy": MULTIHOP_COVERAGE_PROJECTION_ID,
+        "retrieval_query_policy": "question-only-v1.1",
+        "projection_id": MULTIHOP_COVERAGE_PROJECTION_ID,
         "arms": ["A", "G"],
         "retry_count": 0,
         "hidden_repair": False,
@@ -353,22 +374,59 @@ def run_screen(args: argparse.Namespace) -> None:
     env["LD_LIBRARY_PATH"] = runtime_dir + (":" + env["LD_LIBRARY_PATH"] if env.get("LD_LIBRARY_PATH") else "")
     process: subprocess.Popen[bytes] | None = None
     records = []
+    surface_attempt_counter = {"count": 0}
+    calibration_attempt_counter = {"count": 0}
+    answer_model_request_attempts = 0
+    selected_surface: str | None = None
+    selected: str | None = None
     try:
         with log_path.open("wb") as server_log:
             process = subprocess.Popen(command, cwd=runtime_dir, stdout=server_log, stderr=subprocess.STDOUT, env=env)
             runtime_record = load_json(getattr(args, "runtime_record", ROOT / "benchmarks/grounding-runtime-llama-v040.json"))
             wait_server(process, runtime["launch"]["host"], int(runtime["launch"]["port"]), float(runtime_record["server_ready_timeout_seconds"]))
-            selected, calibration = calibrate_grounding_v1_contract(prereg, generation, policy)
+            selected_surface, negotiation = negotiate_grounding_v11_surface(
+                prereg, generation, policy, surface_attempt_counter
+            )
+            (args.output / "surface-negotiation.json").write_bytes(canonical_bytes(negotiation))
+            if selected_surface is None:
+                status.update({
+                    "state": "unsupported",
+                    "record_count": 0,
+                    "selected_model_contract": None,
+                    "selected_output_surface": None,
+                    "model_runtime_fingerprint": model_runtime_fingerprint(prereg),
+                    "surface_probe_requests": negotiation["model_request_count"],
+                    "surface_probe_request_attempts": surface_attempt_counter["count"],
+                    "calibration_model_requests": 0,
+                    "calibration_model_request_attempts": calibration_attempt_counter["count"],
+                    "answer_model_requests": 0,
+                    "answer_model_request_attempts": answer_model_request_attempts,
+                    "total_model_requests_including_calibration": negotiation["model_request_count"],
+                    "model_surface_sha256": prereg["model_surface_sha256"],
+                    "reason": "unsupported-model-runtime-output-surface",
+                })
+                status_path.write_bytes(canonical_bytes(status))
+                stop_server(process)
+                process = None
+                write_sums(args.output)
+                return
+            selected, calibration = calibrate_grounding_v1_contract(
+                prereg, generation, policy, selected_surface, calibration_attempt_counter
+            )
             (args.output / "contract-calibration.json").write_bytes(canonical_bytes(calibration))
             with raw_path.open("wb") as raw:
                 for question in questions:
                     item_id = question["item_id"]
                     text = question["question"]
-                    a = request_grounding_v1_model(prereg, generation, messages(selected, text), selected)
+                    answer_model_request_attempts += 1
+                    a = request_grounding_v1_model(
+                        prereg, generation, messages(selected, text), selected, selected_surface
+                    )
                     a_record = {
                         "item_id": item_id,
                         "arm": "A",
                         "model_contract": selected,
+                        "model_output_surface": selected_surface,
                         "model_contract_valid": a["model_contract_valid"],
                         "model_contract_output": a["model_contract_output"],
                         "raw_content": a["raw_content"],
@@ -388,11 +446,15 @@ def run_screen(args: argparse.Namespace) -> None:
                         max_bytes=args.max_evidence_bytes,
                     )
                     g_messages = messages(selected, text, evidence=projection, policy=policy) if projection else messages(selected, text)
-                    g = request_grounding_v1_model(prereg, generation, g_messages, selected)
+                    answer_model_request_attempts += 1
+                    g = request_grounding_v1_model(
+                        prereg, generation, g_messages, selected, selected_surface
+                    )
                     g_record = {
                         "item_id": item_id,
                         "arm": "G",
                         "model_contract": selected,
+                        "model_output_surface": selected_surface,
                         "model_contract_valid": g["model_contract_valid"],
                         "model_contract_output": g["model_contract_output"],
                         "raw_content": g["raw_content"],
@@ -414,9 +476,17 @@ def run_screen(args: argparse.Namespace) -> None:
             "state": "complete",
             "record_count": len(records),
             "selected_model_contract": selected,
+            "selected_output_surface": selected_surface,
+            "model_runtime_fingerprint": model_runtime_fingerprint(prereg),
+            "surface_probe_requests": negotiation["model_request_count"],
+            "surface_probe_request_attempts": surface_attempt_counter["count"],
             "calibration_model_requests": calibration["model_request_count"],
+            "calibration_model_request_attempts": calibration_attempt_counter["count"],
             "answer_model_requests": len(records),
-            "total_model_requests_including_calibration": len(records) + calibration["model_request_count"],
+            "answer_model_request_attempts": answer_model_request_attempts,
+            "total_model_requests_including_calibration": (
+                len(records) + negotiation["model_request_count"] + calibration["model_request_count"]
+            ),
             "model_surface_sha256": prereg["model_surface_sha256"],
         })
         status_path.write_bytes(canonical_bytes(status))
@@ -424,8 +494,15 @@ def run_screen(args: argparse.Namespace) -> None:
     except Exception:
         stop_server(process)
         if args.output.exists():
-            status["state"] = "invalid"
-            status["record_count"] = len(records)
+            status.update({
+                "state": "invalid",
+                "record_count": len(records),
+                "selected_model_contract": selected,
+                "selected_output_surface": selected_surface,
+                "surface_probe_request_attempts": surface_attempt_counter["count"],
+                "calibration_model_request_attempts": calibration_attempt_counter["count"],
+                "answer_model_request_attempts": answer_model_request_attempts,
+            })
             status_path.write_bytes(canonical_bytes(status))
             write_sums(args.output)
         raise
@@ -497,36 +574,73 @@ def _verify_run(
         raise PublicBenchmarkError("Hotpot run/source identity drift")
     if prereg.get("model_surface_sha256") != surface_sha256() or status.get("model_surface_sha256") != prereg["model_surface_sha256"]:
         raise PublicBenchmarkError("Hotpot model-surface identity drift")
-    if prereg.get("arms") != ["A", "G"] or prereg.get("retry_count") != 0 or prereg.get("hidden_repair") is not False:
+    if (
+        prereg.get("arms") != ["A", "G"]
+        or prereg.get("retry_count") != 0
+        or prereg.get("hidden_repair") is not False
+        or prereg.get("model_item_cap") != PRODUCT_MODEL_ITEM_CAP
+        or prereg.get("evidence_composition") != "multi-source-coverage"
+        or prereg.get("evidence_policy") != MULTIHOP_COVERAGE_PROJECTION_ID
+        or prereg.get("max_evidence_bytes") != MAX_EVIDENCE_BYTES
+        or prereg.get("retrieval_query_policy") != "question-only-v1.1"
+        or prereg.get("projection_id") != MULTIHOP_COVERAGE_PROJECTION_ID
+    ):
         raise PublicBenchmarkError("Hotpot A/G execution-policy drift")
     if prereg.get("gold_visible_to_runner") is not False:
         raise PublicBenchmarkError("Hotpot runner illegally permits gold visibility")
     if status.get("preregistration_sha256") != file_sha(prereg_path):
         raise PublicBenchmarkError("Hotpot preregistration/status identity drift")
+    if status.get("model_runtime_fingerprint") != model_runtime_fingerprint(prereg):
+        raise PublicBenchmarkError("Hotpot model/runtime fingerprint drift")
+
+    negotiation_path = run / "surface-negotiation.json"
+    negotiation_raw = negotiation_path.read_bytes()
+    negotiation = loads(negotiation_raw)
+    selected_surface = status.get("selected_output_surface")
+    if not isinstance(negotiation, dict) or negotiation_raw != canonical_bytes(negotiation):
+        raise PublicBenchmarkError("Hotpot surface negotiation encoding drift")
+    try:
+        recomputed_surface = validate_surface_negotiation_record(negotiation, prereg)
+    except ValueError as exc:
+        raise PublicBenchmarkError(f"Hotpot surface negotiation drift: {exc}") from exc
+    if (
+        recomputed_surface != selected_surface
+        or selected_surface is None
+        or status.get("surface_probe_requests") != negotiation.get("model_request_count")
+    ):
+        raise PublicBenchmarkError("Hotpot fixed surface negotiation accounting drift")
 
     calibration_path = run / "contract-calibration.json"
     calibration_raw = calibration_path.read_bytes()
     calibration = loads(calibration_raw)
     selected = status.get("selected_model_contract")
-    if (
-        not isinstance(calibration, dict)
-        or calibration_raw != canonical_bytes(calibration)
-        or calibration.get("format") != "exactscope.grounding-v1-contract-calibration"
-        or calibration.get("format_version") != "0.1"
-        or calibration.get("selected_contract") != selected
-        or calibration.get("model_surface_sha256") != prereg["model_surface_sha256"]
-        or calibration.get("model_request_count") != status.get("calibration_model_requests")
-    ):
-        raise PublicBenchmarkError("Hotpot calibration identity drift")
+    if not isinstance(calibration, dict) or calibration_raw != canonical_bytes(calibration):
+        raise PublicBenchmarkError("Hotpot calibration encoding drift")
+    try:
+        recomputed_contract = validate_contract_calibration_record(calibration, selected_surface)
+    except ValueError as exc:
+        raise PublicBenchmarkError(f"Hotpot calibration drift: {exc}") from exc
+    if recomputed_contract != selected or status.get("calibration_model_requests") != calibration.get("model_request_count"):
+        raise PublicBenchmarkError("Hotpot calibration accounting drift")
 
     records = _load_jsonl(run / "raw-results.jsonl")
     if len(records) != item_count * 2 or status.get("answer_model_requests") != len(records):
         raise PublicBenchmarkError("Hotpot run record count drift")
-    if status.get("total_model_requests_including_calibration") != len(records) + status.get("calibration_model_requests", -1):
-        raise PublicBenchmarkError("Hotpot model-request accounting drift")
+    if (
+        status.get("total_model_requests_including_calibration")
+        != len(records) + status.get("surface_probe_requests", -1) + status.get("calibration_model_requests", -1)
+        or status.get("surface_probe_request_attempts") != negotiation.get("model_request_count")
+        or status.get("calibration_model_request_attempts") != calibration.get("model_request_count")
+        or status.get("answer_model_request_attempts") != len(records)
+    ):
+        raise PublicBenchmarkError("Hotpot model-request/attempt accounting drift")
     for record in records:
-        if record.get("arm") not in {"A", "G"} or record.get("model_contract") != selected:
-            raise PublicBenchmarkError("Hotpot model record contract drift")
+        if (
+            record.get("arm") not in {"A", "G"}
+            or record.get("model_contract") != selected
+            or record.get("model_output_surface") != selected_surface
+        ):
+            raise PublicBenchmarkError("Hotpot model record contract/surface drift")
         raw_content = record.get("raw_content")
         if not isinstance(raw_content, str):
             raise PublicBenchmarkError("Hotpot model record lacks raw output")
