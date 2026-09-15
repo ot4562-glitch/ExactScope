@@ -8,9 +8,9 @@
 
 **Development status: v1.2 is under active development and research. The latest stable release remains v1.1.0.**
 
-[Current v1.2 direction](docs/V1_2_ZERO_RUNTIME_PARASITE_DIRECTION.md) · [v1.2 alpha.1 result](docs/V1_2_ALPHA_1_RESULT.md) · [Attach module research](docs/V1_2_ATTACH_OPTIMIZATION_MODULE_RESEARCH.md) · [Research status](docs/V1_2_RESEARCH_PENDING.md) · [Releases](https://github.com/ot4562-glitch/ExactScope/releases)
+[v1.2 development status](docs/V1_2_DEVELOPMENT_STATUS.md) · [Upstream integration status](docs/V1_2_UPSTREAM_INTEGRATION_STATUS.md) · [Releases](https://github.com/ot4562-glitch/ExactScope/releases)
 
-[![Development](https://img.shields.io/badge/status-v1.2%20development-yellow.svg)](docs/V1_2_ZERO_RUNTIME_PARASITE_DIRECTION.md)
+[![Development](https://img.shields.io/badge/status-v1.2%20development-yellow.svg)](docs/V1_2_DEVELOPMENT_STATUS.md)
 [![Release](https://img.shields.io/github/v/release/ot4562-glitch/ExactScope)](https://github.com/ot4562-glitch/ExactScope/releases)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
 
@@ -137,8 +137,6 @@ Latest attach research has pushed one frozen MMLU-Pro profile from **18,114 B ->
 
 A first data-only Promptfoo result importer also consumed 96 externally produced rows with zero Promptfoo/model invocations and correctly returned **`NO_SELECTION_EVIDENCE`** because the artifact had only one candidate. ExactScope is not allowed to manufacture an optimization decision when comparative evidence is missing.
 
-See [the canonical v1.2 direction](docs/V1_2_ZERO_RUNTIME_PARASITE_DIRECTION.md) and the [attach optimization module program](docs/V1_2_ATTACH_OPTIMIZATION_MODULE_RESEARCH.md).
-
 ## Why this direction exists
 
 Earlier parasite/attach research already showed that large pieces of ExactScope could be removed:
@@ -164,8 +162,6 @@ On its 42-item / 21-document engineering study:
 The ordinary-RAG F1 delta was **+1.49 pp**, but its paired confidence interval crossed zero, so it is **not** claimed as a statistically established RAG win.
 
 The next alpha is allowed to contain **less ExactScope** than alpha.1.
-
-Details: [V1_2_ALPHA_1_RESULT.md](docs/V1_2_ALPHA_1_RESULT.md).
 
 ## Research evidence that supports minimum-sufficient profiles
 
@@ -221,12 +217,10 @@ Before calling the new direction successful, ExactScope should demonstrate:
 
 Start here:
 
-- [Current v1.2 zero-runtime direction](docs/V1_2_ZERO_RUNTIME_PARASITE_DIRECTION.md)
-- [Documentation map](docs/README.md)
-- [v1.2 competitor code teardown](docs/V1_2_COMPETITOR_CODE_TEARDOWN.md)
-- [v1.2 market / AI-stack research](docs/V1_2_MARKET_HARNESS_AND_AI_STACK_RESEARCH.md)
-- [v1.2 research status](docs/V1_2_RESEARCH_PENDING.md)
+- [v1.2 development status](docs/V1_2_DEVELOPMENT_STATUS.md)
+- [Upstream integration status](docs/V1_2_UPSTREAM_INTEGRATION_STATUS.md)
 - [Historical parasite/attach research](docs/V1_1_PARASITE_ATTACH_PROFILE.md)
+- [v1.1 stable release notes](RELEASE_NOTES_v1.1.0.md)
 
 Historical preregistrations, results and reviews are preserved under their original identities. They are evidence, not the current product definition.
 
